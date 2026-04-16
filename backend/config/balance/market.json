@@ -1,0 +1,24 @@
+{
+  "regionGoodsPremiums": {
+    "europe": {
+      "grain": 0, "cotton": 0, "tea": 1, "coal": 0, "minerals": 0,
+      "steel": 0, "silk": 1, "oil": 0, "rubber": 0
+    },
+    "americas": {
+      "grain": 0, "cotton": -1, "tea": 1, "coal": 0, "minerals": 0,
+      "steel": 2, "silk": 2, "oil": 1, "rubber": 2
+    },
+    "africa": {
+      "grain": 1, "cotton": 0, "tea": 2, "coal": 1, "minerals": -1,
+      "steel": 4, "silk": 3, "oil": 5, "rubber": 3
+    },
+    "middle_east": {
+      "grain": 1, "cotton": 2, "tea": 3, "coal": 2, "minerals": 0,
+      "steel": 3, "silk": 4, "oil": -1, "rubber": 4
+    },
+    "asia_pacific": {
+      "grain": 1, "cotton": 1, "tea": -1, "coal": 1, "minerals": 1,
+      "steel": 3, "silk": -1, "oil": 3, "rubber": 2
+    }
+  }
+}

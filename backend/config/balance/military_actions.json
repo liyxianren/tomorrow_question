@@ -1,0 +1,61 @@
+{
+  "militaryActions": {
+    "recruit_infantry": {
+      "label": "征募步兵",
+      "budgetPoolCost": 4,
+      "militaryPointCost": 0,
+      "maxPerRound": 3,
+      "effects": {
+        "militaryPointsDelta": 1
+      },
+      "description": "征募步兵部队，增加军事点。"
+    },
+    "train_artillery": {
+      "label": "训练炮兵",
+      "budgetPoolCost": 8,
+      "militaryPointCost": 0,
+      "maxPerRound": 2,
+      "effects": {
+        "militaryPointsDelta": 2
+      },
+      "description": "训练重型炮兵，快速提升军事力量。"
+    },
+    "naval_drill": {
+      "label": "海军演练",
+      "budgetPoolCost": 6,
+      "militaryPointCost": 0,
+      "maxPerRound": 2,
+      "effects": {
+        "militaryPointsDelta": 1,
+        "overseasMarketCapacityDelta": 1
+      },
+      "description": "开展海军演练，提升军事点并扩展海外市场承接力。"
+    }
+  },
+  "diplomacyActions": {
+    "establish_americas": {
+      "label": "与美洲建交",
+      "budgetPoolCost": 5,
+      "targetRegion": "americas",
+      "description": "与美洲建立外交关系，永久开放贸易通道。"
+    },
+    "establish_africa": {
+      "label": "与非洲建交",
+      "budgetPoolCost": 5,
+      "targetRegion": "africa",
+      "description": "与非洲建立外交关系，永久开放贸易通道。"
+    },
+    "establish_middle_east": {
+      "label": "与中东建交",
+      "budgetPoolCost": 5,
+      "targetRegion": "middle_east",
+      "description": "与中东建立外交关系，永久开放贸易通道。"
+    },
+    "establish_asia_pacific": {
+      "label": "与亚太建交",
+      "budgetPoolCost": 5,
+      "targetRegion": "asia_pacific",
+      "description": "与亚太建立外交关系，永久开放贸易通道。"
+    }
+  }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tomorrow Question Entry"
+  short_description: "tomorrow_question 项目入口与文档导航"
+  default_prompt: "Use $tomorrow-question-entry to explain this repo's purpose, document priority, folder layout, and recommended starting document."

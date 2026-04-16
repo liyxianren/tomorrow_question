@@ -1,0 +1,59 @@
+{
+  "nationalAbilities": {
+    "britain": {
+      "abilityId": "workshop_of_the_world",
+      "label": "世界工厂",
+      "description": "本回合所有生产订单产出翻倍。",
+      "usesPerGame": 1,
+      "effects": {
+        "productionOutputMultiplier": 2
+      }
+    },
+    "france": {
+      "abilityId": "code_napoleon",
+      "label": "民法典",
+      "description": "将三项意识形态重置为 3，并使你选定的一项额外 +3。",
+      "usesPerGame": 1,
+      "requiresTargetIdeology": true,
+      "effects": {
+        "resetIdeologiesTo": 3,
+        "targetIdeologyDelta": 3
+      }
+    },
+    "prussia": {
+      "abilityId": "krupp_steel",
+      "label": "克虏伯钢铁",
+      "description": "免费将最多 2 点机械化产能升级为蒸汽工业。",
+      "usesPerGame": 1,
+      "effects": {
+        "freeUpgradeCapacity": {
+          "sourceRouteId": "mechanized",
+          "targetRouteId": "steam",
+          "quantity": 2
+        }
+      }
+    },
+    "austria": {
+      "abilityId": "ausgleich_1867",
+      "label": "1867年妥协",
+      "description": "本回合同时提升国内与海外承接能力。",
+      "usesPerGame": 1,
+      "effects": {
+        "domesticMarketCapacityDelta": 3,
+        "overseasMarketCapacityDelta": 2
+      }
+    },
+    "russia": {
+      "abilityId": "emancipation_reform",
+      "label": "农奴解放",
+      "description": "将所有闲置产能转化为手工业，并提升平等主义。",
+      "usesPerGame": 1,
+      "effects": {
+        "convertIdleCapacityToHandicraft": true,
+        "ideologyLevelDelta": {
+          "egalitarianism": 2
+        }
+      }
+    }
+  }
+}

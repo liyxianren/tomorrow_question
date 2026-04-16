@@ -1,0 +1,839 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Game Workbench Width Demo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #05070c;
+        --panel: rgba(14, 18, 26, 0.92);
+        --panel-2: rgba(20, 24, 34, 0.92);
+        --panel-3: rgba(9, 12, 19, 0.94);
+        --edge: rgba(214, 177, 87, 0.18);
+        --edge-strong: rgba(214, 177, 87, 0.32);
+        --text: #f4ecdf;
+        --muted: rgba(244, 236, 223, 0.68);
+        --soft: rgba(244, 236, 223, 0.46);
+        --accent: #f0c76e;
+        --accent-2: #ffb978;
+        --danger: #ff8d80;
+        --success: #8bd6b1;
+        --shadow: 0 24px 64px rgba(0, 0, 0, 0.46);
+        --viewport-width: 1680px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background:
+          radial-gradient(circle at top, rgba(94, 71, 22, 0.18), transparent 24%),
+          linear-gradient(180deg, #090b10 0%, #04060b 100%);
+        color: var(--text);
+        font-family: "IBM Plex Sans", sans-serif;
+      }
+
+      body {
+        padding: 36px 28px 96px;
+      }
+
+      .page-shell {
+        width: min(100%, 1880px);
+        margin: 0 auto;
+        display: grid;
+        gap: 28px;
+      }
+
+      .hero {
+        position: sticky;
+        top: 16px;
+        z-index: 20;
+        display: grid;
+        gap: 18px;
+        padding: 24px 28px;
+        border-radius: 28px;
+        border: 1px solid var(--edge-strong);
+        background:
+          linear-gradient(180deg, rgba(17, 21, 30, 0.94) 0%, rgba(7, 9, 14, 0.98) 100%);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(14px);
+      }
+
+      .hero__eyebrow {
+        font-size: 12px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+
+      .hero__main {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) auto;
+        gap: 24px;
+        align-items: end;
+      }
+
+      .hero__title {
+        margin: 0 0 8px;
+        font-family: "Cormorant Garamond", serif;
+        font-size: clamp(38px, 4vw, 64px);
+        line-height: 0.95;
+        letter-spacing: 0.04em;
+      }
+
+      .hero__body {
+        margin: 0;
+        max-width: 80ch;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .viewport-switch {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .viewport-button {
+        appearance: none;
+        border: 1px solid var(--edge);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--text);
+        padding: 10px 14px;
+        border-radius: 999px;
+        font-size: 13px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: 160ms ease;
+      }
+
+      .viewport-button:hover,
+      .viewport-button[aria-pressed="true"] {
+        border-color: var(--edge-strong);
+        background: rgba(214, 177, 87, 0.12);
+        box-shadow: inset 0 0 0 1px rgba(214, 177, 87, 0.08);
+      }
+
+      .comparison-grid {
+        display: grid;
+        gap: 28px;
+      }
+
+      .variant {
+        display: grid;
+        gap: 18px;
+      }
+
+      .variant__header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: start;
+      }
+
+      .variant__eyebrow {
+        font-size: 12px;
+        color: var(--accent);
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+      }
+
+      .variant__title {
+        margin: 6px 0 8px;
+        font-family: "Cormorant Garamond", serif;
+        font-size: 34px;
+        line-height: 1;
+        letter-spacing: 0.04em;
+      }
+
+      .variant__body {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .variant__meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+
+      .meta-chip {
+        padding: 10px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--edge);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--soft);
+        font-size: 12px;
+        letter-spacing: 0.08em;
+      }
+
+      .variant--recommended .variant__title,
+      .variant--recommended .meta-chip strong {
+        color: #ffe6b7;
+      }
+
+      .viewport-frame {
+        position: relative;
+        width: min(100%, var(--viewport-width));
+        padding: 22px 0 28px;
+        border-radius: 34px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        background:
+          radial-gradient(circle at top, rgba(37, 41, 51, 0.38), transparent 30%),
+          linear-gradient(180deg, rgba(2, 4, 8, 0.98) 0%, rgba(5, 7, 12, 0.96) 100%);
+        overflow: hidden;
+        box-shadow: var(--shadow);
+      }
+
+      .viewport-frame::before {
+        content: attr(data-viewport-label);
+        position: absolute;
+        top: 10px;
+        right: 16px;
+        color: rgba(244, 236, 223, 0.46);
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .canvas-shell {
+        margin: 0 auto;
+        border-radius: 30px;
+        overflow: hidden;
+        border: 1px solid rgba(214, 177, 87, 0.16);
+        background:
+          linear-gradient(180deg, rgba(18, 23, 32, 0.96) 0%, rgba(6, 8, 13, 0.98) 100%);
+        box-shadow: 0 26px 54px rgba(0, 0, 0, 0.52);
+      }
+
+      .canvas-topbar {
+        padding: 18px 22px;
+        border-bottom: 1px solid rgba(214, 177, 87, 0.1);
+      }
+
+      .canvas-topbar__inner {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: center;
+      }
+
+      .status-shell {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .status-pill {
+        padding: 9px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(214, 177, 87, 0.12);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--soft);
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .command-center {
+        display: grid;
+        gap: 24px;
+        padding: 24px;
+      }
+
+      .rail,
+      .center-stage {
+        min-width: 0;
+        border-radius: 26px;
+        border: 1px solid rgba(214, 177, 87, 0.12);
+        background:
+          linear-gradient(180deg, rgba(19, 24, 34, 0.92) 0%, rgba(8, 10, 17, 0.96) 100%);
+      }
+
+      .rail {
+        padding: 16px;
+      }
+
+      .center-stage {
+        padding: 18px;
+      }
+
+      .rail__heading,
+      .section__eyebrow {
+        color: var(--accent);
+        font-size: 11px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .rail__stack,
+      .center-stack {
+        display: grid;
+        gap: 14px;
+      }
+
+      .rail-card,
+      .section,
+      .subgrid-card {
+        border-radius: 18px;
+        border: 1px solid rgba(214, 177, 87, 0.1);
+        background: rgba(255, 255, 255, 0.035);
+      }
+
+      .rail-card {
+        padding: 14px;
+      }
+
+      .rail-card__title,
+      .section__title {
+        margin: 8px 0 6px;
+        font-family: "Cormorant Garamond", serif;
+        font-size: 28px;
+        line-height: 1;
+      }
+
+      .rail-card__body,
+      .section__body,
+      .mini-copy {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.55;
+        font-size: 13px;
+      }
+
+      .metric-grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        margin-top: 12px;
+      }
+
+      .metric {
+        padding: 10px 12px;
+        border-radius: 14px;
+        background: rgba(7, 10, 16, 0.5);
+        border: 1px solid rgba(214, 177, 87, 0.08);
+      }
+
+      .metric span {
+        display: block;
+        font-size: 11px;
+        color: var(--soft);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .metric strong {
+        display: block;
+        margin-top: 4px;
+        font-size: 20px;
+        color: #fff4e2;
+      }
+
+      .phase-header {
+        padding: 18px;
+        border-radius: 22px;
+        border: 1px solid rgba(214, 177, 87, 0.16);
+        background:
+          linear-gradient(120deg, rgba(16, 20, 29, 0.94) 0%, rgba(8, 10, 16, 0.98) 100%);
+      }
+
+      .phase-header__main {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
+      }
+
+      .phase-header__title {
+        margin: 6px 0 6px;
+        font-family: "Cormorant Garamond", serif;
+        font-size: 48px;
+        line-height: 0.9;
+        letter-spacing: 0.04em;
+      }
+
+      .phase-pill-shell {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .phase-pill {
+        padding: 9px 11px;
+        border-radius: 999px;
+        border: 1px solid rgba(214, 177, 87, 0.14);
+        background: rgba(255, 255, 255, 0.04);
+        color: #ffe2af;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .section {
+        padding: 16px;
+      }
+
+      .subgrid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        margin-top: 12px;
+      }
+
+      .subgrid-card {
+        padding: 12px;
+      }
+
+      .subgrid-card strong {
+        display: block;
+        margin-bottom: 8px;
+        color: #fff0ce;
+        font-size: 14px;
+      }
+
+      .goods-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        margin-top: 14px;
+      }
+
+      .goods-card {
+        padding: 14px;
+        border-radius: 18px;
+        border: 1px solid rgba(214, 177, 87, 0.12);
+        background: rgba(8, 10, 15, 0.58);
+      }
+
+      .goods-card strong {
+        display: block;
+        margin-bottom: 8px;
+        color: #fff2d5;
+      }
+
+      .input-shell {
+        margin-top: 12px;
+        padding: 11px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.05);
+        color: rgba(255, 255, 255, 0.74);
+        font-size: 12px;
+      }
+
+      .ghost-line-list {
+        display: grid;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .ghost-line {
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .assist-submit {
+        padding: 16px;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 120, 120, 0.26);
+        background: linear-gradient(180deg, rgba(64, 18, 18, 0.86), rgba(29, 10, 10, 0.94));
+      }
+
+      .assist-submit__button {
+        margin-top: 14px;
+        width: 100%;
+        padding: 14px 18px;
+        border: 1px solid rgba(255, 180, 180, 0.26);
+        border-radius: 14px;
+        background: linear-gradient(180deg, rgba(140, 35, 35, 0.95), rgba(78, 20, 20, 0.98));
+        color: #fff5ee;
+        font-weight: 600;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .legend span {
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(214, 177, 87, 0.1);
+        color: var(--soft);
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .footer-note {
+        color: var(--soft);
+        font-size: 13px;
+        line-height: 1.6;
+      }
+
+      @media (max-width: 1200px) {
+        body {
+          padding-inline: 16px;
+        }
+
+        .hero {
+          position: static;
+        }
+
+        .hero__main,
+        .variant__header {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-shell">
+      <section class="hero">
+        <div class="hero__eyebrow">Width Compare Demo</div>
+        <div class="hero__main">
+          <div>
+            <h1 class="hero__title">游戏工作台宽度对比</h1>
+            <p class="hero__body">
+              这不是正式页面，而是一个纯静态的肉眼判断页。它只回答一个问题：桌面端
+              <code>GamePage</code>
+              的主画布和三栏比例到底应该放到多大。你可以切换视口宽度，然后直接比较
+              Current / A / B / C
+              四种方案的黑边、中央舞台占比，以及左右栏是否仍然过宽。
+            </p>
+          </div>
+          <div class="viewport-switch" role="group" aria-label="选择桌面视口">
+            <button class="viewport-button" data-width="1440" aria-pressed="false">1440</button>
+            <button class="viewport-button" data-width="1680" aria-pressed="true">1680</button>
+            <button class="viewport-button" data-width="1920" aria-pressed="false">1920</button>
+          </div>
+        </div>
+      </section>
+
+      <div class="comparison-grid" id="comparison-root"></div>
+
+      <p class="footer-note">
+        读图方式：黑色外框代表浏览器视口；内部发光的大壳代表游戏页面主体；左右两栏和中央操作台的宽度都按方案尺寸真实缩放。
+        如果你想要“页面占据网站中间主要部分”，重点看两个信号：中央操作台是否终于成为主角，以及黑边是否还在浪费大屏空间。
+      </p>
+    </div>
+
+    <script>
+      const variants = [
+        {
+          id: "current",
+          label: "Current",
+          subtitle: "当前正式版",
+          description: "左右两栏接近一等公民，中央操作区虽然在中间，但还没有真正吞掉桌面重心。",
+          note: "最接近你现在看到的状态：整体像一个被左右夹住的中控盒。",
+          canvasMax: 1720,
+          left: 312,
+          center: 972,
+          right: 356,
+          recommended: false,
+        },
+        {
+          id: "a",
+          label: "A",
+          subtitle: "保守放大",
+          description: "明显缓解中央拥挤，但仍然保持三栏相对均衡，更像温和修正而不是重做权重。",
+          note: "适合想要更宽，但又不想破坏现有三栏平衡感的版本。",
+          canvasMax: 1820,
+          left: 280,
+          center: 1192,
+          right: 300,
+          recommended: false,
+        },
+        {
+          id: "b",
+          label: "B",
+          subtitle: "中央重型加强版",
+          description: "左栏收成窄仪表盘，右栏保留但不抢戏，中间真正成为命令舞台。",
+          note: "这是最像“专业操作台”的版本，也是最适合正式翻译回 GamePage 的方案。",
+          canvasMax: 1880,
+          left: 240,
+          center: 1260,
+          right: 300,
+          recommended: true,
+        },
+        {
+          id: "c",
+          label: "C",
+          subtitle: "近 full-bleed 控制台",
+          description: "几乎把桌面可用空间全部拿来做控制台，压迫感最强，但也最容易显得散。",
+          note: "适合明确追求“像总控室一样铺满”的方向。",
+          canvasMax: 1960,
+          left: 220,
+          center: 1432,
+          right: 260,
+          recommended: false,
+        },
+      ];
+
+      const state = {
+        viewport: 1680,
+      };
+
+      const comparisonRoot = document.getElementById("comparison-root");
+      const viewportButtons = Array.from(document.querySelectorAll(".viewport-button"));
+
+      viewportButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          state.viewport = Number(button.dataset.width);
+          viewportButtons.forEach((node) => {
+            node.setAttribute("aria-pressed", String(node === button));
+          });
+          document.documentElement.style.setProperty("--viewport-width", `${state.viewport}px`);
+          render();
+        });
+      });
+
+      function render() {
+        comparisonRoot.innerHTML = variants.map(renderVariant).join("");
+      }
+
+      function renderVariant(variant) {
+        const scale = Math.min(1, state.viewport / variant.canvasMax);
+        const actualCanvas = Math.round(variant.canvasMax * scale);
+        const actualLeft = Math.round(variant.left * scale);
+        const actualCenter = Math.round(variant.center * scale);
+        const actualRight = Math.round(variant.right * scale);
+
+        return `
+          <section class="variant ${variant.recommended ? "variant--recommended" : ""}">
+            <div class="variant__header">
+              <div>
+                <div class="variant__eyebrow">${variant.subtitle}</div>
+                <h2 class="variant__title">${variant.label}</h2>
+                <p class="variant__body">${variant.description}</p>
+              </div>
+              <div class="variant__meta">
+                <div class="meta-chip">基线外层 <strong>${variant.canvasMax}</strong></div>
+                <div class="meta-chip">左栏 <strong>${variant.left}</strong></div>
+                <div class="meta-chip">中央 <strong>${variant.center}</strong></div>
+                <div class="meta-chip">右栏 <strong>${variant.right}</strong></div>
+                <div class="meta-chip">当前视口下 <strong>${actualCanvas}</strong></div>
+              </div>
+            </div>
+
+            <div class="viewport-frame" data-viewport-label="viewport ${state.viewport}px">
+              <div class="canvas-shell" style="width:${actualCanvas}px;">
+                <div class="canvas-topbar">
+                  <div class="canvas-topbar__inner">
+                    <div class="status-shell">
+                      <span class="status-pill">英国</span>
+                      <span class="status-pill">第 1 / 15 回合</span>
+                      <span class="status-pill">国家决策</span>
+                    </div>
+                    <div class="legend">
+                      <span>画布 ${actualCanvas}</span>
+                      <span>中央 ${actualCenter}</span>
+                      <span>${variant.note}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="command-center" style="grid-template-columns:${actualLeft}px ${actualCenter}px ${actualRight}px;">
+                  ${renderLeftRail()}
+                  ${renderCenterStage(variant)}
+                  ${renderAssistRail()}
+                </div>
+              </div>
+            </div>
+          </section>
+        `;
+      }
+
+      function renderLeftRail() {
+        return `
+          <aside class="rail">
+            <div class="rail__stack">
+              <div class="rail__heading">国家仪表盘</div>
+
+              <article class="rail-card">
+                <div class="section__eyebrow">核心资源</div>
+                <h3 class="rail-card__title">三池与点数</h3>
+                <div class="metric-grid">
+                  <div class="metric"><span>国内市场</span><strong>12</strong></div>
+                  <div class="metric"><span>工厂</span><strong>12</strong></div>
+                  <div class="metric"><span>财政</span><strong>18</strong></div>
+                  <div class="metric"><span>科技点</span><strong>0</strong></div>
+                </div>
+              </article>
+
+              <article class="rail-card">
+                <div class="section__eyebrow">国家结构</div>
+                <h3 class="rail-card__title">收入与工业</h3>
+                <p class="rail-card__body">当前比例 3 / 3 / 4，累计国家收入 0。</p>
+                <div class="ghost-line-list">
+                  <div class="ghost-line">手工业 产能 2</div>
+                  <div class="ghost-line">机械化 产能 0</div>
+                </div>
+              </article>
+
+              <article class="rail-card">
+                <div class="section__eyebrow">最近结算</div>
+                <h3 class="rail-card__title">暂无结算</h3>
+                <p class="rail-card__body">本局还没有新的阶段结算摘要。</p>
+              </article>
+
+              <article class="rail-card">
+                <div class="section__eyebrow">排名态势</div>
+                <h3 class="rail-card__title">累计国家收入</h3>
+                <p class="rail-card__body">排名会在财政结算后刷新。</p>
+              </article>
+            </div>
+          </aside>
+        `;
+      }
+
+      function renderCenterStage(variant) {
+        return `
+          <main class="center-stage">
+            <div class="center-stack">
+              <article class="phase-header">
+                <div class="section__eyebrow">阶段操作台</div>
+                <div class="phase-header__main">
+                  <div>
+                    <h2 class="phase-header__title">国家决策</h2>
+                    <p class="section__body">
+                      把三池预算转成生产、内需和政府策略，并为下一阶段准备结构条件。
+                    </p>
+                  </div>
+                  <div class="phase-pill-shell">
+                    <span class="phase-pill">工厂预算 12</span>
+                    <span class="phase-pill">科技点 0</span>
+                    <span class="phase-pill">军事点 0</span>
+                  </div>
+                </div>
+              </article>
+
+              <article class="section">
+                <div class="section__eyebrow">画布诊断</div>
+                <h3 class="section__title">${variant.label} 的中央舞台</h3>
+                <p class="section__body">
+                  这个版本的中间列在当前 ${state.viewport}px 视口下，实际可用宽度约为
+                  ${Math.round(Math.min(1, state.viewport / variant.canvasMax) * variant.center)}px。
+                  你应该重点判断：它到底像“操作台”，还是依然像“被塞在中间的说明卡容器”。
+                </p>
+                <div class="subgrid">
+                  <div class="subgrid-card"><strong>工厂预计消耗</strong><p class="mini-copy">0</p></div>
+                  <div class="subgrid-card"><strong>比例变化预告</strong><p class="mini-copy">3 / 3 / 4</p></div>
+                  <div class="subgrid-card"><strong>已规划生产批次</strong><p class="mini-copy">0</p></div>
+                </div>
+              </article>
+
+              <article class="section">
+                <div class="section__eyebrow">工厂预算说明卡</div>
+                <h3 class="section__title">预算不是唯一约束</h3>
+                <p class="section__body">
+                  你输入的数字 = 生产批次。1 批不仅消耗工厂预算，也会占用对应工业路线的共享产能。
+                </p>
+                <div class="subgrid">
+                  <div class="subgrid-card"><strong>当前工厂预算</strong><p class="mini-copy">12</p></div>
+                  <div class="subgrid-card"><strong>手工业可用批次</strong><p class="mini-copy">2</p></div>
+                  <div class="subgrid-card"><strong>机械化可用批次</strong><p class="mini-copy">0</p></div>
+                </div>
+              </article>
+
+              <article class="section">
+                <div class="section__eyebrow">工厂决策区</div>
+                <h3 class="section__title">商品生产卡网格</h3>
+                <p class="section__body">
+                  这是最容易暴露宽度问题的区域。中央如果不够大，卡片会立刻挤成细长的阅读列。
+                </p>
+                <div class="goods-grid">
+                  ${["粮食", "棉花", "茶叶", "煤炭", "矿产", "钢铁"].map((goods, index) => `
+                    <article class="goods-card">
+                      <strong>${goods}</strong>
+                      <p class="mini-copy">
+                        1 批 = 花 ${index < 2 ? 1 : index < 5 ? 2 : 3} 工厂预算，产出 1 件商品。
+                      </p>
+                      <div class="input-shell">输入批次 0</div>
+                    </article>
+                  `).join("")}
+                </div>
+              </article>
+
+              <article class="section">
+                <div class="section__eyebrow">建设动作卡</div>
+                <h3 class="section__title">扩产 / 升级 / 新建</h3>
+                <div class="subgrid">
+                  <div class="subgrid-card"><strong>扩产手工业</strong><p class="mini-copy">1 次扩产花 8 点。</p></div>
+                  <div class="subgrid-card"><strong>升级到机械化</strong><p class="mini-copy">1 次升级花 10 点。</p></div>
+                  <div class="subgrid-card"><strong>新建手工业工厂</strong><p class="mini-copy">1 次新建花 12 点。</p></div>
+                </div>
+              </article>
+            </div>
+          </main>
+        `;
+      }
+
+      function renderAssistRail() {
+        return `
+          <aside class="rail">
+            <div class="rail__stack">
+              <div class="rail__heading">决策辅助</div>
+
+              <article class="rail-card">
+                <div class="section__eyebrow">硬约束校验</div>
+                <h3 class="rail-card__title">预算与容量是否合法</h3>
+                <div class="ghost-line-list">
+                  <div class="ghost-line">当前草稿未突破任何硬约束。</div>
+                </div>
+              </article>
+
+              <article class="rail-card">
+                <div class="section__eyebrow">结果预演</div>
+                <h3 class="rail-card__title">本轮提交后会怎样</h3>
+                <div class="ghost-line-list">
+                  <div class="ghost-line">工厂预计消耗 0，内需预计消耗 0。</div>
+                  <div class="ghost-line">提交后会带着新结构进入市场出售阶段。</div>
+                </div>
+              </article>
+
+              <article class="rail-card">
+                <div class="section__eyebrow">风险提示</div>
+                <h3 class="rail-card__title">还有哪些风险点</h3>
+                <div class="ghost-line-list">
+                  <div class="ghost-line">当前还没有安排任何国家决策。</div>
+                </div>
+              </article>
+
+              <article class="assist-submit">
+                <div class="section__eyebrow">提交确认</div>
+                <h3 class="rail-card__title">最后确认</h3>
+                <p class="rail-card__body">这个区域不应再抢中央操作区的戏，但必须仍然足够稳定和可信。</p>
+                <button class="assist-submit__button" type="button">确认安排</button>
+              </article>
+            </div>
+          </aside>
+        `;
+      }
+
+      render();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,399 @@
+from __future__ import annotations
+
+from typing import Any
+
+from app.modules.balance_config import get_balance_config
+from app.modules.game_state.effects import apply_effects, get_production_output_multiplier
+from app.modules.game_state.factory_economy import (
+    action_locked_reason,
+    current_route_capacity,
+    goods_config_by_id,
+    goods_locked_reason,
+    route_locked_reason,
+)
+
+from .common import RuleResolution, clone_snapshot, default_decision_submission_payload, index_turn_inputs
+
+
+def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
+    balance = get_balance_config()
+    updated_snapshot = clone_snapshot(snapshot)
+    turn_inputs_by_player_id = index_turn_inputs(turn_inputs)
+    generated_logs: list[dict[str, Any]] = []
+    summary_lines: list[str] = []
+
+    for player_state in updated_snapshot.player_states:
+        submitted = turn_inputs_by_player_id.get(player_state.player_id)
+        payload = dict(submitted.payload) if submitted is not None else default_decision_submission_payload()
+        domestic_before = int(player_state.budget_pools.get("domesticMarket", 0))
+        factory_before = int(player_state.budget_pools.get("factory", 0))
+        government_before = int(player_state.budget_pools.get("governmentFiscal", 0))
+
+        _apply_active_event_effects(player_state, updated_snapshot.active_events)
+        _apply_ability_selection(player_state, payload.get("abilitySelection"), balance)
+
+        factory_spent = _apply_factory_plan(player_state, payload.get("factoryPlan") or {}, balance)
+        domestic_spent = _apply_domestic_market_plan(player_state, payload.get("domesticMarketPlan") or {}, balance)
+        government_spent = _apply_government_plan(player_state, payload.get("governmentPlan") or {}, balance)
+        military_spent = _apply_military_plan(player_state, payload.get("militaryPlan") or {}, balance, updated_snapshot)
+        _apply_talent_plan(player_state, payload.get("talentPlan", {}), balance)
+        _apply_tech_research(player_state, (payload.get("governmentPlan") or {}).get("techResearch") or [], balance)
+
+        summary_lines.append(
+            (
+                f"{player_state.country.value} 决策完成：国内市场 {domestic_before}->{player_state.budget_pools['domesticMarket']}，"
+                f"工厂 {factory_before}->{player_state.budget_pools['factory']}，"
+                f"政府财政 {government_before}->{player_state.budget_pools['governmentFiscal']}。"
+            )
+        )
+        generated_logs.append(
+            {
+                "gameId": updated_snapshot.game_id,
+                "roundNo": updated_snapshot.round_no,
+                "phase": updated_snapshot.phase,
+                "kind": "decision.resolved",
+                "message": f"{player_state.country.value} completed decision planning.",
+                "details": {
+                    "playerId": player_state.player_id,
+                    "domesticMarketSpent": domestic_spent,
+                    "factorySpent": factory_spent,
+                    "governmentFiscalSpent": government_spent,
+                    "militaryFiscalSpent": military_spent,
+                    "techPoints": player_state.tech_points,
+                    "militaryPoints": player_state.military_points,
+                },
+                "createdAt": None,
+            }
+        )
+
+    return RuleResolution(
+        updated_snapshot=updated_snapshot,
+        generated_logs=generated_logs,
+        summary={
+            "settledPhase": snapshot.phase.value,
+            "headline": "国家决策已完成，新的预算结构和卖货库存已经准备好。",
+            "summaryLines": summary_lines,
+        },
+    )
+
+
+def _apply_factory_plan(player_state, factory_plan: dict[str, Any], balance) -> int:
+    spent = 0
+    remaining_budget = int(player_state.budget_pools.get("factory", 0))
+    remaining_route_capacity = {
+        route_id: current_route_capacity(player_state, route_id)
+        for route_id in balance.production.levels
+        if route_id != "idle"
+    }
+    remaining_upgradeable_capacity = dict(remaining_route_capacity)
+
+    for order in factory_plan.get("productionOrders", []):
+        goods_id = str(order.get("goodsId"))
+        goods = goods_config_by_id(goods_id)
+        requested = max(0, int(order.get("quantity", 0)))
+        if goods is None or requested <= 0:
+            continue
+        route_id = goods.route_id
+        unit_cost = int(goods.unit_budget_cost)
+        if goods_locked_reason(player_state, route_id, goods_id) is not None or unit_cost <= 0:
+            continue
+        quantity = min(
+            requested,
+            max(0, remaining_route_capacity.get(route_id, 0)),
+            max(0, remaining_budget // unit_cost),
+        )
+        if quantity <= 0:
+            continue
+        route_multiplier = int(balance.production.output_multipliers.get(goods.route_id, 1))
+        output_quantity = quantity * int(goods.unit_output) * route_multiplier
+        output_quantity *= get_production_output_multiplier(player_state)
+        player_state.goods_stock[goods_id] = int(player_state.goods_stock.get(goods_id, 0)) + output_quantity
+        player_state.raw_material_usage[goods_id] = int(player_state.raw_material_usage.get(goods_id, 0)) + quantity
+        remaining_route_capacity[route_id] = max(0, int(remaining_route_capacity.get(route_id, 0)) - quantity)
+        spent += quantity * unit_cost
+        remaining_budget -= quantity * unit_cost
+
+    for order in factory_plan.get("expansionOrders", []):
+        route_id = str(order.get("routeId"))
+        unit_cost = int(balance.production.expansion_costs.get(route_id, 0))
+        if current_route_capacity(player_state, route_id) <= 0:
+            continue
+        quantity = min(max(0, int(order.get("quantity", 0))), max(0, remaining_budget // max(1, unit_cost)))
+        if unit_cost <= 0 or quantity <= 0:
+            continue
+        player_state.pending_production_capacity[route_id] = int(player_state.pending_production_capacity.get(route_id, 0)) + quantity
+        total_cost = quantity * unit_cost
+        spent += total_cost
+        remaining_budget -= total_cost
+
+    for order in factory_plan.get("upgradeOrders", []):
+        route_id = str(order.get("routeId"))
+        source_route = balance.production.upgrade_source_levels.get(route_id)
+        unit_cost = int(balance.production.upgrade_costs.get(route_id, 0))
+        quantity = max(0, int(order.get("quantity", 0)))
+        if source_route is None or quantity <= 0:
+            continue
+        if route_locked_reason(player_state, route_id) is not None:
+            continue
+        upgradeable = min(
+            quantity,
+            max(0, remaining_upgradeable_capacity.get(source_route, 0)),
+            max(0, remaining_budget // max(1, unit_cost)),
+        )
+        if upgradeable <= 0:
+            continue
+        remaining_upgradeable_capacity[source_route] = max(
+            0,
+            int(remaining_upgradeable_capacity.get(source_route, 0)) - upgradeable,
+        )
+        player_state.pending_production_capacity[source_route] = int(
+            player_state.pending_production_capacity.get(source_route, 0)
+        ) - upgradeable
+        player_state.pending_production_capacity[route_id] = int(player_state.pending_production_capacity.get(route_id, 0)) + upgradeable
+        total_cost = upgradeable * unit_cost
+        spent += total_cost
+        remaining_budget -= total_cost
+
+    new_factory_capacity_delta = 2
+    for order in factory_plan.get("newFactoryOrders", []):
+        route_id = str(order.get("routeId"))
+        if route_id != "handicraft" and route_locked_reason(player_state, route_id) is not None:
+            continue
+        unit_cost = int(balance.production.new_factory_costs.get(route_id, 0))
+        quantity = min(max(0, int(order.get("quantity", 0))), max(0, remaining_budget // max(1, unit_cost)))
+        if unit_cost <= 0 or quantity <= 0:
+            continue
+        player_state.pending_production_capacity[route_id] = int(player_state.pending_production_capacity.get(route_id, 0)) + (quantity * new_factory_capacity_delta)
+        total_cost = quantity * unit_cost
+        spent += total_cost
+        remaining_budget -= total_cost
+
+    player_state.budget_pools["factory"] = max(0, remaining_budget)
+    return spent
+
+
+def _apply_domestic_market_plan(player_state, domestic_plan: dict[str, Any], balance) -> int:
+    spent = 0
+    remaining_budget = int(player_state.budget_pools.get("domesticMarket", 0))
+    for selection in domestic_plan.get("domesticMarketActions", []):
+        action_id = str(selection.get("actionId"))
+        action = balance.decision_actions.domestic_market_actions.get(action_id)
+        if action is None or action_locked_reason(player_state, action_id) is not None or remaining_budget - spent < action.budget_pool_cost:
+            continue
+        spent += int(action.budget_pool_cost)
+        apply_effects(player_state, action.effects)
+
+    player_state.budget_pools["domesticMarket"] = max(0, remaining_budget - spent)
+    return spent
+
+
+def _apply_government_plan(player_state, government_plan: dict[str, Any], balance) -> int:
+    spent = 0
+    remaining_budget = int(player_state.budget_pools.get("governmentFiscal", 0))
+    tech_cost = max(1, int(balance.technology.facility_cost // 5))
+    military_cost = max(1, int(balance.military.army_unit_cost))
+
+    for purchase in government_plan.get("pointPurchases", []):
+        point_type = str(purchase.get("pointType"))
+        quantity = max(0, int(purchase.get("quantity", 0)))
+        unit_cost = tech_cost if point_type == "tech" else military_cost
+        affordable = min(quantity, max(0, (remaining_budget - spent) // max(1, unit_cost)))
+        if affordable <= 0:
+            continue
+        spent += affordable * unit_cost
+        if point_type == "tech":
+            player_state.tech_points += affordable
+        else:
+            player_state.military_points += affordable
+
+    for selection in government_plan.get("strategySelections", []):
+        action_id = str(selection.get("actionId"))
+        action = balance.decision_actions.government_actions.get(action_id)
+        if action is None:
+            continue
+        if action_locked_reason(player_state, action_id) is not None:
+            continue
+        if remaining_budget - spent < action.budget_pool_cost:
+            continue
+        if player_state.tech_points < action.tech_point_cost or player_state.military_points < action.military_point_cost:
+            continue
+        spent += int(action.budget_pool_cost)
+        player_state.tech_points -= int(action.tech_point_cost)
+        player_state.military_points -= int(action.military_point_cost)
+        _apply_ratio_delta(player_state, action.ratio_delta)
+        apply_effects(player_state, action.effects)
+        if action_id not in player_state.policies:
+            player_state.policies.append(action_id)
+
+    player_state.budget_pools["governmentFiscal"] = max(0, remaining_budget - spent)
+    return spent
+
+
+def _apply_tech_research(player_state, tech_selections: list[dict[str, Any]], balance) -> None:
+    for selection in tech_selections:
+        tech_id = str(selection.get("techId") or "")
+        tech = balance.technology.tech_tree.get(tech_id)
+        if tech is None or tech_id in player_state.unlocked_techs:
+            continue
+        if any(prerequisite not in player_state.unlocked_techs for prerequisite in tech.prerequisites):
+            continue
+        # 从对应预算池扣除
+        pool_key = tech.budget_pool
+        current_budget = int(player_state.budget_pools.get(pool_key, 0))
+        if current_budget < int(tech.budget_cost):
+            continue
+        player_state.budget_pools[pool_key] = current_budget - int(tech.budget_cost)
+        player_state.unlocked_techs.append(tech_id)
+
+
+def _apply_military_plan(player_state, military_plan: dict[str, Any], balance, snapshot=None) -> int:
+    spent = 0
+    remaining_budget = int(player_state.budget_pools.get("governmentFiscal", 0))
+
+    for selection in military_plan.get("militaryActions", []):
+        action_id = str(selection.get("actionId") or "")
+        action = balance.military_actions.military_actions.get(action_id)
+        if action is None:
+            continue
+        if remaining_budget < int(action.budget_pool_cost):
+            continue
+        remaining_budget -= int(action.budget_pool_cost)
+        spent += int(action.budget_pool_cost)
+        apply_effects(player_state, action.effects)
+
+    for selection in military_plan.get("diplomacyActions", []):
+        action_id = str(selection.get("actionId") or "")
+        action = balance.military_actions.diplomacy_actions.get(action_id)
+        if action is None:
+            continue
+        if action.target_region in player_state.established_diplomacy:
+            continue
+        if remaining_budget < int(action.budget_pool_cost):
+            continue
+        remaining_budget -= int(action.budget_pool_cost)
+        spent += int(action.budget_pool_cost)
+        player_state.established_diplomacy.append(action.target_region)
+
+    unlock_colonization = bool(military_plan.get("unlockColonization", False))
+    if unlock_colonization and not player_state.colonization_unlocked:
+        unlock_cost = int(balance.military.colonization_unlock_cost)
+        if remaining_budget >= unlock_cost:
+            remaining_budget -= unlock_cost
+            spent += unlock_cost
+            player_state.colonization_unlocked = True
+
+    if snapshot is not None and player_state.colonization_unlocked:
+        max_colonizations = int(balance.military.max_colonizations_per_round)
+        military_point_cost = int(balance.military.colonization_military_point_cost)
+        selected_targets: set[str] = set()
+        colonized_count = 0
+        for selection in military_plan.get("colonizationActions", []):
+            if colonized_count >= max_colonizations:
+                break
+            target_region_id = str(selection.get("targetRegionId") or "")
+            if not target_region_id or target_region_id in selected_targets:
+                continue
+            selected_targets.add(target_region_id)
+            if player_state.military_points < military_point_cost:
+                continue
+            if target_region_id not in player_state.established_diplomacy:
+                continue
+            region_blueprint = balance.regions.region_blueprints.get(target_region_id)
+            if region_blueprint is None or not region_blueprint.colonizable:
+                continue
+            target_region = next(
+                (region_state for region_state in snapshot.region_states if region_state.region_id == target_region_id),
+                None,
+            )
+            if target_region is None or target_region.controller is not None:
+                continue
+            player_state.military_points -= military_point_cost
+            target_region.controller = player_state.country.value
+            colonized_count += 1
+
+    player_state.budget_pools["governmentFiscal"] = max(0, remaining_budget)
+    return spent
+
+
+def _apply_talent_plan(player_state, talent_plan: dict[str, Any], balance) -> None:
+    talent_tree = balance.research_actions.talent_tree
+    for selection in talent_plan.get("talentUnlocks", []):
+        node_id = str(selection.get("nodeId", ""))
+        node = talent_tree.nodes.get(node_id)
+        if node is None or node_id in player_state.unlocked_talents:
+            continue
+        branch = talent_tree.branches.get(node.branch)
+        if branch is None:
+            continue
+        order = branch.unlock_order
+        node_index = order.index(node_id) if node_id in order else -1
+        if node_index < 0:
+            continue
+        if node_index > 0 and order[node_index - 1] not in player_state.unlocked_talents:
+            continue
+        if player_state.tech_points < node.tech_point_cost:
+            continue
+        player_state.tech_points -= node.tech_point_cost
+        player_state.unlocked_talents.append(node_id)
+        apply_effects(player_state, node.permanent_effects)
+
+
+def _apply_ratio_delta(player_state, ratio_delta: dict[str, float]) -> None:
+    for key, delta in ratio_delta.items():
+        player_state.income_allocation_ratio[key] = max(
+            0.0,
+            float(player_state.income_allocation_ratio.get(key, 0.0)) + float(delta),
+        )
+
+def _apply_active_event_effects(player_state, active_events: list[dict[str, Any]]) -> None:
+    for event in active_events:
+        effects = event.get("effects")
+        if isinstance(effects, dict):
+            apply_effects(player_state, effects)
+
+
+def _apply_ability_selection(player_state, selection: Any, balance) -> None:
+    if not isinstance(selection, dict):
+        return
+
+    ability = balance.abilities.national_abilities.get(player_state.country.value)
+    if ability is None:
+        return
+
+    ability_id = str(selection.get("abilityId") or "")
+    if ability_id != ability.ability_id or ability_id in player_state.used_abilities:
+        return
+
+    effects = dict(ability.effects)
+    if "resetIdeologiesTo" in effects:
+        reset_value = int(effects["resetIdeologiesTo"])
+        for ideology_key in tuple(player_state.ideology_levels):
+            player_state.ideology_levels[ideology_key] = reset_value
+
+    if "targetIdeologyDelta" in effects:
+        target_ideology = str(selection.get("targetIdeology") or "")
+        if target_ideology in player_state.ideology_levels:
+            player_state.ideology_levels[target_ideology] = int(player_state.ideology_levels.get(target_ideology, 0)) + int(
+                effects["targetIdeologyDelta"]
+            )
+
+    free_upgrade = effects.get("freeUpgradeCapacity")
+    if isinstance(free_upgrade, dict):
+        source_route_id = str(free_upgrade.get("sourceRouteId") or "")
+        target_route_id = str(free_upgrade.get("targetRouteId") or "")
+        quantity = min(
+            max(0, int(free_upgrade.get("quantity", 0))),
+            max(0, int(player_state.production_capacity.get(source_route_id, 0))),
+        )
+        if quantity > 0:
+            player_state.production_capacity[source_route_id] = int(player_state.production_capacity.get(source_route_id, 0)) - quantity
+            player_state.production_capacity[target_route_id] = int(player_state.production_capacity.get(target_route_id, 0)) + quantity
+
+    if effects.get("convertIdleCapacityToHandicraft"):
+        idle_capacity = max(0, int(player_state.production_capacity.get("idle", 0)))
+        if idle_capacity > 0:
+            player_state.production_capacity["idle"] = 0
+            player_state.production_capacity["handicraft"] = int(player_state.production_capacity.get("handicraft", 0)) + idle_capacity
+
+    apply_effects(player_state, effects)
+    player_state.used_abilities.append(ability_id)

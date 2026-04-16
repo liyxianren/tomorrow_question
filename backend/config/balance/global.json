@@ -1,0 +1,11 @@
+{
+  "totalRounds": 15,
+  "phaseDurationSeconds": 15,
+  "baseIncomePerRound": 8,
+  "baseOverseasCapacity": 2,
+  "rankingTieBreakOrder": [
+    "productionCapacity",
+    "controlledRegions",
+    "budgetPoolsTotal"
+  ]
+}

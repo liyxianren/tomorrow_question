@@ -1,0 +1,76 @@
+<h2>阶段页重构：指挥台三栏的三种组织方式</h2>
+<p class="subtitle">先别看视觉风格，先看信息和操作应该放在哪里。点击你更接近的方案。</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">A. 平衡三栏</div>
+        <div class="mockup-body" style="display:grid;grid-template-columns:1.1fr 1.8fr 1.1fr;gap:10px;min-height:280px;">
+          <div class="mock-sidebar">国家态势<br>三池/点数<br>本回合状态<br>排行摘要</div>
+          <div class="mock-content">当前阶段操作台<br><br>工厂/市场/结算主面板<br><br>中央是绝对主舞台</div>
+          <div class="mock-sidebar">草稿摘要<br>结果预演<br>风险雷达<br>提交动作</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>平衡三栏</h3>
+      <p>信息、操作、提交三边权重接近。适合复杂经营游戏，阅读和操作切换稳定。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">B. 中央重型</div>
+        <div class="mockup-body" style="display:grid;grid-template-columns:0.9fr 2.4fr 0.9fr;gap:10px;min-height:280px;">
+          <div class="mock-sidebar">压缩态势<br>只放最关键资源<br>可折叠</div>
+          <div class="mock-content">超大阶段工作台<br><br>中央直接做成真正的生产/出售/结算操作区<br><br>所有核心交互都在这里完成</div>
+          <div class="mock-sidebar">提交区<br>风险提示<br>结果预演<br>较短但高频查看</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>中央重型</h3>
+      <p>最像“专业操作台”。页面焦点绝对集中在当前阶段，适合强调决策密度。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">C. 左侧驾驶舱</div>
+        <div class="mockup-body" style="display:grid;grid-template-columns:1.5fr 1.7fr 0.8fr;gap:10px;min-height:280px;">
+          <div class="mock-sidebar">国家驾驶舱<br>资源、路线、最近结算、市场线索<br>长期信息集中在左栏</div>
+          <div class="mock-content">阶段操作区<br><br>中央仍是工作区，但会频繁参考左栏做判断</div>
+          <div class="mock-sidebar">提交按钮<br>草稿摘要<br>极简确认区</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>左侧驾驶舱</h3>
+      <p>更强调“长期经营监控”。适合你想让玩家不断对照国家面板做判断。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px;">
+  <div class="label">我当前的推荐</div>
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>推荐 B. 中央重型</h4>
+      <ul>
+        <li>最能摆脱现在这种从上到下读文档的感觉</li>
+        <li>工厂/市场/结算都能直接变成真正的操作区</li>
+        <li>左右两栏天然适合放“国家态势”和“提交链路”</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>代价</h4>
+      <ul>
+        <li>需要更强的信息层级设计，不能继续靠堆卡片</li>
+        <li>移动端要单独降级，不适合简单等比缩放</li>
+      </ul>
+    </div>
+  </div>
+</div>

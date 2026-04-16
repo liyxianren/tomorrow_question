@@ -1,0 +1,138 @@
+{
+  "ideologyKeys": [
+    "liberalism",
+    "egalitarianism",
+    "nationalism"
+  ],
+  "administrationCost": 12,
+  "ideologyMin": 0,
+  "ideologyMax": 10,
+  "revolutionThreshold": 10,
+  "terminalReformsByIdeology": {
+    "liberalism": "representative_state",
+    "egalitarianism": "social_state",
+    "nationalism": "imperial_state"
+  },
+  "naturalShiftRules": {
+    "liberalism": {
+      "signalKey": "industryStrength",
+      "highThreshold": 22,
+      "highShift": 1,
+      "lowThreshold": 12,
+      "lowShift": -1
+    },
+    "egalitarianism": {
+      "signalKey": "domesticStrength",
+      "highThreshold": 18,
+      "highShift": 1,
+      "lowThreshold": 8,
+      "lowShift": -1
+    },
+    "nationalism": {
+      "signalKey": "externalBalance",
+      "highThreshold": 8,
+      "highShift": 1,
+      "lowThreshold": -4,
+      "lowShift": -1
+    }
+  },
+  "policyTradeOpen": {
+    "free_trade": true,
+    "protective_tariffs": false
+  },
+  "reformAdminSupport": {
+    "civil_service": 1
+  },
+  "reformResearchBonus": {
+    "public_schools": 1
+  },
+  "milestones": {
+    "liberalism": {
+      "3": {
+        "label": "贸易许可",
+        "effects": {
+          "factoryBudgetDelta": 2
+        }
+      },
+      "5": {
+        "label": "产业自由化",
+        "effects": {
+          "domesticPriceBonusDelta": 1
+        }
+      },
+      "7": {
+        "label": "工业议会",
+        "effects": {
+          "techPointsDelta": 1
+        }
+      },
+      "10": {
+        "label": "代议制国家",
+        "effects": {
+          "domesticMarketCapacityDelta": 3
+        },
+        "penalty": {
+          "governmentFiscalBudgetDelta": -3
+        }
+      }
+    },
+    "egalitarianism": {
+      "3": {
+        "label": "劳工保护",
+        "effects": {
+          "domesticMarketCapacityDelta": 1
+        }
+      },
+      "5": {
+        "label": "公共教育",
+        "effects": {
+          "techPointsDelta": 1
+        }
+      },
+      "7": {
+        "label": "社会保障",
+        "effects": {
+          "domesticMarketCapacityDelta": 2
+        }
+      },
+      "10": {
+        "label": "社会国家",
+        "effects": {
+          "domesticPriceBonusDelta": 3
+        },
+        "penalty": {
+          "factoryBudgetDelta": -3
+        }
+      }
+    },
+    "nationalism": {
+      "3": {
+        "label": "国防动员",
+        "effects": {
+          "militaryPointsDelta": 1
+        }
+      },
+      "5": {
+        "label": "关税同盟",
+        "effects": {
+          "overseasMarketCapacityDelta": 1
+        }
+      },
+      "7": {
+        "label": "殖民扩张",
+        "effects": {
+          "overseasPriceBonusDelta": 1
+        }
+      },
+      "10": {
+        "label": "帝国主义",
+        "effects": {
+          "controlledRegionsDelta": 2
+        },
+        "penalty": {
+          "domesticMarketCapacityDelta": -2
+        }
+      }
+    }
+  }
+}

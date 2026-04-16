@@ -1,0 +1,15 @@
+.git
+.gitignore
+.pytest_cache
+.venv
+backend/.venv
+backend/__pycache__
+backend/**/*.pyc
+backend/**/*.pyo
+frontend/node_modules
+frontend/dist
+frontend/coverage
+frontend/test_output.txt
+data
+deploy/.env.production
+**/__pycache__

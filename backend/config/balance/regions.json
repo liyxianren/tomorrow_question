@@ -1,0 +1,79 @@
+{
+  "regions": [
+    {
+      "regionId": "europe",
+      "accessLevel": "open",
+      "resourceLimit": {
+        "coal": 5,
+        "steel": 4,
+        "grain": 3
+      },
+      "requiredNodes": [],
+      "colonizable": false
+    },
+    {
+      "regionId": "americas",
+      "accessLevel": "concession",
+      "resourceLimit": {
+        "cotton": 4,
+        "grain": 4,
+        "oil": 2,
+        "steel": 3
+      },
+      "requiredNodes": ["north_atlantic"],
+      "colonizable": true
+    },
+    {
+      "regionId": "africa",
+      "accessLevel": "concession",
+      "resourceLimit": {
+        "rubber": 3,
+        "cotton": 3,
+        "minerals": 2
+      },
+      "requiredNodes": ["mediterranean"],
+      "colonizable": true
+    },
+    {
+      "regionId": "middle_east",
+      "accessLevel": "concession",
+      "resourceLimit": {
+        "oil": 4,
+        "grain": 2,
+        "minerals": 2,
+        "steel": 2
+      },
+      "requiredNodes": ["mediterranean"],
+      "colonizable": true
+    },
+    {
+      "regionId": "asia_pacific",
+      "accessLevel": "concession",
+      "resourceLimit": {
+        "tea": 4,
+        "silk": 3,
+        "coal": 2
+      },
+      "requiredNodes": ["indian_ocean"],
+      "colonizable": true
+    }
+  ],
+  "oceanNodes": [
+    {
+      "nodeId": "north_atlantic",
+      "reachableRoutes": ["mediterranean", "pacific"]
+    },
+    {
+      "nodeId": "mediterranean",
+      "reachableRoutes": ["north_atlantic", "indian_ocean"]
+    },
+    {
+      "nodeId": "indian_ocean",
+      "reachableRoutes": ["mediterranean", "pacific"]
+    },
+    {
+      "nodeId": "pacific",
+      "reachableRoutes": ["north_atlantic", "indian_ocean"]
+    }
+  ]
+}

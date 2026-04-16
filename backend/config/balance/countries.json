@@ -1,0 +1,254 @@
+{
+  "countries": {
+    "britain": {
+      "budgetPools": {
+        "domesticMarket": 12,
+        "factory": 14,
+        "governmentFiscal": 22
+      },
+      "incomeAllocationRatio": {
+        "domesticMarket": 2.5,
+        "factory": 3.0,
+        "governmentFiscal": 4.5
+      },
+      "techPoints": 0,
+      "militaryPoints": 1,
+      "productionCapacity": {
+        "idle": 0,
+        "handicraft": 4,
+        "mechanized": 0,
+        "steam": 0,
+        "electrified": 0
+      },
+      "goodsStock": {
+        "coal": 3,
+        "steel": 0,
+        "grain": 0,
+        "cotton": 2,
+        "oil": 0,
+        "rubber": 0,
+        "minerals": 0,
+        "tea": 0,
+        "silk": 0
+      },
+      "army": {
+        "infantry": 0,
+        "artillery": 0
+      },
+      "navy": {
+        "fleets": 1
+      },
+      "administrationCapacity": 0,
+      "researchFacilities": {
+        "academy": 1
+      },
+      "ideologyLevels": {
+        "liberalism": 2,
+        "egalitarianism": 0,
+        "nationalism": 1
+      },
+      "initialGoods": ["coal", "cotton"],
+      "initialDiplomacy": ["asia_pacific"]
+    },
+    "france": {
+      "budgetPools": {
+        "domesticMarket": 12,
+        "factory": 12,
+        "governmentFiscal": 20
+      },
+      "incomeAllocationRatio": {
+        "domesticMarket": 3.5,
+        "factory": 3.0,
+        "governmentFiscal": 3.5
+      },
+      "techPoints": 0,
+      "militaryPoints": 0,
+      "productionCapacity": {
+        "idle": 0,
+        "handicraft": 3,
+        "mechanized": 0,
+        "steam": 0,
+        "electrified": 0
+      },
+      "goodsStock": {
+        "coal": 0,
+        "steel": 0,
+        "grain": 2,
+        "cotton": 0,
+        "oil": 0,
+        "rubber": 0,
+        "minerals": 0,
+        "tea": 2,
+        "silk": 0
+      },
+      "army": {
+        "infantry": 1,
+        "artillery": 0
+      },
+      "navy": {
+        "fleets": 1
+      },
+      "administrationCapacity": 1,
+      "researchFacilities": {
+        "academy": 0
+      },
+      "ideologyLevels": {
+        "liberalism": 1,
+        "egalitarianism": 1,
+        "nationalism": 1
+      },
+      "initialGoods": ["grain", "tea"],
+      "initialDiplomacy": ["africa"]
+    },
+    "prussia": {
+      "budgetPools": {
+        "domesticMarket": 10,
+        "factory": 12,
+        "governmentFiscal": 20
+      },
+      "incomeAllocationRatio": {
+        "domesticMarket": 2.0,
+        "factory": 4.0,
+        "governmentFiscal": 4.0
+      },
+      "techPoints": 0,
+      "militaryPoints": 1,
+      "productionCapacity": {
+        "idle": 0,
+        "handicraft": 2,
+        "mechanized": 1,
+        "steam": 0,
+        "electrified": 0
+      },
+      "goodsStock": {
+        "coal": 3,
+        "steel": 3,
+        "grain": 0,
+        "cotton": 0,
+        "oil": 0,
+        "rubber": 0,
+        "minerals": 0,
+        "tea": 0,
+        "silk": 0
+      },
+      "army": {
+        "infantry": 1,
+        "artillery": 0
+      },
+      "navy": {
+        "fleets": 0
+      },
+      "administrationCapacity": 0,
+      "researchFacilities": {
+        "academy": 1
+      },
+      "ideologyLevels": {
+        "liberalism": 0,
+        "egalitarianism": 0,
+        "nationalism": 2
+      },
+      "initialGoods": ["coal", "steel"],
+      "initialDiplomacy": ["americas"]
+    },
+    "austria": {
+      "budgetPools": {
+        "domesticMarket": 11,
+        "factory": 13,
+        "governmentFiscal": 20
+      },
+      "incomeAllocationRatio": {
+        "domesticMarket": 3.0,
+        "factory": 3.0,
+        "governmentFiscal": 4.0
+      },
+      "techPoints": 0,
+      "militaryPoints": 1,
+      "productionCapacity": {
+        "idle": 0,
+        "handicraft": 3,
+        "mechanized": 0,
+        "steam": 0,
+        "electrified": 0
+      },
+      "goodsStock": {
+        "coal": 0,
+        "steel": 0,
+        "grain": 2,
+        "cotton": 0,
+        "oil": 0,
+        "rubber": 0,
+        "minerals": 2,
+        "tea": 0,
+        "silk": 0
+      },
+      "army": {
+        "infantry": 0,
+        "artillery": 0
+      },
+      "navy": {
+        "fleets": 0
+      },
+      "administrationCapacity": 1,
+      "researchFacilities": {
+        "academy": 0
+      },
+      "ideologyLevels": {
+        "liberalism": 0,
+        "egalitarianism": 2,
+        "nationalism": 1
+      },
+      "initialGoods": ["grain", "minerals"],
+      "initialDiplomacy": ["middle_east"]
+    },
+    "russia": {
+      "budgetPools": {
+        "domesticMarket": 14,
+        "factory": 14,
+        "governmentFiscal": 20
+      },
+      "incomeAllocationRatio": {
+        "domesticMarket": 3.5,
+        "factory": 3.5,
+        "governmentFiscal": 3.0
+      },
+      "techPoints": 0,
+      "militaryPoints": 1,
+      "productionCapacity": {
+        "idle": 0,
+        "handicraft": 4,
+        "mechanized": 0,
+        "steam": 0,
+        "electrified": 0
+      },
+      "goodsStock": {
+        "coal": 2,
+        "steel": 0,
+        "grain": 2,
+        "cotton": 0,
+        "oil": 0,
+        "rubber": 0,
+        "minerals": 0,
+        "tea": 0,
+        "silk": 0
+      },
+      "army": {
+        "infantry": 1,
+        "artillery": 0
+      },
+      "navy": {
+        "fleets": 0
+      },
+      "administrationCapacity": 0,
+      "researchFacilities": {
+        "academy": 0
+      },
+      "ideologyLevels": {
+        "liberalism": 0,
+        "egalitarianism": 1,
+        "nationalism": 2
+      },
+      "initialGoods": ["grain", "coal"],
+      "initialDiplomacy": ["middle_east"]
+    }
+  }
+}

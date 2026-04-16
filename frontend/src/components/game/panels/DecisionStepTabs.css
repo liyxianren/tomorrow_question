@@ -1,0 +1,30 @@
+.decision-step-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.decision-step-tabs__tab {
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 245, 231, 0.78);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.decision-step-tabs__tab:hover {
+  transform: translateY(-2px);
+  border-color: rgba(212, 175, 55, 0.34);
+}
+
+.decision-step-tabs__tab--active {
+  border-color: rgba(212, 175, 55, 0.34);
+  background: rgba(212, 175, 55, 0.14);
+  color: #fff6e7;
+}

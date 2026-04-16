@@ -1,0 +1,188 @@
+{
+  "talentTree": {
+    "branches": {
+      "industry": {
+        "label": "工业",
+        "unlockOrder": [
+          "ind_basic_metallurgy",
+          "ind_process_improvement",
+          "ind_standardization",
+          "ind_steam_mastery",
+          "ind_industrial_revolution"
+        ]
+      },
+      "domestic": {
+        "label": "市民",
+        "unlockOrder": [
+          "civ_market_research",
+          "civ_consumer_culture",
+          "civ_urbanization",
+          "civ_commercial_league",
+          "civ_consumerism"
+        ]
+      },
+      "government": {
+        "label": "政府",
+        "unlockOrder": [
+          "gov_fiscal_reform",
+          "gov_admin_efficiency",
+          "gov_tax_optimization",
+          "gov_colonial_admin",
+          "gov_imperial_treasury"
+        ]
+      },
+      "military": {
+        "label": "军事",
+        "unlockOrder": [
+          "mil_military_theory",
+          "mil_fleet_expansion",
+          "mil_military_industry",
+          "mil_naval_supremacy",
+          "mil_total_war"
+        ]
+      }
+    },
+    "nodes": {
+      "ind_basic_metallurgy": {
+        "label": "基础冶金",
+        "branch": "industry",
+        "techPointCost": 1,
+        "description": "掌握基础冶金工艺，提升手工业基础产能。",
+        "permanentEffects": { "handicraftCapacityDelta": 1 }
+      },
+      "ind_process_improvement": {
+        "label": "工艺改良",
+        "branch": "industry",
+        "techPointCost": 2,
+        "description": "改进生产流程，降低工厂运营成本。",
+        "permanentEffects": { "factoryBudgetDelta": 4 }
+      },
+      "ind_standardization": {
+        "label": "标准化生产",
+        "branch": "industry",
+        "techPointCost": 3,
+        "description": "推行标准化生产体系，显著扩大手工业产能。",
+        "permanentEffects": { "handicraftCapacityDelta": 2 }
+      },
+      "ind_steam_mastery": {
+        "label": "蒸汽动力精通",
+        "branch": "industry",
+        "techPointCost": 4,
+        "description": "精通蒸汽动力技术，全面提升工业生产效率。",
+        "permanentEffects": { "factoryBudgetDelta": 6, "handicraftCapacityDelta": 1 }
+      },
+      "ind_industrial_revolution": {
+        "label": "工业大革命",
+        "branch": "industry",
+        "techPointCost": 5,
+        "description": "引领工业革命，手工业产能和工厂预算获得颠覆性提升。",
+        "permanentEffects": { "handicraftCapacityDelta": 4, "factoryBudgetDelta": 8 }
+      },
+      "civ_market_research": {
+        "label": "市场调研",
+        "branch": "domestic",
+        "techPointCost": 1,
+        "description": "开展市场调研，了解国内消费者需求。",
+        "permanentEffects": { "domesticMarketCapacityDelta": 2 }
+      },
+      "civ_consumer_culture": {
+        "label": "消费文化",
+        "branch": "domestic",
+        "techPointCost": 2,
+        "description": "培育国内消费文化，大幅提升商品附加值。",
+        "permanentEffects": { "domesticPriceBonusDelta": 2 }
+      },
+      "civ_urbanization": {
+        "label": "城市化浪潮",
+        "branch": "domestic",
+        "techPointCost": 3,
+        "description": "推进城市化进程，大规模扩张国内市场。",
+        "permanentEffects": { "domesticMarketCapacityDelta": 3, "domesticPriceBonusDelta": 1 }
+      },
+      "civ_commercial_league": {
+        "label": "商业联盟",
+        "branch": "domestic",
+        "techPointCost": 4,
+        "description": "建立全国商业联盟，大幅提升内需和商品价格。",
+        "permanentEffects": { "domesticMarketCapacityDelta": 3, "domesticPriceBonusDelta": 2 }
+      },
+      "civ_consumerism": {
+        "label": "消费主义",
+        "branch": "domestic",
+        "techPointCost": 5,
+        "description": "消费主义席卷全国，国内市场爆发式增长。",
+        "permanentEffects": { "domesticMarketCapacityDelta": 5, "domesticPriceBonusDelta": 3 }
+      },
+      "gov_fiscal_reform": {
+        "label": "财政改革",
+        "branch": "government",
+        "techPointCost": 1,
+        "description": "推行现代财政制度，增加政府可用资金。",
+        "permanentEffects": { "governmentFiscalBudgetDelta": 5 }
+      },
+      "gov_admin_efficiency": {
+        "label": "行政效率",
+        "branch": "government",
+        "techPointCost": 2,
+        "description": "提高行政效率，降低各部门运营成本。",
+        "permanentEffects": { "domesticMarketBudgetDelta": 3, "factoryBudgetDelta": 2 }
+      },
+      "gov_tax_optimization": {
+        "label": "税制优化",
+        "branch": "government",
+        "techPointCost": 3,
+        "description": "优化税收体系，增加政府收入并刺激国内消费。",
+        "permanentEffects": { "governmentFiscalBudgetDelta": 5, "domesticMarketCapacityDelta": 2 }
+      },
+      "gov_colonial_admin": {
+        "label": "殖民治理",
+        "branch": "government",
+        "techPointCost": 4,
+        "description": "建立高效殖民地行政体系，扩大海外影响力。",
+        "permanentEffects": { "controlledRegionsDelta": 1, "overseasMarketCapacityDelta": 2 }
+      },
+      "gov_imperial_treasury": {
+        "label": "帝国财阀",
+        "branch": "government",
+        "techPointCost": 5,
+        "description": "建立帝国级财政体系，三大预算池全面充裕，国内外市场全面繁荣。",
+        "permanentEffects": { "governmentFiscalBudgetDelta": 6, "domesticMarketBudgetDelta": 4, "factoryBudgetDelta": 4, "domesticMarketCapacityDelta": 3, "overseasMarketCapacityDelta": 2 }
+      },
+      "mil_military_theory": {
+        "label": "军事理论",
+        "branch": "military",
+        "techPointCost": 1,
+        "description": "研习现代军事理论，提升军事投射能力。",
+        "permanentEffects": { "militaryPointsDelta": 1 }
+      },
+      "mil_fleet_expansion": {
+        "label": "舰队扩张",
+        "branch": "military",
+        "techPointCost": 2,
+        "description": "扩大海军规模，增强海外贸易护航能力。",
+        "permanentEffects": { "overseasMarketCapacityDelta": 1 }
+      },
+      "mil_military_industry": {
+        "label": "军工结合",
+        "branch": "military",
+        "techPointCost": 3,
+        "description": "军民融合发展，军事能力与海外贸易价格同步提升。",
+        "permanentEffects": { "militaryPointsDelta": 1, "overseasPriceBonusDelta": 1 }
+      },
+      "mil_naval_supremacy": {
+        "label": "海权制霸",
+        "branch": "military",
+        "techPointCost": 4,
+        "description": "确立海上霸权，大幅扩展海外贸易版图。",
+        "permanentEffects": { "overseasMarketCapacityDelta": 2, "overseasPriceBonusDelta": 2 }
+      },
+      "mil_total_war": {
+        "label": "全面战争",
+        "branch": "military",
+        "techPointCost": 5,
+        "description": "全面动员国家战争机器，军事、海外全方位碾压。",
+        "permanentEffects": { "militaryPointsDelta": 2, "controlledRegionsDelta": 1, "overseasMarketCapacityDelta": 3 }
+      }
+    }
+  }
+}

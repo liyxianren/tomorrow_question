@@ -1,0 +1,38 @@
+{
+  "name": "tomorrow-question-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run --exclude e2e/**/*.spec.ts",
+    "typecheck:test-support": "tsc -p ./tsconfig.test-support.json --noEmit",
+    "test:e2e": "playwright test --config ./playwright.config.ts --project chromium --pass-with-no-tests",
+    "test:e2e:headed": "playwright test --config ./playwright.config.ts --project chromium --headed --pass-with-no-tests",
+    "test:e2e:debug": "playwright test --config ./playwright.config.ts --project chromium --debug --pass-with-no-tests",
+    "test:e2e:smoke": "playwright test --config ./playwright.config.ts --project chromium --pass-with-no-tests ./e2e/lobby-room.spec.ts",
+    "install:playwright": "playwright install chromium"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^25.5.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "jsdom": "^29.0.1",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.1",
+    "vitest": "^4.1.2"
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "facilityCost": 50,
+  "breakthroughRequirement": 3,
+  "routeUnlocks": {
+    "mechanized": "spinning_jenny",
+    "steam": "steam_engine",
+    "electrified": "electrification"
+  },
+  "techTree": {
+    "textile_tech": {
+      "label": "纺织技术",
+      "budgetPool": "factory",
+      "budgetCost": 4,
+      "prerequisites": [],
+      "unlocksGoods": ["cotton"],
+      "unlocksActions": [],
+      "unlocksRoutes": []
+    },
+    "tea_craft": {
+      "label": "茶道工艺",
+      "budgetPool": "factory",
+      "budgetCost": 4,
+      "prerequisites": [],
+      "unlocksGoods": ["tea"],
+      "unlocksActions": [],
+      "unlocksRoutes": []
+    },
+    "mining_dev": {
+      "label": "矿业开发",
+      "budgetPool": "factory",
+      "budgetCost": 4,
+      "prerequisites": [],
+      "unlocksGoods": ["minerals"],
+      "unlocksActions": [],
+      "unlocksRoutes": []
+    },
+    "spinning_jenny": {
+      "label": "珍妮纺织机",
+      "budgetPool": "factory",
+      "budgetCost": 7,
+      "prerequisites": [],
+      "unlocksGoods": ["steel", "silk"],
+      "unlocksActions": [],
+      "unlocksRoutes": ["mechanized"]
+    },
+    "steam_engine": {
+      "label": "蒸汽引擎",
+      "budgetPool": "factory",
+      "budgetCost": 14,
+      "prerequisites": ["spinning_jenny"],
+      "unlocksGoods": ["oil"],
+      "unlocksActions": [],
+      "unlocksRoutes": ["steam"]
+    },
+    "electrification": {
+      "label": "电气化",
+      "budgetPool": "factory",
+      "budgetCost": 24,
+      "prerequisites": ["steam_engine"],
+      "unlocksGoods": ["rubber"],
+      "unlocksActions": [],
+      "unlocksRoutes": ["electrified"]
+    },
+    "admin_reform": {
+      "label": "行政改革",
+      "budgetPool": "governmentFiscal",
+      "budgetCost": 8,
+      "prerequisites": [],
+      "unlocksGoods": [],
+      "unlocksActions": ["expand_shipping_lines", "industrial_policy"],
+      "unlocksRoutes": []
+    },
+    "imperial_system": {
+      "label": "帝国体制",
+      "budgetPool": "governmentFiscal",
+      "budgetCost": 12,
+      "prerequisites": ["admin_reform"],
+      "unlocksGoods": [],
+      "unlocksActions": ["naval_modernization"],
+      "unlocksRoutes": []
+    },
+    "global_hegemony": {
+      "label": "全球霸权",
+      "budgetPool": "governmentFiscal",
+      "budgetCost": 16,
+      "prerequisites": ["imperial_system"],
+      "unlocksGoods": [],
+      "unlocksActions": ["global_trade_dominance"],
+      "unlocksRoutes": []
+    },
+    "market_economy": {
+      "label": "市场经济",
+      "budgetPool": "domesticMarket",
+      "budgetCost": 3,
+      "prerequisites": [],
+      "unlocksGoods": [],
+      "unlocksActions": ["consumer_subsidy", "import_substitution"],
+      "unlocksRoutes": []
+    },
+    "consumer_society": {
+      "label": "消费社会",
+      "budgetPool": "domesticMarket",
+      "budgetCost": 5,
+      "prerequisites": ["market_economy"],
+      "unlocksGoods": [],
+      "unlocksActions": ["public_works", "luxury_promotion", "infrastructure_investment", "trade_hub"],
+      "unlocksRoutes": []
+    }
+  }
+}

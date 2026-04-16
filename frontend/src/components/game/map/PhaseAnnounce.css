@@ -1,0 +1,92 @@
+.phase-announce {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  animation: phaseAnnounceFade 2.4s ease forwards;
+  pointer-events: none;
+}
+
+@keyframes phaseAnnounceFade {
+  0% { opacity: 0; }
+  10% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.phase-announce__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  animation: phaseAnnounceSlide 2.4s ease forwards;
+}
+
+@keyframes phaseAnnounceSlide {
+  0% { opacity: 0; transform: translateY(30px) scale(0.9); }
+  12% { opacity: 1; transform: translateY(0) scale(1); }
+  65% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-20px) scale(1.05); }
+}
+
+.phase-announce__round {
+  font-size: 1rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(212, 175, 55, 0.8);
+  animation: phaseAnnounceGlow 2.4s ease forwards;
+}
+
+.phase-announce__title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(3rem, 6vw, 5.5rem);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #fff5e7;
+  text-shadow:
+    0 0 40px rgba(212, 175, 55, 0.5),
+    0 0 80px rgba(212, 175, 55, 0.25),
+    0 4px 12px rgba(0, 0, 0, 0.8);
+  animation: phaseAnnounceTitle 2.4s ease forwards;
+}
+
+@keyframes phaseAnnounceTitle {
+  0% { opacity: 0; letter-spacing: 0.4em; }
+  15% { opacity: 1; letter-spacing: 0.12em; }
+  65% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.phase-announce__subtitle {
+  font-size: 0.9rem;
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+  color: rgba(212, 175, 55, 0.6);
+}
+
+.phase-announce__line {
+  width: 0;
+  height: 2px;
+  margin-top: 12px;
+  background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
+  animation: phaseAnnounceLine 2.4s ease forwards;
+}
+
+@keyframes phaseAnnounceLine {
+  0% { width: 0; opacity: 0; }
+  20% { width: 300px; opacity: 1; }
+  65% { width: 300px; opacity: 1; }
+  100% { width: 0; opacity: 0; }
+}
+
+@keyframes phaseAnnounceGlow {
+  0% { opacity: 0; }
+  15% { opacity: 1; }
+  65% { opacity: 1; }
+  100% { opacity: 0; }
+}

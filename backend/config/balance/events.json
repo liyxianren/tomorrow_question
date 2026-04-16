@@ -1,0 +1,265 @@
+{
+  "events": [
+    {
+      "eventId": "harvest_boom",
+      "label": "丰收之年",
+      "description": "风调雨顺，国内市场消费力增强。",
+      "roundRange": [1, 5],
+      "conditions": {},
+      "globalEffects": { "domesticMarketCapacityDelta": 2 },
+      "weight": 2
+    },
+    {
+      "eventId": "trade_winds",
+      "label": "顺风航路",
+      "description": "大西洋航路畅通，海外贸易条件改善。",
+      "roundRange": [1, 5],
+      "conditions": {},
+      "globalEffects": { "overseasMarketCapacityDelta": 1, "overseasPriceBonusDelta": 1 },
+      "weight": 2
+    },
+    {
+      "eventId": "coal_discovery",
+      "label": "新煤矿发现",
+      "description": "发现大型煤矿，工业投资获得额外资金。",
+      "roundRange": [1, 6],
+      "conditions": {},
+      "globalEffects": { "factoryBudgetDelta": 3 },
+      "weight": 1
+    },
+    {
+      "eventId": "immigrant_wave",
+      "label": "移民潮",
+      "description": "大量移民涌入，国内消费市场扩张。",
+      "roundRange": [1, 5],
+      "conditions": {},
+      "globalEffects": { "domesticMarketCapacityDelta": 1, "domesticPriceBonusDelta": 1 }
+    },
+    {
+      "eventId": "diplomatic_summit",
+      "label": "外交峰会",
+      "description": "列强外交会议达成贸易共识，海外市场门槛降低。",
+      "roundRange": [1, 5],
+      "conditions": {},
+      "globalEffects": { "overseasMarketCapacityDelta": 2 }
+    },
+    {
+      "eventId": "cottage_industry",
+      "label": "家庭手工业兴起",
+      "description": "民间手工业蓬勃发展，国内商品价格走高。",
+      "roundRange": [1, 4],
+      "conditions": {},
+      "globalEffects": { "domesticPriceBonusDelta": 2 }
+    },
+    {
+      "eventId": "port_expansion",
+      "label": "港口扩建",
+      "description": "各国港口扩建完成，海上贸易能力提升。",
+      "roundRange": [1, 6],
+      "conditions": {},
+      "globalEffects": { "overseasMarketCapacityDelta": 2, "navyDelta": { "fleets": 1 } }
+    },
+    {
+      "eventId": "tax_reform",
+      "label": "税制改革",
+      "description": "政府推行税制改革，财政收入增加。",
+      "roundRange": [1, 5],
+      "conditions": {},
+      "globalEffects": { "governmentFiscalBudgetDelta": 3 }
+    },
+    {
+      "eventId": "trade_dispute",
+      "label": "贸易摩擦",
+      "description": "各国贸易谈判破裂，海外出口受限但国内需求转移。",
+      "roundRange": [1, 5],
+      "conditions": {},
+      "globalEffects": { "overseasMarketCapacityDelta": -1, "domesticPriceBonusDelta": 1 }
+    },
+    {
+      "eventId": "raw_material_shortage",
+      "label": "原料短缺",
+      "description": "关键原材料供应紧张，工厂投入成本上升。",
+      "roundRange": [1, 6],
+      "conditions": {},
+      "globalEffects": { "factoryBudgetDelta": -2, "domesticPriceBonusDelta": 1 }
+    },
+    {
+      "eventId": "cotton_famine",
+      "label": "棉花荒",
+      "description": "棉花供应中断，国内滞销但海外需求激增。",
+      "roundRange": [3, 10],
+      "conditions": {},
+      "globalEffects": { "domesticPriceBonusDelta": -1, "overseasPriceBonusDelta": 2 }
+    },
+    {
+      "eventId": "cholera_epidemic",
+      "label": "霍乱疫情",
+      "description": "霍乱爆发，国内消费萎缩，民众呼吁社会改革。",
+      "roundRange": [3, 10],
+      "conditions": {},
+      "globalEffects": { "domesticMarketCapacityDelta": -2, "ideologyLevelDelta": { "egalitarianism": 1 } }
+    },
+    {
+      "eventId": "railway_boom",
+      "label": "铁路热潮",
+      "description": "铁路建设高潮，机械化工业获得科技红利。",
+      "roundRange": [4, 10],
+      "conditions": { "anyPlayerProductionCapacityAtLeast": { "routeId": "mechanized", "value": 1 } },
+      "globalEffects": { "techPointsDelta": 1, "domesticMarketCapacityDelta": 1 }
+    },
+    {
+      "eventId": "gold_rush",
+      "label": "淘金热",
+      "description": "海外发现金矿，出口商品价格飙升。",
+      "roundRange": [4, 12],
+      "conditions": {},
+      "globalEffects": { "overseasPriceBonusDelta": 2, "overseasMarketCapacityDelta": 1 },
+      "weight": 2
+    },
+    {
+      "eventId": "workers_strike",
+      "label": "工人罢工",
+      "description": "工厂工人罢工要求改善待遇，工业投资受损。",
+      "roundRange": [4, 10],
+      "conditions": {},
+      "globalEffects": { "factoryBudgetDelta": -3, "ideologyLevelDelta": { "egalitarianism": 1 } }
+    },
+    {
+      "eventId": "naval_arms_race",
+      "label": "海军军备竞赛",
+      "description": "列强海军扩张竞赛，军事力量增强但财政负担加重。",
+      "roundRange": [4, 12],
+      "conditions": {},
+      "globalEffects": { "militaryPointsDelta": 1, "navyDelta": { "fleets": 1 }, "governmentFiscalBudgetDelta": -2 }
+    },
+    {
+      "eventId": "free_trade_wave",
+      "label": "自由贸易浪潮",
+      "description": "自由贸易思潮席卷全球，海外市场大幅开放。",
+      "roundRange": [5, 12],
+      "conditions": {},
+      "globalEffects": { "overseasMarketCapacityDelta": 3, "domesticPriceBonusDelta": -1 }
+    },
+    {
+      "eventId": "crop_failure",
+      "label": "粮食歉收",
+      "description": "农作物歉收，食品价格上涨但市场承接力下降。",
+      "roundRange": [3, 10],
+      "conditions": {},
+      "globalEffects": { "domesticMarketCapacityDelta": -1, "domesticPriceBonusDelta": 2 }
+    },
+    {
+      "eventId": "industrial_espionage",
+      "label": "工业间谍",
+      "description": "各国互派间谍窃取工业机密，科技外泄。",
+      "roundRange": [5, 12],
+      "conditions": { "anyPlayerProductionCapacityAtLeast": { "routeId": "mechanized", "value": 1 } },
+      "globalEffects": { "techPointsDelta": 1, "governmentFiscalBudgetDelta": -2 }
+    },
+    {
+      "eventId": "colonial_resistance",
+      "label": "殖民地抵抗",
+      "description": "殖民地爆发反抗运动，海外控制力被削弱。",
+      "roundRange": [5, 12],
+      "conditions": { "anyPlayerControlledRegionsAtLeast": 1 },
+      "globalEffects": { "controlledRegionsDelta": -1, "militaryPointsDelta": 1 }
+    },
+    {
+      "eventId": "banking_crisis",
+      "label": "银行危机",
+      "description": "金融恐慌蔓延，各项预算全面紧缩。",
+      "roundRange": [4, 10],
+      "conditions": {},
+      "globalEffects": { "domesticMarketBudgetDelta": -2, "factoryBudgetDelta": -2, "governmentFiscalBudgetDelta": -2 }
+    },
+    {
+      "eventId": "great_exhibition",
+      "label": "万国博览会",
+      "description": "各国举办工业博览会，商品价格和需求双双上升。",
+      "roundRange": [5, 10],
+      "conditions": {},
+      "globalEffects": { "domesticPriceBonusDelta": 2, "overseasPriceBonusDelta": 1, "domesticMarketCapacityDelta": 2 },
+      "weight": 2
+    },
+    {
+      "eventId": "suez_canal",
+      "label": "苏伊士运河开通",
+      "description": "苏伊士运河通航，全球贸易格局剧变。",
+      "roundRange": [8, 15],
+      "conditions": {},
+      "globalEffects": { "overseasMarketCapacityDelta": 3, "overseasPriceBonusDelta": 2 }
+    },
+    {
+      "eventId": "revolution_1848",
+      "label": "1848革命",
+      "description": "革命浪潮席卷欧洲，政府财政受创但改革呼声高涨。",
+      "roundRange": [6, 12],
+      "conditions": {},
+      "globalEffects": { "governmentFiscalBudgetDelta": -4, "ideologyLevelDelta": { "egalitarianism": 2, "liberalism": 1 } }
+    },
+    {
+      "eventId": "steel_age",
+      "label": "钢铁时代",
+      "description": "钢铁冶炼技术突破，重工业迎来黄金期。",
+      "roundRange": [8, 15],
+      "conditions": { "anyPlayerProductionCapacityAtLeast": { "routeId": "steam", "value": 1 } },
+      "globalEffects": { "factoryBudgetDelta": 5, "techPointsDelta": 1 }
+    },
+    {
+      "eventId": "scramble_for_africa",
+      "label": "瓜分非洲",
+      "description": "列强争相瓜分非洲殖民地，军事扩张与民族情绪并起。",
+      "roundRange": [8, 15],
+      "conditions": {},
+      "globalEffects": { "overseasMarketCapacityDelta": 2, "militaryPointsDelta": 1, "controlledRegionsDelta": 1, "ideologyLevelDelta": { "nationalism": 1 } }
+    },
+    {
+      "eventId": "economic_depression",
+      "label": "经济大萧条",
+      "description": "全球性经济衰退，消费和工业全面萎缩。",
+      "roundRange": [8, 15],
+      "conditions": {},
+      "globalEffects": { "domesticMarketCapacityDelta": -3, "domesticPriceBonusDelta": -2, "factoryBudgetDelta": -3 }
+    },
+    {
+      "eventId": "telegraph_network",
+      "label": "电报网络",
+      "description": "跨洋电报网络建成，海外贸易信息畅通。",
+      "roundRange": [8, 15],
+      "conditions": {},
+      "globalEffects": { "overseasPriceBonusDelta": 3, "techPointsDelta": 1 }
+    },
+    {
+      "eventId": "nationalism_surge",
+      "label": "民族主义浪潮",
+      "description": "民族意识觉醒，军事热情高涨但内需受损。",
+      "roundRange": [7, 15],
+      "conditions": {},
+      "globalEffects": { "ideologyLevelDelta": { "nationalism": 2 }, "militaryPointsDelta": 1, "domesticMarketCapacityDelta": -1 }
+    },
+    {
+      "eventId": "oil_discovery",
+      "label": "石油大发现",
+      "description": "大规模油田被发现，工业和出口前景大好。",
+      "roundRange": [10, 15],
+      "conditions": { "anyPlayerProductionCapacityAtLeast": { "routeId": "steam", "value": 1 } },
+      "globalEffects": { "factoryBudgetDelta": 4, "overseasPriceBonusDelta": 2 }
+    },
+    {
+      "eventId": "world_fair",
+      "label": "世界博览会",
+      "description": "举世瞩目的博览会，国内外市场全面繁荣。",
+      "roundRange": [10, 15],
+      "conditions": {},
+      "globalEffects": { "domesticPriceBonusDelta": 3, "overseasPriceBonusDelta": 2, "domesticMarketCapacityDelta": 3 }
+    },
+    {
+      "eventId": "arms_race",
+      "label": "全面军备竞赛",
+      "description": "列强军备竞赛白热化，军事力量急剧膨胀。",
+      "roundRange": [10, 15],
+      "conditions": {},
+      "globalEffects": { "militaryPointsDelta": 2, "governmentFiscalBudgetDelta": -3, "ideologyLevelDelta": { "nationalism": 1 } }
+    }
+  ]
+}
