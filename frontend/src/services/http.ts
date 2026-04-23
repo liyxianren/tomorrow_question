@@ -1,7 +1,7 @@
 import type { ApiFailure, ApiResponse, ApiSuccess } from "../types";
 
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:5000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? "http://127.0.0.1:5000" : "");
 const BACKEND_UNAVAILABLE_COOLDOWN_MS = 3_000;
 
 export const SESSION_STORAGE_KEY = "tomorrow-question.session-id";
