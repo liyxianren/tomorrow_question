@@ -18,9 +18,19 @@ describe("resolveSocketConnectionOptions", () => {
     });
   });
 
-  it("keeps transport upgrade enabled for non-loopback hosts", () => {
+  it("forces websocket-only transport for non-loopback hosts", () => {
     expect(resolveSocketConnectionOptions("https://api.example.com")).toEqual({
       autoConnect: false,
+      transports: ["websocket"],
+      upgrade: false,
+    });
+  });
+
+  it("forces websocket-only transport for same-origin (empty) urls", () => {
+    expect(resolveSocketConnectionOptions("")).toEqual({
+      autoConnect: false,
+      transports: ["websocket"],
+      upgrade: false,
     });
   });
 });

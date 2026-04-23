@@ -25,10 +25,14 @@ export function resolveSocketConnectionOptions(socketUrl: string): Partial<Manag
     }
   }
   catch {
-    return baseOptions;
+    // Empty or relative URL → same-origin production deployment, fall through to websocket-only.
   }
 
-  return baseOptions;
+  return {
+    ...baseOptions,
+    transports: ["websocket"],
+    upgrade: false,
+  };
 }
 
 
