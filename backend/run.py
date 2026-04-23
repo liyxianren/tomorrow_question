@@ -1,3 +1,10 @@
+import os
+
+# Must happen before any module that touches threading/ssl/socket is imported.
+if os.getenv("SOCKETIO_ASYNC_MODE") == "eventlet":
+    import eventlet
+    eventlet.monkey_patch()
+
 from app import create_app
 from app.config import Settings
 from app.extensions import socketio

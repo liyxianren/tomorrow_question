@@ -32,9 +32,14 @@ def create_app(settings: Settings | None = None) -> Flask:
     register_runtime_routes(app, settings, phase_duration_seconds)
     register_http_cors(app, settings)
 
+    # python-socketio accepts "*" (bare string) to allow all origins; a list like ["*"]
+    # would be treated as an explicit allowlist that matches nothing. Unwrap accordingly.
+    socketio_cors: str | list[str] = (
+        "*" if "*" in settings.cors_allowed_origins else settings.cors_allowed_origins
+    )
     socketio.init_app(
         app,
-        cors_allowed_origins=settings.cors_allowed_origins,
+        cors_allowed_origins=socketio_cors,
         async_mode=settings.socketio_async_mode,
     )
     register_socketio_handlers(socketio=socketio, database_path=settings.database_path)
@@ -63,12 +68,13 @@ def _should_start_phase_timeout_runner(settings: Settings, phase_duration_second
 
 def register_http_cors(app: Flask, settings: Settings) -> None:
     allowed_origins = set(settings.cors_allowed_origins)
+    allow_all = "*" in allowed_origins
 
     @app.after_request
     def apply_cors_headers(response):
         origin = request.headers.get("Origin")
 
-        if origin and origin in allowed_origins:
+        if origin and (allow_all or origin in allowed_origins):
             response.headers["Access-Control-Allow-Origin"] = origin
             response.headers["Vary"] = "Origin"
             response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"

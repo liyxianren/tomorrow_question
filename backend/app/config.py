@@ -38,13 +38,15 @@ class Settings:
     @classmethod
     def from_env(cls) -> "Settings":
         frontend_dist = os.getenv("FRONTEND_DIST", "../frontend/dist")
-        cors_origins = os.getenv(
-            "CORS_ALLOWED_ORIGINS",
-            "http://127.0.0.1:5173,http://localhost:5173",
-        )
+        app_env = os.getenv("APP_ENV", "development")
+        # In production the frontend is served from the same origin as the backend,
+        # so the Origin check is effectively a no-op. Default to "*" so single-container
+        # deploys (e.g. Zeabur) work without requiring an extra env var.
+        default_cors = "*" if app_env == "production" else "http://127.0.0.1:5173,http://localhost:5173"
+        cors_origins = os.getenv("CORS_ALLOWED_ORIGINS", default_cors)
 
         return cls(
-            app_env=os.getenv("APP_ENV", "development"),
+            app_env=app_env,
             secret_key=os.getenv("SECRET_KEY", "dev-secret-key"),
             host=os.getenv("HOST", "127.0.0.1"),
             port=int(os.getenv("PORT", "5000")),
