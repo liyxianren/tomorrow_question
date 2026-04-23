@@ -14,4 +14,5 @@ if __name__ == "__main__":
         port=settings.port,
         debug=settings.debug,
         use_reloader=settings.debug,
+        allow_unsafe_werkzeug=True,
     )
