@@ -28,6 +28,10 @@ def build_snapshot() -> GameSnapshot:
         },
     )
     snapshot.phase = GamePhase.SETTLEMENT
+    # The legacy settlement tests assert the legacy 3:3:4 split. Reset
+    # factory-seeded phase-1 raw materials so the phase-1 path stays inactive.
+    for player_state in snapshot.player_states:
+        player_state.phase1_economy.raw_materials = 0
     return snapshot
 
 

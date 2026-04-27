@@ -337,6 +337,12 @@ def _normalize_decision_submission(payload: dict[str, object]) -> dict[str, Any]
         normalized_ability_selection = _normalize_ability_selection(ability_selection)
         if normalized_ability_selection:
             normalized["abilitySelection"] = normalized_ability_selection
+
+    phase1_production = payload.get("phase1Production")
+    if isinstance(phase1_production, dict):
+        raw_assignments = phase1_production.get("rawMaterialAssignments")
+        if isinstance(raw_assignments, dict) and raw_assignments:
+            normalized["phase1Production"] = phase1_production
     return normalized
 
 
@@ -383,6 +389,12 @@ def _normalize_market_submission(payload: dict[str, object]) -> dict[str, Any]:
             order["regionId"] = region_id.strip()
         orders.append(order)
     normalized["saleOrders"] = orders
+
+    phase1_market = payload.get("phase1Market")
+    if isinstance(phase1_market, dict):
+        raw_domestic = phase1_market.get("domesticAllocation")
+        if isinstance(raw_domestic, (int, float)) and not isinstance(raw_domestic, bool) and raw_domestic >= 0:
+            normalized["phase1Market"] = phase1_market
     return normalized
 
 

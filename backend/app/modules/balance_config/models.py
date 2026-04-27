@@ -13,6 +13,7 @@ class GlobalBalanceConfig:
     base_income_per_round: int
     base_overseas_capacity: int
     ranking_tie_break_order: tuple[str, ...]
+    raw_materials_per_turn: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +31,7 @@ class CountryBalanceConfig:
     ideology_levels: dict[str, int]
     initial_goods: tuple[str, ...] = ()
     initial_diplomacy: tuple[str, ...] = ()
+    initial_raw_materials: int = 0
 
 
 @dataclass(frozen=True, slots=True)

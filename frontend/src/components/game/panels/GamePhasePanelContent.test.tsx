@@ -366,6 +366,10 @@ describe("GamePhasePanelContent", () => {
     await user.click(screen.getByLabelText("增加粮食亚太卖量"));
 
     expect(readDraftJson()).toEqual({
+      phase1Market: {
+        domesticAllocation: 0,
+        externalAllocations: [],
+      },
       saleOrders: [
         { goodsId: "grain", market: "domestic", quantity: 2 },
         { goodsId: "grain", market: "overseas", quantity: 1, regionId: "asia_pacific" },

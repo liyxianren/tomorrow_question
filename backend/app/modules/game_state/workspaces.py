@@ -10,6 +10,14 @@ from app.modules.game_state.market_access import (
     resolve_domestic_market_capacity,
     resolve_overseas_market_capacity,
 )
+from app.modules.rules.phase1_economy import (
+    PRODUCTION_MODE_DEMAND_COEFFICIENTS,
+    PRODUCTION_MODE_OUTPUT_RATIOS,
+    allocate_revenue_to_pools,
+    calculate_domestic_demand,
+    calculate_domestic_price,
+    calculate_equilibrium_price,
+)
 
 from .factory_economy import (
     available_batches_this_round,
@@ -31,6 +39,16 @@ from .factory_economy import (
     upgrade_option_max_quantity,
 )
 from .models import GameSnapshot, PlayerState
+
+
+PHASE1_MODE_ORDER: tuple[str, ...] = ("idle", "handicraft", "mechanized", "steam", "electrified")
+PHASE1_MODE_LABELS: dict[str, str] = {
+    "idle": "闲置",
+    "handicraft": "手工业",
+    "mechanized": "机械化",
+    "steam": "蒸汽工业",
+    "electrified": "电气工业",
+}
 
 
 PHASE_LABELS: dict[str, str] = {
@@ -203,7 +221,15 @@ def build_decision_player_workspace(snapshot: GameSnapshot, player: PlayerState)
         },
         "militaryWorkspace": _build_military_workspace(snapshot, player),
         "researchWorkspace": _build_research_workspace(snapshot, player),
+        "phase1Economy": _decision_phase1_economy(player),
     }
+
+
+def _decision_phase1_economy(player: PlayerState) -> dict[str, Any]:
+    payload: dict[str, Any] = dict(player.phase1_economy.to_payload())
+    payload.update(_build_phase1_market_preview(player))
+    payload["investmentPool"] = int(player.budget_pools.get("factory", 0))
+    return payload
 
 
 def build_market_player_workspace(snapshot: GameSnapshot, player: PlayerState) -> dict[str, Any]:
@@ -229,7 +255,15 @@ def build_market_player_workspace(snapshot: GameSnapshot, player: PlayerState) -
         "domesticMarketCapacity": domestic_capacity,
         "overseasMarketCapacity": overseas_capacity,
         "regionAccessStatus": _build_region_access_status(snapshot, player),
+        "phase1Economy": _market_phase1_economy(player),
     }
+
+
+def _market_phase1_economy(player: PlayerState) -> dict[str, Any]:
+    payload: dict[str, Any] = dict(player.phase1_economy.to_payload())
+    payload.update(_build_phase1_market_preview(player))
+    payload["phase1GoodsAvailable"] = int(player.phase1_economy.goods_inventory)
+    return payload
 
 
 def build_settlement_player_workspace(snapshot: GameSnapshot, player: PlayerState) -> dict[str, Any]:
@@ -242,6 +276,72 @@ def build_settlement_player_workspace(snapshot: GameSnapshot, player: PlayerStat
         "nationalIncome": player.national_income,
         "budgetAllocation": allocation,
         "nextRatio": deepcopy(player.income_allocation_ratio),
+        "phase1Economy": _settlement_phase1_economy(player),
+    }
+
+
+def _settlement_phase1_economy(player: PlayerState) -> dict[str, Any]:
+    payload: dict[str, Any] = dict(player.phase1_economy.to_payload())
+    delta = allocate_revenue_to_pools(int(player.national_income))
+    payload["poolDeltaPreview"] = {
+        "consumption": float(delta.consumption),
+        "investment": float(delta.investment),
+        "fiscal": float(delta.fiscal),
+    }
+    payload["consumptionPool"] = int(player.budget_pools.get("domesticMarket", 0))
+    return payload
+
+
+def _build_phase1_production_modes(player: PlayerState) -> list[dict[str, Any]]:
+    balance = get_balance_config()
+    new_factory_costs = balance.production.new_factory_costs
+    upgrade_costs = balance.production.upgrade_costs
+    route_unlocks = balance.technology.route_unlocks
+    capacity_by_mode = player.phase1_economy.capacity_by_mode
+
+    modes: list[dict[str, Any]] = []
+    for mode in PHASE1_MODE_ORDER:
+        required_tech = route_unlocks.get(mode)
+        if mode == "idle":
+            is_available = True
+        elif required_tech is None:
+            is_available = True
+        else:
+            is_available = required_tech in player.unlocked_techs
+        modes.append(
+            {
+                "mode": mode,
+                "label": PHASE1_MODE_LABELS.get(mode, mode),
+                "inputRatio": 1,
+                "outputRatio": int(PRODUCTION_MODE_OUTPUT_RATIOS[mode]),
+                "demandCoefficient": int(PRODUCTION_MODE_DEMAND_COEFFICIENTS[mode]),
+                "buildCost": int(new_factory_costs.get(mode, 0)),
+                "upgradeCost": int(upgrade_costs.get(mode, 0)),
+                "currentCapacity": int(capacity_by_mode.get(mode, 0)),
+                "requiredTech": required_tech,
+                "isAvailable": is_available,
+            }
+        )
+    return modes
+
+
+def _build_phase1_market_preview(player: PlayerState) -> dict[str, Any]:
+    capacity_by_mode = player.phase1_economy.capacity_by_mode
+    goods_inventory = int(player.phase1_economy.goods_inventory)
+    consumption_pool = int(player.budget_pools.get("domesticMarket", 0))
+
+    demand = calculate_domestic_demand(capacity_by_mode)
+    equilibrium = calculate_equilibrium_price(consumption_pool=consumption_pool, demand=demand)
+    domestic_price_preview = calculate_domestic_price(
+        equilibrium_price=equilibrium,
+        supply=goods_inventory,
+        demand=demand,
+    )
+    return {
+        "productionModes": _build_phase1_production_modes(player),
+        "domesticDemand": int(demand),
+        "equilibriumPrice": float(equilibrium),
+        "domesticPricePreview": float(domestic_price_preview),
     }
 
 

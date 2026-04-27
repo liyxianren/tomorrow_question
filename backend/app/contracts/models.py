@@ -58,6 +58,38 @@ class BudgetPoolsPayload(TypedDict):
     governmentFiscal: int
 
 
+class Phase1CapacityByModePayload(TypedDict):
+    idle: int
+    handicraft: int
+    mechanized: int
+    steam: int
+    electrified: int
+
+
+class Phase1MarketMetricsPayload(TypedDict):
+    demand: float
+    supply: float
+    equilibriumPrice: float
+    finalPrice: float
+    soldQuantity: float
+    unsoldQuantity: float
+    revenue: float
+
+
+class Phase1IncomeAllocationRatioPayload(TypedDict):
+    consumption: float
+    investment: float
+    fiscal: float
+
+
+class Phase1EconomyPayload(TypedDict):
+    rawMaterials: int
+    goodsInventory: int
+    capacityByMode: Phase1CapacityByModePayload
+    marketMetrics: Phase1MarketMetricsPayload
+    incomeAllocationRatio: Phase1IncomeAllocationRatioPayload
+
+
 class NationalStatePayload(TypedDict):
     countryId: CountryCode
     domesticSalesRevenue: int
@@ -88,6 +120,7 @@ class NationalStatePayload(TypedDict):
     colonizationUnlocked: bool
     usedAbilities: list[str]
     temporaryEffects: dict[str, Any]
+    phase1Economy: Phase1EconomyPayload
 
 
 class RegionStatePayload(TypedDict):
@@ -195,12 +228,30 @@ class AbilitySelectionPayload(TypedDict, total=False):
     targetIdeology: Literal["liberalism", "egalitarianism", "nationalism"]
 
 
+class Phase1BuildOrderPayload(TypedDict):
+    mode: str
+    quantity: int
+
+
+class Phase1UpgradeOrderPayload(TypedDict):
+    sourceMode: str
+    targetMode: str
+    quantity: int
+
+
+class Phase1ProductionPayload(TypedDict, total=False):
+    rawMaterialAssignments: dict[str, int]
+    buildOrders: list[Phase1BuildOrderPayload]
+    upgradeOrders: list[Phase1UpgradeOrderPayload]
+
+
 class DecisionSubmissionPayload(TypedDict):
     factoryPlan: FactoryPlanPayload
     domesticMarketPlan: DomesticMarketPlanPayload
     governmentPlan: GovernmentPlanPayload
     militaryPlan: MilitaryPlanPayload
     abilitySelection: NotRequired[AbilitySelectionPayload]
+    phase1Production: NotRequired[Phase1ProductionPayload]
 
 
 class SaleOrderPayload(TypedDict):
@@ -210,8 +261,19 @@ class SaleOrderPayload(TypedDict):
     regionId: NotRequired[str]
 
 
+class Phase1ExternalAllocationPayload(TypedDict):
+    marketId: str
+    quantity: int
+
+
+class Phase1MarketPayload(TypedDict, total=False):
+    domesticAllocation: int
+    externalAllocations: list[Phase1ExternalAllocationPayload]
+
+
 class MarketSubmissionPayload(TypedDict):
     saleOrders: list[SaleOrderPayload]
+    phase1Market: NotRequired[Phase1MarketPayload]
 
 
 class GameSnapshotPayload(TypedDict):

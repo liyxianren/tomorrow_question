@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 
 import { MarketSellCard as MarketSellCardComponent } from "./MarketSellCard";
+import { Phase1MarketPanel } from "./Phase1MarketPanel";
 import { buildMarketDeckViewModel as buildMarketDeckViewModelFn } from "../../../features/game/marketDeck/viewModel";
 import { TalentTreePanel } from "./TalentTreePanel";
 import { MilitaryPanel } from "./MilitaryPanel";
@@ -222,6 +223,9 @@ export function DecisionWorkbench({
           }}
           onTechnologyToggle={(techId, checked) => {
             handleDraftChange("factory", toggleTechResearchSelection(draft, techId, checked));
+          }}
+          onPhase1RawMaterialAssignmentChange={(mode, quantity) => {
+            handleDraftChange("factory", setPhase1RawMaterialAssignment(draft, mode, quantity));
           }}
         />
       ) : activeStep === "domestic" ? (
@@ -905,6 +909,44 @@ export function MarketWorkbench({
     onChange(setSaleOrderQuantity(draft, goodsId, market, Math.max(0, quantity), regionId ?? undefined));
   }
 
+  function handlePhase1AllocationChange(domesticAllocation: number) {
+    const previous = draft.phase1Market ?? {
+      domesticAllocation: 0,
+      externalAllocations: [],
+    };
+    onChange({
+      ...draft,
+      phase1Market: {
+        ...previous,
+        domesticAllocation: Math.max(0, Math.floor(domesticAllocation)),
+      },
+    });
+  }
+
+  function handlePhase1ExternalChange(marketId: string, quantity: number) {
+    const previous = draft.phase1Market ?? {
+      domesticAllocation: 0,
+      externalAllocations: [],
+    };
+    const safe = Math.max(0, Math.floor(quantity));
+    const filtered = previous.externalAllocations.filter((item) => item.marketId !== marketId);
+    const next = safe > 0 ? [...filtered, { marketId, quantity: safe }] : filtered;
+    onChange({
+      ...draft,
+      phase1Market: {
+        ...previous,
+        externalAllocations: next,
+      },
+    });
+  }
+
+  const phase1Economy = workspace.phase1Economy;
+  const phase1GoodsInventory = workspace.phase1GoodsAvailable ?? phase1Economy?.goodsInventory ?? 0;
+  const phase1Draft = draft.phase1Market ?? {
+    domesticAllocation: 0,
+    externalAllocations: [],
+  };
+
   return (
     <section data-testid="market-workbench" className="gp-section">
       <article className="gp-card gp-card--primary gp-step-header">
@@ -920,6 +962,19 @@ export function MarketWorkbench({
           </div>
         </div>
       </article>
+
+      {phase1Economy ? (
+        <Phase1MarketPanel
+          phase1Economy={phase1Economy}
+          goodsInventory={phase1GoodsInventory}
+          budgetPools={workspace.budgetPools}
+          regionAccessStatus={workspace.regionAccessStatus ?? []}
+          draftAllocation={phase1Draft.domesticAllocation}
+          externalAllocations={phase1Draft.externalAllocations}
+          onAllocationChange={handlePhase1AllocationChange}
+          onExternalAllocationChange={handlePhase1ExternalChange}
+        />
+      ) : null}
 
       <div className="gp-section" style={{ gap: 16 }}>
         {marketViewModel.goodCards.map((card) => (
@@ -977,6 +1032,17 @@ export function SettlementWorkbench({
           <MetricCard hint="结算后回到政府财政预算池。" label="政府财政" value={workspace.budgetAllocation.governmentFiscal} />
         </div>
       </article>
+      {workspace.phase1Economy?.poolDeltaPreview && (
+        <article className="gp-card">
+          <h3 style={{ margin: 0 }}>🏭 2.0 收入分配预览（5:3:2）</h3>
+          <p className="gp-step-desc" style={{ marginTop: 4 }}>新经济模型：消费 : 投资 : 财政 = 5 : 3 : 2</p>
+          <div className="gp-grid">
+            <MetricCard hint="进入消费池，影响下一轮均衡价格。" label="消费池" value={Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)} />
+            <MetricCard hint="进入投资池，用于产能建设与升级。" label="投资池" value={Math.round(workspace.phase1Economy.poolDeltaPreview.investment)} />
+            <MetricCard hint="进入财政池，用于科技、军事、政治。" label="财政池" value={Math.round(workspace.phase1Economy.poolDeltaPreview.fiscal)} />
+          </div>
+        </article>
+      )}
     </section>
   );
 }
@@ -1360,4 +1426,25 @@ function formatOverseasRange(prices: MarketRegionReferencePrice[]): string {
 
 function normalizeQuantity(value: number): number {
   return Math.max(0, Number.isFinite(value) ? value : 0);
+}
+
+function setPhase1RawMaterialAssignment(
+  draft: PhaseDraftByPhase["decision"],
+  mode: string,
+  quantity: number,
+): PhaseDraftByPhase["decision"] {
+  const safe = Math.max(0, Math.floor(Number.isFinite(quantity) ? quantity : 0));
+  const previousAssignments = draft.phase1Production?.rawMaterialAssignments ?? {};
+  const nextAssignments: Record<string, number> = { ...previousAssignments };
+  if (safe > 0) {
+    nextAssignments[mode] = safe;
+  } else {
+    delete nextAssignments[mode];
+  }
+  return {
+    ...draft,
+    phase1Production: {
+      rawMaterialAssignments: nextAssignments,
+    },
+  };
 }

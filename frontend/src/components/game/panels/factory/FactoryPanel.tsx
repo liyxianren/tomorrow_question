@@ -14,6 +14,7 @@ import { FactoryRouteLane } from "./FactoryRouteLane";
 import { FactoryConstructionPanel } from "./FactoryConstructionPanel";
 import { FactoryTechPanel } from "./FactoryTechPanel";
 import { FactoryIntelPanel } from "./FactoryIntelPanel";
+import { Phase1ProductionPanel } from "./Phase1ProductionPanel";
 import "./FactoryPanel.css";
 
 export function FactoryPanel({
@@ -23,6 +24,7 @@ export function FactoryPanel({
   onProductionQuantityChange,
   onConstructionQuantityChange,
   onTechnologyToggle,
+  onPhase1RawMaterialAssignmentChange,
 }: {
   workspace: DecisionPlayerPhaseWorkspace;
   draft: PhaseDraftByPhase["decision"];
@@ -34,6 +36,7 @@ export function FactoryPanel({
     quantity: number,
   ) => void;
   onTechnologyToggle: (techId: string, checked: boolean) => void;
+  onPhase1RawMaterialAssignmentChange?: (mode: string, quantity: number) => void;
 }) {
   const techPreview = calculateTechResearchPreview(workspace, draft);
   const scheduledBatches = draft.factoryPlan.productionOrders.reduce((sum, item) => sum + item.quantity, 0);
@@ -64,12 +67,32 @@ export function FactoryPanel({
 
   const factoryTechs = workspace.techTree.filter((tech) => tech.budgetPool === "factory");
 
+  const phase1Economy = workspace.phase1Economy;
+  const phase1Assignments = draft.phase1Production?.rawMaterialAssignments ?? {};
+
   return (
     <section className="factory-panel" data-testid="factory-panel">
       <div className="factory-panel__header">
         <h3 className="factory-panel__title">🏭 工业区</h3>
         <span className="factory-panel__budget">工厂预算 {remainingFactoryBudget}</span>
       </div>
+
+      {phase1Economy && phase1Economy.productionModes && phase1Economy.productionModes.length > 0 ? (
+        <>
+          <h3 className="factory-section-label">🏭 产能结构（2.0）</h3>
+          <Phase1ProductionPanel
+            modes={phase1Economy.productionModes}
+            rawMaterials={phase1Economy.rawMaterials}
+            investmentPool={phase1Economy.investmentPool}
+            domesticDemand={phase1Economy.domesticDemand}
+            equilibriumPrice={phase1Economy.equilibriumPrice}
+            domesticPricePreview={phase1Economy.domesticPricePreview}
+            goodsInventory={phase1Economy.goodsInventory}
+            assignments={phase1Assignments}
+            onAssignmentChange={onPhase1RawMaterialAssignmentChange}
+          />
+        </>
+      ) : null}
 
       <h3 className="factory-section-label">工业总览</h3>
       <div className="factory-stats">

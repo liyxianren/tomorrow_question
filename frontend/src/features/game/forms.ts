@@ -4,7 +4,13 @@ import type {
   MarketSubmission,
 } from "../../types";
 
-export type DecisionPhaseDraft = DecisionSubmission;
+export interface Phase1ProductionDraft {
+  rawMaterialAssignments: Record<string, number>;
+}
+
+export type DecisionPhaseDraft = DecisionSubmission & {
+  phase1Production?: Phase1ProductionDraft;
+};
 export type MarketPhaseDraft = MarketSubmission;
 export type SettlementPhaseDraft = Record<string, never>;
 
@@ -50,6 +56,10 @@ export function createInitialPhaseDraft(phase: GamePhase): PhaseDraft {
     case "market":
       return {
         saleOrders: [],
+        phase1Market: {
+          domesticAllocation: 0,
+          externalAllocations: [],
+        },
       };
     case "settlement":
       return {};

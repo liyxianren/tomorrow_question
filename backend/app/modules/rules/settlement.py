@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import random
+from decimal import Decimal
 
 from app.modules.balance_config import get_balance_config
 from app.modules.game_state.effects import apply_effects, get_effect_bonus, reset_temporary_effects
 
 from .common import RuleResolution, clone_snapshot
+from .phase1_economy import (
+    DEFAULT_INCOME_ALLOCATION_RATIO as PHASE1_DEFAULT_RATIO,
+    allocate_revenue_to_pools,
+)
 
 
 def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
@@ -28,10 +33,13 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
         player_state.national_income = int(player_state.national_income) + colony_income
 
         effective_income = max(base_income, int(player_state.national_income))
-        allocation = _allocate_income(
-            national_income=effective_income,
-            ratio=player_state.income_allocation_ratio,
-        )
+        if _is_phase1_economy_active(player_state):
+            allocation = _allocate_income_phase1(national_income=effective_income)
+        else:
+            allocation = _allocate_income(
+                national_income=effective_income,
+                ratio=player_state.income_allocation_ratio,
+            )
         for key, value in allocation.items():
             player_state.budget_pools[key] = int(player_state.budget_pools.get(key, 0)) + int(value)
         player_state.cumulative_national_income = int(player_state.cumulative_national_income) + effective_income
@@ -76,6 +84,18 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
         )
         reset_temporary_effects(player_state)
         _apply_ideology_progression(player_state, signal_values_by_player_id[player_state.player_id], balance)
+        if _is_phase1_economy_active(player_state):
+            player_state.phase1_economy.income_allocation_ratio = {
+                "consumption": float(PHASE1_DEFAULT_RATIO["consumption"]),
+                "investment": float(PHASE1_DEFAULT_RATIO["investment"]),
+                "fiscal": float(PHASE1_DEFAULT_RATIO["fiscal"]),
+            }
+            player_state.phase1_economy.raw_materials = (
+                int(player_state.phase1_economy.raw_materials)
+                + int(balance.global_config.raw_materials_per_turn)
+            )
+        else:
+            _mirror_phase1_income_allocation_ratio(player_state)
         player_state.domestic_sales_revenue = 0
         player_state.overseas_sales_revenue = 0
         player_state.national_income = 0
@@ -102,6 +122,37 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
             "summaryCards": summary_cards,
         },
     )
+
+
+def _is_phase1_economy_active(player_state) -> bool:
+    """True when this player has produced or sold via the phase-1 economy this round.
+
+    Note: ``capacity_by_mode`` is auto-initialized by the factory to mirror legacy
+    production capacity, so it cannot be used as a switch — we look at signals that
+    the new pipeline has actually written: phase-1 goods, raw materials consumed,
+    or revenue recorded by the unified market.
+    """
+    pe = player_state.phase1_economy
+    if int(pe.goods_inventory) > 0:
+        return True
+    if float(pe.market_metrics.get("revenue", 0) or 0) > 0:
+        return True
+    return False
+
+
+def _allocate_income_phase1(*, national_income: int) -> dict[str, int]:
+    """5:3:2 split mapped onto the legacy three-pool layout (consumption→domesticMarket, investment→factory, fiscal→governmentFiscal)."""
+    if national_income <= 0:
+        return {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
+    delta = allocate_revenue_to_pools(Decimal(int(national_income)))
+    domestic = int(delta.consumption)
+    factory = int(delta.investment)
+    government = int(national_income) - domestic - factory
+    return {
+        "domesticMarket": domestic,
+        "factory": factory,
+        "governmentFiscal": government,
+    }
 
 
 def _allocate_income(*, national_income: int, ratio: dict[str, float]) -> dict[str, int]:
@@ -264,3 +315,15 @@ def _event_is_eligible(event_config, snapshot, next_round: int) -> bool:
 def _controlled_region_count(snapshot, player_state) -> int:
     controlled = sum(1 for region in snapshot.region_states if region.controller == player_state.country.value)
     return controlled + int(player_state.controlled_regions_bonus)
+
+
+def _mirror_phase1_income_allocation_ratio(player_state) -> None:
+    legacy_ratio = player_state.income_allocation_ratio
+    total = float(sum(float(value) for value in legacy_ratio.values()))
+    if total <= 0:
+        return
+    player_state.phase1_economy.income_allocation_ratio = {
+        "consumption": float(legacy_ratio.get("domesticMarket", 0.0)) / total,
+        "investment": float(legacy_ratio.get("factory", 0.0)) / total,
+        "fiscal": float(legacy_ratio.get("governmentFiscal", 0.0)) / total,
+    }

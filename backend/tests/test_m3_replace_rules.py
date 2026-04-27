@@ -1,0 +1,608 @@
+"""M3 tests: phase-1 economy replaces the legacy goodsId-based pipeline.
+
+These tests prove that ``decision``, ``market``, and ``settlement`` rule
+resolvers switch to the new unified-goods, supply-demand, 5:3:2 pipeline
+when the submission carries phase-1 fields, and fall back to the legacy
+goodsId-based path when those fields are absent.
+
+References:
+- backend/app/modules/rules/decision.py
+- backend/app/modules/rules/market.py
+- backend/app/modules/rules/settlement.py
+- backend/app/modules/rules/phase1_economy.py
+- docs/2.0迁移前逻辑推演与计划.md §6.3-6.4
+"""
+from __future__ import annotations
+
+import sys
+import unittest
+from decimal import Decimal
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from app.contracts.enums import CountryCode, GamePhase, PlayerSubmissionStatus, RegionAccessLevel
+from app.modules.game_state.factory import create_game, create_initial_snapshot
+from app.modules.game_state.models import GameSnapshot, PlayerState
+from app.modules.game_state.turn_input import PlayerTurnInput
+from app.modules.rules.decision import resolve_decision_phase
+from app.modules.rules.market import resolve_market_phase
+from app.modules.rules.phase1_economy import (
+    allocate_revenue_to_pools,
+    calculate_domestic_demand,
+    calculate_domestic_price,
+    calculate_equilibrium_price,
+    calculate_production_output,
+)
+from app.modules.rules.settlement import resolve_settlement_phase
+
+
+def _build_snapshot(phase: GamePhase = GamePhase.DECISION) -> GameSnapshot:
+    game = create_game(room_code="ROOM01", game_id="game-m3")
+    snapshot = create_initial_snapshot(
+        game=game,
+        snapshot_id="snapshot-m3",
+        player_assignments={
+            "player-1": CountryCode.BRITAIN,
+            "player-2": CountryCode.FRANCE,
+            "player-3": CountryCode.PRUSSIA,
+            "player-4": CountryCode.AUSTRIA,
+            "player-5": CountryCode.RUSSIA,
+        },
+    )
+    snapshot.phase = phase
+    return snapshot
+
+
+def _get_player(snapshot: GameSnapshot, player_id: str) -> PlayerState:
+    return next(player for player in snapshot.player_states if player.player_id == player_id)
+
+
+def _build_turn_input(player_id: str, phase: GamePhase, payload: dict[str, object]) -> PlayerTurnInput:
+    return PlayerTurnInput(
+        game_id="game-m3",
+        round_no=1,
+        phase=phase,
+        player_id=player_id,
+        submission_status=PlayerSubmissionStatus.SUBMITTED,
+        payload=payload,
+        submitted_at=None,
+        is_timeout_generated=False,
+    )
+
+
+def _empty_military_plan() -> dict[str, object]:
+    return {
+        "unlockColonization": False,
+        "militaryActions": [],
+        "diplomacyActions": [],
+        "colonizationActions": [],
+    }
+
+
+def _decision_payload(*, phase1_production: dict[str, object] | None = None) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "factoryPlan": {
+            "productionOrders": [],
+            "expansionOrders": [],
+            "upgradeOrders": [],
+            "newFactoryOrders": [],
+        },
+        "domesticMarketPlan": {"domesticMarketActions": []},
+        "governmentPlan": {"pointPurchases": [], "strategySelections": [], "techResearch": []},
+        "militaryPlan": _empty_military_plan(),
+    }
+    if phase1_production is not None:
+        payload["phase1Production"] = phase1_production
+    return payload
+
+
+class DecisionPhase1ProductionTests(unittest.TestCase):
+    """phase1Production submission drives production via calculate_production_output."""
+
+    def test_phase1_production_writes_unified_goods_and_inventory(self) -> None:
+        snapshot = _build_snapshot()
+        britain = _get_player(snapshot, "player-1")
+        # Britain starts with handicraft=4 capacity; seed mechanized capacity directly.
+        britain.phase1_economy.capacity_by_mode = {
+            "idle": 0,
+            "handicraft": 4,
+            "mechanized": 5,
+            "steam": 0,
+            "electrified": 0,
+        }
+        britain.phase1_economy.raw_materials = 30
+        britain.budget_pools = {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
+
+        resolution = resolve_decision_phase(
+            snapshot=snapshot,
+            turn_inputs=[
+                _build_turn_input(
+                    "player-1",
+                    GamePhase.DECISION,
+                    _decision_payload(
+                        phase1_production={
+                            "rawMaterialAssignments": {"handicraft": 4, "mechanized": 5},
+                        }
+                    ),
+                )
+            ],
+        )
+
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+        expected_output = int(calculate_production_output({"handicraft": 4, "mechanized": 5}))
+        self.assertEqual(expected_output, 14)  # 4*1 + 5*2 = 14
+        self.assertEqual(updated.phase1_economy.goods_inventory, expected_output)
+        # 9 raw materials consumed from initial 30 -> 21 remaining.
+        self.assertEqual(updated.phase1_economy.raw_materials, 21)
+        # Legacy goods_stock receives the unified bucket for frontend compat.
+        self.assertEqual(updated.goods_stock.get("phase1_goods"), expected_output)
+
+    def test_phase1_production_caps_raw_materials_by_capacity(self) -> None:
+        snapshot = _build_snapshot()
+        britain = _get_player(snapshot, "player-1")
+        britain.phase1_economy.capacity_by_mode = {
+            "idle": 0, "handicraft": 2, "mechanized": 0, "steam": 0, "electrified": 0,
+        }
+        britain.phase1_economy.raw_materials = 30
+        britain.budget_pools = {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
+
+        resolution = resolve_decision_phase(
+            snapshot=snapshot,
+            turn_inputs=[
+                _build_turn_input(
+                    "player-1",
+                    GamePhase.DECISION,
+                    _decision_payload(
+                        phase1_production={
+                            "rawMaterialAssignments": {"handicraft": 999},  # over-allocate
+                        }
+                    ),
+                )
+            ],
+        )
+
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+        # 999 capped to capacity 2 -> 2 * 1 = 2 goods, raw materials 30 -> 28.
+        self.assertEqual(updated.phase1_economy.goods_inventory, 2)
+        self.assertEqual(updated.phase1_economy.raw_materials, 28)
+
+    def test_phase1_production_caps_raw_materials_by_available_stock(self) -> None:
+        snapshot = _build_snapshot()
+        britain = _get_player(snapshot, "player-1")
+        # Plenty of capacity but only 5 raw materials in stock.
+        britain.phase1_economy.capacity_by_mode = {
+            "idle": 0, "handicraft": 100, "mechanized": 0, "steam": 0, "electrified": 0,
+        }
+        britain.phase1_economy.raw_materials = 5
+        britain.budget_pools = {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
+
+        resolution = resolve_decision_phase(
+            snapshot=snapshot,
+            turn_inputs=[
+                _build_turn_input(
+                    "player-1",
+                    GamePhase.DECISION,
+                    _decision_payload(
+                        phase1_production={
+                            "rawMaterialAssignments": {"handicraft": 50},
+                        }
+                    ),
+                )
+            ],
+        )
+
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+        # Available raw materials (5) caps the assignment regardless of capacity.
+        self.assertEqual(updated.phase1_economy.goods_inventory, 5)
+        self.assertEqual(updated.phase1_economy.raw_materials, 0)
+
+    def test_phase1_production_caps_raw_materials_across_modes(self) -> None:
+        snapshot = _build_snapshot()
+        britain = _get_player(snapshot, "player-1")
+        # Total requested = 8 + 8 = 16; only 10 raw materials available.
+        britain.phase1_economy.capacity_by_mode = {
+            "idle": 0, "handicraft": 8, "mechanized": 8, "steam": 0, "electrified": 0,
+        }
+        britain.phase1_economy.raw_materials = 10
+        britain.budget_pools = {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
+
+        resolution = resolve_decision_phase(
+            snapshot=snapshot,
+            turn_inputs=[
+                _build_turn_input(
+                    "player-1",
+                    GamePhase.DECISION,
+                    _decision_payload(
+                        phase1_production={
+                            "rawMaterialAssignments": {"handicraft": 8, "mechanized": 8},
+                        }
+                    ),
+                )
+            ],
+        )
+
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+        # The constraint caps total consumption at 10 (initial stock).
+        self.assertEqual(updated.phase1_economy.raw_materials, 0)
+        # Iteration order is dict insertion: handicraft 8 used (8*1=8 goods),
+        # then mechanized capped to remaining 2 (2*2=4 goods). Total = 12.
+        self.assertEqual(updated.phase1_economy.goods_inventory, 12)
+
+    def test_phase1_build_orders_increment_capacity_and_deduct_factory_budget(self) -> None:
+        snapshot = _build_snapshot()
+        britain = _get_player(snapshot, "player-1")
+        britain.budget_pools = {"domesticMarket": 0, "factory": 100, "governmentFiscal": 0}
+        starting_handicraft = britain.phase1_economy.capacity_by_mode["handicraft"]
+        starting_mechanized = britain.phase1_economy.capacity_by_mode["mechanized"]
+
+        resolution = resolve_decision_phase(
+            snapshot=snapshot,
+            turn_inputs=[
+                _build_turn_input(
+                    "player-1",
+                    GamePhase.DECISION,
+                    _decision_payload(
+                        phase1_production={
+                            "buildOrders": [
+                                {"mode": "handicraft", "quantity": 2},  # 10 each = 20
+                                {"mode": "mechanized", "quantity": 1},  # 16
+                            ],
+                        }
+                    ),
+                )
+            ],
+        )
+
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+        self.assertEqual(updated.phase1_economy.capacity_by_mode["handicraft"], starting_handicraft + 2)
+        self.assertEqual(updated.phase1_economy.capacity_by_mode["mechanized"], starting_mechanized + 1)
+        # Mirror also flows into legacy production_capacity for frontend compat.
+        self.assertEqual(updated.production_capacity["handicraft"], starting_handicraft + 2)
+        self.assertEqual(updated.production_capacity["mechanized"], starting_mechanized + 1)
+        self.assertEqual(updated.budget_pools["factory"], 100 - 20 - 16)
+
+    def test_phase1_upgrade_orders_move_capacity_between_modes(self) -> None:
+        snapshot = _build_snapshot()
+        britain = _get_player(snapshot, "player-1")
+        # Start with 4 handicraft, 0 mechanized; upgrade 1 to mechanized for 8.
+        britain.phase1_economy.capacity_by_mode = {
+            "idle": 0, "handicraft": 4, "mechanized": 0, "steam": 0, "electrified": 0,
+        }
+        britain.production_capacity = dict(britain.phase1_economy.capacity_by_mode)
+        britain.budget_pools = {"domesticMarket": 0, "factory": 50, "governmentFiscal": 0}
+
+        resolution = resolve_decision_phase(
+            snapshot=snapshot,
+            turn_inputs=[
+                _build_turn_input(
+                    "player-1",
+                    GamePhase.DECISION,
+                    _decision_payload(
+                        phase1_production={
+                            "upgradeOrders": [
+                                {"sourceMode": "handicraft", "targetMode": "mechanized", "quantity": 1},
+                            ],
+                        }
+                    ),
+                )
+            ],
+        )
+
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+        self.assertEqual(updated.phase1_economy.capacity_by_mode["handicraft"], 3)
+        self.assertEqual(updated.phase1_economy.capacity_by_mode["mechanized"], 1)
+        self.assertEqual(updated.production_capacity["handicraft"], 3)
+        self.assertEqual(updated.production_capacity["mechanized"], 1)
+        self.assertEqual(updated.budget_pools["factory"], 50 - 8)
+
+    def test_phase1_production_skips_mirror_when_new_path_taken(self) -> None:
+        # Direct write semantics: the new path should NOT subsequently overwrite
+        # phase1.goods_inventory with sum(goods_stock) like the legacy mirror does.
+        snapshot = _build_snapshot()
+        britain = _get_player(snapshot, "player-1")
+        britain.phase1_economy.capacity_by_mode = {
+            "idle": 0, "handicraft": 1, "mechanized": 0, "steam": 0, "electrified": 0,
+        }
+        # Populate legacy goods_stock with non-phase1 goods. The mirror would have
+        # summed these into phase1.goods_inventory; the new path must ignore them.
+        britain.goods_stock = {"coal": 99}
+
+        resolution = resolve_decision_phase(
+            snapshot=snapshot,
+            turn_inputs=[
+                _build_turn_input(
+                    "player-1",
+                    GamePhase.DECISION,
+                    _decision_payload(
+                        phase1_production={
+                            "rawMaterialAssignments": {"handicraft": 1},
+                        }
+                    ),
+                )
+            ],
+        )
+
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+        # 1 handicraft -> 1 unified good. Legacy "coal" was NOT folded in.
+        self.assertEqual(updated.phase1_economy.goods_inventory, 1)
+        self.assertEqual(updated.goods_stock.get("coal"), 99)
+        self.assertEqual(updated.goods_stock.get("phase1_goods"), 1)
+
+
+class DecisionLegacyFallbackTests(unittest.TestCase):
+    """Without phase1Production, decision.py keeps the legacy goodsId pipeline."""
+
+    def test_legacy_production_orders_still_resolve_when_no_phase1_field(self) -> None:
+        snapshot = _build_snapshot()
+        britain = _get_player(snapshot, "player-1")
+        britain.budget_pools = {"domesticMarket": 12, "factory": 12, "governmentFiscal": 18}
+
+        resolution = resolve_decision_phase(
+            snapshot=snapshot,
+            turn_inputs=[
+                _build_turn_input(
+                    "player-1",
+                    GamePhase.DECISION,
+                    _decision_payload(),  # no phase1Production
+                )
+            ],
+        )
+
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+        # Legacy mirror still runs in fallback path and reflects production_capacity.
+        self.assertEqual(
+            updated.phase1_economy.capacity_by_mode,
+            {mode: int(updated.production_capacity.get(mode, 0))
+             for mode in updated.phase1_economy.capacity_by_mode},
+        )
+
+
+class MarketPhase1Tests(unittest.TestCase):
+    """phase1Market submission resolves the unified market by supply/demand."""
+
+    def test_phase1_market_computes_demand_supply_and_final_price(self) -> None:
+        snapshot = _build_snapshot(GamePhase.MARKET)
+        britain = _get_player(snapshot, "player-1")
+        britain.phase1_economy.capacity_by_mode = {
+            "idle": 0, "handicraft": 4, "mechanized": 0, "steam": 0, "electrified": 0,
+        }
+        britain.phase1_economy.goods_inventory = 5
+        britain.budget_pools = {"domesticMarket": 12, "factory": 0, "governmentFiscal": 0}
+
+        resolution = resolve_market_phase(
+            snapshot=snapshot,
+            turn_inputs=[
+                _build_turn_input(
+                    "player-1",
+                    GamePhase.MARKET,
+                    {"saleOrders": [], "phase1Market": {"domesticAllocation": 5}},
+                )
+            ],
+        )
+
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+        expected_demand = calculate_domestic_demand(britain.phase1_economy.capacity_by_mode)
+        expected_eq = calculate_equilibrium_price(consumption_pool=Decimal(12), demand=expected_demand)
+        expected_final = calculate_domestic_price(
+            equilibrium_price=expected_eq,
+            supply=Decimal(5),
+            demand=expected_demand,
+            minimum_price=1,
+        )
+        metrics = updated.phase1_economy.market_metrics
+        self.assertAlmostEqual(metrics["demand"], float(expected_demand), places=6)
+        self.assertEqual(metrics["supply"], 5.0)
+        self.assertAlmostEqual(metrics["finalPrice"], float(expected_final), places=6)
+
+    def test_phase1_market_domestic_revenue_equals_sold_times_final_price(self) -> None:
+        snapshot = _build_snapshot(GamePhase.MARKET)
+        britain = _get_player(snapshot, "player-1")
+        # Calibrate so equilibrium price is 10 and supply == demand == 8 -> final price 10.
+        britain.phase1_economy.capacity_by_mode = {
+            "idle": 0, "handicraft": 4, "mechanized": 0, "steam": 0, "electrified": 0,
+        }  # demand = 4 * 2 = 8
+        britain.phase1_economy.goods_inventory = 8
+        britain.budget_pools = {"domesticMarket": 80, "factory": 0, "governmentFiscal": 0}
+        britain.income_summary["domesticMarketCapacity"] = 8  # avoid capacity-clipping the sale
+
+        resolution = resolve_market_phase(
+            snapshot=snapshot,
+            turn_inputs=[
+                _build_turn_input(
+                    "player-1",
+                    GamePhase.MARKET,
+                    {"saleOrders": [], "phase1Market": {"domesticAllocation": 8}},
+                )
+            ],
+        )
+
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+        # equilibrium = 80 / 8 = 10; supply = demand = 8 -> final_price = 10.
+        # 8 sold at 10 -> revenue 80.
+        self.assertEqual(updated.domestic_sales_revenue, 80)
+        self.assertEqual(updated.overseas_sales_revenue, 0)
+        self.assertEqual(updated.national_income, 80)
+        self.assertEqual(updated.phase1_economy.goods_inventory, 0)
+        self.assertEqual(updated.phase1_economy.market_metrics["soldQuantity"], 8.0)
+        self.assertEqual(updated.phase1_economy.market_metrics["unsoldQuantity"], 0.0)
+        self.assertEqual(updated.phase1_economy.market_metrics["revenue"], 80.0)
+
+    def test_phase1_market_external_allocation_uses_overseas_capacity_and_diplomacy(self) -> None:
+        snapshot = _build_snapshot(GamePhase.MARKET)
+        britain = _get_player(snapshot, "player-1")
+        britain.phase1_economy.capacity_by_mode = {
+            "idle": 0, "handicraft": 4, "mechanized": 0, "steam": 0, "electrified": 0,
+        }
+        britain.phase1_economy.goods_inventory = 8
+        britain.budget_pools = {"domesticMarket": 80, "factory": 0, "governmentFiscal": 0}
+        britain.income_summary["domesticMarketCapacity"] = 4
+        britain.income_summary["overseasMarketCapacity"] = 4
+        britain.military_points = 5
+        # Open Europe so an overseas region resolves.
+        europe = next(region for region in snapshot.region_states if region.region_id == "europe")
+        europe.access_level = RegionAccessLevel.OPEN
+
+        resolution = resolve_market_phase(
+            snapshot=snapshot,
+            turn_inputs=[
+                _build_turn_input(
+                    "player-1",
+                    GamePhase.MARKET,
+                    {
+                        "saleOrders": [],
+                        "phase1Market": {
+                            "domesticAllocation": 4,
+                            "externalAllocations": [{"marketId": "europe", "quantity": 4}],
+                        },
+                    },
+                )
+            ],
+        )
+
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+        # Both legs sell 4 units at the unified final_price = 10.
+        self.assertEqual(updated.domestic_sales_revenue, 40)
+        self.assertEqual(updated.overseas_sales_revenue, 40)
+        self.assertEqual(updated.national_income, 80)
+        self.assertEqual(updated.phase1_economy.market_metrics["soldQuantity"], 8.0)
+
+
+class MarketLegacyFallbackTests(unittest.TestCase):
+    """Without phase1Market, market.py keeps the legacy saleOrders pipeline."""
+
+    def test_legacy_sale_orders_still_resolve_when_no_phase1_field(self) -> None:
+        snapshot = _build_snapshot(GamePhase.MARKET)
+        britain = _get_player(snapshot, "player-1")
+        europe = next(region for region in snapshot.region_states if region.region_id == "europe")
+        europe.access_level = RegionAccessLevel.OPEN
+        britain.goods_stock = {"steel": 3, "grain": 2}
+        britain.budget_pools = {"domesticMarket": 15, "factory": 10, "governmentFiscal": 12}
+        britain.military_points = 2
+        britain.income_summary["domesticMarketCapacity"] = 3
+        britain.income_summary["overseasMarketCapacity"] = 2
+
+        resolution = resolve_market_phase(
+            snapshot=snapshot,
+            turn_inputs=[
+                _build_turn_input(
+                    "player-1",
+                    GamePhase.MARKET,
+                    {
+                        "saleOrders": [
+                            {"goodsId": "grain", "market": "domestic", "quantity": 2},
+                            {"goodsId": "steel", "market": "overseas", "regionId": "europe", "quantity": 2},
+                        ]
+                    },
+                )
+            ],
+        )
+
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+        # Same numbers as test_rules_market.test_market_writes_domestic_overseas_and_national_income.
+        self.assertEqual(updated.domestic_sales_revenue, 8)
+        self.assertEqual(updated.overseas_sales_revenue, 22)
+        self.assertEqual(updated.national_income, 30)
+
+
+class SettlementPhase1Tests(unittest.TestCase):
+    """When phase-1 economy is active, settlement uses 5:3:2 instead of legacy 3:3:4."""
+
+    def test_settlement_splits_revenue_5_3_2_when_phase1_inventory_present(self) -> None:
+        snapshot = _build_snapshot(GamePhase.SETTLEMENT)
+        prussia = _get_player(snapshot, "player-3")
+        # Mark phase-1 active by leaving non-zero goods_inventory (a real produced good).
+        prussia.phase1_economy.goods_inventory = 5
+        prussia.income_allocation_ratio = {"domesticMarket": 3.0, "factory": 3.0, "governmentFiscal": 4.0}
+        prussia.budget_pools = {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
+        prussia.national_income = 100
+        prussia.reforms = []
+        prussia.ideology_levels = {key: 0 for key in prussia.ideology_levels}
+
+        resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
+
+        updated = _get_player(resolution.updated_snapshot, "player-3")
+        delta = allocate_revenue_to_pools(Decimal(100))
+        # 100 * 0.5 = 50 -> domesticMarket; 100 * 0.3 = 30 -> factory; remainder 20 -> governmentFiscal.
+        self.assertEqual(updated.budget_pools["domesticMarket"], int(delta.consumption))
+        self.assertEqual(updated.budget_pools["factory"], int(delta.investment))
+        self.assertEqual(updated.budget_pools["governmentFiscal"], 100 - int(delta.consumption) - int(delta.investment))
+        self.assertEqual(updated.budget_pools["domesticMarket"], 50)
+        self.assertEqual(updated.budget_pools["factory"], 30)
+        self.assertEqual(updated.budget_pools["governmentFiscal"], 20)
+
+    def test_settlement_phase1_pins_income_allocation_ratio_to_default_5_3_2(self) -> None:
+        snapshot = _build_snapshot(GamePhase.SETTLEMENT)
+        prussia = _get_player(snapshot, "player-3")
+        prussia.phase1_economy.goods_inventory = 3  # phase-1 active
+        prussia.income_allocation_ratio = {"domesticMarket": 1.0, "factory": 1.0, "governmentFiscal": 8.0}
+        prussia.national_income = 50
+
+        resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
+
+        updated = _get_player(resolution.updated_snapshot, "player-3")
+        # Phase1 ratio is the canonical 5:3:2, NOT the normalized legacy 1:1:8.
+        self.assertAlmostEqual(updated.phase1_economy.income_allocation_ratio["consumption"], 0.5, places=6)
+        self.assertAlmostEqual(updated.phase1_economy.income_allocation_ratio["investment"], 0.3, places=6)
+        self.assertAlmostEqual(updated.phase1_economy.income_allocation_ratio["fiscal"], 0.2, places=6)
+
+    def test_settlement_adds_per_turn_raw_material_income_when_phase1_active(self) -> None:
+        snapshot = _build_snapshot(GamePhase.SETTLEMENT)
+        prussia = _get_player(snapshot, "player-3")
+        # Phase-1 active via non-zero goods_inventory; pin raw materials to a known starting value.
+        prussia.phase1_economy.goods_inventory = 5
+        prussia.phase1_economy.raw_materials = 12
+        prussia.national_income = 100
+
+        resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
+
+        updated = _get_player(resolution.updated_snapshot, "player-3")
+        self.assertEqual(
+            updated.phase1_economy.raw_materials,
+            12 + 20,  # rawMaterialsPerTurn = 20 from global.json
+        )
+
+    def test_settlement_does_not_add_raw_material_income_when_phase1_inactive(self) -> None:
+        snapshot = _build_snapshot(GamePhase.SETTLEMENT)
+        prussia = _get_player(snapshot, "player-3")
+        # Drive _is_phase1_economy_active to False: zero inventory + zero raw + zero revenue.
+        prussia.phase1_economy.goods_inventory = 0
+        prussia.phase1_economy.raw_materials = 0
+        prussia.phase1_economy.market_metrics["revenue"] = 0
+        prussia.national_income = 100
+
+        resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
+
+        updated = _get_player(resolution.updated_snapshot, "player-3")
+        self.assertEqual(updated.phase1_economy.raw_materials, 0)
+
+
+class SettlementLegacyFallbackTests(unittest.TestCase):
+    """Default phase-1 state (no inventory, no revenue) keeps settlement on 3:3:4."""
+
+    def test_settlement_uses_legacy_ratio_when_phase1_state_is_default(self) -> None:
+        snapshot = _build_snapshot(GamePhase.SETTLEMENT)
+        prussia = _get_player(snapshot, "player-3")
+        # Default phase1: goods_inventory=0, raw_materials=0, market_metrics.revenue=0.
+        # Factory seeds raw_materials to a non-zero starter, so override here for
+        # the legacy-only scenario.
+        prussia.phase1_economy.raw_materials = 0
+        prussia.income_allocation_ratio = {"domesticMarket": 3.0, "factory": 3.0, "governmentFiscal": 4.0}
+        prussia.budget_pools = {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
+        prussia.national_income = 100
+        prussia.reforms = []
+        prussia.ideology_levels = {key: 0 for key in prussia.ideology_levels}
+
+        resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
+
+        updated = _get_player(resolution.updated_snapshot, "player-3")
+        # Legacy 3:3:4 of 100 -> 30 / 30 / 40.
+        self.assertEqual(updated.budget_pools["domesticMarket"], 30)
+        self.assertEqual(updated.budget_pools["factory"], 30)
+        self.assertEqual(updated.budget_pools["governmentFiscal"], 40)
+
+
+if __name__ == "__main__":
+    unittest.main()

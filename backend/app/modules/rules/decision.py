@@ -11,8 +11,16 @@ from app.modules.game_state.factory_economy import (
     goods_locked_reason,
     route_locked_reason,
 )
+from app.modules.game_state.models import DEFAULT_PHASE1_CAPACITY_BY_MODE
 
 from .common import RuleResolution, clone_snapshot, default_decision_submission_payload, index_turn_inputs
+from .phase1_economy import (
+    PRODUCTION_MODE_OUTPUT_RATIOS,
+    calculate_production_output,
+)
+
+
+PHASE1_GOODS_KEY = "phase1_goods"
 
 
 def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
@@ -32,12 +40,19 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
         _apply_active_event_effects(player_state, updated_snapshot.active_events)
         _apply_ability_selection(player_state, payload.get("abilitySelection"), balance)
 
-        factory_spent = _apply_factory_plan(player_state, payload.get("factoryPlan") or {}, balance)
+        phase1_production = payload.get("phase1Production")
+        if isinstance(phase1_production, dict):
+            factory_spent = _apply_phase1_production_plan(player_state, phase1_production, balance)
+        else:
+            factory_spent = _apply_factory_plan(player_state, payload.get("factoryPlan") or {}, balance)
         domestic_spent = _apply_domestic_market_plan(player_state, payload.get("domesticMarketPlan") or {}, balance)
         government_spent = _apply_government_plan(player_state, payload.get("governmentPlan") or {}, balance)
         military_spent = _apply_military_plan(player_state, payload.get("militaryPlan") or {}, balance, updated_snapshot)
         _apply_talent_plan(player_state, payload.get("talentPlan", {}), balance)
         _apply_tech_research(player_state, (payload.get("governmentPlan") or {}).get("techResearch") or [], balance)
+
+        if not isinstance(phase1_production, dict):
+            _mirror_phase1_economy_after_decision(player_state)
 
         summary_lines.append(
             (
@@ -75,6 +90,94 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
             "summaryLines": summary_lines,
         },
     )
+
+
+def _apply_phase1_production_plan(player_state, phase1_production: dict[str, Any], balance) -> int:
+    """Phase-1 unified production: build/upgrade capacity_by_mode, then turn raw materials into goods."""
+    spent = 0
+    remaining_budget = int(player_state.budget_pools.get("factory", 0))
+
+    capacity_by_mode = player_state.phase1_economy.capacity_by_mode
+
+    for order in phase1_production.get("buildOrders", []) or []:
+        mode = str(order.get("mode") or "")
+        quantity = max(0, int(order.get("quantity", 0)))
+        if mode not in DEFAULT_PHASE1_CAPACITY_BY_MODE or quantity <= 0:
+            continue
+        unit_cost = int(balance.production.new_factory_costs.get(mode, 0))
+        if unit_cost <= 0:
+            continue
+        affordable = min(quantity, remaining_budget // unit_cost)
+        if affordable <= 0:
+            continue
+        capacity_by_mode[mode] = int(capacity_by_mode.get(mode, 0)) + affordable
+        player_state.production_capacity[mode] = (
+            int(player_state.production_capacity.get(mode, 0)) + affordable
+        )
+        total_cost = affordable * unit_cost
+        spent += total_cost
+        remaining_budget -= total_cost
+
+    for order in phase1_production.get("upgradeOrders", []) or []:
+        source_mode = str(order.get("sourceMode") or "")
+        target_mode = str(order.get("targetMode") or "")
+        quantity = max(0, int(order.get("quantity", 0)))
+        if source_mode not in DEFAULT_PHASE1_CAPACITY_BY_MODE:
+            continue
+        if target_mode not in DEFAULT_PHASE1_CAPACITY_BY_MODE:
+            continue
+        unit_cost = int(balance.production.upgrade_costs.get(target_mode, 0))
+        if unit_cost <= 0 or quantity <= 0:
+            continue
+        available_source = int(capacity_by_mode.get(source_mode, 0))
+        affordable = min(quantity, available_source, remaining_budget // unit_cost)
+        if affordable <= 0:
+            continue
+        capacity_by_mode[source_mode] = available_source - affordable
+        capacity_by_mode[target_mode] = int(capacity_by_mode.get(target_mode, 0)) + affordable
+        player_state.production_capacity[source_mode] = (
+            int(player_state.production_capacity.get(source_mode, 0)) - affordable
+        )
+        player_state.production_capacity[target_mode] = (
+            int(player_state.production_capacity.get(target_mode, 0)) + affordable
+        )
+        total_cost = affordable * unit_cost
+        spent += total_cost
+        remaining_budget -= total_cost
+
+    raw_assignments_in = phase1_production.get("rawMaterialAssignments") or {}
+    available_raw = max(0, int(player_state.phase1_economy.raw_materials))
+    raw_assignments: dict[str, int] = {}
+    for mode, raw_amount in raw_assignments_in.items():
+        if mode not in PRODUCTION_MODE_OUTPUT_RATIOS:
+            continue
+        capped = min(
+            max(0, int(raw_amount)),
+            int(capacity_by_mode.get(mode, 0)),
+            available_raw,
+        )
+        if capped > 0:
+            raw_assignments[mode] = capped
+            available_raw -= capped
+
+    output_decimal = calculate_production_output(raw_assignments)
+    output_int = int(output_decimal)
+    raw_used = sum(raw_assignments.values())
+
+    player_state.phase1_economy.goods_inventory = (
+        int(player_state.phase1_economy.goods_inventory) + output_int
+    )
+    player_state.phase1_economy.raw_materials = max(
+        0, int(player_state.phase1_economy.raw_materials) - raw_used
+    )
+
+    if output_int > 0:
+        player_state.goods_stock[PHASE1_GOODS_KEY] = (
+            int(player_state.goods_stock.get(PHASE1_GOODS_KEY, 0)) + output_int
+        )
+
+    player_state.budget_pools["factory"] = max(0, remaining_budget)
+    return spent
 
 
 def _apply_factory_plan(player_state, factory_plan: dict[str, Any], balance) -> int:
@@ -397,3 +500,13 @@ def _apply_ability_selection(player_state, selection: Any, balance) -> None:
 
     apply_effects(player_state, effects)
     player_state.used_abilities.append(ability_id)
+
+
+def _mirror_phase1_economy_after_decision(player_state) -> None:
+    player_state.phase1_economy.capacity_by_mode = {
+        mode: int(player_state.production_capacity.get(mode, 0))
+        for mode in DEFAULT_PHASE1_CAPACITY_BY_MODE
+    }
+    player_state.phase1_economy.goods_inventory = sum(
+        int(amount) for amount in player_state.goods_stock.values()
+    )

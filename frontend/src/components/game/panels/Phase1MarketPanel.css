@@ -1,0 +1,278 @@
+/* ── Phase1 Market Panel (统一商品市场 2.0) ── */
+
+.phase1-market {
+  display: flex;
+  flex-direction: column;
+  gap: var(--game-gap-section, 18px);
+  padding: 18px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.phase1-market__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.phase1-market__title {
+  font-family: var(--font-serif, Georgia, serif);
+  font-size: 18px;
+  margin: 0;
+  color: var(--game-text-primary, #fff5e7);
+}
+
+.phase1-market__subtitle {
+  font-size: 12px;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.6));
+}
+
+/* ── Summary pills ── */
+
+.phase1-market__summary {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.phase1-market__pill {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  min-width: 110px;
+}
+
+.phase1-market__pill--accent {
+  background: rgba(252, 235, 156, 0.1);
+  border-color: rgba(252, 235, 156, 0.35);
+}
+
+.phase1-market__pill-label {
+  font-size: 11px;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.65));
+  letter-spacing: 0.04em;
+}
+
+.phase1-market__pill-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--game-text-value, #fceb9c);
+}
+
+/* ── Card ── */
+
+.phase1-market__card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.phase1-market__card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.phase1-market__card-header strong {
+  font-size: 15px;
+  color: var(--game-text-primary, #fff5e7);
+}
+
+.phase1-market__card-hint {
+  font-size: 12px;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.6));
+}
+
+/* ── Price display ── */
+
+.phase1-market__price-display {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.phase1-market__price-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.phase1-market__price-label {
+  font-size: 12px;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.6));
+}
+
+.phase1-market__price-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--game-text-value, #fceb9c);
+  line-height: 1.1;
+}
+
+.phase1-market__balance {
+  font-size: 11px;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.55));
+}
+
+.phase1-market__balance--shortage {
+  color: #f08072;
+  font-weight: 600;
+}
+
+.phase1-market__balance--surplus {
+  color: #6dd99a;
+  font-weight: 600;
+}
+
+.phase1-market__balance--balanced {
+  color: #d6c98e;
+  font-weight: 600;
+}
+
+/* ── Slider row ── */
+
+.phase1-market__slider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.phase1-market__slider {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  outline: none;
+}
+
+.phase1-market__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--game-text-value, #fceb9c);
+  border: 2px solid rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+
+.phase1-market__slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--game-text-value, #fceb9c);
+  border: 2px solid rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+
+.phase1-market__slider-input {
+  width: 80px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--game-text-primary, #fff5e7);
+  font-size: 14px;
+  text-align: right;
+}
+
+.phase1-market__slider-max {
+  font-size: 13px;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.6));
+}
+
+.phase1-market__feedback {
+  margin: 0;
+  font-size: 13px;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.78));
+}
+
+.phase1-market__feedback strong {
+  color: var(--game-text-value, #fceb9c);
+}
+
+/* ── Regions ── */
+
+.phase1-market__regions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.phase1-market__region {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.phase1-market__region--locked {
+  opacity: 0.5;
+}
+
+.phase1-market__region-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.phase1-market__region-info strong {
+  font-size: 14px;
+  color: var(--game-text-primary, #fff5e7);
+}
+
+.phase1-market__region-access {
+  font-size: 11px;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.55));
+}
+
+.phase1-market__region-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.phase1-market__region-input {
+  width: 80px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--game-text-primary, #fff5e7);
+  font-size: 14px;
+  text-align: right;
+}
+
+.phase1-market__region-locked {
+  font-size: 12px;
+  color: var(--game-text-warn, #f08072);
+}
+
+@media (max-width: 720px) {
+  .phase1-market__price-display {
+    grid-template-columns: 1fr;
+  }
+}

@@ -7,7 +7,16 @@ from uuid import uuid4
 from app.contracts.enums import CountryCode, GamePhase
 from app.modules.balance_config import get_balance_config
 
-from .models import Game, GameSnapshot, OceanNodeState, PlayerState, RegionState, RULES_VERSION_V2
+from .models import (
+    DEFAULT_PHASE1_CAPACITY_BY_MODE,
+    Game,
+    GameSnapshot,
+    OceanNodeState,
+    Phase1EconomyState,
+    PlayerState,
+    RegionState,
+    RULES_VERSION_V2,
+)
 from .workspaces import hydrate_snapshot_workspaces
 
 
@@ -98,6 +107,10 @@ def _build_player_state(*, player_id: str, country: CountryCode) -> PlayerState:
         )
     )
 
+    seeded_capacity_by_mode = dict(DEFAULT_PHASE1_CAPACITY_BY_MODE)
+    for mode, value in baseline.production_capacity.items():
+        seeded_capacity_by_mode[mode] = int(value)
+
     return PlayerState(
         player_id=player_id,
         country=country,
@@ -132,6 +145,10 @@ def _build_player_state(*, player_id: str, country: CountryCode) -> PlayerState:
         established_diplomacy=list(baseline.initial_diplomacy),
         colonization_unlocked=False,
         used_abilities=[],
+        phase1_economy=Phase1EconomyState(
+            raw_materials=int(baseline.initial_raw_materials),
+            capacity_by_mode=seeded_capacity_by_mode,
+        ),
     )
 
 

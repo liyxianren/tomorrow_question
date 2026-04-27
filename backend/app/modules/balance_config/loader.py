@@ -187,6 +187,10 @@ def _build_global_config(payload: dict[str, Any]) -> GlobalBalanceConfig:
         base_income_per_round=_require_non_negative_int(payload.get("baseIncomePerRound", 0), "global.baseIncomePerRound"),
         base_overseas_capacity=_require_non_negative_int(payload.get("baseOverseasCapacity", 2), "global.baseOverseasCapacity"),
         ranking_tie_break_order=ranking_tie_break_order,
+        raw_materials_per_turn=_require_non_negative_int(
+            payload.get("rawMaterialsPerTurn", 0),
+            "global.rawMaterialsPerTurn",
+        ),
     )
 
 
@@ -215,6 +219,10 @@ def _build_countries_config(payload: dict[str, Any]) -> dict[str, CountryBalance
             ideology_levels=_require_int_mapping(country_value.get("ideologyLevels"), f"countries.{country_key}.ideologyLevels"),
             initial_goods=_require_string_tuple(country_value.get("initialGoods", []), f"countries.{country_key}.initialGoods"),
             initial_diplomacy=tuple(str(item) for item in country_value.get("initialDiplomacy", [])),
+            initial_raw_materials=_require_non_negative_int(
+                country_value.get("initialRawMaterials", 0),
+                f"countries.{country_key}.initialRawMaterials",
+            ),
         )
     return countries
 

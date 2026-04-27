@@ -397,6 +397,9 @@ class SettlementRealtimeOrchestrationTests(unittest.TestCase):
         player_state.cumulative_national_income = 20
         player_state.income_allocation_ratio = {"domesticMarket": 3.0, "factory": 3.0, "governmentFiscal": 4.0}
         player_state.budget_pools = {"domesticMarket": 5, "factory": 5, "governmentFiscal": 5}
+        # This test asserts the legacy 3:3:4 split. Reset factory-seeded
+        # phase-1 raw materials so the phase-1 path stays inactive.
+        player_state.phase1_economy.raw_materials = 0
 
         with patch.object(socketio, "emit") as emit_mock:
             outcome = run_phase_settlement(

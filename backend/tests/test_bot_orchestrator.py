@@ -116,7 +116,7 @@ class BotTurnOrchestratorTests(unittest.TestCase):
         for turn_input in batch.generated_inputs:
             self.assertEqual(
                 set(turn_input.payload.keys()),
-                {"factoryPlan", "domesticMarketPlan", "governmentPlan"},
+                {"factoryPlan", "domesticMarketPlan", "governmentPlan", "phase1Production"},
             )
             self.assertIn("productionOrders", turn_input.payload["factoryPlan"])
             self.assertIn("domesticMarketActions", turn_input.payload["domesticMarketPlan"])

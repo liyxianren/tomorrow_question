@@ -48,7 +48,8 @@
         "nationalism": 1
       },
       "initialGoods": ["coal", "cotton"],
-      "initialDiplomacy": ["asia_pacific"]
+      "initialDiplomacy": ["asia_pacific"],
+      "initialRawMaterials": 30
     },
     "france": {
       "budgetPools": {
@@ -98,7 +99,8 @@
         "nationalism": 1
       },
       "initialGoods": ["grain", "tea"],
-      "initialDiplomacy": ["africa"]
+      "initialDiplomacy": ["africa"],
+      "initialRawMaterials": 30
     },
     "prussia": {
       "budgetPools": {
@@ -148,7 +150,8 @@
         "nationalism": 2
       },
       "initialGoods": ["coal", "steel"],
-      "initialDiplomacy": ["americas"]
+      "initialDiplomacy": ["americas"],
+      "initialRawMaterials": 30
     },
     "austria": {
       "budgetPools": {
@@ -198,7 +201,8 @@
         "nationalism": 1
       },
       "initialGoods": ["grain", "minerals"],
-      "initialDiplomacy": ["middle_east"]
+      "initialDiplomacy": ["middle_east"],
+      "initialRawMaterials": 30
     },
     "russia": {
       "budgetPools": {
@@ -248,7 +252,8 @@
         "nationalism": 2
       },
       "initialGoods": ["grain", "coal"],
-      "initialDiplomacy": ["middle_east"]
+      "initialDiplomacy": ["middle_east"],
+      "initialRawMaterials": 30
     }
   }
 }

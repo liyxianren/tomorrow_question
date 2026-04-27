@@ -11,6 +11,7 @@ from app.contracts.models import (
     GameSnapshotPayload,
     NationalStatePayload,
     OceanNodeStatePayload,
+    Phase1EconomyPayload,
     RankingEntryPayload,
     RegionStatePayload,
 )
@@ -28,6 +29,31 @@ DEFAULT_TEMPORARY_EFFECTS = {
     "overseasMarketCapacityBonus": 0,
     "overseasPriceBonus": 0,
     "productionOutputMultiplier": 1,
+}
+
+# Phase-1 economy (2.0) scaffolding. Held side-by-side with the legacy
+# runtime fields above; gameplay still reads the legacy structures.
+DEFAULT_PHASE1_CAPACITY_BY_MODE: dict[str, int] = {
+    "idle": 0,
+    "handicraft": 0,
+    "mechanized": 0,
+    "steam": 0,
+    "electrified": 0,
+}
+DEFAULT_PHASE1_MARKET_METRICS: dict[str, float] = {
+    "demand": 0,
+    "supply": 0,
+    "equilibriumPrice": 0,
+    "finalPrice": 0,
+    "soldQuantity": 0,
+    "unsoldQuantity": 0,
+    "revenue": 0,
+}
+# M1 normalized 5:3:2 split; sits alongside legacy income_allocation_ratio.
+DEFAULT_PHASE1_INCOME_ALLOCATION_RATIO: dict[str, float] = {
+    "consumption": 0.5,
+    "investment": 0.3,
+    "fiscal": 0.2,
 }
 
 
@@ -53,6 +79,54 @@ def _serialize_datetime(value: datetime | None) -> str | None:
 
 def _parse_datetime(value: str | None) -> datetime | None:
     return None if value is None else datetime.fromisoformat(value)
+
+
+@dataclass(slots=True)
+class Phase1EconomyState:
+    raw_materials: int = 0
+    goods_inventory: int = 0
+    capacity_by_mode: dict[str, int] = field(
+        default_factory=lambda: dict(DEFAULT_PHASE1_CAPACITY_BY_MODE)
+    )
+    market_metrics: dict[str, float] = field(
+        default_factory=lambda: dict(DEFAULT_PHASE1_MARKET_METRICS)
+    )
+    income_allocation_ratio: dict[str, float] = field(
+        default_factory=lambda: dict(DEFAULT_PHASE1_INCOME_ALLOCATION_RATIO)
+    )
+
+    def to_payload(self) -> Phase1EconomyPayload:
+        return {
+            "rawMaterials": int(self.raw_materials),
+            "goodsInventory": int(self.goods_inventory),
+            "capacityByMode": _copy_int_mapping(
+                {**DEFAULT_PHASE1_CAPACITY_BY_MODE, **self.capacity_by_mode}
+            ),
+            "marketMetrics": _copy_float_mapping(
+                {**DEFAULT_PHASE1_MARKET_METRICS, **self.market_metrics}
+            ),
+            "incomeAllocationRatio": _copy_float_mapping(
+                {**DEFAULT_PHASE1_INCOME_ALLOCATION_RATIO, **self.income_allocation_ratio}
+            ),
+        }
+
+    @classmethod
+    def from_payload(cls, payload: Phase1EconomyPayload | None) -> "Phase1EconomyState":
+        if payload is None:
+            return cls()
+        return cls(
+            raw_materials=int(payload.get("rawMaterials", 0)),
+            goods_inventory=int(payload.get("goodsInventory", 0)),
+            capacity_by_mode=_copy_int_mapping(
+                {**DEFAULT_PHASE1_CAPACITY_BY_MODE, **payload.get("capacityByMode", {})}
+            ),
+            market_metrics=_copy_float_mapping(
+                {**DEFAULT_PHASE1_MARKET_METRICS, **payload.get("marketMetrics", {})}
+            ),
+            income_allocation_ratio=_copy_float_mapping(
+                {**DEFAULT_PHASE1_INCOME_ALLOCATION_RATIO, **payload.get("incomeAllocationRatio", {})}
+            ),
+        )
 
 
 @dataclass(slots=True)
@@ -92,6 +166,7 @@ class PlayerState:
     unlocked_talents: list[str] = field(default_factory=list)
     used_abilities: list[str] = field(default_factory=list)
     temporary_effects: dict[str, Any] = field(default_factory=lambda: dict(DEFAULT_TEMPORARY_EFFECTS))
+    phase1_economy: Phase1EconomyState = field(default_factory=Phase1EconomyState)
 
     def to_payload(self) -> NationalStatePayload:
         return {
@@ -124,6 +199,7 @@ class PlayerState:
             "colonizationUnlocked": bool(self.colonization_unlocked),
             "usedAbilities": _copy_string_list(self.used_abilities),
             "temporaryEffects": _copy_any_mapping(self.temporary_effects),
+            "phase1Economy": self.phase1_economy.to_payload(),
         }
 
     @classmethod
@@ -159,6 +235,7 @@ class PlayerState:
             colonization_unlocked=bool(payload.get("colonizationUnlocked", False)),
             used_abilities=_copy_string_list(payload.get("usedAbilities", [])),
             temporary_effects=_copy_any_mapping(payload.get("temporaryEffects", DEFAULT_TEMPORARY_EFFECTS)),
+            phase1_economy=Phase1EconomyState.from_payload(payload.get("phase1Economy")),
         )
 
 

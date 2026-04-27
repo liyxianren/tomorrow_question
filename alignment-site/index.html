@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tomorrow Question｜真实游戏画面 × 需求文档对齐</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <p class="eyebrow">Tomorrow Question · 客户会议需求对齐页</p>
+    <h1>真实游戏画面 × 已确认需求文档</h1>
+    <p class="lead">右侧全部使用当前项目真实运行截图；左侧说明每个画面对应两份已确认用户需求文档中的设计逻辑。若现场出现预期差异，归类为：表达优化 / 新增需求 / 边界调整。</p>
+    <div class="docs">
+      <span>需求源 1：docs/第一版本需求确认文档.md</span>
+      <span>需求源 2：docs/最终交付确认文档.md</span>
+    </div>
+  </header>
+
+  <nav class="quick-nav" aria-label="模块快速跳转">
+    <a href="#home">首页 / 进入游戏</a>
+<a href="#lobby">大厅 / 身份 / 创建加入房间</a>
+<a href="#room">房间 / 选国 / Ready / AI补位</a>
+<a href="#decision">第 1 回合：国家决策主地图</a>
+<a href="#factory">工业区 / 工厂决策</a>
+<a href="#domestic">市民广场 / 国民消费</a>
+<a href="#government">议会厅 / 政府财政 / 科技点</a>
+<a href="#military">军事要塞 / 军事与外交</a>
+<a href="#research">研究院 / 天赋树</a>
+<a href="#market">市场出售阶段 / 贸易港入口</a>
+<a href="#trade">贸易港 / 国内与海外销售</a>
+<a href="#settlement">财政结算 / 国家收入 / 三池分配</a>
+  </nav>
+
+  <main>
+    <section class="callout">
+      <strong>会议开场口径：</strong>
+      我们先按已确认的两份需求文档，把当前真实游戏页面逐项对齐。若有地方和预期不一致，我们一起判断它是页面表达问题、补充需求，还是需要重新确认需求边界。
+    </section>
+    
+      <section class="alignment-card" id="home">
+        <aside class="req-panel">
+          <p class="eyebrow">需求对齐说明</p>
+          <h2>首页 / 进入游戏</h2>
+          <div class="source-box">
+            <strong>需求依据</strong>
+            <span>docs/第一版本需求确认文档.md</span>
+            <span>docs/最终交付确认文档.md</span>
+          </div>
+          <dl>
+            <dt>真实游戏内容</dt>
+            <dd>首页说明 5 人回合制列强经营、15 回合、四阶段议程，并引导进入大厅。</dd>
+            <dt>对齐逻辑</dt>
+            <dd>对应需求文档中“多人策略对局、回合推进、阶段经营循环”的整体入口说明。</dd>
+            <dt>演示口径</dt>
+            <dd>这不是重新设计的页面，右侧为从当前真实运行游戏截取的静态画面；如需验证计算、提交、推进，切回真实动态游戏。</dd>
+          </dl>
+          <span class="status">已按文档对齐 / 现场可继续确认</span>
+        </aside>
+        <figure class="screen-panel">
+          <div class="screen-label">真实游戏页面静态截图 · 不含真实计算/提交</div>
+          <img src="assets/home.png" alt="首页 / 进入游戏真实游戏截图" loading="eager" decoding="sync" />
+          <figcaption>首页 / 进入游戏 —— 截图来自本地真实运行版本，不是手写仿 UI。</figcaption>
+        </figure>
+      </section>
+      <section class="alignment-card" id="lobby">
+        <aside class="req-panel">
+          <p class="eyebrow">需求对齐说明</p>
+          <h2>大厅 / 身份 / 创建加入房间</h2>
+          <div class="source-box">
+            <strong>需求依据</strong>
+            <span>docs/第一版本需求确认文档.md</span>
+            <span>docs/最终交付确认文档.md</span>
+          </div>
+          <dl>
+            <dt>真实游戏内容</dt>
+            <dd>真实大厅包含确认身份、创建房间、输入房间码加入、等待中的房间、当前身份。</dd>
+            <dt>对齐逻辑</dt>
+            <dd>对应“玩家进入房间、创建/加入对局、准备开始”的入局流程。</dd>
+            <dt>演示口径</dt>
+            <dd>这不是重新设计的页面，右侧为从当前真实运行游戏截取的静态画面；如需验证计算、提交、推进，切回真实动态游戏。</dd>
+          </dl>
+          <span class="status">已按文档对齐 / 现场可继续确认</span>
+        </aside>
+        <figure class="screen-panel">
+          <div class="screen-label">真实游戏页面静态截图 · 不含真实计算/提交</div>
+          <img src="assets/lobby.png" alt="大厅 / 身份 / 创建加入房间真实游戏截图" loading="eager" decoding="sync" />
+          <figcaption>大厅 / 身份 / 创建加入房间 —— 截图来自本地真实运行版本，不是手写仿 UI。</figcaption>
+        </figure>
+      </section>
+      <section class="alignment-card" id="room">
+        <aside class="req-panel">
+          <p class="eyebrow">需求对齐说明</p>
+          <h2>房间 / 选国 / Ready / AI补位</h2>
+          <div class="source-box">
+            <strong>需求依据</strong>
+            <span>docs/第一版本需求确认文档.md</span>
+            <span>docs/最终交付确认文档.md</span>
+          </div>
+          <dl>
+            <dt>真实游戏内容</dt>
+            <dd>真实房间展示房间码、五国选择、房间成员、AI 补位、全部 Ready 后自动开局。</dd>
+            <dt>对齐逻辑</dt>
+            <dd>对应“5 人对局、选择国家、全员准备、自动开局”的规则。</dd>
+            <dt>演示口径</dt>
+            <dd>这不是重新设计的页面，右侧为从当前真实运行游戏截取的静态画面；如需验证计算、提交、推进，切回真实动态游戏。</dd>
+          </dl>
+          <span class="status">已按文档对齐 / 现场可继续确认</span>
+        </aside>
+        <figure class="screen-panel">
+          <div class="screen-label">真实游戏页面静态截图 · 不含真实计算/提交</div>
+          <img src="assets/room-ai-ready.png" alt="房间 / 选国 / Ready / AI补位真实游戏截图" loading="eager" decoding="sync" />
+          <figcaption>房间 / 选国 / Ready / AI补位 —— 截图来自本地真实运行版本，不是手写仿 UI。</figcaption>
+        </figure>
+      </section>
+      <section class="alignment-card" id="decision">
+        <aside class="req-panel">
+          <p class="eyebrow">需求对齐说明</p>
+          <h2>第 1 回合：国家决策主地图</h2>
+          <div class="source-box">
+            <strong>需求依据</strong>
+            <span>docs/第一版本需求确认文档.md</span>
+            <span>docs/最终交付确认文档.md</span>
+          </div>
+          <dl>
+            <dt>真实游戏内容</dt>
+            <dd>真实游戏主地图左侧显示英国、第 1/15 回合、国家决策；右侧五个入口：工业区、市民广场、议会厅、军事要塞、研究院。</dd>
+            <dt>对齐逻辑</dt>
+            <dd>对应“每回合进入决策阶段，玩家从工业、消费、政府、军事、科技等模块做有限决策”。</dd>
+            <dt>演示口径</dt>
+            <dd>这不是重新设计的页面，右侧为从当前真实运行游戏截取的静态画面；如需验证计算、提交、推进，切回真实动态游戏。</dd>
+          </dl>
+          <span class="status">已按文档对齐 / 现场可继续确认</span>
+        </aside>
+        <figure class="screen-panel">
+          <div class="screen-label">真实游戏页面静态截图 · 不含真实计算/提交</div>
+          <img src="assets/decision-map.png" alt="第 1 回合：国家决策主地图真实游戏截图" loading="eager" decoding="sync" />
+          <figcaption>第 1 回合：国家决策主地图 —— 截图来自本地真实运行版本，不是手写仿 UI。</figcaption>
+        </figure>
+      </section>
+      <section class="alignment-card" id="factory">
+        <aside class="req-panel">
+          <p class="eyebrow">需求对齐说明</p>
+          <h2>工业区 / 工厂决策</h2>
+          <div class="source-box">
+            <strong>需求依据</strong>
+            <span>docs/第一版本需求确认文档.md</span>
+            <span>docs/最终交付确认文档.md</span>
+          </div>
+          <dl>
+            <dt>真实游戏内容</dt>
+            <dd>真实工业区弹窗包含工厂预算、工业总览、产线排程、建设改造、工业研究。</dd>
+            <dt>对齐逻辑</dt>
+            <dd>对应“生产、扩产、升级、工业能力建设”的工厂经营需求。</dd>
+            <dt>演示口径</dt>
+            <dd>这不是重新设计的页面，右侧为从当前真实运行游戏截取的静态画面；如需验证计算、提交、推进，切回真实动态游戏。</dd>
+          </dl>
+          <span class="status">已按文档对齐 / 现场可继续确认</span>
+        </aside>
+        <figure class="screen-panel">
+          <div class="screen-label">真实游戏页面静态截图 · 不含真实计算/提交</div>
+          <img src="assets/factory-panel.png" alt="工业区 / 工厂决策真实游戏截图" loading="eager" decoding="sync" />
+          <figcaption>工业区 / 工厂决策 —— 截图来自本地真实运行版本，不是手写仿 UI。</figcaption>
+        </figure>
+      </section>
+      <section class="alignment-card" id="domestic">
+        <aside class="req-panel">
+          <p class="eyebrow">需求对齐说明</p>
+          <h2>市民广场 / 国民消费</h2>
+          <div class="source-box">
+            <strong>需求依据</strong>
+            <span>docs/第一版本需求确认文档.md</span>
+            <span>docs/最终交付确认文档.md</span>
+          </div>
+          <dl>
+            <dt>真实游戏内容</dt>
+            <dd>真实市民广场显示国内预算、民生政策、扩建作坊、博览会等消费配置。</dd>
+            <dt>对齐逻辑</dt>
+            <dd>对应“国内消费市场预算、国内市场容量与民生政策”的需求。</dd>
+            <dt>演示口径</dt>
+            <dd>这不是重新设计的页面，右侧为从当前真实运行游戏截取的静态画面；如需验证计算、提交、推进，切回真实动态游戏。</dd>
+          </dl>
+          <span class="status">已按文档对齐 / 现场可继续确认</span>
+        </aside>
+        <figure class="screen-panel">
+          <div class="screen-label">真实游戏页面静态截图 · 不含真实计算/提交</div>
+          <img src="assets/domestic-panel.png" alt="市民广场 / 国民消费真实游戏截图" loading="eager" decoding="sync" />
+          <figcaption>市民广场 / 国民消费 —— 截图来自本地真实运行版本，不是手写仿 UI。</figcaption>
+        </figure>
+      </section>
+      <section class="alignment-card" id="government">
+        <aside class="req-panel">
+          <p class="eyebrow">需求对齐说明</p>
+          <h2>议会厅 / 政府财政 / 科技点</h2>
+          <div class="source-box">
+            <strong>需求依据</strong>
+            <span>docs/第一版本需求确认文档.md</span>
+            <span>docs/最终交付确认文档.md</span>
+          </div>
+          <dl>
+            <dt>真实游戏内容</dt>
+            <dd>真实议会厅显示政府财政 22、科技点拨款、10 预算/点、预计科技点。</dd>
+            <dt>对齐逻辑</dt>
+            <dd>对应“政府财政池、科技点购买/拨款、政策选择”的需求。</dd>
+            <dt>演示口径</dt>
+            <dd>这不是重新设计的页面，右侧为从当前真实运行游戏截取的静态画面；如需验证计算、提交、推进，切回真实动态游戏。</dd>
+          </dl>
+          <span class="status">已按文档对齐 / 现场可继续确认</span>
+        </aside>
+        <figure class="screen-panel">
+          <div class="screen-label">真实游戏页面静态截图 · 不含真实计算/提交</div>
+          <img src="assets/government-panel.png" alt="议会厅 / 政府财政 / 科技点真实游戏截图" loading="eager" decoding="sync" />
+          <figcaption>议会厅 / 政府财政 / 科技点 —— 截图来自本地真实运行版本，不是手写仿 UI。</figcaption>
+        </figure>
+      </section>
+      <section class="alignment-card" id="military">
+        <aside class="req-panel">
+          <p class="eyebrow">需求对齐说明</p>
+          <h2>军事要塞 / 军事与外交</h2>
+          <div class="source-box">
+            <strong>需求依据</strong>
+            <span>docs/第一版本需求确认文档.md</span>
+            <span>docs/最终交付确认文档.md</span>
+          </div>
+          <dl>
+            <dt>真实游戏内容</dt>
+            <dd>真实军事要塞显示军事点、舰队、海外桥接、已建交、海外区域、军事行动入口。</dd>
+            <dt>对齐逻辑</dt>
+            <dd>对应“军事点、外交、海外市场准入/扩张”的需求。</dd>
+            <dt>演示口径</dt>
+            <dd>这不是重新设计的页面，右侧为从当前真实运行游戏截取的静态画面；如需验证计算、提交、推进，切回真实动态游戏。</dd>
+          </dl>
+          <span class="status">已按文档对齐 / 现场可继续确认</span>
+        </aside>
+        <figure class="screen-panel">
+          <div class="screen-label">真实游戏页面静态截图 · 不含真实计算/提交</div>
+          <img src="assets/military-panel.png" alt="军事要塞 / 军事与外交真实游戏截图" loading="eager" decoding="sync" />
+          <figcaption>军事要塞 / 军事与外交 —— 截图来自本地真实运行版本，不是手写仿 UI。</figcaption>
+        </figure>
+      </section>
+      <section class="alignment-card" id="research">
+        <aside class="req-panel">
+          <p class="eyebrow">需求对齐说明</p>
+          <h2>研究院 / 天赋树</h2>
+          <div class="source-box">
+            <strong>需求依据</strong>
+            <span>docs/第一版本需求确认文档.md</span>
+            <span>docs/最终交付确认文档.md</span>
+          </div>
+          <dl>
+            <dt>真实游戏内容</dt>
+            <dd>真实研究院显示科技点、工业/市民/政府/军事四条天赋树方向。</dd>
+            <dt>对齐逻辑</dt>
+            <dd>对应“科技点用于研究院永久天赋/能力解锁”的需求。</dd>
+            <dt>演示口径</dt>
+            <dd>这不是重新设计的页面，右侧为从当前真实运行游戏截取的静态画面；如需验证计算、提交、推进，切回真实动态游戏。</dd>
+          </dl>
+          <span class="status">已按文档对齐 / 现场可继续确认</span>
+        </aside>
+        <figure class="screen-panel">
+          <div class="screen-label">真实游戏页面静态截图 · 不含真实计算/提交</div>
+          <img src="assets/research-panel.png" alt="研究院 / 天赋树真实游戏截图" loading="eager" decoding="sync" />
+          <figcaption>研究院 / 天赋树 —— 截图来自本地真实运行版本，不是手写仿 UI。</figcaption>
+        </figure>
+      </section>
+      <section class="alignment-card" id="market">
+        <aside class="req-panel">
+          <p class="eyebrow">需求对齐说明</p>
+          <h2>市场出售阶段 / 贸易港入口</h2>
+          <div class="source-box">
+            <strong>需求依据</strong>
+            <span>docs/第一版本需求确认文档.md</span>
+            <span>docs/最终交付确认文档.md</span>
+          </div>
+          <dl>
+            <dt>真实游戏内容</dt>
+            <dd>真实第 1 回合市场出售阶段，主地图只保留贸易港销售入口，左侧阶段显示市场出售。</dd>
+            <dt>对齐逻辑</dt>
+            <dd>对应“生产后进入销售阶段，通过市场出售形成收入”的流程。</dd>
+            <dt>演示口径</dt>
+            <dd>这不是重新设计的页面，右侧为从当前真实运行游戏截取的静态画面；如需验证计算、提交、推进，切回真实动态游戏。</dd>
+          </dl>
+          <span class="status">已按文档对齐 / 现场可继续确认</span>
+        </aside>
+        <figure class="screen-panel">
+          <div class="screen-label">真实游戏页面静态截图 · 不含真实计算/提交</div>
+          <img src="assets/market-map.png" alt="市场出售阶段 / 贸易港入口真实游戏截图" loading="eager" decoding="sync" />
+          <figcaption>市场出售阶段 / 贸易港入口 —— 截图来自本地真实运行版本，不是手写仿 UI。</figcaption>
+        </figure>
+      </section>
+      <section class="alignment-card" id="trade">
+        <aside class="req-panel">
+          <p class="eyebrow">需求对齐说明</p>
+          <h2>贸易港 / 国内与海外销售</h2>
+          <div class="source-box">
+            <strong>需求依据</strong>
+            <span>docs/第一版本需求确认文档.md</span>
+            <span>docs/最终交付确认文档.md</span>
+          </div>
+          <dl>
+            <dt>真实游戏内容</dt>
+            <dd>真实贸易港弹窗包含国内市场、欧洲、亚太销售通道、库存、价格、预计收入。</dd>
+            <dt>对齐逻辑</dt>
+            <dd>对应“国内销售 + 海外销售 + 市场承接能力/区域市场”的需求。</dd>
+            <dt>演示口径</dt>
+            <dd>这不是重新设计的页面，右侧为从当前真实运行游戏截取的静态画面；如需验证计算、提交、推进，切回真实动态游戏。</dd>
+          </dl>
+          <span class="status">已按文档对齐 / 现场可继续确认</span>
+        </aside>
+        <figure class="screen-panel">
+          <div class="screen-label">真实游戏页面静态截图 · 不含真实计算/提交</div>
+          <img src="assets/trade-port.png" alt="贸易港 / 国内与海外销售真实游戏截图" loading="eager" decoding="sync" />
+          <figcaption>贸易港 / 国内与海外销售 —— 截图来自本地真实运行版本，不是手写仿 UI。</figcaption>
+        </figure>
+      </section>
+      <section class="alignment-card" id="settlement">
+        <aside class="req-panel">
+          <p class="eyebrow">需求对齐说明</p>
+          <h2>财政结算 / 国家收入 / 三池分配</h2>
+          <div class="source-box">
+            <strong>需求依据</strong>
+            <span>docs/第一版本需求确认文档.md</span>
+            <span>docs/最终交付确认文档.md</span>
+          </div>
+          <dl>
+            <dt>真实游戏内容</dt>
+            <dd>真实财政结算台展示国内销售额、海外销售额、国家收入、累计国家收入、下一轮三池分配比例与倒计时。</dd>
+            <dt>对齐逻辑</dt>
+            <dd>对应“每回合结算国家收入、按比例回流国内/工厂/政府财政三池，并推进下一回合”的需求。</dd>
+            <dt>演示口径</dt>
+            <dd>这不是重新设计的页面，右侧为从当前真实运行游戏截取的静态画面；如需验证计算、提交、推进，切回真实动态游戏。</dd>
+          </dl>
+          <span class="status">已按文档对齐 / 现场可继续确认</span>
+        </aside>
+        <figure class="screen-panel">
+          <div class="screen-label">真实游戏页面静态截图 · 不含真实计算/提交</div>
+          <img src="assets/settlement.png" alt="财政结算 / 国家收入 / 三池分配真实游戏截图" loading="eager" decoding="sync" />
+          <figcaption>财政结算 / 国家收入 / 三池分配 —— 截图来自本地真实运行版本，不是手写仿 UI。</figcaption>
+        </figure>
+      </section>
+
+    <section class="decision-box">
+      <h2>现场反馈归类</h2>
+      <div class="decision-grid">
+        <div><strong>已按文档对齐</strong><span>继续展示真实页面与需求关系。</span></div>
+        <div><strong>页面表达需优化</strong><span>不改核心规则，只优化文案、引导或视觉提示。</span></div>
+        <div><strong>新增需求</strong><span>记录为新需求，另行评估工期和影响。</span></div>
+        <div><strong>需重定边界</strong><span>若改变胜负、结算或核心机制，需要重新确认范围。</span></div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

@@ -162,6 +162,7 @@ def _normalize_snapshot_payload(payload: dict[str, Any]) -> GameSnapshotPayload:
             "incomeSummary": deepcopy(player_state["incomeSummary"]),
             "usedAbilities": list(player_state.get("usedAbilities", [])),
             "temporaryEffects": deepcopy(player_state.get("temporaryEffects", {})),
+            "phase1Economy": deepcopy(player_state["phase1Economy"]) if "phase1Economy" in player_state else None,
         }
 
     region_states: list[dict[str, Any]] = []

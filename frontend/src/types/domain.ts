@@ -287,8 +287,19 @@ export interface SaleOrder {
   regionId?: string;
 }
 
+export interface Phase1ExternalAllocation {
+  marketId: string;
+  quantity: number;
+}
+
+export interface Phase1MarketPayload {
+  domesticAllocation: number;
+  externalAllocations: Phase1ExternalAllocation[];
+}
+
 export interface MarketSubmission {
   saleOrders: SaleOrder[];
+  phase1Market?: Phase1MarketPayload;
 }
 
 export interface FactoryRouteSummary {
@@ -402,6 +413,38 @@ export interface TechTreeNode {
   unlocksRoutes: string[];
 }
 
+export interface Phase1ProductionMode {
+  mode: string;
+  label: string;
+  inputRatio: number;
+  outputRatio: number;
+  demandCoefficient: number;
+  buildCost: number | null;
+  upgradeCost: number | null;
+  currentCapacity: number;
+  requiredTech: string | null;
+  isAvailable: boolean;
+}
+
+export interface Phase1EconomyWorkspace {
+  capacityByMode: Record<string, number>;
+  rawMaterials: number;
+  goodsInventory: number;
+  productionModes: Phase1ProductionMode[];
+  domesticDemand: number;
+  equilibriumPrice: number;
+  domesticPricePreview: number;
+  investmentPool: number;
+  incomeAllocationRatio: Record<string, number>;
+  marketMetrics: Record<string, number>;
+  poolDeltaPreview?: {
+    consumption: number;
+    investment: number;
+    fiscal: number;
+  };
+  consumptionPool?: number;
+}
+
 export interface DecisionPlayerPhaseWorkspace {
   countryCode: CountryCode;
   countryLabel: string;
@@ -443,6 +486,7 @@ export interface DecisionPlayerPhaseWorkspace {
     talentBranches: TalentBranchOption[];
     unlockedTalentCount: number;
   };
+  phase1Economy?: Phase1EconomyWorkspace;
 }
 
 export interface MarketInventoryOption {
@@ -472,6 +516,8 @@ export interface MarketPlayerPhaseWorkspace {
   domesticMarketCapacity: number;
   overseasMarketCapacity: number;
   regionAccessStatus: RegionAccessStatus[];
+  phase1Economy?: Phase1EconomyWorkspace;
+  phase1GoodsAvailable?: number;
 }
 
 export interface SettlementPlayerPhaseWorkspace {
@@ -482,6 +528,7 @@ export interface SettlementPlayerPhaseWorkspace {
   nationalIncome: number;
   budgetAllocation: BudgetPools;
   nextRatio: IncomeAllocationRatio;
+  phase1Economy?: Phase1EconomyWorkspace;
 }
 
 export type PlayerPhaseWorkspace =

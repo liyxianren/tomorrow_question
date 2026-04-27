@@ -95,11 +95,31 @@ def _plan_decision(workspace: Mapping[str, Any]) -> dict[str, Any]:
         draft["governmentPlan"]["strategySelections"].append(
             {"actionId": str(first_strategy.get("actionId"))}
         )
+
+    phase1_economy = _as_mapping(workspace.get("phase1Economy"))
+    if phase1_economy:
+        production_modes = [
+            mode for mode in _as_list(phase1_economy.get("productionModes")) if isinstance(mode, dict)
+        ]
+        chosen_mode = next(
+            (
+                mode
+                for mode in production_modes
+                if str(mode.get("mode") or "") != "idle"
+                and bool(mode.get("isAvailable"))
+                and int(mode.get("currentCapacity", 0)) > 0
+            ),
+            None,
+        )
+        if chosen_mode is not None:
+            draft["phase1Production"] = {
+                "rawMaterialAssignments": {str(chosen_mode.get("mode")): 1}
+            }
     return draft
 
 
 def _plan_market(workspace: Mapping[str, Any]) -> dict[str, Any]:
-    draft = {"saleOrders": []}
+    draft: dict[str, Any] = {"saleOrders": []}
     inventory = [item for item in _as_list(workspace.get("sellableInventory")) if isinstance(item, dict)]
     remaining_domestic_capacity = int(workspace.get("domesticMarketCapacity", 0))
     remaining_overseas_capacity = int(workspace.get("overseasMarketCapacity", 0))
@@ -133,6 +153,20 @@ def _plan_market(workspace: Mapping[str, Any]) -> dict[str, Any]:
                 }
             )
             remaining_overseas_capacity -= overseas_quantity
+
+    phase1_economy = _as_mapping(workspace.get("phase1Economy"))
+    if phase1_economy:
+        goods_available = int(
+            phase1_economy.get("goodsInventory")
+            or phase1_economy.get("phase1GoodsAvailable")
+            or 0
+        )
+        if goods_available > 0:
+            demand = int(phase1_economy.get("domesticDemand", 0) or 0)
+            draft["phase1Market"] = {
+                "domesticAllocation": min(goods_available, demand),
+                "externalAllocations": [],
+            }
     return draft
 
 
