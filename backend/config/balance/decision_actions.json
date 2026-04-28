@@ -255,6 +255,39 @@
       "description": "[平等之路] 每回合财政池10%自动转入消费池。",
       "maxPerRound": 1,
       "requiresReform": "social_relief"
+    },
+    "strike_negotiation": {
+      "label": "罢工谈判",
+      "adminCostPerTurn": 1,
+      "budgetCost": 0,
+      "effects": {
+        "productionCapacityMultiplier": 0.5
+      },
+      "description": "[平等之路] 本回合所有产能减半，降低平等主义激进度。",
+      "maxPerRound": 1,
+      "requiresReform": "labor_union"
+    },
+    "general_mobilization": {
+      "label": "总动员令",
+      "adminCostPerTurn": 1,
+      "budgetCost": 0,
+      "effects": {
+        "mobilizeCapacityToMilitary": { "ratio": 0.5, "militaryPerUnit": 1 }
+      },
+      "description": "[民族之路] 将一半产能转化为军事点数。",
+      "maxPerRound": 1,
+      "requiresReform": "total_mobilization"
+    },
+    "violent_suppression": {
+      "label": "暴力镇压",
+      "adminCostPerTurn": 1,
+      "budgetCost": 0,
+      "effects": {
+        "suppressIdeology": { "militaryCost": 5, "delta": -5, "targetIdeology": "all" }
+      },
+      "description": "[民族之路] 消耗5军事点数，压制所有思潮激进度。",
+      "maxPerRound": 1,
+      "requiresReform": "secret_police"
     }
   }
 }

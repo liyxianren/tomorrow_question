@@ -586,6 +586,44 @@ def _apply_reform_or_policy_effects(player_state, effects: dict[str, Any]) -> No
             int(player_state.budget_pools.get("governmentFiscal", 0)) + int(fiscal_refund)
         )
 
+    cap_multiplier = effects.get("productionCapacityMultiplier")
+    if cap_multiplier is not None:
+        mult = float(cap_multiplier)
+        for cap_key in list(player_state.production_capacity.keys()):
+            player_state.production_capacity[cap_key] = max(
+                0, int(int(player_state.production_capacity.get(cap_key, 0)) * mult)
+            )
+
+    mobilize = effects.get("mobilizeCapacityToMilitary")
+    if isinstance(mobilize, dict):
+        ratio = float(mobilize.get("ratio", 0))
+        mp_per_unit = int(mobilize.get("militaryPerUnit", 1))
+        total_mp = 0
+        for cap_key in list(player_state.production_capacity.keys()):
+            current = int(player_state.production_capacity.get(cap_key, 0))
+            converted = int(current * ratio)
+            player_state.production_capacity[cap_key] = current - converted
+            total_mp += converted * mp_per_unit
+        player_state.military_points = int(player_state.military_points) + total_mp
+
+    suppression = effects.get("suppressIdeology")
+    if isinstance(suppression, dict):
+        cost = int(suppression.get("militaryCost", 0))
+        delta = int(suppression.get("delta", 0))
+        target = str(suppression.get("targetIdeology") or "")
+        if cost > 0 and delta != 0:
+            if int(player_state.military_points) >= cost:
+                player_state.military_points = int(player_state.military_points) - cost
+                if target == "all":
+                    for key in list(player_state.ideology_levels.keys()):
+                        player_state.ideology_levels[key] = max(
+                            0, int(player_state.ideology_levels.get(key, 0)) + delta
+                        )
+                elif target in player_state.ideology_levels:
+                    player_state.ideology_levels[target] = max(
+                        0, int(player_state.ideology_levels.get(target, 0)) + delta
+                    )
+
 
 def _is_reform_path_blocked(player_state, balance, reform) -> bool:
     for done_id in player_state.completed_reforms:
