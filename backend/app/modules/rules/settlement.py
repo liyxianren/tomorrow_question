@@ -7,6 +7,7 @@ from app.modules.balance_config import get_balance_config
 from app.modules.game_state.effects import apply_effects, get_effect_bonus, reset_temporary_effects
 
 from .common import RuleResolution, clone_snapshot
+from .decision import _apply_reform_or_policy_effects
 from .phase1_economy import (
     DEFAULT_INCOME_ALLOCATION_RATIO as PHASE1_DEFAULT_RATIO,
     allocate_revenue_to_pools,
@@ -84,6 +85,8 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
         )
         reset_temporary_effects(player_state)
         _apply_ideology_progression(player_state, signal_values_by_player_id[player_state.player_id], balance)
+        _apply_active_policy_effects(player_state, balance)
+        _apply_permanent_reform_effects(player_state, balance)
         if _is_phase1_economy_active(player_state):
             player_state.phase1_economy.income_allocation_ratio = {
                 "consumption": float(PHASE1_DEFAULT_RATIO["consumption"]),
@@ -315,6 +318,64 @@ def _event_is_eligible(event_config, snapshot, next_round: int) -> bool:
 def _controlled_region_count(snapshot, player_state) -> int:
     controlled = sum(1 for region in snapshot.region_states if region.controller == player_state.country.value)
     return controlled + int(player_state.controlled_regions_bonus)
+
+
+_PERMANENT_POOL_ALIASES = {
+    "fiscal": "governmentFiscal",
+    "consumption": "domesticMarket",
+}
+
+
+def _resolve_pool_key(raw_key: str) -> str:
+    return _PERMANENT_POOL_ALIASES.get(raw_key, raw_key)
+
+
+def _apply_permanent_effects(player_state, permanent: dict) -> None:
+    tech_per_turn = permanent.get("techPointsPerTurn")
+    if tech_per_turn is not None:
+        player_state.tech_points = int(player_state.tech_points) + int(tech_per_turn)
+
+    welfare_transfer = permanent.get("welfareTransfer")
+    if isinstance(welfare_transfer, dict):
+        from_pool = _resolve_pool_key(str(welfare_transfer.get("from") or ""))
+        to_pool = _resolve_pool_key(str(welfare_transfer.get("to") or ""))
+        ratio = float(welfare_transfer.get("ratio", 0.0))
+        if from_pool and to_pool and ratio > 0:
+            amount = int(int(player_state.budget_pools.get(from_pool, 0)) * ratio)
+            if amount > 0:
+                player_state.budget_pools[from_pool] = (
+                    int(player_state.budget_pools.get(from_pool, 0)) - amount
+                )
+                player_state.budget_pools[to_pool] = (
+                    int(player_state.budget_pools.get(to_pool, 0)) + amount
+                )
+
+
+def _apply_active_policy_effects(player_state, balance) -> None:
+    for policy_id in list(player_state.active_policies):
+        policy = balance.reforms.regular_policies.get(policy_id)
+        if policy is None:
+            continue
+        player_state.administration_capacity = (
+            int(player_state.administration_capacity) - int(policy.admin_cost_per_turn)
+        )
+        _apply_reform_or_policy_effects(player_state, policy.effects)
+        permanent = policy.effects.get("permanent") if isinstance(policy.effects, dict) else None
+        if isinstance(permanent, dict):
+            _apply_permanent_effects(player_state, permanent)
+        if int(player_state.administration_capacity) < 0:
+            if policy_id in player_state.active_policies:
+                player_state.active_policies.remove(policy_id)
+
+
+def _apply_permanent_reform_effects(player_state, balance) -> None:
+    for reform_id in player_state.completed_reforms:
+        reform = balance.reforms.reforms.get(reform_id)
+        if reform is None:
+            continue
+        permanent = reform.effects.get("permanent") if isinstance(reform.effects, dict) else None
+        if isinstance(permanent, dict):
+            _apply_permanent_effects(player_state, permanent)
 
 
 def _mirror_phase1_income_allocation_ratio(player_state) -> None:
