@@ -7,6 +7,7 @@ import { HomePage } from "../pages/HomePage";
 import { LobbyPage } from "../pages/LobbyPage";
 import { NotFoundPage } from "../pages/NotFoundPage";
 import { RoomPage } from "../pages/RoomPage";
+import { SettingsPage } from "../pages/SettingsPage";
 import { SettlementPage } from "../pages/SettlementPage";
 
 
@@ -38,6 +39,10 @@ export const router = createBrowserRouter([
       {
         path: "design/decision-card-demo",
         element: <DecisionCardDemoPage />,
+      },
+      {
+        path: "setting",
+        element: <SettingsPage />,
       },
       {
         path: "*",
