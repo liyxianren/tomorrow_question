@@ -32,13 +32,7 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
         player_state.national_income = int(player_state.national_income) + colony_income
 
         effective_income = int(player_state.national_income)
-        if _is_phase1_economy_active(player_state):
-            allocation = _allocate_income_phase1(national_income=effective_income)
-        else:
-            allocation = _allocate_income(
-                national_income=effective_income,
-                ratio=player_state.income_allocation_ratio,
-            )
+        allocation = _allocate_income_phase1(national_income=effective_income)
         for key, value in allocation.items():
             player_state.budget_pools[key] = int(player_state.budget_pools.get(key, 0)) + int(value)
         player_state.cumulative_national_income = int(player_state.cumulative_national_income) + effective_income
@@ -85,24 +79,21 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
         _apply_ideology_progression(player_state, signal_values_by_player_id[player_state.player_id], balance)
         _apply_active_policy_effects(player_state, balance)
         _apply_permanent_reform_effects(player_state, balance)
-        if _is_phase1_economy_active(player_state):
-            player_state.phase1_economy.income_allocation_ratio = {
-                "consumption": float(PHASE1_DEFAULT_RATIO["consumption"]),
-                "investment": float(PHASE1_DEFAULT_RATIO["investment"]),
-                "fiscal": float(PHASE1_DEFAULT_RATIO["fiscal"]),
-            }
-            country_config = balance.countries.get(player_state.country.value)
-            raw_materials_per_turn = (
-                int(country_config.raw_materials_per_turn)
-                if country_config is not None
-                else int(balance.global_config.raw_materials_per_turn)
-            )
-            player_state.phase1_economy.raw_materials = (
-                int(player_state.phase1_economy.raw_materials)
-                + raw_materials_per_turn
-            )
-        else:
-            _mirror_phase1_income_allocation_ratio(player_state)
+        player_state.phase1_economy.income_allocation_ratio = {
+            "consumption": float(PHASE1_DEFAULT_RATIO["consumption"]),
+            "investment": float(PHASE1_DEFAULT_RATIO["investment"]),
+            "fiscal": float(PHASE1_DEFAULT_RATIO["fiscal"]),
+        }
+        country_config = balance.countries.get(player_state.country.value)
+        raw_materials_per_turn = (
+            int(country_config.raw_materials_per_turn)
+            if country_config is not None
+            else int(balance.global_config.raw_materials_per_turn)
+        )
+        player_state.phase1_economy.raw_materials = (
+            int(player_state.phase1_economy.raw_materials)
+            + raw_materials_per_turn
+        )
         player_state.domestic_sales_revenue = 0
         player_state.overseas_sales_revenue = 0
         player_state.national_income = 0
@@ -382,13 +373,3 @@ def _apply_permanent_reform_effects(player_state, balance) -> None:
             _apply_permanent_effects(player_state, permanent)
 
 
-def _mirror_phase1_income_allocation_ratio(player_state) -> None:
-    legacy_ratio = player_state.income_allocation_ratio
-    total = float(sum(float(value) for value in legacy_ratio.values()))
-    if total <= 0:
-        return
-    player_state.phase1_economy.income_allocation_ratio = {
-        "consumption": float(legacy_ratio.get("domesticMarket", 0.0)) / total,
-        "investment": float(legacy_ratio.get("factory", 0.0)) / total,
-        "fiscal": float(legacy_ratio.get("governmentFiscal", 0.0)) / total,
-    }

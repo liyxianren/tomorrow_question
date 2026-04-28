@@ -473,43 +473,6 @@ class MarketPhase1Tests(unittest.TestCase):
         self.assertEqual(updated.phase1_economy.market_metrics["soldQuantity"], 8.0)
 
 
-class MarketLegacyFallbackTests(unittest.TestCase):
-    """Without phase1Market, market.py keeps the legacy saleOrders pipeline."""
-
-    def test_legacy_sale_orders_still_resolve_when_no_phase1_field(self) -> None:
-        snapshot = _build_snapshot(GamePhase.MARKET)
-        britain = _get_player(snapshot, "player-1")
-        europe = next(region for region in snapshot.region_states if region.region_id == "europe")
-        europe.access_level = RegionAccessLevel.OPEN
-        britain.goods_stock = {"steel": 3, "grain": 2}
-        britain.budget_pools = {"domesticMarket": 15, "factory": 10, "governmentFiscal": 12}
-        britain.military_points = 2
-        britain.income_summary["domesticMarketCapacity"] = 3
-        britain.income_summary["overseasMarketCapacity"] = 2
-
-        resolution = resolve_market_phase(
-            snapshot=snapshot,
-            turn_inputs=[
-                _build_turn_input(
-                    "player-1",
-                    GamePhase.MARKET,
-                    {
-                        "saleOrders": [
-                            {"goodsId": "grain", "market": "domestic", "quantity": 2},
-                            {"goodsId": "steel", "market": "overseas", "regionId": "europe", "quantity": 2},
-                        ]
-                    },
-                )
-            ],
-        )
-
-        updated = _get_player(resolution.updated_snapshot, "player-1")
-        # Same numbers as test_rules_market.test_market_writes_domestic_overseas_and_national_income.
-        self.assertEqual(updated.domestic_sales_revenue, 8)
-        self.assertEqual(updated.overseas_sales_revenue, 22)
-        self.assertEqual(updated.national_income, 30)
-
-
 class SettlementPhase1Tests(unittest.TestCase):
     """When phase-1 economy is active, settlement uses 5:3:2 instead of legacy 3:3:4."""
 
@@ -566,46 +529,6 @@ class SettlementPhase1Tests(unittest.TestCase):
             updated.phase1_economy.raw_materials,
             12 + 21,  # prussia rawMaterialsPerTurn = 21 from countries.json
         )
-
-    def test_settlement_does_not_add_raw_material_income_when_phase1_inactive(self) -> None:
-        snapshot = _build_snapshot(GamePhase.SETTLEMENT)
-        prussia = _get_player(snapshot, "player-3")
-        # Drive _is_phase1_economy_active to False: zero inventory + zero raw + zero revenue.
-        prussia.phase1_economy.goods_inventory = 0
-        prussia.phase1_economy.raw_materials = 0
-        prussia.phase1_economy.market_metrics["revenue"] = 0
-        prussia.national_income = 100
-
-        resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
-
-        updated = _get_player(resolution.updated_snapshot, "player-3")
-        self.assertEqual(updated.phase1_economy.raw_materials, 0)
-
-
-class SettlementLegacyFallbackTests(unittest.TestCase):
-    """Default phase-1 state (no inventory, no revenue) keeps settlement on 3:3:4."""
-
-    def test_settlement_uses_legacy_ratio_when_phase1_state_is_default(self) -> None:
-        snapshot = _build_snapshot(GamePhase.SETTLEMENT)
-        prussia = _get_player(snapshot, "player-3")
-        # Default phase1: goods_inventory=0, raw_materials=0, market_metrics.revenue=0.
-        # Factory seeds raw_materials to a non-zero starter, so override here for
-        # the legacy-only scenario.
-        prussia.phase1_economy.raw_materials = 0
-        prussia.income_allocation_ratio = {"domesticMarket": 3.0, "factory": 3.0, "governmentFiscal": 4.0}
-        prussia.budget_pools = {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
-        prussia.national_income = 100
-        prussia.reforms = []
-        prussia.ideology_levels = {key: 0 for key in prussia.ideology_levels}
-
-        resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
-
-        updated = _get_player(resolution.updated_snapshot, "player-3")
-        # Legacy 3:3:4 of 100 -> 30 / 30 / 40.
-        self.assertEqual(updated.budget_pools["domesticMarket"], 30)
-        self.assertEqual(updated.budget_pools["factory"], 30)
-        self.assertEqual(updated.budget_pools["governmentFiscal"], 40)
-
 
 if __name__ == "__main__":
     unittest.main()

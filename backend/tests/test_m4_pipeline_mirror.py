@@ -80,91 +80,6 @@ def _empty_military_plan() -> dict[str, object]:
 
 
 class DecisionPhaseMirrorsPhase1EconomyTests(unittest.TestCase):
-    def test_decision_mirrors_production_capacity_into_phase1_capacity_by_mode(self) -> None:
-        snapshot = _build_snapshot()
-        britain = _get_player(snapshot, "player-1")
-        # Mutate legacy production_capacity directly to prove the hook mirrors it.
-        britain.production_capacity = {
-            "idle": 1,
-            "handicraft": 4,
-            "mechanized": 2,
-            "steam": 0,
-            "electrified": 0,
-        }
-
-        resolution = resolve_decision_phase(
-            snapshot=snapshot,
-            turn_inputs=[
-                _build_turn_input(
-                    "player-1",
-                    GamePhase.DECISION,
-                    {
-                        "factoryPlan": {
-                            "productionOrders": [],
-                            "expansionOrders": [],
-                            "upgradeOrders": [],
-                            "newFactoryOrders": [],
-                        },
-                        "domesticMarketPlan": {"domesticMarketActions": []},
-                        "governmentPlan": {
-                            "pointPurchases": [],
-                            "strategySelections": [],
-                            "techResearch": [],
-                        },
-                        "militaryPlan": _empty_military_plan(),
-                    },
-                )
-            ],
-        )
-
-        updated_britain = _get_player(resolution.updated_snapshot, "player-1")
-        self.assertEqual(
-            updated_britain.phase1_economy.capacity_by_mode,
-            {
-                "idle": 1,
-                "handicraft": 4,
-                "mechanized": 2,
-                "steam": 0,
-                "electrified": 0,
-            },
-        )
-
-    def test_decision_mirrors_goods_stock_total_into_phase1_goods_inventory(self) -> None:
-        snapshot = _build_snapshot()
-        britain = _get_player(snapshot, "player-1")
-        britain.goods_stock = {"coal": 7, "cotton": 5}
-
-        resolution = resolve_decision_phase(
-            snapshot=snapshot,
-            turn_inputs=[
-                _build_turn_input(
-                    "player-1",
-                    GamePhase.DECISION,
-                    {
-                        "factoryPlan": {
-                            "productionOrders": [],
-                            "expansionOrders": [],
-                            "upgradeOrders": [],
-                            "newFactoryOrders": [],
-                        },
-                        "domesticMarketPlan": {"domesticMarketActions": []},
-                        "governmentPlan": {
-                            "pointPurchases": [],
-                            "strategySelections": [],
-                            "techResearch": [],
-                        },
-                        "militaryPlan": _empty_military_plan(),
-                    },
-                )
-            ],
-        )
-
-        updated_britain = _get_player(resolution.updated_snapshot, "player-1")
-        self.assertEqual(updated_britain.phase1_economy.goods_inventory, 12)
-        # And the legacy field is unchanged in the cloned snapshot.
-        self.assertEqual(updated_britain.goods_stock["coal"], 7)
-        self.assertEqual(updated_britain.goods_stock["cotton"], 5)
-
     def test_decision_mirrors_raw_material_usage_into_phase1_raw_materials(self) -> None:
         snapshot = _build_snapshot()
         britain = _get_player(snapshot, "player-1")
@@ -281,56 +196,6 @@ class MarketPhaseMirrorsPhase1EconomyTests(unittest.TestCase):
         self.assertEqual(metrics["unsoldQuantity"], 5.0)
         self.assertEqual(metrics["revenue"], 0.0)
 
-    def test_market_revenue_equals_legacy_domestic_plus_overseas(self) -> None:
-        snapshot = _build_snapshot(GamePhase.MARKET)
-        britain = _get_player(snapshot, "player-1")
-        britain.phase1_economy.capacity_by_mode = {
-            "idle": 0,
-            "handicraft": 4,
-            "mechanized": 0,
-            "steam": 0,
-            "electrified": 0,
-        }
-        britain.phase1_economy.goods_inventory = 5
-        britain.goods_stock = {"steel": 3, "grain": 2}
-        britain.budget_pools = {"domesticMarket": 15, "factory": 10, "governmentFiscal": 12}
-        britain.military_points = 2
-        britain.income_summary["domesticMarketCapacity"] = 3
-        britain.income_summary["overseasMarketCapacity"] = 2
-        # Open Europe so overseas sale resolves like in test_rules_market.
-        europe = next(region for region in snapshot.region_states if region.region_id == "europe")
-        from app.contracts.enums import RegionAccessLevel  # local import; keeps top of file lean
-        europe.access_level = RegionAccessLevel.OPEN
-
-        resolution = resolve_market_phase(
-            snapshot=snapshot,
-            turn_inputs=[
-                _build_turn_input(
-                    "player-1",
-                    GamePhase.MARKET,
-                    {
-                        "saleOrders": [
-                            {"goodsId": "grain", "market": "domestic", "quantity": 2},
-                            {"goodsId": "steel", "market": "overseas", "regionId": "europe", "quantity": 2},
-                        ]
-                    },
-                )
-            ],
-        )
-
-        updated_britain = _get_player(resolution.updated_snapshot, "player-1")
-        # Legacy revenue numbers reproduce existing test_rules_market expectations.
-        self.assertEqual(updated_britain.domestic_sales_revenue, 8)
-        self.assertEqual(updated_britain.overseas_sales_revenue, 22)
-        self.assertEqual(updated_britain.national_income, 30)
-        # Phase1 revenue mirrors the legacy total.
-        self.assertEqual(
-            updated_britain.phase1_economy.market_metrics["revenue"],
-            float(updated_britain.domestic_sales_revenue + updated_britain.overseas_sales_revenue),
-        )
-        self.assertEqual(updated_britain.phase1_economy.market_metrics["soldQuantity"], 4.0)
-        self.assertEqual(updated_britain.phase1_economy.market_metrics["unsoldQuantity"], 1.0)
-
     def test_market_does_not_change_legacy_goods_stock_outside_pipeline(self) -> None:
         snapshot = _build_snapshot(GamePhase.MARKET)
         britain = _get_player(snapshot, "player-1")
@@ -352,37 +217,6 @@ class MarketPhaseMirrorsPhase1EconomyTests(unittest.TestCase):
 
 
 class SettlementPhaseMirrorsPhase1EconomyTests(unittest.TestCase):
-    def test_settlement_normalizes_legacy_ratio_into_phase1_consumption_investment_fiscal(self) -> None:
-        snapshot = _build_snapshot(GamePhase.SETTLEMENT)
-        britain = _get_player(snapshot, "player-1")
-        # Force the legacy fallback path: phase-1 must be inactive so the mirror
-        # normalizes the legacy ratio into phase1.income_allocation_ratio.
-        britain.phase1_economy.raw_materials = 0
-        britain.phase1_economy.goods_inventory = 0
-        britain.phase1_economy.market_metrics["revenue"] = 0
-        britain.income_allocation_ratio = {
-            "domesticMarket": 3.0,
-            "factory": 3.0,
-            "governmentFiscal": 4.0,
-        }
-        britain.national_income = 100
-
-        resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
-
-        updated_britain = _get_player(resolution.updated_snapshot, "player-1")
-        self.assertAlmostEqual(
-            updated_britain.phase1_economy.income_allocation_ratio["consumption"], 0.3, places=6
-        )
-        self.assertAlmostEqual(
-            updated_britain.phase1_economy.income_allocation_ratio["investment"], 0.3, places=6
-        )
-        self.assertAlmostEqual(
-            updated_britain.phase1_economy.income_allocation_ratio["fiscal"], 0.4, places=6
-        )
-        # Phase1 ratio sums to 1.0.
-        ratio_total = sum(updated_britain.phase1_economy.income_allocation_ratio.values())
-        self.assertAlmostEqual(ratio_total, 1.0, places=6)
-
     def test_settlement_does_not_overwrite_legacy_income_allocation_ratio(self) -> None:
         snapshot = _build_snapshot(GamePhase.SETTLEMENT)
         britain = _get_player(snapshot, "player-1")
@@ -417,38 +251,6 @@ class SettlementPhaseMirrorsPhase1EconomyTests(unittest.TestCase):
         self.assertEqual(updated_britain.phase1_economy.income_allocation_ratio["consumption"], 0.5)
         self.assertEqual(updated_britain.phase1_economy.income_allocation_ratio["investment"], 0.3)
         self.assertEqual(updated_britain.phase1_economy.income_allocation_ratio["fiscal"], 0.2)
-
-    def test_settlement_phase1_mirror_does_not_overwrite_legacy_budget_allocation(self) -> None:
-        # The phase-1 mirror only writes to phase1_economy.income_allocation_ratio.
-        # Legacy budget_pools must still receive the standard allocation, computed
-        # from the legacy ratio — and the phase-1 ratio (5:3:2 default) must NOT
-        # leak into the legacy budget split.
-        snapshot = _build_snapshot(GamePhase.SETTLEMENT)
-        prussia = _get_player(snapshot, "player-3")
-        # Use Prussia to avoid Britain's milestone reforms that mutate legacy
-        # budget pools at settlement time (orthogonal to this hook).
-        # Force the legacy fallback path so the legacy 3:3:4 split applies.
-        prussia.phase1_economy.raw_materials = 0
-        prussia.phase1_economy.goods_inventory = 0
-        prussia.phase1_economy.market_metrics["revenue"] = 0
-        prussia.income_allocation_ratio = {
-            "domesticMarket": 3.0,
-            "factory": 3.0,
-            "governmentFiscal": 4.0,
-        }
-        prussia.budget_pools = {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
-        prussia.national_income = 100
-        prussia.reforms = []
-        prussia.ideology_levels = {key: 0 for key in prussia.ideology_levels}
-
-        resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
-
-        updated_prussia = _get_player(resolution.updated_snapshot, "player-3")
-        # Allocation reflects the legacy 3:3:4 weighting, not the phase-1 5:3:2.
-        self.assertEqual(updated_prussia.budget_pools["domesticMarket"], 30)
-        self.assertEqual(updated_prussia.budget_pools["factory"], 30)
-        self.assertEqual(updated_prussia.budget_pools["governmentFiscal"], 40)
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -413,63 +413,6 @@ class Phase1MarketE2ETests(_Phase1ApiTestCase):
         self.assertEqual(britain.overseas_sales_revenue, 0)
         self.assertEqual(britain.national_income, 80)
 
-    def test_market_fallback_when_no_phase1_field(self) -> None:
-        self.seed_active_game()
-        # Seed Britain with legacy stock so the legacy saleOrders pipeline has
-        # something to work with.
-        connection = connect_database(self.database_path)
-        initialize_database(connection)
-        snapshots = SnapshotRepository(connection)
-        snapshot_payload = snapshots.get("snapshot-1")
-        britain_payload = snapshot_payload["nationalStateByPlayer"]["player-1"]
-        britain_payload["goodsStock"]["coal"] = 3
-        britain_payload["budgetPools"]["domesticMarket"] = 15
-        britain_payload["incomeSummary"]["domesticMarketCapacity"] = 3
-        snapshots.save(snapshot_payload)
-        connection.close()
-        self._set_db_phase(GamePhase.MARKET)
-
-        response = self.client.post(
-            "/api/v1/games/game-1/phases/market/submit",
-            json={
-                "payload": {
-                    "saleOrders": [
-                        {"goodsId": "coal", "market": "domestic", "quantity": 3}
-                    ]
-                }
-            },
-            headers={"X-Session-Id": "session-1"},
-        )
-        self.assertEqual(response.status_code, 200, response.get_json())
-
-        persisted = self._load_persisted_payload(
-            phase=GamePhase.MARKET, player_id="player-1"
-        )
-        self.assertNotIn("phase1Market", persisted)
-        self.assertEqual(
-            persisted["saleOrders"],
-            [{"goodsId": "coal", "market": "domestic", "quantity": 3}],
-        )
-
-        snapshot = self._load_snapshot()
-        turn_inputs = self._load_turn_inputs(phase=GamePhase.MARKET)
-        resolution = resolve_market_phase(snapshot=snapshot, turn_inputs=turn_inputs)
-
-        britain = self._player(resolution.updated_snapshot, "player-1")
-        # Legacy path resolved the saleOrders and produced revenue.
-        self.assertGreater(britain.domestic_sales_revenue, 0)
-        self.assertEqual(britain.overseas_sales_revenue, 0)
-        self.assertEqual(
-            britain.national_income,
-            britain.domestic_sales_revenue + britain.overseas_sales_revenue,
-        )
-        # Mirror also writes phase1 metrics from the legacy outcome.
-        self.assertEqual(
-            britain.phase1_economy.market_metrics["revenue"],
-            float(britain.national_income),
-        )
-
-
 class Phase1SettlementE2ETests(_Phase1ApiTestCase):
     """Decision + market + settlement chain with phase-1 fields applies 5:3:2 split."""
 

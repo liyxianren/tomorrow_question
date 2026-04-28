@@ -28,10 +28,6 @@ def build_snapshot() -> GameSnapshot:
         },
     )
     snapshot.phase = GamePhase.SETTLEMENT
-    # The legacy settlement tests assert the legacy 3:3:4 split. Reset
-    # factory-seeded phase-1 raw materials so the phase-1 path stays inactive.
-    for player_state in snapshot.player_states:
-        player_state.phase1_economy.raw_materials = 0
     return snapshot
 
 
@@ -47,16 +43,16 @@ class SettlementRulesTests(unittest.TestCase):
         britain.overseas_sales_revenue = 5
         britain.national_income = 12
         britain.cumulative_national_income = 20
-        britain.income_allocation_ratio = {"domesticMarket": 3.0, "factory": 3.0, "governmentFiscal": 4.0}
         britain.budget_pools = {"domesticMarket": 8, "factory": 9, "governmentFiscal": 11}
 
         resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
         updated_britain = get_player(resolution.updated_snapshot, "player-1")
 
+        # 5:3:2 of 12 -> 6 / 3 / 3 deltas added to existing pools.
         self.assertEqual(updated_britain.cumulative_national_income, 32)
-        self.assertEqual(updated_britain.budget_pools["domesticMarket"], 11)
+        self.assertEqual(updated_britain.budget_pools["domesticMarket"], 14)
         self.assertEqual(updated_britain.budget_pools["factory"], 12)
-        self.assertEqual(updated_britain.budget_pools["governmentFiscal"], 17)
+        self.assertEqual(updated_britain.budget_pools["governmentFiscal"], 14)
         self.assertEqual(updated_britain.national_income, 0)
         self.assertEqual(updated_britain.domestic_sales_revenue, 0)
         self.assertEqual(updated_britain.overseas_sales_revenue, 0)
@@ -66,7 +62,6 @@ class SettlementRulesTests(unittest.TestCase):
         britain = get_player(snapshot, "player-1")
         britain.national_income = 12
         britain.cumulative_national_income = 20
-        britain.income_allocation_ratio = {"domesticMarket": 3.0, "factory": 3.0, "governmentFiscal": 4.0}
         britain.budget_pools = {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
         americas = next(region for region in snapshot.region_states if region.region_id == "americas")
         americas.controller = britain.country.value
@@ -76,8 +71,9 @@ class SettlementRulesTests(unittest.TestCase):
         summary_card = next(card for card in resolution.summary["summaryCards"] if card["playerId"] == "player-1")
         generated_log = next(log for log in resolution.generated_logs if log["details"]["playerId"] == "player-1")
 
+        # National income 12 + colony income 5 = 17, split 5:3:2 -> 8 / 5 / 4.
         self.assertEqual(updated_britain.cumulative_national_income, 37)
-        self.assertEqual(updated_britain.budget_pools, {"domesticMarket": 5, "factory": 5, "governmentFiscal": 7})
+        self.assertEqual(updated_britain.budget_pools, {"domesticMarket": 8, "factory": 5, "governmentFiscal": 4})
         self.assertEqual(summary_card["colonyIncome"], 5)
         self.assertEqual(generated_log["details"]["colonyIncome"], 5)
 

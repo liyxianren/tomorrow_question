@@ -395,11 +395,7 @@ class SettlementRealtimeOrchestrationTests(unittest.TestCase):
         player_state = next(player for player in started.snapshot.player_states if player.player_id == "player-1")
         player_state.national_income = 10
         player_state.cumulative_national_income = 20
-        player_state.income_allocation_ratio = {"domesticMarket": 3.0, "factory": 3.0, "governmentFiscal": 4.0}
         player_state.budget_pools = {"domesticMarket": 5, "factory": 5, "governmentFiscal": 5}
-        # This test asserts the legacy 3:3:4 split. Reset factory-seeded
-        # phase-1 raw materials so the phase-1 path stays inactive.
-        player_state.phase1_economy.raw_materials = 0
 
         with patch.object(socketio, "emit") as emit_mock:
             outcome = run_phase_settlement(
@@ -418,7 +414,8 @@ class SettlementRealtimeOrchestrationTests(unittest.TestCase):
         self.assertEqual(outcome.updated_snapshot.round_no, 3)
         updated_player = next(player for player in outcome.updated_snapshot.player_states if player.player_id == "player-1")
         self.assertEqual(updated_player.cumulative_national_income, 30)
-        self.assertEqual(updated_player.budget_pools, {"domesticMarket": 8, "factory": 8, "governmentFiscal": 9})
+        # Phase-1 5:3:2 split of 10 -> 5/3/2 deltas applied to existing pools.
+        self.assertEqual(updated_player.budget_pools, {"domesticMarket": 10, "factory": 8, "governmentFiscal": 7})
 
         phase_started_payload = emit_mock.call_args_list[1].args[1]["payload"]
         self.assertEqual(phase_started_payload["snapshot"]["phaseWorkspace"]["phase"], GamePhase.DECISION)

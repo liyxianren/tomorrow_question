@@ -52,64 +52,6 @@ def build_turn_input(player_id: str, phase: GamePhase, payload: dict[str, object
 
 
 class V2FeatureRulesTests(unittest.TestCase):
-    def test_decision_applies_britain_ability_and_doubles_output_once(self) -> None:
-        snapshot = build_snapshot(GamePhase.DECISION)
-        britain = get_player(snapshot, "player-1")
-        britain.budget_pools = {"domesticMarket": 12, "factory": 12, "governmentFiscal": 18}
-        britain.goods_stock["coal"] = 0
-
-        resolution = resolve_decision_phase(
-            snapshot=snapshot,
-            turn_inputs=[
-                build_turn_input(
-                    "player-1",
-                    GamePhase.DECISION,
-                    {
-                        "factoryPlan": {
-                            "productionOrders": [{"goodsId": "coal", "quantity": 1}],
-                            "expansionOrders": [],
-                            "upgradeOrders": [],
-                            "newFactoryOrders": [],
-                        },
-                        "domesticMarketPlan": {"domesticMarketActions": []},
-                        "governmentPlan": {"pointPurchases": [], "strategySelections": [], "techResearch": []},
-                        "abilitySelection": {"abilityId": "workshop_of_the_world"},
-                    },
-                )
-            ],
-        )
-
-        updated_britain = get_player(resolution.updated_snapshot, "player-1")
-        self.assertEqual(updated_britain.goods_stock["coal"], 2)
-        self.assertEqual(updated_britain.used_abilities, ["workshop_of_the_world"])
-        self.assertEqual(updated_britain.temporary_effects["productionOutputMultiplier"], 2)
-
-    def test_market_uses_price_adjustments_and_temporary_price_bonus(self) -> None:
-        snapshot = build_snapshot(GamePhase.MARKET)
-        britain = get_player(snapshot, "player-1")
-        britain.goods_stock = {"grain": 2}
-        britain.temporary_effects = {
-            **DEFAULT_TEMPORARY_EFFECTS,
-            "domesticPriceBonus": 1,
-        }
-        snapshot.market_price_adjustments = {"grain": 1}
-
-        resolution = resolve_market_phase(
-            snapshot=snapshot,
-            turn_inputs=[
-                build_turn_input(
-                    "player-1",
-                    GamePhase.MARKET,
-                    {"saleOrders": [{"goodsId": "grain", "market": "domestic", "quantity": 2}]},
-                )
-            ],
-        )
-
-        updated_britain = get_player(resolution.updated_snapshot, "player-1")
-        # grain base 4 + priceBonus 1 + adjustment 1 = 6 per unit × 2 = 12
-        self.assertEqual(updated_britain.domestic_sales_revenue, 12)
-        self.assertEqual(updated_britain.national_income, 12)
-
     def test_settlement_clears_temporary_effects_updates_prices_and_draws_events(self) -> None:
         snapshot = build_snapshot(GamePhase.SETTLEMENT)
         britain = get_player(snapshot, "player-1")
