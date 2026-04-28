@@ -48,6 +48,8 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
         domestic_spent = _apply_domestic_market_plan(player_state, payload.get("domesticMarketPlan") or {}, balance)
         government_spent = _apply_government_plan(player_state, payload.get("governmentPlan") or {}, balance)
         military_spent = _apply_military_plan(player_state, payload.get("militaryPlan") or {}, balance, updated_snapshot)
+        _apply_reform_plan(player_state, payload, balance)
+        _apply_policy_plan(player_state, payload, balance)
         _apply_talent_plan(player_state, payload.get("talentPlan", {}), balance)
         _apply_tech_research(player_state, (payload.get("governmentPlan") or {}).get("techResearch") or [], balance)
 
@@ -500,6 +502,162 @@ def _apply_ability_selection(player_state, selection: Any, balance) -> None:
 
     apply_effects(player_state, effects)
     player_state.used_abilities.append(ability_id)
+
+
+_REFORM_RATIO_KEY_ALIASES = {
+    "consumption": "domesticMarket",
+    "fiscal": "governmentFiscal",
+}
+
+
+def _normalize_reform_ratio_key(key: str) -> str:
+    return _REFORM_RATIO_KEY_ALIASES.get(key, key)
+
+
+def _apply_reform_or_policy_effects(player_state, effects: dict[str, Any]) -> None:
+    if not isinstance(effects, dict):
+        return
+
+    ideology_delta = effects.get("ideologyDelta")
+    if isinstance(ideology_delta, dict):
+        for key, delta in ideology_delta.items():
+            player_state.ideology_levels[key] = (
+                int(player_state.ideology_levels.get(key, 0)) + int(delta)
+            )
+
+    ratio_delta = effects.get("ratioDelta")
+    if isinstance(ratio_delta, dict):
+        for raw_key, delta in ratio_delta.items():
+            key = _normalize_reform_ratio_key(str(raw_key))
+            player_state.income_allocation_ratio[key] = max(
+                0.0,
+                float(player_state.income_allocation_ratio.get(key, 0.0)) + float(delta),
+            )
+
+    ratio_override = effects.get("ratioOverride")
+    if isinstance(ratio_override, dict):
+        new_ratio: dict[str, float] = {}
+        for raw_key, value in ratio_override.items():
+            new_ratio[_normalize_reform_ratio_key(str(raw_key))] = float(value)
+        player_state.income_allocation_ratio = new_ratio
+
+    capacity_delta = effects.get("productionCapacityDelta")
+    if isinstance(capacity_delta, dict):
+        for raw_key, delta in capacity_delta.items():
+            delta_int = int(delta)
+            if raw_key == "all":
+                for cap_key in list(player_state.production_capacity.keys()):
+                    if cap_key == "idle":
+                        continue
+                    player_state.production_capacity[cap_key] = max(
+                        0,
+                        int(player_state.production_capacity.get(cap_key, 0)) + delta_int,
+                    )
+            else:
+                player_state.production_capacity[raw_key] = max(
+                    0,
+                    int(player_state.production_capacity.get(raw_key, 0)) + delta_int,
+                )
+
+    military_delta = effects.get("militaryPointsDelta")
+    if military_delta is not None:
+        player_state.military_points = max(
+            0, int(player_state.military_points) + int(military_delta)
+        )
+
+    research_facility_delta = effects.get("researchFacilityDelta")
+    if isinstance(research_facility_delta, dict):
+        for key, delta in research_facility_delta.items():
+            player_state.research_facilities[key] = max(
+                0, int(player_state.research_facilities.get(key, 0)) + int(delta)
+            )
+
+    admin_delta = effects.get("administrationCapacityDelta")
+    if admin_delta is not None:
+        player_state.administration_capacity = max(
+            0, int(player_state.administration_capacity) + int(admin_delta)
+        )
+
+    fiscal_refund = effects.get("fiscalRefund")
+    if fiscal_refund is not None:
+        player_state.budget_pools["governmentFiscal"] = (
+            int(player_state.budget_pools.get("governmentFiscal", 0)) + int(fiscal_refund)
+        )
+
+
+def _is_reform_path_blocked(player_state, balance, reform) -> bool:
+    for done_id in player_state.completed_reforms:
+        done = balance.reforms.reforms.get(done_id)
+        if done is None:
+            continue
+        if reform.path in done.blocks_other_paths:
+            return True
+        if done.path in reform.blocks_other_paths:
+            return True
+    return False
+
+
+def _apply_reform_plan(player_state, payload: dict[str, Any], balance) -> list[str]:
+    enacted: list[str] = []
+    requested = payload.get("reforms")
+    if not isinstance(requested, list):
+        return enacted
+
+    for raw_reform_id in requested:
+        reform_id = str(raw_reform_id or "")
+        reform = balance.reforms.reforms.get(reform_id)
+        if reform is None:
+            continue
+        if reform_id in player_state.completed_reforms:
+            continue
+        if int(player_state.administration_capacity) < int(reform.admin_cost):
+            continue
+        if _is_reform_path_blocked(player_state, balance, reform):
+            continue
+
+        player_state.administration_capacity = (
+            int(player_state.administration_capacity) - int(reform.admin_cost)
+        )
+        player_state.completed_reforms.append(reform_id)
+        _apply_reform_or_policy_effects(player_state, reform.effects)
+        enacted.append(reform_id)
+
+    return enacted
+
+
+def _apply_policy_plan(player_state, payload: dict[str, Any], balance) -> list[str]:
+    activated: list[str] = []
+
+    deactivate_list = payload.get("deactivatePolicies")
+    if isinstance(deactivate_list, list):
+        for raw_id in deactivate_list:
+            policy_id = str(raw_id or "")
+            if policy_id in player_state.active_policies:
+                player_state.active_policies.remove(policy_id)
+
+    activate_list = payload.get("activatePolicies")
+    if not isinstance(activate_list, list):
+        return activated
+
+    for raw_id in activate_list:
+        policy_id = str(raw_id or "")
+        policy = balance.reforms.regular_policies.get(policy_id)
+        if policy is None:
+            continue
+        if policy_id in player_state.active_policies:
+            continue
+        if policy.requires_reform is not None and policy.requires_reform not in player_state.completed_reforms:
+            continue
+        if int(player_state.administration_capacity) < int(policy.admin_cost_per_turn):
+            continue
+
+        player_state.administration_capacity = (
+            int(player_state.administration_capacity) - int(policy.admin_cost_per_turn)
+        )
+        player_state.active_policies.append(policy_id)
+        activated.append(policy_id)
+
+    return activated
 
 
 def _mirror_phase1_economy_after_decision(player_state) -> None:
