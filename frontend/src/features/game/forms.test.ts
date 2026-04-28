@@ -34,6 +34,10 @@ describe("createInitialPhaseDraft", () => {
   it("creates the market draft shape required by the 2.0 contract", () => {
     expect(createInitialPhaseDraft("market")).toEqual({
       saleOrders: [],
+      phase1Market: {
+        domesticAllocation: 0,
+        externalAllocations: [],
+      },
     });
   });
 

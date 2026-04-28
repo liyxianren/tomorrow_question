@@ -42,10 +42,10 @@ export function HomePage() {
           <>
             <StatusBadge>多人策略对局</StatusBadge>
             <StatusBadge tone="muted">15 回合推进</StatusBadge>
-            <StatusBadge tone="success">四阶段议程</StatusBadge>
+            <StatusBadge tone="success">三阶段议程</StatusBadge>
           </>
         )}
-        description="这是一局 5 人参与的回合制列强经营对局。你会在生产、市场、军事和政治四个阶段里做有限决策，拿结果、滚动下一轮，并最终按累计总收入排名。"
+        description="这是一局 5 人参与的回合制列强经营对局。每回合你将在国家决策、市场出售、财政结算三个阶段中做有限选择，拿结果、滚动下一轮，并最终按累计总收入排名。"
         eyebrow="5 人回合制列强经营对局"
         title="第一次进入也能顺着玩完一局"
       />
@@ -54,20 +54,20 @@ export function HomePage() {
         <SectionCard
           description="整局不会要求你背规则墙。你只需要知道每回合固定按这条循环推进，上一阶段的结果会回流到下一轮经营。"
           eyebrow="这局怎么玩"
-          title="四阶段经营循环"
+          title="三阶段经营循环"
         >
           <div className="home-page__feature-list">
             <article className="home-page__feature-item">
-               <h4>生产</h4>
-               <p>决定怎么花投资预算、怎么处理库存和产线，为后面的市场与成长做准备。</p>
+               <h4>国家决策</h4>
+               <p>在工厂、国民消费、政府政策、军事和研究院中分配预算，为后续阶段排兵布阵。</p>
             </article>
             <article className="home-page__feature-item">
-               <h4>市场</h4>
-               <p>把货卖到国内和区域市场，直接把经营决策变成收入，并影响你在排行榜上的位置。</p>
+               <h4>市场出售</h4>
+               <p>把商品投放到国内和海外市场，供需决定价格，销售直接转化为国家收入。</p>
             </article>
             <article className="home-page__feature-item">
-               <h4>军事与政治</h4>
-               <p>它们不会总是立刻赚钱，但会改变航路、准入、财政和科技空间，反过来影响下一轮经营。</p>
+               <h4>财政结算</h4>
+               <p>结算阶段汇总收入并按比例分配进消费、投资、财政三池，滚动进入下一回合。</p>
             </article>
           </div>
         </SectionCard>
