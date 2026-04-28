@@ -114,6 +114,8 @@ class NationalStatePayload(TypedDict):
     ideologyLevels: dict[str, int]
     reforms: list[str]
     policies: list[str]
+    completedReforms: list[str]
+    activePolicies: list[str]
     incomeSummary: dict[str, Any]
     unlockedTalents: list[str]
     establishedDiplomacy: list[str]

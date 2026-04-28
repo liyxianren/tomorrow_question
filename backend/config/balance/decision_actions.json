@@ -148,5 +148,113 @@
         "overseasPriceBonusDelta": 1
       }
     }
+  },
+  "regularPolicies": {
+    "raise_consumption_tax": {
+      "label": "增收消费税",
+      "adminCostPerTurn": 1,
+      "budgetCost": 0,
+      "effects": {
+        "ratioDelta": {
+          "consumption": -1.0,
+          "fiscal": 1.0
+        },
+        "ideologyDelta": {
+          "egalitarianism": 1
+        }
+      },
+      "description": "提高消费税，将更多收入转入财政池，激化平等主义思潮。",
+      "maxPerRound": 1
+    },
+    "lower_consumption_tax": {
+      "label": "降低消费税",
+      "adminCostPerTurn": 1,
+      "budgetCost": 0,
+      "effects": {
+        "ratioDelta": {
+          "consumption": 1.0,
+          "fiscal": -1.0
+        },
+        "ideologyDelta": {
+          "egalitarianism": -1
+        }
+      },
+      "description": "降低消费税，收入更多流向消费池，缓和平等主义激进。",
+      "maxPerRound": 1
+    },
+    "expand_army": {
+      "label": "扩充军队",
+      "adminCostPerTurn": 1,
+      "budgetCost": 8,
+      "effects": {
+        "militaryPointsDelta": 1
+      },
+      "description": "扩充军事力量，增加军事点数。",
+      "maxPerRound": 2
+    },
+    "reduce_army": {
+      "label": "缩减军队",
+      "adminCostPerTurn": 1,
+      "budgetCost": 0,
+      "effects": {
+        "militaryPointsDelta": -1,
+        "fiscalRefund": 5
+      },
+      "description": "裁减军队规模，回笼财政资金。",
+      "maxPerRound": 1
+    },
+    "expand_research": {
+      "label": "扩张科研机构",
+      "adminCostPerTurn": 1,
+      "budgetCost": 10,
+      "effects": {
+        "researchFacilityDelta": {
+          "academy": 1
+        }
+      },
+      "description": "新建科研机构，永久增加研究能力。",
+      "maxPerRound": 1
+    },
+    "expand_administration": {
+      "label": "扩张行政机构",
+      "adminCostPerTurn": 1,
+      "budgetCost": 15,
+      "effects": {
+        "administrationCapacityDelta": 1
+      },
+      "description": "扩建行政机构，永久增加行政能力。",
+      "maxPerRound": 1
+    },
+    "public_offering": {
+      "label": "公开募股",
+      "adminCostPerTurn": 1,
+      "budgetCost": 1,
+      "effects": {
+        "ratioDelta": {
+          "consumption": -2.0,
+          "factory": 2.0
+        }
+      },
+      "description": "[自由之路] 本回合将20%消费转为投资。",
+      "maxPerRound": 1,
+      "requiresReform": "stock_market"
+    },
+    "social_welfare": {
+      "label": "社会福利",
+      "adminCostPerTurn": 1,
+      "budgetCost": 0,
+      "effects": {
+        "permanent": {
+          "welfareTransfer": {
+            "from": "fiscal",
+            "to": "consumption",
+            "ratio": 0.1
+          }
+        }
+      },
+      "description": "[平等之路] 每回合财政池10%自动转入消费池。",
+      "maxPerRound": 1,
+      "requiresReform": "social_relief"
+    }
   }
 }

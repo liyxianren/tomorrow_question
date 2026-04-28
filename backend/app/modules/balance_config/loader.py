@@ -24,6 +24,9 @@ from .models import (
     MilitaryActionConfig,
     MilitaryActionsBalanceConfig,
     OceanNodeBlueprintConfig,
+    PolicyConfig,
+    ReformConfig,
+    ReformsBalanceConfig,
     ResearchActionsBalanceConfig,
     TalentNodeConfig,
     TalentBranchConfig,
@@ -55,6 +58,7 @@ GROUP_FILE_NAMES: tuple[str, ...] = (
     "decision_actions",
     "events",
     "abilities",
+    "reforms",
 )
 SUPPORTED_RANKING_TIE_BREAK_KEYS = ("productionCapacity", "controlledRegions", "budgetPoolsTotal")
 SUPPORTED_NATURAL_SHIFT_SIGNAL_KEYS = ("domesticStrength", "industryStrength", "externalBalance")
@@ -144,6 +148,10 @@ def _build_balance_config(raw_groups: dict[str, dict[str, Any]]) -> BalanceConfi
     decision_actions = _build_decision_actions_config(raw_groups["decision_actions"])
     events = _build_events_config(raw_groups["events"])
     abilities = _build_abilities_config(raw_groups["abilities"])
+    reforms = _build_reforms_config(
+        raw_groups["reforms"],
+        decision_actions_payload=raw_groups["decision_actions"],
+    )
 
     _validate_countries(countries, production=production)
     _validate_production(production)
@@ -170,6 +178,7 @@ def _build_balance_config(raw_groups: dict[str, dict[str, Any]]) -> BalanceConfi
         decision_actions=decision_actions,
         events=events,
         abilities=abilities,
+        reforms=reforms,
     )
 
 
@@ -540,6 +549,101 @@ def _build_abilities_config(payload: dict[str, Any]) -> AbilitiesBalanceConfig:
             requires_target_ideology=bool(ability.get("requiresTargetIdeology", False)),
         )
     return AbilitiesBalanceConfig(national_abilities=national_abilities)
+
+
+def _build_reforms_config(
+    payload: dict[str, Any],
+    *,
+    decision_actions_payload: dict[str, Any],
+) -> ReformsBalanceConfig:
+    raw_reforms = _require_dict(payload.get("reforms"), "reforms.reforms")
+    reforms: dict[str, ReformConfig] = {}
+    for path_key, raw_path_list in raw_reforms.items():
+        if not isinstance(raw_path_list, list):
+            raise BalanceConfigError(f"reforms.reforms.{path_key} must be a list.")
+        for index, raw_reform in enumerate(raw_path_list):
+            reform = _require_dict(raw_reform, f"reforms.reforms.{path_key}[{index}]")
+            reform_id = _require_non_empty_string(
+                reform.get("reformId"),
+                f"reforms.reforms.{path_key}[{index}].reformId",
+            )
+            if reform_id in reforms:
+                raise BalanceConfigError(f"reforms.reforms duplicates reformId: {reform_id}")
+            reforms[reform_id] = ReformConfig(
+                reform_id=reform_id,
+                label=_require_non_empty_string(
+                    reform.get("label"),
+                    f"reforms.reforms.{path_key}[{index}].label",
+                ),
+                path=_require_non_empty_string(
+                    reform.get("path"),
+                    f"reforms.reforms.{path_key}[{index}].path",
+                ),
+                admin_cost=_require_non_negative_int(
+                    reform.get("adminCost"),
+                    f"reforms.reforms.{path_key}[{index}].adminCost",
+                ),
+                effects=_require_dict(
+                    reform.get("effects", {}),
+                    f"reforms.reforms.{path_key}[{index}].effects",
+                ),
+                unlocks_policies=_require_string_tuple(
+                    reform.get("unlocksPolicies", []),
+                    f"reforms.reforms.{path_key}[{index}].unlocksPolicies",
+                ),
+                blocks_other_paths=_require_string_tuple(
+                    reform.get("blocksOtherPaths", []),
+                    f"reforms.reforms.{path_key}[{index}].blocksOtherPaths",
+                ),
+                requires_reforms=_require_string_tuple(
+                    reform.get("requiresReforms", []),
+                    f"reforms.reforms.{path_key}[{index}].requiresReforms",
+                ),
+            )
+
+    raw_policies = _require_dict(
+        decision_actions_payload.get("regularPolicies"),
+        "decision_actions.regularPolicies",
+    )
+    regular_policies: dict[str, PolicyConfig] = {}
+    for policy_id, raw_policy in raw_policies.items():
+        policy = _require_dict(raw_policy, f"decision_actions.regularPolicies.{policy_id}")
+        requires_reform = policy.get("requiresReform")
+        if requires_reform is not None:
+            requires_reform = _require_non_empty_string(
+                requires_reform,
+                f"decision_actions.regularPolicies.{policy_id}.requiresReform",
+            )
+        regular_policies[str(policy_id)] = PolicyConfig(
+            policy_id=str(policy_id),
+            label=_require_non_empty_string(
+                policy.get("label"),
+                f"decision_actions.regularPolicies.{policy_id}.label",
+            ),
+            admin_cost_per_turn=_require_non_negative_int(
+                policy.get("adminCostPerTurn"),
+                f"decision_actions.regularPolicies.{policy_id}.adminCostPerTurn",
+            ),
+            budget_cost=_require_non_negative_int(
+                policy.get("budgetCost", 0),
+                f"decision_actions.regularPolicies.{policy_id}.budgetCost",
+            ),
+            effects=_require_dict(
+                policy.get("effects", {}),
+                f"decision_actions.regularPolicies.{policy_id}.effects",
+            ),
+            description=str(policy.get("description") or ""),
+            max_per_round=max(
+                1,
+                _require_non_negative_int(
+                    policy.get("maxPerRound", 1),
+                    f"decision_actions.regularPolicies.{policy_id}.maxPerRound",
+                ),
+            ),
+            requires_reform=requires_reform,
+        )
+
+    return ReformsBalanceConfig(reforms=reforms, regular_policies=regular_policies)
 
 
 def _build_action_mapping(value: Any, field_name: str) -> dict[str, DecisionActionConfig]:

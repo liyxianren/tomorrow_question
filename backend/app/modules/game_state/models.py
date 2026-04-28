@@ -159,6 +159,8 @@ class PlayerState:
     ideology_levels: dict[str, int] = field(default_factory=dict)
     reforms: list[str] = field(default_factory=list)
     policies: list[str] = field(default_factory=list)
+    completed_reforms: list[str] = field(default_factory=list)
+    active_policies: list[str] = field(default_factory=list)
     income_summary: dict[str, Any] = field(default_factory=dict)
     controlled_regions_bonus: int = 0
     established_diplomacy: list[str] = field(default_factory=list)
@@ -193,6 +195,8 @@ class PlayerState:
             "ideologyLevels": _copy_int_mapping(self.ideology_levels),
             "reforms": _copy_string_list(self.reforms),
             "policies": _copy_string_list(self.policies),
+            "completedReforms": _copy_string_list(self.completed_reforms),
+            "activePolicies": _copy_string_list(self.active_policies),
             "incomeSummary": deepcopy(self.income_summary),
             "unlockedTalents": _copy_string_list(self.unlocked_talents),
             "establishedDiplomacy": _copy_string_list(self.established_diplomacy),
@@ -229,6 +233,8 @@ class PlayerState:
             ideology_levels=_copy_int_mapping(payload["ideologyLevels"]),
             reforms=_copy_string_list(payload["reforms"]),
             policies=_copy_string_list(payload["policies"]),
+            completed_reforms=_copy_string_list(payload.get("completedReforms", [])),
+            active_policies=_copy_string_list(payload.get("activePolicies", [])),
             income_summary=deepcopy(payload["incomeSummary"]),
             unlocked_talents=_copy_string_list(payload.get("unlockedTalents", [])),
             established_diplomacy=_copy_string_list(payload.get("establishedDiplomacy", [])),

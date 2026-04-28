@@ -256,6 +256,36 @@ class AbilitiesBalanceConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class ReformConfig:
+    reform_id: str
+    label: str
+    path: str
+    admin_cost: int
+    effects: dict[str, Any] = field(default_factory=dict)
+    unlocks_policies: tuple[str, ...] = ()
+    blocks_other_paths: tuple[str, ...] = ()
+    requires_reforms: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class PolicyConfig:
+    policy_id: str
+    label: str
+    admin_cost_per_turn: int
+    budget_cost: int
+    effects: dict[str, Any] = field(default_factory=dict)
+    description: str = ""
+    max_per_round: int = 1
+    requires_reform: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ReformsBalanceConfig:
+    reforms: dict[str, ReformConfig]
+    regular_policies: dict[str, PolicyConfig]
+
+
+@dataclass(frozen=True, slots=True)
 class BalanceConfig:
     global_config: GlobalBalanceConfig
     countries: dict[str, CountryBalanceConfig]
@@ -270,3 +300,4 @@ class BalanceConfig:
     decision_actions: DecisionActionsBalanceConfig
     events: EventsBalanceConfig
     abilities: AbilitiesBalanceConfig
+    reforms: ReformsBalanceConfig

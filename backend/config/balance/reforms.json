@@ -1,0 +1,254 @@
+{
+  "reforms": {
+    "freedom_path": [
+      {
+        "reformId": "constitution",
+        "path": "freedom",
+        "label": "制定宪法",
+        "adminCost": 2,
+        "effects": {
+          "ideologyDelta": {
+            "liberalism": -1,
+            "egalitarianism": -1,
+            "nationalism": -1
+          }
+        },
+        "unlocksPolicies": [],
+        "blocksOtherPaths": []
+      },
+      {
+        "reformId": "stock_market",
+        "path": "freedom",
+        "label": "股票市场",
+        "adminCost": 2,
+        "effects": {},
+        "unlocksPolicies": ["public_offering"],
+        "blocksOtherPaths": []
+      },
+      {
+        "reformId": "parliament",
+        "path": "freedom",
+        "label": "建立国会",
+        "adminCost": 4,
+        "effects": {},
+        "unlocksPolicies": ["people_petition"],
+        "blocksOtherPaths": []
+      },
+      {
+        "reformId": "patent_system",
+        "path": "freedom",
+        "label": "专利制度",
+        "adminCost": 4,
+        "effects": {},
+        "unlocksPolicies": ["private_research"],
+        "blocksOtherPaths": []
+      },
+      {
+        "reformId": "representative_state",
+        "path": "freedom",
+        "label": "代议制民主国",
+        "adminCost": 6,
+        "effects": {
+          "ideologyDelta": {
+            "liberalism": -2,
+            "egalitarianism": -2,
+            "nationalism": -2
+          }
+        },
+        "unlocksPolicies": [],
+        "blocksOtherPaths": []
+      },
+      {
+        "reformId": "universal_suffrage",
+        "path": "freedom",
+        "label": "普选制度",
+        "adminCost": 6,
+        "effects": {
+          "ideologyDelta": {
+            "nationalism": 5
+          }
+        },
+        "unlocksPolicies": [],
+        "blocksOtherPaths": [],
+        "requiresReforms": ["people_petition_only"]
+      },
+      {
+        "reformId": "trust_system",
+        "path": "freedom",
+        "label": "托拉斯制度",
+        "adminCost": 6,
+        "effects": {
+          "ratioDelta": {
+            "factory": 1.0,
+            "consumption": -1.0
+          },
+          "upgradeCostMultiplier": 0.7,
+          "ideologyDelta": {
+            "egalitarianism": 8
+          }
+        },
+        "unlocksPolicies": [],
+        "blocksOtherPaths": []
+      }
+    ],
+    "equality_path": [
+      {
+        "reformId": "social_relief",
+        "path": "equality",
+        "label": "社会救济",
+        "adminCost": 2,
+        "effects": {},
+        "unlocksPolicies": ["social_welfare"],
+        "blocksOtherPaths": []
+      },
+      {
+        "reformId": "eight_hour_day",
+        "path": "equality",
+        "label": "八小时工作制",
+        "adminCost": 2,
+        "effects": {
+          "productionCapacityDelta": {
+            "all": -2
+          },
+          "ideologyDelta": {
+            "egalitarianism": -5
+          }
+        },
+        "unlocksPolicies": [],
+        "blocksOtherPaths": []
+      },
+      {
+        "reformId": "social_redistribution",
+        "path": "equality",
+        "label": "社会再分配",
+        "adminCost": 4,
+        "effects": {},
+        "unlocksPolicies": ["capital_tax_increase", "capital_tax_decrease"],
+        "blocksOtherPaths": []
+      },
+      {
+        "reformId": "labor_union",
+        "path": "equality",
+        "label": "工会组织",
+        "adminCost": 4,
+        "effects": {},
+        "unlocksPolicies": ["strike_negotiation"],
+        "blocksOtherPaths": []
+      },
+      {
+        "reformId": "soviet_state",
+        "path": "equality",
+        "label": "苏维埃国",
+        "adminCost": 6,
+        "effects": {},
+        "unlocksPolicies": [],
+        "blocksOtherPaths": ["freedom", "national"]
+      },
+      {
+        "reformId": "collective_farms",
+        "path": "equality",
+        "label": "集体农庄",
+        "adminCost": 6,
+        "effects": {
+          "upgradeCostMultiplier": 0.5,
+          "ideologyDelta": {
+            "liberalism": 5
+          }
+        },
+        "unlocksPolicies": [],
+        "blocksOtherPaths": []
+      },
+      {
+        "reformId": "planned_economy",
+        "path": "equality",
+        "label": "计划经济",
+        "adminCost": 6,
+        "effects": {
+          "ratioOverride": {
+            "factory": 0,
+            "consumption": 6,
+            "fiscal": 4
+          },
+          "ideologyDelta": {
+            "liberalism": 5
+          }
+        },
+        "unlocksPolicies": [],
+        "blocksOtherPaths": []
+      }
+    ],
+    "national_path": [
+      {
+        "reformId": "compulsory_education",
+        "path": "national",
+        "label": "义务教育",
+        "adminCost": 2,
+        "effects": {
+          "permanent": {
+            "techPointsPerTurn": 1
+          }
+        },
+        "unlocksPolicies": [],
+        "blocksOtherPaths": []
+      },
+      {
+        "reformId": "state_media",
+        "path": "national",
+        "label": "国家媒体",
+        "adminCost": 2,
+        "effects": {},
+        "unlocksPolicies": ["political_agitation"],
+        "blocksOtherPaths": []
+      },
+      {
+        "reformId": "modern_customs",
+        "path": "national",
+        "label": "现代海关",
+        "adminCost": 4,
+        "effects": {},
+        "unlocksPolicies": ["open_trade", "close_trade"],
+        "blocksOtherPaths": []
+      },
+      {
+        "reformId": "keynesianism",
+        "path": "national",
+        "label": "凯恩斯主义",
+        "adminCost": 4,
+        "effects": {},
+        "unlocksPolicies": ["work_relief"],
+        "blocksOtherPaths": []
+      },
+      {
+        "reformId": "fascist_state",
+        "path": "national",
+        "label": "法西斯国",
+        "adminCost": 6,
+        "effects": {
+          "ideologyDelta": {
+            "nationalism": -999
+          }
+        },
+        "unlocksPolicies": [],
+        "blocksOtherPaths": ["freedom", "equality"]
+      },
+      {
+        "reformId": "total_mobilization",
+        "path": "national",
+        "label": "全民动员",
+        "adminCost": 6,
+        "effects": {},
+        "unlocksPolicies": ["general_mobilization"],
+        "blocksOtherPaths": []
+      },
+      {
+        "reformId": "secret_police",
+        "path": "national",
+        "label": "特务机关",
+        "adminCost": 6,
+        "effects": {},
+        "unlocksPolicies": ["violent_suppression"],
+        "blocksOtherPaths": []
+      }
+    ]
+  }
+}
