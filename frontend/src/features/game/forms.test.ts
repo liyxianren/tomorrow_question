@@ -28,6 +28,9 @@ describe("createInitialPhaseDraft", () => {
       talentPlan: {
         talentUnlocks: [],
       },
+      reforms: [],
+      activatePolicies: [],
+      deactivatePolicies: [],
     });
   });
 

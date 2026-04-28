@@ -221,8 +221,49 @@ def build_decision_player_workspace(snapshot: GameSnapshot, player: PlayerState)
         },
         "militaryWorkspace": _build_military_workspace(snapshot, player),
         "researchWorkspace": _build_research_workspace(snapshot, player),
+        "governmentReforms": {
+            "administrationCapacity": int(player.administration_capacity),
+            "completedReforms": list(player.completed_reforms),
+            "activePolicies": list(player.active_policies),
+            "availableReforms": [
+                {
+                    "reformId": reform.reform_id,
+                    "path": reform.path,
+                    "label": reform.label,
+                    "adminCost": int(reform.admin_cost),
+                    "isCompleted": reform.reform_id in player.completed_reforms,
+                    "isBlocked": _is_reform_blocked_for_workspace(player, reform, balance),
+                }
+                for reform in balance.reforms.reforms.values()
+            ],
+            "availablePolicies": [
+                {
+                    "policyId": policy_id,
+                    "label": policy.label,
+                    "adminCostPerTurn": int(policy.admin_cost_per_turn),
+                    "budgetCost": int(policy.budget_cost),
+                    "description": policy.description,
+                    "isActive": policy_id in player.active_policies,
+                    "requiresReform": policy.requires_reform,
+                    "isUnlocked": policy.requires_reform is None or policy.requires_reform in player.completed_reforms,
+                }
+                for policy_id, policy in balance.reforms.regular_policies.items()
+            ],
+        },
         "phase1Economy": _decision_phase1_economy(player),
     }
+
+
+def _is_reform_blocked_for_workspace(player: PlayerState, reform: Any, balance: Any) -> bool:
+    for done_id in player.completed_reforms:
+        done = balance.reforms.reforms.get(done_id)
+        if done is None:
+            continue
+        if reform.path in done.blocks_other_paths:
+            return True
+        if done.path in reform.blocks_other_paths:
+            return True
+    return False
 
 
 def _decision_phase1_economy(player: PlayerState) -> dict[str, Any]:

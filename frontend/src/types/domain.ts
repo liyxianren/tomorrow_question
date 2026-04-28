@@ -486,7 +486,36 @@ export interface DecisionPlayerPhaseWorkspace {
     talentBranches: TalentBranchOption[];
     unlockedTalentCount: number;
   };
+  governmentReforms?: GovernmentReformsWorkspace;
   phase1Economy?: Phase1EconomyWorkspace;
+}
+
+export interface ReformOption {
+  reformId: string;
+  path: "freedom" | "equality" | "national";
+  label: string;
+  adminCost: number;
+  isCompleted: boolean;
+  isBlocked: boolean;
+}
+
+export interface PolicyOption {
+  policyId: string;
+  label: string;
+  adminCostPerTurn: number;
+  budgetCost: number;
+  description: string;
+  isActive: boolean;
+  requiresReform: string | null;
+  isUnlocked: boolean;
+}
+
+export interface GovernmentReformsWorkspace {
+  administrationCapacity: number;
+  completedReforms: string[];
+  activePolicies: string[];
+  availableReforms: ReformOption[];
+  availablePolicies: PolicyOption[];
 }
 
 export interface MarketInventoryOption {

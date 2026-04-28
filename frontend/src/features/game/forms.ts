@@ -10,6 +10,9 @@ export interface Phase1ProductionDraft {
 
 export type DecisionPhaseDraft = DecisionSubmission & {
   phase1Production?: Phase1ProductionDraft;
+  reforms?: string[];
+  activatePolicies?: string[];
+  deactivatePolicies?: string[];
 };
 export type MarketPhaseDraft = MarketSubmission;
 export type SettlementPhaseDraft = Record<string, never>;
@@ -52,6 +55,9 @@ export function createInitialPhaseDraft(phase: GamePhase): PhaseDraft {
         talentPlan: {
           talentUnlocks: [],
         },
+        reforms: [],
+        activatePolicies: [],
+        deactivatePolicies: [],
       };
     case "market":
       return {
