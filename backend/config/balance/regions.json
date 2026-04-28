@@ -9,7 +9,8 @@
         "grain": 3
       },
       "requiredNodes": [],
-      "colonizable": false
+      "colonizable": false,
+      "priceMultiplier": 0.9
     },
     {
       "regionId": "americas",
@@ -21,7 +22,8 @@
         "steel": 3
       },
       "requiredNodes": ["north_atlantic"],
-      "colonizable": true
+      "colonizable": true,
+      "priceMultiplier": 1.0
     },
     {
       "regionId": "africa",
@@ -32,7 +34,8 @@
         "minerals": 2
       },
       "requiredNodes": ["mediterranean"],
-      "colonizable": true
+      "colonizable": true,
+      "priceMultiplier": 1.2
     },
     {
       "regionId": "middle_east",
@@ -44,7 +47,8 @@
         "steel": 2
       },
       "requiredNodes": ["mediterranean"],
-      "colonizable": true
+      "colonizable": true,
+      "priceMultiplier": 1.2
     },
     {
       "regionId": "asia_pacific",
@@ -55,7 +59,8 @@
         "coal": 2
       },
       "requiredNodes": ["indian_ocean"],
-      "colonizable": true
+      "colonizable": true,
+      "priceMultiplier": 1.1
     }
   ],
   "oceanNodes": [

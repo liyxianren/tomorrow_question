@@ -175,6 +175,7 @@ def _apply_phase1_market(
     region_states_by_id: dict[str, object],
 ) -> tuple[int, int]:
     """Phase-1 unified market: one good, supply-demand pricing, optional external markets at the same price."""
+    balance = get_balance_config()
     capacity_by_mode = player_state.phase1_economy.capacity_by_mode
     demand = calculate_domestic_demand(capacity_by_mode)
     consumption_pool = Decimal(int(player_state.budget_pools.get("domesticMarket", 0)))
@@ -227,7 +228,10 @@ def _apply_phase1_market(
         sold = min(quantity, available_inventory, overseas_capacity)
         if sold <= 0:
             continue
-        revenue = int(Decimal(sold) * final_price)
+        region_blueprint = balance.regions.region_blueprints.get(region_id)
+        multiplier = float(region_blueprint.price_multiplier) if region_blueprint else 1.0
+        overseas_unit_price = int(Decimal(str(equilibrium_price)) * Decimal(str(multiplier)))
+        revenue = int(Decimal(sold) * Decimal(str(overseas_unit_price)))
         overseas_revenue += revenue
         sold_overseas += sold
         available_inventory -= sold
@@ -235,7 +239,7 @@ def _apply_phase1_market(
         region_state.market_supply[PHASE1_GOODS_KEY] = (
             int(region_state.market_supply.get(PHASE1_GOODS_KEY, 0)) + sold
         )
-        region_state.market_price[PHASE1_GOODS_KEY] = int(final_price)
+        region_state.market_price[PHASE1_GOODS_KEY] = overseas_unit_price
 
     sold_quantity = sold_domestic + sold_overseas
     unsold_quantity = available_inventory

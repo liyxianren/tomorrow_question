@@ -94,6 +94,7 @@ class RegionBlueprintConfig:
     resource_limit: dict[str, int]
     required_nodes: tuple[str, ...]
     colonizable: bool = False
+    price_multiplier: float = 1.0
 
 
 @dataclass(frozen=True, slots=True)

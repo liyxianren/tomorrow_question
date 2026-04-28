@@ -355,6 +355,7 @@ def _build_regions_config(payload: dict[str, Any]) -> RegionsBalanceConfig:
             resource_limit=_require_int_mapping(region.get("resourceLimit"), f"regions.regions[{index}].resourceLimit"),
             required_nodes=_require_string_tuple(region.get("requiredNodes"), f"regions.regions[{index}].requiredNodes"),
             colonizable=bool(region.get("colonizable", False)),
+            price_multiplier=float(region.get("priceMultiplier", 1.0)),
         )
 
     ocean_node_blueprints: dict[str, OceanNodeBlueprintConfig] = {}

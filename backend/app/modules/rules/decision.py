@@ -106,6 +106,10 @@ def _apply_phase1_production_plan(player_state, phase1_production: dict[str, Any
         quantity = max(0, int(order.get("quantity", 0)))
         if mode not in DEFAULT_PHASE1_CAPACITY_BY_MODE or quantity <= 0:
             continue
+        if mode in balance.technology.route_unlocks:
+            required_tech = balance.technology.route_unlocks[mode]
+            if required_tech not in player_state.unlocked_techs:
+                continue
         unit_cost = int(balance.production.new_factory_costs.get(mode, 0))
         if unit_cost <= 0:
             continue
@@ -128,6 +132,10 @@ def _apply_phase1_production_plan(player_state, phase1_production: dict[str, Any
             continue
         if target_mode not in DEFAULT_PHASE1_CAPACITY_BY_MODE:
             continue
+        if target_mode in balance.technology.route_unlocks:
+            required_tech = balance.technology.route_unlocks[target_mode]
+            if required_tech not in player_state.unlocked_techs:
+                continue
         unit_cost = int(balance.production.upgrade_costs.get(target_mode, 0))
         if unit_cost <= 0 or quantity <= 0:
             continue
