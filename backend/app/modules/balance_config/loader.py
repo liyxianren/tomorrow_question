@@ -232,6 +232,10 @@ def _build_countries_config(payload: dict[str, Any]) -> dict[str, CountryBalance
                 country_value.get("initialRawMaterials", 0),
                 f"countries.{country_key}.initialRawMaterials",
             ),
+            raw_materials_per_turn=_require_non_negative_int(
+                country_value.get("rawMaterialsPerTurn", 20),
+                f"countries.{country_key}.rawMaterialsPerTurn",
+            ),
         )
     return countries
 

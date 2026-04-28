@@ -49,7 +49,8 @@
       },
       "initialGoods": ["coal", "cotton"],
       "initialDiplomacy": ["asia_pacific"],
-      "initialRawMaterials": 30
+      "initialRawMaterials": 35,
+      "rawMaterialsPerTurn": 21
     },
     "france": {
       "budgetPools": {
@@ -100,7 +101,8 @@
       },
       "initialGoods": ["grain", "tea"],
       "initialDiplomacy": ["africa"],
-      "initialRawMaterials": 30
+      "initialRawMaterials": 33,
+      "rawMaterialsPerTurn": 20
     },
     "prussia": {
       "budgetPools": {
@@ -151,7 +153,8 @@
       },
       "initialGoods": ["coal", "steel"],
       "initialDiplomacy": ["americas"],
-      "initialRawMaterials": 30
+      "initialRawMaterials": 35,
+      "rawMaterialsPerTurn": 21
     },
     "austria": {
       "budgetPools": {
@@ -202,7 +205,8 @@
       },
       "initialGoods": ["grain", "minerals"],
       "initialDiplomacy": ["middle_east"],
-      "initialRawMaterials": 30
+      "initialRawMaterials": 30,
+      "rawMaterialsPerTurn": 20
     },
     "russia": {
       "budgetPools": {
@@ -253,7 +257,8 @@
       },
       "initialGoods": ["grain", "coal"],
       "initialDiplomacy": ["middle_east"],
-      "initialRawMaterials": 30
+      "initialRawMaterials": 28,
+      "rawMaterialsPerTurn": 23
     }
   }
 }

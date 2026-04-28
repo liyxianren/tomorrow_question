@@ -32,6 +32,7 @@ class CountryBalanceConfig:
     initial_goods: tuple[str, ...] = ()
     initial_diplomacy: tuple[str, ...] = ()
     initial_raw_materials: int = 0
+    raw_materials_per_turn: int = 20
 
 
 @dataclass(frozen=True, slots=True)

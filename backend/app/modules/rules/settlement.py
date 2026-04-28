@@ -23,8 +23,6 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
     total_sold_by_goods: dict[str, int] = {}
     signal_values_by_player_id: dict[str, dict[str, int]] = {}
 
-    base_income = int(balance.global_config.base_income_per_round)
-
     for player_state in updated_snapshot.player_states:
         colony_income = 0
         for region_state in updated_snapshot.region_states:
@@ -33,7 +31,7 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
 
         player_state.national_income = int(player_state.national_income) + colony_income
 
-        effective_income = max(base_income, int(player_state.national_income))
+        effective_income = int(player_state.national_income)
         if _is_phase1_economy_active(player_state):
             allocation = _allocate_income_phase1(national_income=effective_income)
         else:
@@ -93,9 +91,15 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
                 "investment": float(PHASE1_DEFAULT_RATIO["investment"]),
                 "fiscal": float(PHASE1_DEFAULT_RATIO["fiscal"]),
             }
+            country_config = balance.countries.get(player_state.country.value)
+            raw_materials_per_turn = (
+                int(country_config.raw_materials_per_turn)
+                if country_config is not None
+                else int(balance.global_config.raw_materials_per_turn)
+            )
             player_state.phase1_economy.raw_materials = (
                 int(player_state.phase1_economy.raw_materials)
-                + int(balance.global_config.raw_materials_per_turn)
+                + raw_materials_per_turn
             )
         else:
             _mirror_phase1_income_allocation_ratio(player_state)

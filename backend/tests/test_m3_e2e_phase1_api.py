@@ -521,8 +521,8 @@ class Phase1SettlementE2ETests(_Phase1ApiTestCase):
         snapshot = decision_resolution.updated_snapshot
         prussia = self._player(snapshot, "player-3")
         self.assertEqual(prussia.phase1_economy.goods_inventory, 4)
-        # Initial 30 raw materials, 4 consumed by handicraft assignment.
-        self.assertEqual(prussia.phase1_economy.raw_materials, 26)
+        # Prussia initial 35 raw materials, 4 consumed by handicraft assignment.
+        self.assertEqual(prussia.phase1_economy.raw_materials, 31)
 
         # Persist the resolved snapshot and advance to MARKET so the API
         # accepts the next submission.

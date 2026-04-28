@@ -561,7 +561,7 @@ class SettlementPhase1Tests(unittest.TestCase):
         updated = _get_player(resolution.updated_snapshot, "player-3")
         self.assertEqual(
             updated.phase1_economy.raw_materials,
-            12 + 20,  # rawMaterialsPerTurn = 20 from global.json
+            12 + 21,  # prussia rawMaterialsPerTurn = 21 from countries.json
         )
 
     def test_settlement_does_not_add_raw_material_income_when_phase1_inactive(self) -> None:

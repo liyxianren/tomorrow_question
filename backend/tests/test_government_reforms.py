@@ -208,7 +208,7 @@ class SettlementEffectsTests(unittest.TestCase):
         player = _get_player(snapshot, "player-1")
         player.administration_capacity = 5
         player.budget_pools = {"domesticMarket": 0, "factory": 0, "governmentFiscal": 100}
-        # Default 3:3:4 split is 2/2/4 at base_income=8 → fiscal becomes 104 before transfer.
+        # No base_income floor and national_income=0 → no allocation delta this turn.
         player.income_allocation_ratio = {
             "domesticMarket": 3.0,
             "factory": 3.0,
@@ -221,11 +221,11 @@ class SettlementEffectsTests(unittest.TestCase):
         resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
         updated = _get_player(resolution.updated_snapshot, "player-1")
 
-        # base_income=8 with 3:3:4 → fiscal +4, dom +2, factory +2.
-        # fiscal pre-transfer = 100 + 4 = 104; transfer = int(104 * 0.1) = 10.
-        self.assertEqual(updated.budget_pools["governmentFiscal"], 94)
-        self.assertEqual(updated.budget_pools["domesticMarket"], 12)
-        self.assertEqual(updated.budget_pools["factory"], 2)
+        # national_income=0 → no pool delta from allocation.
+        # fiscal pre-transfer = 100; transfer = int(100 * 0.1) = 10.
+        self.assertEqual(updated.budget_pools["governmentFiscal"], 90)
+        self.assertEqual(updated.budget_pools["domesticMarket"], 10)
+        self.assertEqual(updated.budget_pools["factory"], 0)
 
 
 if __name__ == "__main__":

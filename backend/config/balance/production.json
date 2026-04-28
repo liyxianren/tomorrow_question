@@ -20,15 +20,15 @@
     "electrified": 30
   },
   "upgradeCosts": {
-    "mechanized": 8,
-    "steam": 14,
-    "electrified": 24
+    "mechanized": 20,
+    "steam": 30,
+    "electrified": 40
   },
   "newFactoryCosts": {
-    "handicraft": 10,
-    "mechanized": 16,
-    "steam": 24,
-    "electrified": 36
+    "handicraft": 20,
+    "mechanized": 40,
+    "steam": 60,
+    "electrified": 80
   },
   "upgradeSourceLevels": {
     "mechanized": "handicraft",
