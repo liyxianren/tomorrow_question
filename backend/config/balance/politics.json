@@ -16,21 +16,21 @@
   "naturalShiftRules": {
     "liberalism": {
       "signalKey": "industryStrength",
-      "highThreshold": 22,
+      "highThreshold": 20,
       "highShift": 1,
-      "lowThreshold": 12,
+      "lowThreshold": 10,
       "lowShift": -1
     },
     "egalitarianism": {
       "signalKey": "domesticStrength",
       "highThreshold": 18,
-      "highShift": 1,
+      "highShift": -1,
       "lowThreshold": 8,
-      "lowShift": -1
+      "lowShift": 1
     },
     "nationalism": {
       "signalKey": "externalBalance",
-      "highThreshold": 8,
+      "highThreshold": 6,
       "highShift": 1,
       "lowThreshold": -4,
       "lowShift": -1

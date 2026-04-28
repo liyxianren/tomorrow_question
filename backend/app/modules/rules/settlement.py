@@ -4,7 +4,7 @@ import random
 from decimal import Decimal
 
 from app.modules.balance_config import get_balance_config
-from app.modules.game_state.effects import apply_effects, get_effect_bonus, reset_temporary_effects
+from app.modules.game_state.effects import apply_effects, reset_temporary_effects
 
 from .common import RuleResolution, clone_snapshot
 from .decision import _apply_reform_or_policy_effects
@@ -192,13 +192,10 @@ def _build_market_price_adjustments(
 
 def _build_ideology_signals(player_state) -> dict[str, int]:
     return {
-        "industryStrength": int(player_state.budget_pools.get("factory", 0))
-        + sum(int(value) for value in player_state.production_capacity.values() if str(value) is not None),
-        "domesticStrength": int(player_state.budget_pools.get("domesticMarket", 0))
-        + get_effect_bonus(player_state, "domesticPriceBonus"),
+        "industryStrength": int(player_state.budget_pools.get("factory", 0)),
+        "domesticStrength": int(player_state.budget_pools.get("domesticMarket", 0)),
         "externalBalance": int(player_state.overseas_sales_revenue)
-        - int(player_state.domestic_sales_revenue)
-        + int(player_state.military_points),
+        - int(player_state.domestic_sales_revenue),
     }
 
 

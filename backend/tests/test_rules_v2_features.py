@@ -84,9 +84,7 @@ class V2FeatureRulesTests(unittest.TestCase):
         prussia = get_player(snapshot, "player-3")
         prussia.national_income = 10
         prussia.ideology_levels["liberalism"] = 4
-        prussia.budget_pools["factory"] = 16
-        prussia.production_capacity["handicraft"] = 4
-        prussia.production_capacity["mechanized"] = 2
+        prussia.budget_pools["factory"] = 20
 
         resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
 
