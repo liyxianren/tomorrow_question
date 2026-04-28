@@ -100,6 +100,41 @@ export function toggleGovernmentStrategySelection(
   };
 }
 
+export function toggleReformSelection(
+  draft: PhaseDraftByPhase["decision"],
+  reformId: string,
+  checked: boolean,
+): PhaseDraftByPhase["decision"] {
+  const remaining = (draft.reforms ?? []).filter((id) => id !== reformId);
+  return {
+    ...draft,
+    reforms: checked ? [...remaining, reformId] : remaining,
+  };
+}
+
+export function togglePolicySelection(
+  draft: PhaseDraftByPhase["decision"],
+  policyId: string,
+  checked: boolean,
+): PhaseDraftByPhase["decision"] {
+  const remainingActivate = (draft.activatePolicies ?? []).filter((id) => id !== policyId);
+  const remainingDeactivate = (draft.deactivatePolicies ?? []).filter((id) => id !== policyId);
+
+  if (checked) {
+    return {
+      ...draft,
+      activatePolicies: [...remainingActivate, policyId],
+      deactivatePolicies: remainingDeactivate,
+    };
+  }
+
+  return {
+    ...draft,
+    activatePolicies: remainingActivate,
+    deactivatePolicies: [...remainingDeactivate, policyId],
+  };
+}
+
 export function toggleTechResearchSelection(
   draft: PhaseDraftByPhase["decision"],
   techId: string,

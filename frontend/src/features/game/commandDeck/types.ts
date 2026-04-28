@@ -49,7 +49,9 @@ export type DecisionCardInteraction =
   | { type: "colonizationTarget"; targetRegionId: string }
   | { type: "talentUnlock"; nodeId: string }
   | { type: "pointPurchase"; pointType: "tech" | "military" }
-  | { type: "selectResearchBranch"; branchId: string };
+  | { type: "selectResearchBranch"; branchId: string }
+  | { type: "reform"; reformId: string }
+  | { type: "policy"; policyId: string };
 
 export interface DecisionCardMetric {
   label: string;

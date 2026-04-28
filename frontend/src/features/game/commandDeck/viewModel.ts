@@ -470,6 +470,78 @@ function buildGovernmentLocation({
       ]
     : [];
 
+  const reforms = workspace.governmentReforms;
+  const queuedReformIds = new Set(draft.reforms ?? []);
+  const queuedActivatePolicyIds = new Set(draft.activatePolicies ?? []);
+  const queuedDeactivatePolicyIds = new Set(draft.deactivatePolicies ?? []);
+
+  const reformCards: DecisionCardViewModel[] = (reforms?.availableReforms ?? []).map((reform) => {
+    const queued = queuedReformIds.has(reform.reformId);
+    const pathLabel = reform.path === "freedom" ? "自由之路" : reform.path === "equality" ? "平等之路" : "民族之路";
+    const lockedReason = reform.isCompleted
+      ? "已完成"
+      : reform.isBlocked
+        ? "被其他改革路径锁定"
+        : null;
+    return {
+      id: `reform-${reform.reformId}`,
+      title: reform.label,
+      subtitle: `${pathLabel} · 行政力 ${reform.adminCost}`,
+      description: lockedReason ?? `消耗 ${reform.adminCost} 行政力推动「${pathLabel}」。`,
+      badges: [pathLabel],
+      metrics: [{ label: "行政力", value: reform.adminCost }],
+      feedback: queued ? "已加入本轮改革排队。" : undefined,
+      lockedReason,
+      tone: lockedReason ? "locked" : queued ? "accent" : "default",
+      selected: queued || reform.isCompleted,
+      control: {
+        kind: "toggle",
+        label: reform.label,
+        checked: queued,
+        disabled: reform.isCompleted || reform.isBlocked,
+      },
+      interaction: { type: "reform", reformId: reform.reformId },
+    } satisfies DecisionCardViewModel;
+  });
+
+  const policyCards: DecisionCardViewModel[] = (reforms?.availablePolicies ?? []).map((policy) => {
+    const queuedActivate = queuedActivatePolicyIds.has(policy.policyId);
+    const queuedDeactivate = queuedDeactivatePolicyIds.has(policy.policyId);
+    const willBeActive = queuedActivate || (policy.isActive && !queuedDeactivate);
+    const lockedReason = !policy.isUnlocked && !policy.isActive
+      ? policy.requiresReform
+        ? `需先完成改革：${policy.requiresReform}`
+        : "未解锁"
+      : null;
+    const subtitle = `行政力 ${policy.adminCostPerTurn}/回合${policy.budgetCost > 0 ? ` · 预算 ${policy.budgetCost}` : ""}`;
+    return {
+      id: `policy-${policy.policyId}`,
+      title: policy.label,
+      subtitle,
+      description: policy.description ?? (willBeActive ? "已激活" : "可激活"),
+      badges: [willBeActive ? "生效中" : "未生效"],
+      metrics: [
+        { label: "每回合行政力", value: policy.adminCostPerTurn },
+        ...(policy.budgetCost > 0 ? [{ label: "预算", value: policy.budgetCost }] : []),
+      ],
+      feedback: queuedActivate
+        ? "已排入本轮激活。"
+        : queuedDeactivate
+          ? "已排入本轮停用。"
+          : undefined,
+      lockedReason,
+      tone: lockedReason && !willBeActive ? "locked" : willBeActive ? "accent" : "default",
+      selected: willBeActive,
+      control: {
+        kind: "toggle",
+        label: policy.label,
+        checked: willBeActive,
+        disabled: lockedReason !== null && !willBeActive,
+      },
+      interaction: { type: "policy", policyId: policy.policyId },
+    } satisfies DecisionCardViewModel;
+  });
+
   const techPurchaseCount = draft.governmentPlan.pointPurchases
     .filter((p) => p.pointType === "tech")
     .reduce((sum, p) => sum + p.quantity, 0);
@@ -554,6 +626,26 @@ function buildGovernmentLocation({
               title: "国家能力卡",
               description: "国家专属能力不再和普通策略混排。",
               cards: abilityCards,
+            },
+          ]
+        : []),
+      ...(reformCards.length > 0
+        ? [
+            {
+              id: "government-reform",
+              title: "政治改革",
+              description: "消耗行政力推动制度改革。已完成的改革会解锁新政策。",
+              cards: reformCards,
+            },
+          ]
+        : []),
+      ...(policyCards.length > 0
+        ? [
+            {
+              id: "government-policy",
+              title: "国家政策",
+              description: "激活或停用已解锁的政策。每项激活的政策每回合消耗行政力。",
+              cards: policyCards,
             },
           ]
         : []),
