@@ -107,6 +107,9 @@ describe("GamePhasePanelContent", () => {
       talentPlan: {
         talentUnlocks: [],
       },
+      reforms: [],
+      activatePolicies: [],
+      deactivatePolicies: [],
     });
   });
 
@@ -186,6 +189,9 @@ describe("GamePhasePanelContent", () => {
       talentPlan: {
         talentUnlocks: [],
       },
+      reforms: [],
+      activatePolicies: [],
+      deactivatePolicies: [],
     });
   });
 
@@ -262,6 +268,9 @@ describe("GamePhasePanelContent", () => {
       talentPlan: {
         talentUnlocks: [],
       },
+      reforms: [],
+      activatePolicies: [],
+      deactivatePolicies: [],
     });
   });
 
@@ -327,6 +336,9 @@ describe("GamePhasePanelContent", () => {
         abilityId: "code_napoleon",
         targetIdeology: "nationalism",
       },
+      reforms: [],
+      activatePolicies: [],
+      deactivatePolicies: [],
     });
   });
 

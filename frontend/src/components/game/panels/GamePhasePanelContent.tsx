@@ -241,37 +241,46 @@ export function DecisionWorkbench({
           }}
         />
       ) : activeStep === "government" ? (
-        <GovernmentPanel
-          workspace={workspace}
-          draft={draft}
-          remainingGovernmentBudget={workspace.budgetPools.governmentFiscal - spendSummary.governmentSpend}
-          onAbilityTargetChange={(ideology) => {
-            if (!workspace.nationalAbility) {
-              return;
-            }
-            handleDraftChange("government", setAbilitySelectionTarget(draft, workspace.nationalAbility.abilityId, ideology));
-          }}
-          onResearchToggle={(techId, checked) => {
-            handleDraftChange("government", toggleTechResearchSelection(draft, techId, checked));
-          }}
-          onStrategyToggle={(actionId, checked) => {
-            handleDraftChange("government", toggleGovernmentStrategySelection(draft, actionId, checked));
-          }}
-          onTechPurchase={() => {
-            handleDraftChange("government", addPointPurchase(draft, "tech"));
-          }}
-          onTechRefund={() => {
-            handleDraftChange("government", removePointPurchase(draft, "tech"));
-          }}
-          onToggleAbility={(checked) => {
-            handleDraftChange(
-              "government",
-              workspace.nationalAbility
-                ? toggleNationalAbilitySelection(draft, workspace.nationalAbility, checked)
-                : draft,
-            );
-          }}
-        />
+        <>
+          <GovernmentPanel
+            workspace={workspace}
+            draft={draft}
+            remainingGovernmentBudget={workspace.budgetPools.governmentFiscal - spendSummary.governmentSpend}
+            onAbilityTargetChange={(ideology) => {
+              if (!workspace.nationalAbility) {
+                return;
+              }
+              handleDraftChange("government", setAbilitySelectionTarget(draft, workspace.nationalAbility.abilityId, ideology));
+            }}
+            onResearchToggle={(techId, checked) => {
+              handleDraftChange("government", toggleTechResearchSelection(draft, techId, checked));
+            }}
+            onStrategyToggle={(actionId, checked) => {
+              handleDraftChange("government", toggleGovernmentStrategySelection(draft, actionId, checked));
+            }}
+            onTechPurchase={() => {
+              handleDraftChange("government", addPointPurchase(draft, "tech"));
+            }}
+            onTechRefund={() => {
+              handleDraftChange("government", removePointPurchase(draft, "tech"));
+            }}
+            onToggleAbility={(checked) => {
+              handleDraftChange(
+                "government",
+                workspace.nationalAbility
+                  ? toggleNationalAbilitySelection(draft, workspace.nationalAbility, checked)
+                  : draft,
+              );
+            }}
+          />
+          {workspace.governmentReforms ? (
+            <GovernmentReformPanel
+              reforms={workspace.governmentReforms}
+              draft={draft}
+              onChange={(next) => handleDraftChange("government", next)}
+            />
+          ) : null}
+        </>
       ) : activeStep === "military" ? (
         <MilitaryPanel
           workspace={workspace}
@@ -1183,6 +1192,249 @@ function ConfirmActionCard({
           撤回
         </button>
       </div>
+    </article>
+  );
+}
+
+const REFORM_PATH_LABELS: Record<"freedom" | "equality" | "national", string> = {
+  freedom: "自由",
+  equality: "平等",
+  national: "民族",
+};
+
+function GovernmentReformPanel({
+  reforms,
+  draft,
+  onChange,
+}: {
+  reforms: NonNullable<DecisionPlayerPhaseWorkspace["governmentReforms"]>;
+  draft: PhaseDraftByPhase["decision"];
+  onChange: (value: PhaseDraftByPhase["decision"]) => void;
+}) {
+  const queuedReformIds = new Set(draft.reforms ?? []);
+  const queuedActivateIds = new Set(draft.activatePolicies ?? []);
+  const queuedDeactivateIds = new Set(draft.deactivatePolicies ?? []);
+
+  const isPolicyActiveAfter = (policyId: string, currentlyActive: boolean): boolean => {
+    if (queuedActivateIds.has(policyId)) {
+      return true;
+    }
+    if (queuedDeactivateIds.has(policyId)) {
+      return false;
+    }
+    return currentlyActive;
+  };
+
+  function handleEnactReform(reformId: string) {
+    if (queuedReformIds.has(reformId)) {
+      onChange({
+        ...draft,
+        reforms: (draft.reforms ?? []).filter((id) => id !== reformId),
+      });
+      return;
+    }
+    onChange({
+      ...draft,
+      reforms: [...(draft.reforms ?? []), reformId],
+    });
+  }
+
+  function handleTogglePolicy(policyId: string, active: boolean) {
+    if (active) {
+      onChange({
+        ...draft,
+        activatePolicies: [...(draft.activatePolicies ?? []), policyId],
+        deactivatePolicies: (draft.deactivatePolicies ?? []).filter((id) => id !== policyId),
+      });
+      return;
+    }
+    onChange({
+      ...draft,
+      activatePolicies: (draft.activatePolicies ?? []).filter((id) => id !== policyId),
+      deactivatePolicies: [...(draft.deactivatePolicies ?? []), policyId],
+    });
+  }
+
+  const activePolicies = reforms.availablePolicies.filter((policy) => policy.isActive);
+  const inactivePolicies = reforms.availablePolicies.filter((policy) => !policy.isActive);
+  const queuedAdminCost = reforms.availableReforms
+    .filter((reform) => queuedReformIds.has(reform.reformId))
+    .reduce((sum, reform) => sum + reform.adminCost, 0);
+  const remainingCapacity = reforms.administrationCapacity - queuedAdminCost;
+
+  return (
+    <article className="gp-card" data-testid="government-reform-panel">
+      <div className="gp-step-header__top">
+        <div>
+          <p className="gp-step-eyebrow">改革与政策</p>
+          <h3 style={{ margin: "4px 0 0" }}>政府改革 / 常规政策</h3>
+          <p className="gp-step-desc" style={{ marginTop: 6 }}>
+            实施改革会沿三条路径推进国家定型；常规政策每回合占用行政能力与预算。
+          </p>
+        </div>
+        <div className="gp-step-header__pills">
+          <span className="gp-step-pill">行政能力 <strong>{reforms.administrationCapacity}</strong></span>
+          <span className="gp-step-pill">本轮剩余 <strong>{remainingCapacity}</strong></span>
+          <span className="gp-step-pill">改革排队 <strong>{queuedReformIds.size}</strong></span>
+          <span className="gp-step-pill">政策变更 <strong>{queuedActivateIds.size + queuedDeactivateIds.size}</strong></span>
+        </div>
+      </div>
+
+      {reforms.availableReforms.length > 0 ? (
+        <details open className="gp-card" style={{ marginTop: 12 }}>
+          <summary className="gp-collapse">
+            改革选项 <span className="gp-collapse__hint">推进自由 / 平等 / 民族路径</span>
+          </summary>
+          <div className="gp-grid" style={{ marginTop: 14 }}>
+            {reforms.availableReforms.map((reform) => {
+              const queued = queuedReformIds.has(reform.reformId);
+              const overCapacity = !queued && remainingCapacity < reform.adminCost;
+              const isDisabled = reform.isCompleted || reform.isBlocked || (overCapacity && !queued);
+              const status = reform.isCompleted
+                ? "已实施"
+                : reform.isBlocked
+                  ? "已封锁"
+                  : queued
+                    ? "本轮排入"
+                    : overCapacity
+                      ? "行政能力不足"
+                      : `可实施（行政 ${reform.adminCost}）`;
+              return (
+                <article key={reform.reformId} className="gp-toggle">
+                  <div className="gp-toggle__header">
+                    <strong>{reform.label}</strong>
+                    <span
+                      className={
+                        queued || reform.isCompleted
+                          ? "gp-toggle__hint gp-toggle__hint--active"
+                          : "gp-toggle__hint gp-toggle__hint--inactive"
+                      }
+                    >
+                      {REFORM_PATH_LABELS[reform.path]}
+                    </span>
+                  </div>
+                  <span className="gp-toggle__desc">行政能力消耗 {reform.adminCost}。</span>
+                  {queued ? (
+                    <span className="gp-input-card__feedback">已排入本轮，提交后将进入“{reform.label}”。</span>
+                  ) : null}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+                    <span className="gp-toggle__hint">{status}</span>
+                    <button
+                      aria-label={`实施改革：${reform.label}`}
+                      className={queued ? "gp-btn gp-btn--primary" : "gp-btn"}
+                      disabled={isDisabled}
+                      onClick={() => handleEnactReform(reform.reformId)}
+                      type="button"
+                    >
+                      {reform.isCompleted ? "已实施" : reform.isBlocked ? "已封锁" : queued ? "撤回" : "实施"}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </details>
+      ) : null}
+
+      {activePolicies.length > 0 ? (
+        <details open className="gp-card" style={{ marginTop: 12 }}>
+          <summary className="gp-collapse">
+            已生效政策 <span className="gp-collapse__hint">本轮可标记停用，下回合不再生效</span>
+          </summary>
+          <div className="gp-grid" style={{ marginTop: 14 }}>
+            {activePolicies.map((policy) => {
+              const active = isPolicyActiveAfter(policy.policyId, policy.isActive);
+              return (
+                <article key={policy.policyId} className="gp-toggle">
+                  <div className="gp-toggle__header">
+                    <strong>{policy.label}</strong>
+                    <span
+                      className={
+                        active
+                          ? "gp-toggle__hint gp-toggle__hint--active"
+                          : "gp-toggle__hint gp-toggle__hint--inactive"
+                      }
+                    >
+                      {active ? "已激活" : "本轮停用"}
+                    </span>
+                  </div>
+                  <span className="gp-toggle__desc">{policy.description}</span>
+                  <span className="gp-toggle__desc">
+                    每回合行政 {policy.adminCostPerTurn} · 预算 {policy.budgetCost}
+                  </span>
+                  {!active ? (
+                    <span className="gp-input-card__feedback">已排入本轮停用。</span>
+                  ) : null}
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                    <button
+                      aria-label={`${active ? "停用政策" : "撤回停用"}：${policy.label}`}
+                      className={active ? "gp-btn" : "gp-btn gp-btn--primary"}
+                      onClick={() => handleTogglePolicy(policy.policyId, !active)}
+                      type="button"
+                    >
+                      {active ? "停用" : "撤回停用"}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </details>
+      ) : null}
+
+      {inactivePolicies.length > 0 ? (
+        <details open className="gp-card" style={{ marginTop: 12 }}>
+          <summary className="gp-collapse">
+            可激活政策 <span className="gp-collapse__hint">每回合占用行政能力与预算</span>
+          </summary>
+          <div className="gp-grid" style={{ marginTop: 14 }}>
+            {inactivePolicies.map((policy) => {
+              const active = isPolicyActiveAfter(policy.policyId, policy.isActive);
+              const lockedReason = !policy.isUnlocked
+                ? policy.requiresReform
+                  ? `需改革：${policy.requiresReform}`
+                  : "未解锁"
+                : null;
+              const isDisabled = lockedReason !== null && !active;
+              const hintText = active
+                ? "本轮激活"
+                : lockedReason ?? `每回合行政 ${policy.adminCostPerTurn} · 预算 ${policy.budgetCost}`;
+              return (
+                <article key={policy.policyId} className="gp-toggle">
+                  <div className="gp-toggle__header">
+                    <strong>{policy.label}</strong>
+                    <span
+                      className={
+                        active
+                          ? "gp-toggle__hint gp-toggle__hint--active"
+                          : "gp-toggle__hint gp-toggle__hint--inactive"
+                      }
+                    >
+                      {hintText}
+                    </span>
+                  </div>
+                  <span className="gp-toggle__desc">{policy.description}</span>
+                  <span className="gp-toggle__desc">
+                    每回合行政 {policy.adminCostPerTurn} · 预算 {policy.budgetCost}
+                  </span>
+                  {active ? <span className="gp-input-card__feedback">已排入本轮激活。</span> : null}
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                    <button
+                      aria-label={`激活政策：${policy.label}`}
+                      className={active ? "gp-btn gp-btn--primary" : "gp-btn"}
+                      disabled={isDisabled}
+                      onClick={() => handleTogglePolicy(policy.policyId, !active)}
+                      type="button"
+                    >
+                      {active ? "撤回激活" : "激活"}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </details>
+      ) : null}
     </article>
   );
 }
