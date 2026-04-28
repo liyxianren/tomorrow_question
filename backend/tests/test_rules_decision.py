@@ -103,7 +103,8 @@ class DecisionRulesTests(unittest.TestCase):
     def test_upgrade_is_recorded_as_next_round_capacity_delta(self) -> None:
         snapshot = build_snapshot()
         britain = get_player(snapshot, "player-1")
-        britain.budget_pools = {"domesticMarket": 12, "factory": 12, "governmentFiscal": 18}
+        # Factory budget covers 1 coal (cost 2) + 1 mechanized upgrade (cost 20) = 22.
+        britain.budget_pools = {"domesticMarket": 12, "factory": 22, "governmentFiscal": 18}
         britain.unlocked_techs = ["spinning_jenny"]
 
         resolution = resolve_decision_phase(

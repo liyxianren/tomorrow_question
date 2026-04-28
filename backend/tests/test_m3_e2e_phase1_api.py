@@ -287,8 +287,8 @@ class Phase1DecisionE2ETests(_Phase1ApiTestCase):
         britain = self._player(resolution.updated_snapshot, "player-1")
         # 4 handicraft × ratio 1 = 4 unified goods.
         self.assertEqual(britain.phase1_economy.goods_inventory, 4)
-        # Initial 30 raw materials, 4 consumed.
-        self.assertEqual(britain.phase1_economy.raw_materials, 26)
+        # Initial 35 raw materials, 4 consumed.
+        self.assertEqual(britain.phase1_economy.raw_materials, 31)
         self.assertEqual(britain.goods_stock.get("phase1_goods"), 4)
 
     def test_decision_fallback_when_no_phase1_field(self) -> None:

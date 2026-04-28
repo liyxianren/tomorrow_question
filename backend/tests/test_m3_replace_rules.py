@@ -235,6 +235,7 @@ class DecisionPhase1ProductionTests(unittest.TestCase):
         snapshot = _build_snapshot()
         britain = _get_player(snapshot, "player-1")
         britain.budget_pools = {"domesticMarket": 0, "factory": 100, "governmentFiscal": 0}
+        britain.unlocked_techs = ["spinning_jenny"]
         starting_handicraft = britain.phase1_economy.capacity_by_mode["handicraft"]
         starting_mechanized = britain.phase1_economy.capacity_by_mode["mechanized"]
 
@@ -247,8 +248,8 @@ class DecisionPhase1ProductionTests(unittest.TestCase):
                     _decision_payload(
                         phase1_production={
                             "buildOrders": [
-                                {"mode": "handicraft", "quantity": 2},  # 10 each = 20
-                                {"mode": "mechanized", "quantity": 1},  # 16
+                                {"mode": "handicraft", "quantity": 2},  # 20 each = 40
+                                {"mode": "mechanized", "quantity": 1},  # 40
                             ],
                         }
                     ),
@@ -262,17 +263,18 @@ class DecisionPhase1ProductionTests(unittest.TestCase):
         # Mirror also flows into legacy production_capacity for frontend compat.
         self.assertEqual(updated.production_capacity["handicraft"], starting_handicraft + 2)
         self.assertEqual(updated.production_capacity["mechanized"], starting_mechanized + 1)
-        self.assertEqual(updated.budget_pools["factory"], 100 - 20 - 16)
+        self.assertEqual(updated.budget_pools["factory"], 100 - 40 - 40)
 
     def test_phase1_upgrade_orders_move_capacity_between_modes(self) -> None:
         snapshot = _build_snapshot()
         britain = _get_player(snapshot, "player-1")
-        # Start with 4 handicraft, 0 mechanized; upgrade 1 to mechanized for 8.
+        # Start with 4 handicraft, 0 mechanized; upgrade 1 to mechanized for 20.
         britain.phase1_economy.capacity_by_mode = {
             "idle": 0, "handicraft": 4, "mechanized": 0, "steam": 0, "electrified": 0,
         }
         britain.production_capacity = dict(britain.phase1_economy.capacity_by_mode)
         britain.budget_pools = {"domesticMarket": 0, "factory": 50, "governmentFiscal": 0}
+        britain.unlocked_techs = ["spinning_jenny"]
 
         resolution = resolve_decision_phase(
             snapshot=snapshot,
@@ -296,7 +298,7 @@ class DecisionPhase1ProductionTests(unittest.TestCase):
         self.assertEqual(updated.phase1_economy.capacity_by_mode["mechanized"], 1)
         self.assertEqual(updated.production_capacity["handicraft"], 3)
         self.assertEqual(updated.production_capacity["mechanized"], 1)
-        self.assertEqual(updated.budget_pools["factory"], 50 - 8)
+        self.assertEqual(updated.budget_pools["factory"], 50 - 20)
 
     def test_phase1_production_skips_mirror_when_new_path_taken(self) -> None:
         # Direct write semantics: the new path should NOT subsequently overwrite
@@ -463,10 +465,11 @@ class MarketPhase1Tests(unittest.TestCase):
         )
 
         updated = _get_player(resolution.updated_snapshot, "player-1")
-        # Both legs sell 4 units at the unified final_price = 10.
+        # Domestic sells 4 at final_price = 10. Overseas (Europe, multiplier 0.9)
+        # sells 4 at int(equilibrium 10 * 0.9) = 9, so 4 * 9 = 36.
         self.assertEqual(updated.domestic_sales_revenue, 40)
-        self.assertEqual(updated.overseas_sales_revenue, 40)
-        self.assertEqual(updated.national_income, 80)
+        self.assertEqual(updated.overseas_sales_revenue, 36)
+        self.assertEqual(updated.national_income, 76)
         self.assertEqual(updated.phase1_economy.market_metrics["soldQuantity"], 8.0)
 
 
