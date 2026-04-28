@@ -21,7 +21,9 @@
         "oil": 2,
         "steel": 3
       },
-      "requiredNodes": ["north_atlantic"],
+      "requiredNodes": [
+        "north_atlantic"
+      ],
       "colonizable": true,
       "priceMultiplier": 1.0
     },
@@ -33,7 +35,9 @@
         "cotton": 3,
         "minerals": 2
       },
-      "requiredNodes": ["mediterranean"],
+      "requiredNodes": [
+        "mediterranean"
+      ],
       "colonizable": true,
       "priceMultiplier": 1.2
     },
@@ -46,7 +50,9 @@
         "minerals": 2,
         "steel": 2
       },
-      "requiredNodes": ["mediterranean"],
+      "requiredNodes": [
+        "mediterranean"
+      ],
       "colonizable": true,
       "priceMultiplier": 1.2
     },
@@ -58,7 +64,9 @@
         "silk": 3,
         "coal": 2
       },
-      "requiredNodes": ["indian_ocean"],
+      "requiredNodes": [
+        "indian_ocean"
+      ],
       "colonizable": true,
       "priceMultiplier": 1.1
     }
@@ -66,19 +74,31 @@
   "oceanNodes": [
     {
       "nodeId": "north_atlantic",
-      "reachableRoutes": ["mediterranean", "pacific"]
+      "reachableRoutes": [
+        "mediterranean",
+        "pacific"
+      ]
     },
     {
       "nodeId": "mediterranean",
-      "reachableRoutes": ["north_atlantic", "indian_ocean"]
+      "reachableRoutes": [
+        "north_atlantic",
+        "indian_ocean"
+      ]
     },
     {
       "nodeId": "indian_ocean",
-      "reachableRoutes": ["mediterranean", "pacific"]
+      "reachableRoutes": [
+        "mediterranean",
+        "pacific"
+      ]
     },
     {
       "nodeId": "pacific",
-      "reachableRoutes": ["north_atlantic", "indian_ocean"]
+      "reachableRoutes": [
+        "north_atlantic",
+        "indian_ocean"
+      ]
     }
   ]
 }

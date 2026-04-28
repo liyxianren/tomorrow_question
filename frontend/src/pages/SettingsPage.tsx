@@ -6,6 +6,8 @@ import { SectionCard } from "../components/ui/SectionCard";
 import { apiRequest } from "../services/http";
 
 
+type IdeologyShiftRule = { highThreshold: number; lowThreshold: number };
+
 type SettingsPayload = {
   production: {
     newFactoryCosts: Record<string, number>;
@@ -14,6 +16,12 @@ type SettingsPayload = {
   countries: Record<string, { initialRawMaterials: number; rawMaterialsPerTurn: number }>;
   global: { baseIncomePerRound: number };
   regions: Record<string, number>;
+  government: {
+    administrationCost: number;
+    ideologyMin: number;
+    ideologyMax: number;
+    naturalShiftRules: Record<string, IdeologyShiftRule>;
+  };
 };
 
 type SaveStatus =
@@ -46,6 +54,12 @@ const REGION_LABELS: Record<string, string> = {
   middle_east: "中东",
   asia_pacific: "亚太",
 };
+
+const IDEOLOGY_LABELS: Array<{ key: string; label: string }> = [
+  { key: "liberalism", label: "自由主义" },
+  { key: "egalitarianism", label: "平等主义" },
+  { key: "nationalism", label: "民族主义" },
+];
 
 
 export function SettingsPage() {
@@ -131,6 +145,34 @@ export function SettingsPage() {
 
   const updateRegion = (key: string, value: number) => {
     setData({ ...data, regions: { ...data.regions, [key]: value } });
+  };
+
+  const updateGovernmentField = (
+    field: "administrationCost" | "ideologyMin" | "ideologyMax",
+    value: number,
+  ) => {
+    setData({ ...data, government: { ...data.government, [field]: value } });
+  };
+
+  const updateShiftThreshold = (
+    ideology: string,
+    field: "highThreshold" | "lowThreshold",
+    value: number,
+  ) => {
+    const existing = data.government.naturalShiftRules[ideology] ?? {
+      highThreshold: 0,
+      lowThreshold: 0,
+    };
+    setData({
+      ...data,
+      government: {
+        ...data.government,
+        naturalShiftRules: {
+          ...data.government.naturalShiftRules,
+          [ideology]: { ...existing, [field]: value },
+        },
+      },
+    });
   };
 
   const handleSave = async () => {
@@ -290,6 +332,78 @@ export function SettingsPage() {
                 </td>
               </tr>
             ))}
+          </tbody>
+        </table>
+      </SectionCard>
+
+      <SectionCard title="政府参数" eyebrow="government">
+        <div style={{ marginBottom: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
+          <label style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            <span>行政能力价格（administrationCost）</span>
+            <input
+              type="number"
+              min={0}
+              value={data.government.administrationCost}
+              onChange={(event) =>
+                updateGovernmentField("administrationCost", Number(event.target.value))
+              }
+            />
+          </label>
+          <label style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            <span>思潮范围 - 最小值</span>
+            <input
+              type="number"
+              value={data.government.ideologyMin}
+              onChange={(event) =>
+                updateGovernmentField("ideologyMin", Number(event.target.value))
+              }
+            />
+            <span>最大值</span>
+            <input
+              type="number"
+              value={data.government.ideologyMax}
+              onChange={(event) =>
+                updateGovernmentField("ideologyMax", Number(event.target.value))
+              }
+            />
+          </label>
+        </div>
+        <table className="settings-table">
+          <thead>
+            <tr>
+              <th>思潮</th>
+              <th>高阈值</th>
+              <th>低阈值</th>
+            </tr>
+          </thead>
+          <tbody>
+            {IDEOLOGY_LABELS.map(({ key, label }) => {
+              const rule = data.government.naturalShiftRules[key];
+              if (!rule) return null;
+              return (
+                <tr key={key}>
+                  <td>{label}</td>
+                  <td>
+                    <input
+                      type="number"
+                      value={rule.highThreshold}
+                      onChange={(event) =>
+                        updateShiftThreshold(key, "highThreshold", Number(event.target.value))
+                      }
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      value={rule.lowThreshold}
+                      onChange={(event) =>
+                        updateShiftThreshold(key, "lowThreshold", Number(event.target.value))
+                      }
+                    />
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </SectionCard>

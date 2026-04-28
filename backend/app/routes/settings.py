@@ -17,6 +17,7 @@ settings_bp = Blueprint("settings", __name__, url_prefix="/api/v1")
 _PRODUCTION_NEW_FACTORY_KEYS = ("handicraft", "mechanized", "steam", "electrified")
 _PRODUCTION_UPGRADE_KEYS = ("mechanized", "steam", "electrified")
 _COUNTRY_KEYS = ("britain", "france", "prussia", "austria", "russia")
+_IDEOLOGY_KEYS = ("liberalism", "egalitarianism", "nationalism")
 
 
 class _ValidationError(ValueError):
@@ -30,7 +31,9 @@ def get_settings():
     countries = _read_json(config_dir / "countries.json")
     global_cfg = _read_json(config_dir / "global.json")
     regions = _read_json(config_dir / "regions.json")
+    politics = _read_json(config_dir / "politics.json")
 
+    politics_shift_rules = politics.get("naturalShiftRules", {})
     payload = {
         "production": {
             "newFactoryCosts": {
@@ -61,6 +64,22 @@ def get_settings():
             for region in regions.get("regions", [])
             if isinstance(region, dict) and "regionId" in region
         },
+        "government": {
+            "administrationCost": int(politics.get("administrationCost", 0)),
+            "ideologyMin": int(politics.get("ideologyMin", 0)),
+            "ideologyMax": int(politics.get("ideologyMax", 10)),
+            "naturalShiftRules": {
+                ideology: {
+                    "highThreshold": int(
+                        politics_shift_rules.get(ideology, {}).get("highThreshold", 0)
+                    ),
+                    "lowThreshold": int(
+                        politics_shift_rules.get(ideology, {}).get("lowThreshold", 0)
+                    ),
+                }
+                for ideology in _IDEOLOGY_KEYS
+            },
+        },
     }
     return ok_response(payload)
 
@@ -76,6 +95,7 @@ def update_settings():
         countries_in = _validate_dict(body.get("countries", {}), "countries")
         global_in = _validate_dict(body.get("global", {}), "global")
         regions_in = _validate_dict(body.get("regions", {}), "regions")
+        government_in = _validate_dict(body.get("government", {}), "government")
 
         new_factory = _validate_int_map(
             production_in.get("newFactoryCosts", {}),
@@ -110,6 +130,40 @@ def update_settings():
             region_values[str(region_id)] = _validate_non_negative_float(
                 raw_multiplier, f"regions.{region_id}"
             )
+
+        admin_cost = _validate_non_negative_int(
+            government_in.get("administrationCost"), "government.administrationCost"
+        )
+        ideology_min = _validate_int(
+            government_in.get("ideologyMin"), "government.ideologyMin"
+        )
+        ideology_max = _validate_int(
+            government_in.get("ideologyMax"), "government.ideologyMax"
+        )
+        if ideology_min > ideology_max:
+            raise _ValidationError("government.ideologyMin must be <= government.ideologyMax.")
+        shift_rules_in = _validate_dict(
+            government_in.get("naturalShiftRules", {}), "government.naturalShiftRules"
+        )
+        shift_values: dict[str, dict[str, int]] = {}
+        for ideology, raw_rule in shift_rules_in.items():
+            if ideology not in _IDEOLOGY_KEYS:
+                raise _ValidationError(
+                    f"government.naturalShiftRules.{ideology} is not a recognized ideology."
+                )
+            rule_dict = _validate_dict(
+                raw_rule, f"government.naturalShiftRules.{ideology}"
+            )
+            shift_values[ideology] = {
+                "highThreshold": _validate_int(
+                    rule_dict.get("highThreshold"),
+                    f"government.naturalShiftRules.{ideology}.highThreshold",
+                ),
+                "lowThreshold": _validate_int(
+                    rule_dict.get("lowThreshold"),
+                    f"government.naturalShiftRules.{ideology}.lowThreshold",
+                ),
+            }
     except _ValidationError as exc:
         return error_response(ErrorCode.INVALID_SUBMISSION, str(exc), 400)
 
@@ -143,6 +197,17 @@ def update_settings():
         if region_id in region_values:
             region["priceMultiplier"] = region_values[region_id]
     _write_json(regions_path, regions_data)
+
+    politics_path = config_dir / "politics.json"
+    politics_data = _read_json(politics_path)
+    politics_data["administrationCost"] = admin_cost
+    politics_data["ideologyMin"] = ideology_min
+    politics_data["ideologyMax"] = ideology_max
+    for ideology, values in shift_values.items():
+        rule_block = politics_data.setdefault("naturalShiftRules", {}).setdefault(ideology, {})
+        rule_block["highThreshold"] = values["highThreshold"]
+        rule_block["lowThreshold"] = values["lowThreshold"]
+    _write_json(politics_path, politics_data)
 
     _load_balance_config_cached.cache_clear()
 
@@ -187,6 +252,12 @@ def _validate_non_negative_int(value: Any, field_name: str) -> int:
         raise _ValidationError(f"{field_name} must be a non-negative number.")
     if value < 0:
         raise _ValidationError(f"{field_name} must be >= 0.")
+    return int(value)
+
+
+def _validate_int(value: Any, field_name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise _ValidationError(f"{field_name} must be a number.")
     return int(value)
 
 

@@ -47,8 +47,13 @@
         "egalitarianism": 0,
         "nationalism": 1
       },
-      "initialGoods": ["coal", "cotton"],
-      "initialDiplomacy": ["asia_pacific"],
+      "initialGoods": [
+        "coal",
+        "cotton"
+      ],
+      "initialDiplomacy": [
+        "asia_pacific"
+      ],
       "initialRawMaterials": 35,
       "rawMaterialsPerTurn": 21
     },
@@ -99,8 +104,13 @@
         "egalitarianism": 1,
         "nationalism": 1
       },
-      "initialGoods": ["grain", "tea"],
-      "initialDiplomacy": ["africa"],
+      "initialGoods": [
+        "grain",
+        "tea"
+      ],
+      "initialDiplomacy": [
+        "africa"
+      ],
       "initialRawMaterials": 33,
       "rawMaterialsPerTurn": 20
     },
@@ -151,8 +161,13 @@
         "egalitarianism": 0,
         "nationalism": 2
       },
-      "initialGoods": ["coal", "steel"],
-      "initialDiplomacy": ["americas"],
+      "initialGoods": [
+        "coal",
+        "steel"
+      ],
+      "initialDiplomacy": [
+        "americas"
+      ],
       "initialRawMaterials": 35,
       "rawMaterialsPerTurn": 21
     },
@@ -203,8 +218,13 @@
         "egalitarianism": 2,
         "nationalism": 1
       },
-      "initialGoods": ["grain", "minerals"],
-      "initialDiplomacy": ["middle_east"],
+      "initialGoods": [
+        "grain",
+        "minerals"
+      ],
+      "initialDiplomacy": [
+        "middle_east"
+      ],
       "initialRawMaterials": 30,
       "rawMaterialsPerTurn": 20
     },
@@ -255,8 +275,13 @@
         "egalitarianism": 1,
         "nationalism": 2
       },
-      "initialGoods": ["grain", "coal"],
-      "initialDiplomacy": ["middle_east"],
+      "initialGoods": [
+        "grain",
+        "coal"
+      ],
+      "initialDiplomacy": [
+        "middle_east"
+      ],
       "initialRawMaterials": 28,
       "rawMaterialsPerTurn": 23
     }
