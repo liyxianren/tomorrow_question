@@ -31,11 +31,108 @@ def resolve_market_phase(*, snapshot, turn_inputs) -> RuleResolution:
         submitted = turn_inputs_by_player_id.get(player_state.player_id)
         payload = dict(submitted.payload) if submitted is not None else default_market_submission_payload()
 
-        phase1_market = payload.get("phase1Market") or {}
-        domestic_revenue, overseas_revenue = _apply_phase1_market(
+        phase1_market = payload.get("phase1Market")
+        if isinstance(phase1_market, dict):
+            domestic_revenue, overseas_revenue = _apply_phase1_market(
+                player_state,
+                phase1_market,
+                region_states_by_id=region_states_by_id,
+            )
+            summary_lines.append(
+                f"{player_state.country.value} 本回合国内销售额 {domestic_revenue}，海外销售额 {overseas_revenue}，国家收入 {player_state.national_income}。"
+            )
+            generated_logs.append(
+                {
+                    "gameId": updated_snapshot.game_id,
+                    "roundNo": updated_snapshot.round_no,
+                    "phase": updated_snapshot.phase,
+                    "kind": "market.resolved",
+                    "message": f"{player_state.country.value} resolved market sales.",
+                    "details": {
+                        "playerId": player_state.player_id,
+                        "domesticSalesRevenue": domestic_revenue,
+                        "overseasSalesRevenue": overseas_revenue,
+                        "nationalIncome": player_state.national_income,
+                    },
+                    "createdAt": None,
+                }
+            )
+            continue
+
+        sale_orders = list(payload.get("saleOrders", []))
+        remaining_stock = {goods_key: int(amount) for goods_key, amount in player_state.goods_stock.items()}
+        remaining_domestic_capacity = resolve_domestic_market_capacity(player_state)
+        remaining_overseas_capacity = resolve_overseas_market_capacity(player_state)
+        domestic_revenue = 0
+        overseas_revenue = 0
+        goods_allocation: dict[str, int] = {}
+
+        for order in sale_orders:
+            goods_id = str(order.get("goodsId"))
+            available = int(remaining_stock.get(goods_id, 0))
+            if available <= 0:
+                continue
+            requested = max(0, int(order.get("quantity", 0)))
+            if requested <= 0:
+                continue
+
+            if order.get("market") == "domestic":
+                sold = min(available, requested, remaining_domestic_capacity)
+                if sold <= 0:
+                    continue
+                unit_price = domestic_reference_price(player_state, goods_id, updated_snapshot)
+                domestic_revenue += sold * unit_price
+                remaining_domestic_capacity -= sold
+                remaining_stock[goods_id] = available - sold
+                goods_allocation[goods_id] = int(goods_allocation.get(goods_id, 0)) + sold
+                continue
+
+            region_id = str(order.get("regionId") or "")
+            region_state = region_states_by_id.get(region_id)
+            if region_state is None or not is_region_accessible(
+                region_state.access_level,
+                player_state.military_points,
+                region_id=region_id,
+                established_diplomacy=player_state.established_diplomacy,
+            ):
+                continue
+            # Check resource limit for this goods in this region
+            region_blueprint = balance.regions.region_blueprints.get(region_id)
+            if region_blueprint is not None:
+                goods_limit = region_blueprint.resource_limit.get(goods_id)
+                if goods_limit is None:
+                    continue  # Region does not accept this goods type
+                current_supply = int(region_state.market_supply.get(goods_id, 0))
+                available_limit = max(0, int(goods_limit) - current_supply)
+                if available_limit <= 0:
+                    continue
+                sold = min(available, requested, remaining_overseas_capacity, available_limit)
+            else:
+                sold = min(available, requested, remaining_overseas_capacity)
+            if sold <= 0:
+                continue
+            unit_price = overseas_reference_price(player_state, goods_id, region_id, updated_snapshot)
+            overseas_revenue += sold * unit_price
+            remaining_overseas_capacity -= sold
+            remaining_stock[goods_id] = available - sold
+            goods_allocation[goods_id] = int(goods_allocation.get(goods_id, 0)) + sold
+            region_state.market_supply[goods_id] = int(region_state.market_supply.get(goods_id, 0)) + sold
+            region_state.market_price[goods_id] = unit_price
+
+        player_state.goods_stock = remaining_stock
+        player_state.goods_allocation = goods_allocation
+        player_state.domestic_sales_revenue = domestic_revenue
+        player_state.overseas_sales_revenue = overseas_revenue
+        player_state.national_income = domestic_revenue + overseas_revenue
+        player_state.income_summary["domesticSalesRevenue"] = domestic_revenue
+        player_state.income_summary["overseasSalesRevenue"] = overseas_revenue
+        player_state.income_summary["nationalIncome"] = player_state.national_income
+        _mirror_phase1_market_metrics(
             player_state,
-            phase1_market,
-            region_states_by_id=region_states_by_id,
+            domestic_revenue=domestic_revenue,
+            overseas_revenue=overseas_revenue,
+            sold_quantity=sum(int(qty) for qty in goods_allocation.values()),
+            unsold_quantity=sum(int(qty) for qty in remaining_stock.values()),
         )
         summary_lines.append(
             f"{player_state.country.value} 本回合国内销售额 {domestic_revenue}，海外销售额 {overseas_revenue}，国家收入 {player_state.national_income}。"

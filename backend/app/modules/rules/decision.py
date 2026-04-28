@@ -40,8 +40,11 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
         _apply_active_event_effects(player_state, updated_snapshot.active_events)
         _apply_ability_selection(player_state, payload.get("abilitySelection"), balance)
 
-        phase1_production = payload.get("phase1Production") or {}
-        factory_spent = _apply_phase1_production_plan(player_state, phase1_production, balance)
+        phase1_production = payload.get("phase1Production")
+        if isinstance(phase1_production, dict):
+            factory_spent = _apply_phase1_production_plan(player_state, phase1_production, balance)
+        else:
+            factory_spent = _apply_factory_plan(player_state, payload.get("factoryPlan") or {}, balance)
         domestic_spent = _apply_domestic_market_plan(player_state, payload.get("domesticMarketPlan") or {}, balance)
         government_spent = _apply_government_plan(player_state, payload.get("governmentPlan") or {}, balance)
         military_spent = _apply_military_plan(player_state, payload.get("militaryPlan") or {}, balance, updated_snapshot)
@@ -49,6 +52,9 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
         _apply_policy_plan(player_state, payload, balance)
         _apply_talent_plan(player_state, payload.get("talentPlan", {}), balance)
         _apply_tech_research(player_state, (payload.get("governmentPlan") or {}).get("techResearch") or [], balance)
+
+        if not isinstance(phase1_production, dict):
+            _mirror_phase1_economy_after_decision(player_state)
 
         summary_lines.append(
             (
