@@ -24,6 +24,9 @@ describe("createInitialPhaseDraft", () => {
         militaryActions: [],
         diplomacyActions: [],
         colonizationActions: [],
+        navalDeployment: {},
+        conquestActions: [],
+        lootingActions: [],
       },
       talentPlan: {
         talentUnlocks: [],

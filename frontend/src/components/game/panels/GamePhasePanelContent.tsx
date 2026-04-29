@@ -35,6 +35,7 @@ import {
   removePointPurchase,
   setColonizationUnlockSelection,
   setAbilitySelectionTarget,
+  setNavalDeployment,
   setProductionOrderQuantity,
   setRouteDecisionOrderQuantity,
   toggleDiplomacyActionSelection,
@@ -292,6 +293,7 @@ export function DecisionWorkbench({
           onToggleColonizationUnlock={(checked) => handleDraftChange("military", setColonizationUnlockSelection(draft, checked))}
           onColonize={(regionId) => handleDraftChange("military", addColonizationAction(draft, regionId))}
           onCancelColonize={(regionId) => handleDraftChange("military", removeColonizationAction(draft, regionId))}
+          onNavalDeploymentChange={(nodeId, count) => handleDraftChange("military", setNavalDeployment(draft, nodeId, count))}
         />
       ) : (
         <TalentTreePanel

@@ -227,6 +227,28 @@ export function removeColonizationAction(
   };
 }
 
+export function setNavalDeployment(
+  draft: PhaseDraftByPhase["decision"],
+  nodeId: string,
+  count: number,
+): PhaseDraftByPhase["decision"] {
+  const next = normalizeQuantity(count);
+  const current = draft.militaryPlan.navalDeployment ?? {};
+  const nextDeployment: Record<string, number> = { ...current };
+  if (next > 0) {
+    nextDeployment[nodeId] = next;
+  } else {
+    delete nextDeployment[nodeId];
+  }
+  return {
+    ...draft,
+    militaryPlan: {
+      ...draft.militaryPlan,
+      navalDeployment: nextDeployment,
+    },
+  };
+}
+
 export function setColonizationUnlockSelection(
   draft: PhaseDraftByPhase["decision"],
   checked: boolean,

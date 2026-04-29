@@ -138,6 +138,9 @@ export function clearDecisionStepDraft(
         militaryActions: [],
         diplomacyActions: [],
         colonizationActions: [],
+        navalDeployment: {},
+        conquestActions: [],
+        lootingActions: [],
       },
     };
   }

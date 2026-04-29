@@ -217,6 +217,25 @@ export interface ColonizationActionSelection {
   targetRegionId: string;
 }
 
+export interface ConquestActionSelection {
+  regionId: string;
+  infantry: number;
+  artillery: number;
+}
+
+export interface LootingActionSelection {
+  regionId: string;
+  resourceType: string;
+}
+
+export interface OceanNodeOption {
+  nodeId: string;
+  navyByCountry: Record<string, number>;
+  controller: string | null;
+  isBlockaded: boolean;
+  myFleet: number;
+}
+
 export interface ColonizationOption {
   regionId: string;
   regionLabel: string;
@@ -225,6 +244,9 @@ export interface ColonizationOption {
   militaryPointCost: number;
   canColonize: boolean;
   lockedReason: string | null;
+  independence?: number;
+  garrison?: Record<string, number>;
+  resourceLimit?: Record<string, number>;
 }
 
 export interface ColonizationCapability {
@@ -240,6 +262,9 @@ export interface MilitaryPlan {
   militaryActions: MilitaryActionSelection[];
   diplomacyActions: DiplomacyActionSelection[];
   colonizationActions: ColonizationActionSelection[];
+  navalDeployment: Record<string, number>;
+  conquestActions: ConquestActionSelection[];
+  lootingActions: LootingActionSelection[];
 }
 
 export interface TalentNodeOption {
@@ -480,6 +505,7 @@ export interface DecisionPlayerPhaseWorkspace {
     availableDiplomacyActions: DiplomacyActionOption[];
     colonizationCapability: ColonizationCapability;
     colonizationOptions: ColonizationOption[];
+    oceanNodes: OceanNodeOption[];
   };
   researchWorkspace: {
     techPoints: number;

@@ -417,6 +417,7 @@ export function createDecisionPlayerWorkspace(
           lockedReason: "需先永久解锁殖民扩张",
         },
       ],
+      oceanNodes: [],
     },
     ...overrides,
   };

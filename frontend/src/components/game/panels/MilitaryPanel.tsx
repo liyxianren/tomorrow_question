@@ -36,7 +36,16 @@ export interface MilitaryPanelProps {
   onToggleColonizationUnlock: (checked: boolean) => void;
   onColonize: (regionId: string) => void;
   onCancelColonize: (regionId: string) => void;
+  onNavalDeploymentChange: (nodeId: string, count: number) => void;
 }
+
+const OCEAN_NODE_LABELS: Record<string, string> = {
+  north_atlantic: "北大西洋",
+  south_atlantic: "南大西洋",
+  indian_ocean: "印度洋",
+  pacific: "太平洋",
+  mediterranean: "地中海",
+};
 
 export function MilitaryPanel({
   workspace,
@@ -48,6 +57,7 @@ export function MilitaryPanel({
   onToggleColonizationUnlock,
   onColonize,
   onCancelColonize,
+  onNavalDeploymentChange,
 }: MilitaryPanelProps) {
   const mil = workspace.militaryWorkspace;
   const capability = mil.colonizationCapability;
@@ -61,6 +71,15 @@ export function MilitaryPanel({
   ]);
   const getCount = (actionId: string) =>
     draft.militaryPlan.militaryActions.filter((a) => a.actionId === actionId).length;
+
+  const totalFleets = mil.navy.fleets ?? 0;
+  const oceanNodes = mil.oceanNodes ?? [];
+  const navalDeployment = draft.militaryPlan.navalDeployment ?? {};
+  const totalDeployed = oceanNodes.reduce((sum, node) => {
+    const draftCount = navalDeployment[node.nodeId];
+    return sum + (typeof draftCount === "number" ? draftCount : node.myFleet);
+  }, 0);
+  const remainingFleets = Math.max(0, totalFleets - totalDeployed);
 
   return (
     <div className="military-panel" data-testid="military-panel">
@@ -91,6 +110,58 @@ export function MilitaryPanel({
           <span className="military-stat__label">已建交</span>
         </div>
       </div>
+
+      {oceanNodes.length > 0 && (
+        <>
+          <h4 className="military-section-label">
+            🌊 海洋节点 <span style={{ fontSize: 12, color: "var(--game-text-muted, #b8a981)", marginLeft: 8 }}>
+              已部署 {totalDeployed}/{totalFleets}
+            </span>
+          </h4>
+          <div className="military-regions">
+            {oceanNodes.map((node) => {
+              const draftCount = navalDeployment[node.nodeId];
+              const myFleet = typeof draftCount === "number" ? draftCount : node.myFleet;
+              const canIncrement = remainingFleets > 0;
+              const canDecrement = myFleet > 0;
+              const label = OCEAN_NODE_LABELS[node.nodeId] ?? node.nodeId;
+              return (
+                <div
+                  key={node.nodeId}
+                  className="military-region military-region--accessible"
+                  data-testid={`ocean-node-${node.nodeId}`}
+                >
+                  <span className="military-region__icon">🌊</span>
+                  <span className="military-region__name">
+                    {label}
+                    {node.isBlockaded ? " 🚫" : ""}
+                  </span>
+                  <span className="military-region__goods-inline">
+                    舰队 {myFleet}
+                    {node.controller ? ` · 控制：${node.controller}` : ""}
+                  </span>
+                  <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
+                    <button
+                      aria-label={`减少在${label}的舰队部署`}
+                      className="military-action-card__btn"
+                      type="button"
+                      disabled={!canDecrement}
+                      onClick={() => onNavalDeploymentChange(node.nodeId, myFleet - 1)}
+                    >-</button>
+                    <button
+                      aria-label={`增加在${label}的舰队部署`}
+                      className="military-action-card__btn"
+                      type="button"
+                      disabled={!canIncrement}
+                      onClick={() => onNavalDeploymentChange(node.nodeId, myFleet + 1)}
+                    >+</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       <h4 className="military-section-label">🗺️ 海外区域</h4>
       <div className="military-regions">

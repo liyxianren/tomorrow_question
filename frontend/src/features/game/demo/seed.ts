@@ -210,6 +210,7 @@ export const AUSTRIA_DECISION_DEMO_WORKSPACE: DecisionPlayerPhaseWorkspace = {
       maxColonizationsPerRound: 1,
     },
     colonizationOptions: [],
+    oceanNodes: [],
     availableMilitaryActions: [
       {
         actionId: "naval_drill",

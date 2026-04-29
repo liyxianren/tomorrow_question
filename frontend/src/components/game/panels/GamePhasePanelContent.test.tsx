@@ -103,6 +103,9 @@ describe("GamePhasePanelContent", () => {
         militaryActions: [{ actionId: "naval_drill" }],
         diplomacyActions: [{ actionId: "establish_africa" }],
         colonizationActions: [],
+        navalDeployment: {},
+        conquestActions: [],
+        lootingActions: [],
       },
       talentPlan: {
         talentUnlocks: [],
@@ -185,6 +188,9 @@ describe("GamePhasePanelContent", () => {
         militaryActions: [],
         diplomacyActions: [],
         colonizationActions: [],
+        navalDeployment: {},
+        conquestActions: [],
+        lootingActions: [],
       },
       talentPlan: {
         talentUnlocks: [],
@@ -264,6 +270,9 @@ describe("GamePhasePanelContent", () => {
         militaryActions: [],
         diplomacyActions: [],
         colonizationActions: [],
+        navalDeployment: {},
+        conquestActions: [],
+        lootingActions: [],
       },
       talentPlan: {
         talentUnlocks: [],
@@ -328,6 +337,9 @@ describe("GamePhasePanelContent", () => {
         militaryActions: [],
         diplomacyActions: [],
         colonizationActions: [],
+        navalDeployment: {},
+        conquestActions: [],
+        lootingActions: [],
       },
       talentPlan: {
         talentUnlocks: [],

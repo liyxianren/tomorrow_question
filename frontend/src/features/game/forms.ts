@@ -51,6 +51,9 @@ export function createInitialPhaseDraft(phase: GamePhase): PhaseDraft {
           militaryActions: [],
           diplomacyActions: [],
           colonizationActions: [],
+          navalDeployment: {},
+          conquestActions: [],
+          lootingActions: [],
         },
         talentPlan: {
           talentUnlocks: [],

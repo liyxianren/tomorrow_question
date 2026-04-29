@@ -22,6 +22,7 @@ describe("MilitaryPanel", () => {
         onToggleColonizationUnlock={vi.fn()}
         onColonize={vi.fn()}
         onCancelColonize={vi.fn()}
+        onNavalDeploymentChange={vi.fn()}
       />,
     );
 
@@ -67,6 +68,7 @@ describe("MilitaryPanel", () => {
         onToggleColonizationUnlock={vi.fn()}
         onColonize={vi.fn()}
         onCancelColonize={vi.fn()}
+        onNavalDeploymentChange={vi.fn()}
       />,
     );
 

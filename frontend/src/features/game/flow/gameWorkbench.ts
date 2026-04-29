@@ -738,6 +738,9 @@ function normalizeDecisionDraft(draftPayload: Record<string, unknown>) {
       militaryActions: draft.militaryPlan?.militaryActions ?? [],
       diplomacyActions: draft.militaryPlan?.diplomacyActions ?? [],
       colonizationActions: draft.militaryPlan?.colonizationActions ?? [],
+      navalDeployment: draft.militaryPlan?.navalDeployment ?? {},
+      conquestActions: draft.militaryPlan?.conquestActions ?? [],
+      lootingActions: draft.militaryPlan?.lootingActions ?? [],
     },
     talentPlan: {
       talentUnlocks: draft.talentPlan?.talentUnlocks ?? [],
