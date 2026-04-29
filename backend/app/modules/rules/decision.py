@@ -49,7 +49,6 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
         _apply_reform_plan(player_state, payload, balance)
         _apply_policy_plan(player_state, payload, balance)
         _apply_talent_plan(player_state, payload.get("talentPlan", {}), balance)
-        _apply_tech_research(player_state, (payload.get("governmentPlan") or {}).get("techResearch") or [], balance)
         _apply_phase3_research_plan(player_state, payload, balance)
 
         summary_lines.append(
@@ -232,11 +231,6 @@ def _apply_government_plan(player_state, government_plan: dict[str, Any], balanc
     return spent
 
 
-def _apply_tech_research(player_state, tech_selections: list[dict[str, Any]], balance) -> None:
-    # Shim: chain-based research replaces this; Task 3 will rewrite it.
-    del player_state, tech_selections, balance
-
-
 def _apply_phase3_research_plan(player_state, payload: dict[str, Any], balance) -> None:
     target = payload.get("researchTarget")
     if not target:
@@ -290,43 +284,6 @@ def _apply_military_plan(player_state, military_plan: dict[str, Any], balance, s
         remaining_budget -= int(action.budget_pool_cost)
         spent += int(action.budget_pool_cost)
         player_state.established_diplomacy.append(action.target_region)
-
-    unlock_colonization = bool(military_plan.get("unlockColonization", False))
-    if unlock_colonization and not player_state.colonization_unlocked:
-        unlock_cost = int(balance.military.colonization_unlock_cost)
-        if remaining_budget >= unlock_cost:
-            remaining_budget -= unlock_cost
-            spent += unlock_cost
-            player_state.colonization_unlocked = True
-
-    if snapshot is not None and player_state.colonization_unlocked:
-        max_colonizations = int(balance.military.max_colonizations_per_round)
-        military_point_cost = int(balance.military.colonization_military_point_cost)
-        selected_targets: set[str] = set()
-        colonized_count = 0
-        for selection in military_plan.get("colonizationActions", []):
-            if colonized_count >= max_colonizations:
-                break
-            target_region_id = str(selection.get("targetRegionId") or "")
-            if not target_region_id or target_region_id in selected_targets:
-                continue
-            selected_targets.add(target_region_id)
-            if player_state.military_points < military_point_cost:
-                continue
-            if target_region_id not in player_state.established_diplomacy:
-                continue
-            region_blueprint = balance.regions.region_blueprints.get(target_region_id)
-            if region_blueprint is None or not region_blueprint.colonizable:
-                continue
-            target_region = next(
-                (region_state for region_state in snapshot.region_states if region_state.region_id == target_region_id),
-                None,
-            )
-            if target_region is None or target_region.controller is not None:
-                continue
-            player_state.military_points -= military_point_cost
-            target_region.controller = player_state.country.value
-            colonized_count += 1
 
     if snapshot is not None:
         _apply_looting_actions(

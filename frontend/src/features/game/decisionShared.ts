@@ -279,48 +279,29 @@ export function calculateTechResearchPreview(
     factory: workspace.budgetPools.factory - initialSpendByPool.factory,
     governmentFiscal: workspace.budgetPools.governmentFiscal - initialSpendByPool.governmentFiscal,
   };
-  const researchSpendByPool: BudgetPools = {
-    domesticMarket: 0,
-    factory: 0,
-    governmentFiscal: 0,
-  };
+  const allTechs = flattenTechTree(workspace.techTree);
   const queuedTechIds = new Set<string>();
-  const unlockedTechIds = new Set(flattenTechTree(workspace.techTree).filter((node) => node.isUnlocked).map((node) => node.techId));
+  const unlockedTechIds = new Set(allTechs.filter((node) => node.isUnlocked).map((node) => node.techId));
   const invalidReasonByTechId = new Map<string, string>();
 
   for (const selection of draft.governmentPlan.techResearch) {
-    const tech = flattenTechTree(workspace.techTree).find((node) => node.techId === selection.techId);
+    const tech = allTechs.find((node) => node.techId === selection.techId);
     if (!tech || tech.isUnlocked || queuedTechIds.has(tech.techId)) {
       continue;
     }
-
-    const missingPrerequisites = (tech.prerequisites ?? [])
-      .filter((prerequisite) => !unlockedTechIds.has(prerequisite))
-      .map((prerequisite) => flattenTechTree(workspace.techTree).find((candidate) => candidate.techId === prerequisite)?.label ?? prerequisite);
-
-    if (missingPrerequisites.length > 0) {
-      invalidReasonByTechId.set(tech.techId, `前置：${missingPrerequisites.join("、")}`);
+    if (!tech.canResearch) {
+      invalidReasonByTechId.set(tech.techId, "前置未满足");
       continue;
     }
-
-    const poolKey = ("budgetPool" in tech ? tech.budgetPool : "governmentFiscal") as keyof BudgetPools;
-    const budgetCost = "budgetCost" in tech ? tech.budgetCost : 0;
-    if (budgetCost > 0 && remainingBudgets[poolKey] < budgetCost) {
-      invalidReasonByTechId.set(tech.techId, `${getBudgetPoolLabel(poolKey)}不足`);
-      continue;
-    }
-
     queuedTechIds.add(tech.techId);
     unlockedTechIds.add(tech.techId);
-    remainingBudgets[poolKey] -= budgetCost;
-    researchSpendByPool[poolKey] += budgetCost;
   }
 
   return {
     queuedTechIds,
     unlockedTechIds,
     invalidReasonByTechId,
-    spendByPool: researchSpendByPool,
+    spendByPool: { domesticMarket: 0, factory: 0, governmentFiscal: 0 },
     remainingBudgets,
   };
 }

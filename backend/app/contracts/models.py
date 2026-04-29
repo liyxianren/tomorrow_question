@@ -119,7 +119,6 @@ class NationalStatePayload(TypedDict):
     incomeSummary: dict[str, Any]
     unlockedTalents: list[str]
     establishedDiplomacy: list[str]
-    colonizationUnlocked: bool
     usedAbilities: list[str]
     temporaryEffects: dict[str, Any]
     phase1Economy: Phase1EconomyPayload
@@ -214,15 +213,23 @@ class DiplomacyActionSelectionPayload(TypedDict):
     actionId: str
 
 
-class ColonizationActionSelectionPayload(TypedDict):
-    targetRegionId: str
+class ConquestActionSelectionPayload(TypedDict, total=False):
+    regionId: str
+    infantry: int
+    artillery: int
 
 
-class MilitaryPlanPayload(TypedDict):
-    unlockColonization: bool
+class LootingActionSelectionPayload(TypedDict, total=False):
+    regionId: str
+    resourceType: str
+
+
+class MilitaryPlanPayload(TypedDict, total=False):
     militaryActions: list[MilitaryActionSelectionPayload]
     diplomacyActions: list[DiplomacyActionSelectionPayload]
-    colonizationActions: list[ColonizationActionSelectionPayload]
+    conquestActions: list[ConquestActionSelectionPayload]
+    lootingActions: list[LootingActionSelectionPayload]
+    navalDeployment: dict[str, int]
 
 
 class AbilitySelectionPayload(TypedDict, total=False):

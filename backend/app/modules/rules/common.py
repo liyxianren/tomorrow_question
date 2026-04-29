@@ -50,10 +50,8 @@ def default_decision_submission_payload() -> dict[str, Any]:
             "adminPurchases": 0,
         },
         "militaryPlan": {
-            "unlockColonization": False,
             "militaryActions": [],
             "diplomacyActions": [],
-            "colonizationActions": [],
         },
         "talentPlan": {"talentUnlocks": []},
     }

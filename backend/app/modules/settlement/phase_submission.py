@@ -811,8 +811,6 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
             )
         preview_military_points -= int(balance.military.colonization_military_point_cost)
 
-    # Shim: chain-based research replaces per-tech submission validation (Task 3 will restore it).
-
     if government_spend + military_plan_spend > government_budget:
         raise PhaseSubmissionError(
             ErrorCode.INVALID_SUBMISSION,
