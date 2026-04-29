@@ -206,7 +206,7 @@
     "expand_research": {
       "label": "扩张科研机构",
       "adminCostPerTurn": 1,
-      "budgetCost": 10,
+      "budgetCost": 12,
       "effects": {
         "researchFacilityDelta": {
           "academy": 1

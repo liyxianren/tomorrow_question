@@ -49,6 +49,7 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
         _apply_policy_plan(player_state, payload, balance)
         _apply_talent_plan(player_state, payload.get("talentPlan", {}), balance)
         _apply_tech_research(player_state, (payload.get("governmentPlan") or {}).get("techResearch") or [], balance)
+        _apply_phase3_research_plan(player_state, payload, balance)
 
         summary_lines.append(
             (
@@ -339,6 +340,25 @@ def _apply_government_plan(player_state, government_plan: dict[str, Any], balanc
 def _apply_tech_research(player_state, tech_selections: list[dict[str, Any]], balance) -> None:
     # Shim: chain-based research replaces this; Task 3 will rewrite it.
     del player_state, tech_selections, balance
+
+
+def _apply_phase3_research_plan(player_state, payload: dict[str, Any], balance) -> None:
+    target = payload.get("researchTarget")
+    if not target:
+        return
+    tech_id = str(target)
+
+    for chain in balance.technology.chains.values():
+        order = [tech.tech_id for tech in chain.techs]
+        if tech_id not in order:
+            continue
+        if tech_id in player_state.unlocked_techs:
+            return
+        index = order.index(tech_id)
+        if index > 0 and order[index - 1] not in player_state.unlocked_techs:
+            return
+        player_state.active_research = tech_id
+        return
 
 
 def _apply_military_plan(player_state, military_plan: dict[str, Any], balance, snapshot=None) -> int:
