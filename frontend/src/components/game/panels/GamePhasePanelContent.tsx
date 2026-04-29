@@ -35,12 +35,14 @@ import {
   removePointPurchase,
   setColonizationUnlockSelection,
   setAbilitySelectionTarget,
+  setConquestAction,
   setNavalDeployment,
   setProductionOrderQuantity,
   setRouteDecisionOrderQuantity,
   toggleDiplomacyActionSelection,
   toggleDomesticMarketActionSelection,
   toggleGovernmentStrategySelection,
+  toggleLootingAction,
   toggleNationalAbilitySelection,
   toggleTalentUnlockSelection,
   toggleTechResearchSelection,
@@ -294,6 +296,8 @@ export function DecisionWorkbench({
           onColonize={(regionId) => handleDraftChange("military", addColonizationAction(draft, regionId))}
           onCancelColonize={(regionId) => handleDraftChange("military", removeColonizationAction(draft, regionId))}
           onNavalDeploymentChange={(nodeId, count) => handleDraftChange("military", setNavalDeployment(draft, nodeId, count))}
+          onConquestChange={(regionId, infantry, artillery) => handleDraftChange("military", setConquestAction(draft, regionId, infantry, artillery))}
+          onLootingToggle={(regionId, resourceType) => handleDraftChange("military", toggleLootingAction(draft, regionId, resourceType))}
         />
       ) : (
         <TalentTreePanel

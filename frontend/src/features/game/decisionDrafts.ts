@@ -227,6 +227,48 @@ export function removeColonizationAction(
   };
 }
 
+export function setConquestAction(
+  draft: PhaseDraftByPhase["decision"],
+  regionId: string,
+  infantry: number,
+  artillery: number,
+): PhaseDraftByPhase["decision"] {
+  const safeInfantry = normalizeQuantity(infantry);
+  const safeArtillery = normalizeQuantity(artillery);
+  const remaining = (draft.militaryPlan.conquestActions ?? []).filter(
+    (a) => a.regionId !== regionId,
+  );
+  const next = safeInfantry > 0 || safeArtillery > 0
+    ? [...remaining, { regionId, infantry: safeInfantry, artillery: safeArtillery }]
+    : remaining;
+  return {
+    ...draft,
+    militaryPlan: {
+      ...draft.militaryPlan,
+      conquestActions: next,
+    },
+  };
+}
+
+export function toggleLootingAction(
+  draft: PhaseDraftByPhase["decision"],
+  regionId: string,
+  resourceType: string,
+): PhaseDraftByPhase["decision"] {
+  const existing = draft.militaryPlan.lootingActions ?? [];
+  const has = existing.some((a) => a.regionId === regionId && a.resourceType === resourceType);
+  const next = has
+    ? existing.filter((a) => !(a.regionId === regionId && a.resourceType === resourceType))
+    : [...existing, { regionId, resourceType }];
+  return {
+    ...draft,
+    militaryPlan: {
+      ...draft.militaryPlan,
+      lootingActions: next,
+    },
+  };
+}
+
 export function setNavalDeployment(
   draft: PhaseDraftByPhase["decision"],
   nodeId: string,

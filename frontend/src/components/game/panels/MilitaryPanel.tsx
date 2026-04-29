@@ -24,7 +24,14 @@ const ACTION_ICONS: Record<string, string> = {
 const GOODS_LABELS: Record<string, string> = {
   coal: "煤炭", steel: "钢铁", grain: "粮食", cotton: "棉花",
   oil: "石油", rubber: "橡胶", minerals: "矿产", tea: "茶叶", silk: "丝绸",
+  iron: "铁矿",
 };
+
+function independenceColor(value: number): string {
+  if (value >= 60) return "#c0392b";
+  if (value >= 40) return "#d4a017";
+  return "#2e7d32";
+}
 
 export interface MilitaryPanelProps {
   workspace: DecisionPlayerPhaseWorkspace;
@@ -37,6 +44,8 @@ export interface MilitaryPanelProps {
   onColonize: (regionId: string) => void;
   onCancelColonize: (regionId: string) => void;
   onNavalDeploymentChange: (nodeId: string, count: number) => void;
+  onConquestChange: (regionId: string, infantry: number, artillery: number) => void;
+  onLootingToggle: (regionId: string, resourceType: string) => void;
 }
 
 const OCEAN_NODE_LABELS: Record<string, string> = {
@@ -58,6 +67,8 @@ export function MilitaryPanel({
   onColonize,
   onCancelColonize,
   onNavalDeploymentChange,
+  onConquestChange,
+  onLootingToggle,
 }: MilitaryPanelProps) {
   const mil = workspace.militaryWorkspace;
   const capability = mil.colonizationCapability;
@@ -80,6 +91,14 @@ export function MilitaryPanel({
     return sum + (typeof draftCount === "number" ? draftCount : node.myFleet);
   }, 0);
   const remainingFleets = Math.max(0, totalFleets - totalDeployed);
+
+  const accessibleRegionIds = new Set(
+    mil.regionAccessStatus.filter((r) => r.isAccessible).map((r) => r.regionId),
+  );
+  const conquestActions = draft.militaryPlan.conquestActions ?? [];
+  const lootingActions = draft.militaryPlan.lootingActions ?? [];
+  const maxInfantryByPoints = Math.floor(mil.militaryPoints / 10);
+  const maxArtilleryByBudget = Math.floor(remainingGovernmentBudget / 16);
 
   return (
     <div className="military-panel" data-testid="military-panel">
@@ -341,6 +360,18 @@ export function MilitaryPanel({
                   ? "✓ 已选择"
                   : previewLockedReason ?? "可殖民";
 
+              const isAccessible = accessibleRegionIds.has(option.regionId);
+              const conquestEntry = conquestActions.find((a) => a.regionId === option.regionId);
+              const infantry = conquestEntry?.infantry ?? 0;
+              const artillery = conquestEntry?.artillery ?? 0;
+              const power = infantry + artillery * 2;
+              const garrisonEntries = Object.entries(option.garrison ?? {}).filter(([, n]) => n > 0);
+              const defenderTotal = garrisonEntries.reduce((sum, [, n]) => sum + n, 0);
+              const resourceEntries = Object.entries(option.resourceLimit ?? {}).filter(([, n]) => n > 0);
+              const lootedSet = new Set(
+                lootingActions.filter((a) => a.regionId === option.regionId).map((a) => a.resourceType),
+              );
+
               return (
                 <div
                   key={option.regionId}
@@ -371,6 +402,110 @@ export function MilitaryPanel({
                       </button>
                     )}
                   </div>
+
+                  {option.isColonized && typeof option.independence === "number" && (
+                    <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+                      <div style={{ fontSize: 12 }}>
+                        独立度 {option.independence}%
+                        {option.independence >= 60 ? " ⚠️" : ""}
+                      </div>
+                      <div
+                        style={{
+                          width: "100%",
+                          height: 6,
+                          background: "rgba(255,255,255,0.1)",
+                          borderRadius: 3,
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: `${Math.max(0, Math.min(100, option.independence))}%`,
+                            height: "100%",
+                            background: independenceColor(option.independence),
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {option.isColonized && garrisonEntries.length > 0 && (
+                    <div style={{ marginTop: 6, fontSize: 12 }}>
+                      驻军: {garrisonEntries.map(([country, n]) => `${country}×${n}`).join(" ")}
+                    </div>
+                  )}
+
+                  {option.isColonized && resourceEntries.length > 0 && (
+                    <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 4 }}>
+                      <div style={{ fontSize: 12 }}>
+                        资源: {resourceEntries.map(([res, n]) => `${GOODS_LABELS[res] ?? res}×${n}`).join(" ")}
+                      </div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                        {resourceEntries.map(([res]) => {
+                          const resLabel = GOODS_LABELS[res] ?? res;
+                          const isLooted = lootedSet.has(res);
+                          return (
+                            <button
+                              key={res}
+                              aria-label={`掠夺${option.regionLabel}${resLabel}`}
+                              className={`military-action-card__btn ${isLooted ? "military-action-card__btn--active" : ""}`}
+                              type="button"
+                              onClick={() => onLootingToggle(option.regionId, res)}
+                            >
+                              掠夺{resLabel}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {!option.isColonized && isAccessible && (
+                    <div
+                      data-testid={`conquest-${option.regionId}`}
+                      style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}
+                    >
+                      <div style={{ fontSize: 12, fontWeight: 600 }}>⚔️ 征服</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+                        <span style={{ minWidth: 96 }}>步兵: {infantry} (消耗 {infantry * 10} 军事点)</span>
+                        <button
+                          aria-label={`减少${option.regionLabel}步兵`}
+                          className="military-action-card__btn"
+                          type="button"
+                          disabled={infantry <= 0}
+                          onClick={() => onConquestChange(option.regionId, infantry - 1, artillery)}
+                        >-</button>
+                        <button
+                          aria-label={`增加${option.regionLabel}步兵`}
+                          className="military-action-card__btn"
+                          type="button"
+                          disabled={infantry >= maxInfantryByPoints}
+                          onClick={() => onConquestChange(option.regionId, infantry + 1, artillery)}
+                        >+</button>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+                        <span style={{ minWidth: 96 }}>炮兵: {artillery} (消耗 ${artillery * 16})</span>
+                        <button
+                          aria-label={`减少${option.regionLabel}炮兵`}
+                          className="military-action-card__btn"
+                          type="button"
+                          disabled={artillery <= 0}
+                          onClick={() => onConquestChange(option.regionId, infantry, artillery - 1)}
+                        >-</button>
+                        <button
+                          aria-label={`增加${option.regionLabel}炮兵`}
+                          className="military-action-card__btn"
+                          type="button"
+                          disabled={artillery >= maxArtilleryByBudget}
+                          onClick={() => onConquestChange(option.regionId, infantry, artillery + 1)}
+                        >+</button>
+                      </div>
+                      <div style={{ fontSize: 12 }}>
+                        战力 = {power}（步兵 {infantry} + 炮兵×2 {artillery * 2}）
+                        {defenderTotal > 0 ? ` · 守军 = ${defenderTotal}` : ""}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
