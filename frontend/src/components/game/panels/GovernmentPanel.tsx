@@ -10,6 +10,7 @@ import {
   formatRatio,
   formatRatioDeltaSummary,
   getTechResearchLockedReason,
+  flattenTechTree,
 } from "../../../features/game/decisionShared";
 import "./GovernmentPanel.css";
 
@@ -70,10 +71,10 @@ export function GovernmentPanel({
 
   const queuedResearchIds = new Set(
     draft.governmentPlan.techResearch
-      .filter((item) => workspace.techTree.find((tech) => tech.techId === item.techId)?.budgetPool === "governmentFiscal")
+      .filter((item) => { const t = flattenTechTree(workspace.techTree).find((tech) => tech.techId === item.techId); return t && "budgetPool" in t && t.budgetPool === "governmentFiscal"; })
       .map((item) => item.techId),
   );
-  const governmentTechs = workspace.techTree.filter((tech) => tech.budgetPool === "governmentFiscal");
+  const governmentTechs = flattenTechTree(workspace.techTree).filter((tech) => "budgetPool" in tech && tech.budgetPool === "governmentFiscal");
 
   const abilityStatusLabel = !workspace.nationalAbility
     ? "无"

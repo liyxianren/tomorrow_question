@@ -15,19 +15,7 @@ const productionRouteLabels: Record<string, string> = {
 };
 
 const goodsLabels: Record<string, string> = {
-  arms: "军火",
-  coal: "煤炭",
-  cotton: "棉花",
-  grain: "粮食",
-  iron: "铁矿",
-  luxuryGoods: "奢侈品",
-  luxury_goods: "奢侈品",
-  oil: "石油",
-  ships: "船舶",
-  steel: "钢材",
-  textile: "纺织品",
-  timber: "木材",
-  tools: "工具",
+  phase1_goods: "统一商品",
 };
 
 const accessLevelLabels: Record<string, string> = {
@@ -65,6 +53,10 @@ const technologyLabels: Record<string, string> = {
   spinning_jenny: "珍妮纺纱机",
   steam_engine: "蒸汽机",
   steelmaking: "炼钢法",
+  watt_engine: "瓦特蒸汽机",
+  lathe: "车床",
+  power_generation: "发电",
+  combustion_engine: "内燃机",
 };
 
 const researchFacilityLabels: Record<string, string> = {
@@ -96,8 +88,8 @@ const unitLabels: Record<string, string> = {
   ironclads: "铁甲舰",
 };
 
-function humanizeKey(value: string): string {
-  return value
+function humanizeKey(value: unknown): string {
+  return String(value ?? "")
     .replace(/[-_]/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
@@ -113,6 +105,9 @@ const reformReverseLookup = createReverseLookup(reformLabels);
 const policyReverseLookup = createReverseLookup(policyLabels);
 
 function resolveLabel(record: Record<string, string>, value: string): string {
+  if (typeof value !== "string") {
+    return humanizeKey(value);
+  }
   return record[value] ?? humanizeKey(value);
 }
 

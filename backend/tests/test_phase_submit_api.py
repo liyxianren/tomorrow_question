@@ -193,7 +193,7 @@ class PhaseSubmitApiTests(unittest.TestCase):
             "/api/v1/games/game-1/phases/decision/submit",
             json={
                 "payload": build_decision_payload(
-                    production_orders=[{"goodsId": "coal", "quantity": 2}],
+                    production_orders=[{"goodsId": "phase1_goods", "quantity": 2}],
                     domestic_action_ids=["market_fair"],
                     point_purchases=[{"pointType": "tech", "quantity": 1}],
                     tech_research=[{"techId": "textile_tech"}],
@@ -220,7 +220,7 @@ class PhaseSubmitApiTests(unittest.TestCase):
         self.assertIsNotNone(persisted)
         self.assertEqual(
             persisted["payload"]["factoryPlan"]["productionOrders"],
-            [{"goodsId": "coal", "quantity": 2}],
+            [{"goodsId": "phase1_goods", "quantity": 2}],
         )
         self.assertEqual(
             persisted["payload"]["domesticMarketPlan"]["domesticMarketActions"],
@@ -336,6 +336,7 @@ class PhaseSubmitApiTests(unittest.TestCase):
         self.assertFalse(payload["ok"])
         self.assertEqual(payload["error"]["code"], ErrorCode.PHASE_MISMATCH.value)
 
+    @unittest.skip("Phase 5 cleanup: unified goods removed per-goods tech gating")
     def test_submit_decision_rejects_goods_without_required_technology(self) -> None:
         self.seed_active_game()
 
@@ -415,8 +416,8 @@ class PhaseSubmitApiTests(unittest.TestCase):
             json={
                 "payload": build_decision_payload(
                     production_orders=[
-                        {"goodsId": "coal", "quantity": 3},
-                        {"goodsId": "coal", "quantity": 3},
+                        {"goodsId": "phase1_goods", "quantity": 3},
+                        {"goodsId": "phase1_goods", "quantity": 3},
                     ]
                 )
             },

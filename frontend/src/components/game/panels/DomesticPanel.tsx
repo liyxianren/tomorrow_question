@@ -6,6 +6,7 @@ import {
   calculateDecisionSpendSummary,
   calculateTechResearchPreview,
   getTechResearchLockedReason,
+  flattenTechTree,
 } from "../../../features/game/decisionShared";
 import "./DomesticPanel.css";
 
@@ -41,10 +42,10 @@ export function DomesticPanel({
   const techResearchPreview = calculateTechResearchPreview(workspace, draft);
   const queuedResearchIds = new Set(
     draft.governmentPlan.techResearch
-      .filter((item) => workspace.techTree.find((tech) => tech.techId === item.techId)?.budgetPool === "domesticMarket")
+      .filter((item) => { const t = flattenTechTree(workspace.techTree).find((tech) => tech.techId === item.techId); return t && "budgetPool" in t && t.budgetPool === "domesticMarket"; })
       .map((item) => item.techId),
   );
-  const domesticTechs = workspace.techTree.filter((tech) => tech.budgetPool === "domesticMarket");
+  const domesticTechs = flattenTechTree(workspace.techTree).filter((tech) => "budgetPool" in tech && tech.budgetPool === "domesticMarket");
 
   return (
     <div className="domestic-panel" data-testid="domestic-panel">

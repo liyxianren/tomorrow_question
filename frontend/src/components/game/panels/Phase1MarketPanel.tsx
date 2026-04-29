@@ -63,7 +63,7 @@ export function Phase1MarketPanel({
         <SummaryPill label="可售商品" value={totalGoods} />
         <SummaryPill label="本国需求" value={domesticDemand} />
         <SummaryPill label="消费池" value={consumerPool} />
-        <SummaryPill label="均衡价格" value={equilibriumPrice} accent />
+        <SummaryPill label="均衡价格" value={Math.round(equilibriumPrice * 100) / 100} accent />
       </div>
 
       <article className="phase1-market__card">

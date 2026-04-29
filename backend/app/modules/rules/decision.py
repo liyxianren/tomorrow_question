@@ -3,14 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from app.modules.balance_config import get_balance_config
-from app.modules.game_state.effects import apply_effects, get_production_output_multiplier
-from app.modules.game_state.factory_economy import (
-    action_locked_reason,
-    current_route_capacity,
-    goods_config_by_id,
-    goods_locked_reason,
-    route_locked_reason,
-)
+from app.modules.game_state.effects import apply_effects
+from app.modules.game_state.factory_economy import action_locked_reason
 from app.contracts.enums import RegionAccessLevel
 from app.modules.game_state.models import DEFAULT_PHASE1_CAPACITY_BY_MODE
 
@@ -191,101 +185,6 @@ def _apply_phase1_production_plan(player_state, phase1_production: dict[str, Any
         player_state.goods_stock[PHASE1_GOODS_KEY] = (
             int(player_state.goods_stock.get(PHASE1_GOODS_KEY, 0)) + output_int
         )
-
-    player_state.budget_pools["factory"] = max(0, remaining_budget)
-    return spent
-
-
-def _apply_factory_plan(player_state, factory_plan: dict[str, Any], balance) -> int:
-    spent = 0
-    remaining_budget = int(player_state.budget_pools.get("factory", 0))
-    remaining_route_capacity = {
-        route_id: current_route_capacity(player_state, route_id)
-        for route_id in balance.production.levels
-        if route_id != "idle"
-    }
-    remaining_upgradeable_capacity = dict(remaining_route_capacity)
-
-    for order in factory_plan.get("productionOrders", []):
-        goods_id = str(order.get("goodsId"))
-        goods = goods_config_by_id(goods_id)
-        requested = max(0, int(order.get("quantity", 0)))
-        if goods is None or requested <= 0:
-            continue
-        route_id = goods.route_id
-        unit_cost = int(goods.unit_budget_cost)
-        if goods_locked_reason(player_state, route_id, goods_id) is not None or unit_cost <= 0:
-            continue
-        quantity = min(
-            requested,
-            max(0, remaining_route_capacity.get(route_id, 0)),
-            max(0, remaining_budget // unit_cost),
-        )
-        if quantity <= 0:
-            continue
-        route_multiplier = int(balance.production.output_multipliers.get(goods.route_id, 1))
-        output_quantity = quantity * int(goods.unit_output) * route_multiplier
-        output_quantity *= get_production_output_multiplier(player_state)
-        player_state.goods_stock[goods_id] = int(player_state.goods_stock.get(goods_id, 0)) + output_quantity
-        player_state.raw_material_usage[goods_id] = int(player_state.raw_material_usage.get(goods_id, 0)) + quantity
-        remaining_route_capacity[route_id] = max(0, int(remaining_route_capacity.get(route_id, 0)) - quantity)
-        spent += quantity * unit_cost
-        remaining_budget -= quantity * unit_cost
-
-    for order in factory_plan.get("expansionOrders", []):
-        route_id = str(order.get("routeId"))
-        unit_cost = int(balance.production.expansion_costs.get(route_id, 0))
-        if current_route_capacity(player_state, route_id) <= 0:
-            continue
-        quantity = min(max(0, int(order.get("quantity", 0))), max(0, remaining_budget // max(1, unit_cost)))
-        if unit_cost <= 0 or quantity <= 0:
-            continue
-        player_state.pending_production_capacity[route_id] = int(player_state.pending_production_capacity.get(route_id, 0)) + quantity
-        total_cost = quantity * unit_cost
-        spent += total_cost
-        remaining_budget -= total_cost
-
-    for order in factory_plan.get("upgradeOrders", []):
-        route_id = str(order.get("routeId"))
-        source_route = balance.production.upgrade_source_levels.get(route_id)
-        unit_cost = int(balance.production.upgrade_costs.get(route_id, 0))
-        quantity = max(0, int(order.get("quantity", 0)))
-        if source_route is None or quantity <= 0:
-            continue
-        if route_locked_reason(player_state, route_id) is not None:
-            continue
-        upgradeable = min(
-            quantity,
-            max(0, remaining_upgradeable_capacity.get(source_route, 0)),
-            max(0, remaining_budget // max(1, unit_cost)),
-        )
-        if upgradeable <= 0:
-            continue
-        remaining_upgradeable_capacity[source_route] = max(
-            0,
-            int(remaining_upgradeable_capacity.get(source_route, 0)) - upgradeable,
-        )
-        player_state.pending_production_capacity[source_route] = int(
-            player_state.pending_production_capacity.get(source_route, 0)
-        ) - upgradeable
-        player_state.pending_production_capacity[route_id] = int(player_state.pending_production_capacity.get(route_id, 0)) + upgradeable
-        total_cost = upgradeable * unit_cost
-        spent += total_cost
-        remaining_budget -= total_cost
-
-    new_factory_capacity_delta = 2
-    for order in factory_plan.get("newFactoryOrders", []):
-        route_id = str(order.get("routeId"))
-        if route_id != "handicraft" and route_locked_reason(player_state, route_id) is not None:
-            continue
-        unit_cost = int(balance.production.new_factory_costs.get(route_id, 0))
-        quantity = min(max(0, int(order.get("quantity", 0))), max(0, remaining_budget // max(1, unit_cost)))
-        if unit_cost <= 0 or quantity <= 0:
-            continue
-        player_state.pending_production_capacity[route_id] = int(player_state.pending_production_capacity.get(route_id, 0)) + (quantity * new_factory_capacity_delta)
-        total_cost = quantity * unit_cost
-        spent += total_cost
-        remaining_budget -= total_cost
 
     player_state.budget_pools["factory"] = max(0, remaining_budget)
     return spent

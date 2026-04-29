@@ -1,4 +1,5 @@
 import type { Phase1ProductionMode } from "../../../../types";
+import { getProductionRouteLabel, getTechnologyLabel } from "../../../../features/game/panelGlossary";
 import "./Phase1ProductionPanel.css";
 
 export function Phase1ProductionPanel({
@@ -52,11 +53,11 @@ export function Phase1ProductionPanel({
         </div>
         <div className="phase1-production-panel__summary-item">
           <span className="phase1-production-panel__summary-label">均衡价</span>
-          <span className="phase1-production-panel__summary-value">{equilibriumPrice}</span>
+          <span className="phase1-production-panel__summary-value">{Math.round(equilibriumPrice * 100) / 100}</span>
         </div>
         <div className="phase1-production-panel__summary-item">
           <span className="phase1-production-panel__summary-label">国内成交价预测</span>
-          <span className="phase1-production-panel__summary-value">{domesticPricePreview}</span>
+          <span className="phase1-production-panel__summary-value">{Math.round(domesticPricePreview * 100) / 100}</span>
         </div>
       </div>
 
@@ -93,11 +94,13 @@ export function Phase1ProductionPanel({
               <header className="phase1-mode-card__header">
                 <div className="phase1-mode-card__title-group">
                   <span className="phase1-mode-card__name">{mode.label}</span>
-                  <span className="phase1-mode-card__mode-id">{mode.mode}</span>
+                  <span className="phase1-mode-card__mode-id">{getProductionRouteLabel(mode.mode)}</span>
                 </div>
                 {isLocked ? (
                   <span className="phase1-mode-card__lock-tag">
-                    🔒 {mode.requiredTech ? `需 ${mode.requiredTech}` : "未解锁"}
+                    🔒 {mode.requiredTech
+                      ? `需 ${(Array.isArray(mode.requiredTech) ? mode.requiredTech : [mode.requiredTech]).map((t: string) => getTechnologyLabel(t)).join("、")}`
+                      : "未解锁"}
                   </span>
                 ) : null}
               </header>

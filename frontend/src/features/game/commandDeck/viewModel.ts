@@ -14,6 +14,7 @@ import {
   calculateGovernmentPointPreview,
   calculateRatioPreview,
   calculateTechResearchPreview,
+  flattenTechTree,
   formatPriceTrendText,
   formatRatio,
   formatRatioDeltaSummary,
@@ -139,7 +140,7 @@ function buildFactoryLocation({
     ...workspace.newFactoryOptions.map((option) => buildNewFactoryCard(option, draft, remainingFactoryBudget)),
   ];
 
-  const factoryTechCards = workspace.techTree
+  const factoryTechCards = flattenTechTree(workspace.techTree)
     .filter((tech) => tech.budgetPool === "factory")
     .map((tech) => {
       const queued = draft.governmentPlan.techResearch.some((item) => item.techId === tech.techId);
@@ -287,7 +288,7 @@ function buildDomesticLocation({
     } satisfies DecisionCardViewModel;
   });
 
-  const domesticTechCards = workspace.techTree
+  const domesticTechCards = flattenTechTree(workspace.techTree)
     .filter((tech) => tech.budgetPool === "domesticMarket")
     .map((tech) => {
       const queued = draft.governmentPlan.techResearch.some((item) => item.techId === tech.techId);
@@ -327,7 +328,7 @@ function buildDomesticLocation({
       `国内预算 ${remainingDomesticBudget}`,
       `已选动作 ${selectedActionIds.size} 项`,
       `消费研究 ${draft.governmentPlan.techResearch.filter((item) => {
-        const tech = workspace.techTree.find((candidate) => candidate.techId === item.techId);
+        const tech = flattenTechTree(workspace.techTree).find((candidate) => candidate.techId === item.techId);
         return tech?.budgetPool === "domesticMarket";
       }).length} 项`,
     ],
@@ -415,7 +416,7 @@ function buildGovernmentLocation({
     } satisfies DecisionCardViewModel;
   });
 
-  const governmentTechCards = workspace.techTree
+  const governmentTechCards = flattenTechTree(workspace.techTree)
     .filter((tech) => tech.budgetPool === "governmentFiscal")
     .map((tech) => {
       const queued = draft.governmentPlan.techResearch.some((item) => item.techId === tech.techId);

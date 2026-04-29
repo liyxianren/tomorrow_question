@@ -425,6 +425,33 @@ export interface RegionAccessStatus {
   acceptedGoods: string[];
 }
 
+export interface TechTreeChainTech {
+  techId: string;
+  label: string;
+  threshold: number;
+  progress: number;
+  effectiveThreshold: number;
+  isUnlocked: boolean;
+  isActive: boolean;
+  canResearch: boolean;
+  isDiscovered: boolean;
+  breakthroughAttempts: number;
+}
+
+export interface TechTreeChain {
+  chainId: string;
+  label: string;
+  techs: TechTreeChainTech[];
+}
+
+export interface TechTreeData {
+  chains: TechTreeChain[];
+  researchFacilities: number;
+  facilityCost: number;
+  progressPerFacility: number;
+  activeResearch: string | null;
+}
+
 export interface TechTreeNode {
   techId: string;
   label: string;
@@ -484,7 +511,7 @@ export interface DecisionPlayerPhaseWorkspace {
   newFactoryOptions: FactoryNewFactoryOption[];
   activeEvents: ActiveEvent[];
   nationalAbility: NationalAbility | null;
-  techTree: TechTreeNode[];
+  techTree: TechTreeData;
   domesticMarketActions: DecisionActionOption[];
   governmentActions: {
     pointPurchaseCosts: {

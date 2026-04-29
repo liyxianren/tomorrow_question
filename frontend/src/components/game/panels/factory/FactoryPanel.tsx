@@ -8,6 +8,7 @@ import {
 import {
   calculateDecisionSpendSummary,
   calculateTechResearchPreview,
+  flattenTechTree,
   formatPriceTrendText,
 } from "../../../../features/game/decisionShared";
 import { FactoryRouteLane } from "./FactoryRouteLane";
@@ -65,7 +66,7 @@ export function FactoryPanel({
     (option) => resolveProductionLockedReason(option, workspace, techPreview.unlockedTechIds) !== null,
   );
 
-  const factoryTechs = workspace.techTree.filter((tech) => tech.budgetPool === "factory");
+  const factoryTechs = flattenTechTree(workspace.techTree).filter((tech) => "budgetPool" in tech && tech.budgetPool === "factory");
 
   const phase1Economy = workspace.phase1Economy;
   const phase1Assignments = draft.phase1Production?.rawMaterialAssignments ?? {};
@@ -196,7 +197,7 @@ export function resolveProductionLockedReason(
   if (!option.lockedReason) {
     return null;
   }
-  const unlockedByResearch = workspace.techTree.some(
+  const unlockedByResearch = flattenTechTree(workspace.techTree).some(
     (tech) =>
       unlockedTechIds.has(tech.techId)
       && (tech.unlocksGoods.includes(option.goodsId) || tech.unlocksRoutes.includes(option.routeId)),
@@ -213,7 +214,7 @@ export function resolveRouteLockedReason(
   if (!lockedReason) {
     return null;
   }
-  const unlockedByResearch = workspace.techTree.some(
+  const unlockedByResearch = flattenTechTree(workspace.techTree).some(
     (tech) => unlockedTechIds.has(tech.techId) && tech.unlocksRoutes.includes(routeId),
   );
   return unlockedByResearch ? null : lockedReason;

@@ -91,6 +91,10 @@ def _apply_phase1_market(
     equilibrium_price = calculate_equilibrium_price(
         consumption_pool=consumption_pool, demand=demand
     )
+    # Apply cross-round price drift from settlement adjustments.
+    price_drift = int(getattr(snapshot, "market_price_adjustments", {}).get("phase1_goods", 0))
+    if price_drift:
+        equilibrium_price = max(Decimal("1"), equilibrium_price + Decimal(str(price_drift)))
     final_price = calculate_domestic_price(
         equilibrium_price=equilibrium_price,
         supply=supply,

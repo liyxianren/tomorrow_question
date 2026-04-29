@@ -187,7 +187,7 @@ export function getDecisionStepCompletionSummary(
   }
 
   if (step === "research") {
-    return `天赋 ${draft.talentPlan?.talentUnlocks?.length ?? 0} 项`;
+    return `研究 ${draft.governmentPlan.techResearch.length} 项`;
   }
 
   const purchases = draft.governmentPlan.pointPurchases.reduce((sum, item) => sum + item.quantity, 0);

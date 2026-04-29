@@ -5,6 +5,8 @@ import type {
   IncomeAllocationRatio,
   PriceTrend,
   RegionAccessLevel,
+  TechTreeData,
+  TechTreeChainTech,
   TechTreeNode,
 } from "../../types";
 import type { PhaseDraftByPhase } from "./forms";
@@ -36,9 +38,14 @@ const GOODS_LABELS: Record<string, string> = {
 const ROUTE_LABELS: Record<string, string> = {
   handicraft: "手工业",
   mechanized: "机械化",
-  steam: "蒸汽工业",
-  electrified: "电气工业",
+  steam: "蒸汽动力",
+  electrified: "电气化",
 };
+
+/** Flatten the Phase 3 chain-based techTree into a flat array for backward compat. */
+export function flattenTechTree(techTree: TechTreeData): TechTreeChainTech[] {
+  return techTree.chains.flatMap((chain) => chain.techs);
+}
 
 export interface TechResearchPreview {
   queuedTechIds: Set<string>;
@@ -251,7 +258,7 @@ export function calculateGovernmentPointPreview(
   return {
     techPoints,
     militaryPoints,
-    unlockedTechIds: new Set(workspace.techTree.filter((node) => node.isUnlocked).map((node) => node.techId)),
+    unlockedTechIds: new Set(flattenTechTree(workspace.techTree).filter((node) => node.isUnlocked).map((node) => node.techId)),
   };
 }
 
@@ -278,34 +285,35 @@ export function calculateTechResearchPreview(
     governmentFiscal: 0,
   };
   const queuedTechIds = new Set<string>();
-  const unlockedTechIds = new Set(workspace.techTree.filter((node) => node.isUnlocked).map((node) => node.techId));
+  const unlockedTechIds = new Set(flattenTechTree(workspace.techTree).filter((node) => node.isUnlocked).map((node) => node.techId));
   const invalidReasonByTechId = new Map<string, string>();
 
   for (const selection of draft.governmentPlan.techResearch) {
-    const tech = workspace.techTree.find((node) => node.techId === selection.techId);
+    const tech = flattenTechTree(workspace.techTree).find((node) => node.techId === selection.techId);
     if (!tech || tech.isUnlocked || queuedTechIds.has(tech.techId)) {
       continue;
     }
 
-    const missingPrerequisites = tech.prerequisites
+    const missingPrerequisites = (tech.prerequisites ?? [])
       .filter((prerequisite) => !unlockedTechIds.has(prerequisite))
-      .map((prerequisite) => workspace.techTree.find((candidate) => candidate.techId === prerequisite)?.label ?? prerequisite);
+      .map((prerequisite) => flattenTechTree(workspace.techTree).find((candidate) => candidate.techId === prerequisite)?.label ?? prerequisite);
 
     if (missingPrerequisites.length > 0) {
       invalidReasonByTechId.set(tech.techId, `前置：${missingPrerequisites.join("、")}`);
       continue;
     }
 
-    const poolKey = tech.budgetPool as keyof BudgetPools;
-    if (remainingBudgets[poolKey] < tech.budgetCost) {
-      invalidReasonByTechId.set(tech.techId, `${getBudgetPoolLabel(tech.budgetPool)}不足`);
+    const poolKey = ("budgetPool" in tech ? tech.budgetPool : "governmentFiscal") as keyof BudgetPools;
+    const budgetCost = "budgetCost" in tech ? tech.budgetCost : 0;
+    if (budgetCost > 0 && remainingBudgets[poolKey] < budgetCost) {
+      invalidReasonByTechId.set(tech.techId, `${getBudgetPoolLabel(poolKey)}不足`);
       continue;
     }
 
     queuedTechIds.add(tech.techId);
     unlockedTechIds.add(tech.techId);
-    remainingBudgets[poolKey] -= tech.budgetCost;
-    researchSpendByPool[poolKey] += tech.budgetCost;
+    remainingBudgets[poolKey] -= budgetCost;
+    researchSpendByPool[poolKey] += budgetCost;
   }
 
   return {
@@ -318,7 +326,7 @@ export function calculateTechResearchPreview(
 }
 
 export function getTechResearchLockedReason(
-  tech: TechTreeNode,
+  tech: TechTreeChainTech | TechTreeNode,
   preview: TechResearchPreview,
   workspace: DecisionPlayerPhaseWorkspace,
 ): string | null {
@@ -334,15 +342,15 @@ export function getTechResearchLockedReason(
     return null;
   }
 
-  const missingPrerequisites = tech.prerequisites
+  const missingPrerequisites = (tech.prerequisites ?? [])
     .filter((prerequisite) => !preview.unlockedTechIds.has(prerequisite))
-    .map((prerequisite) => workspace.techTree.find((candidate) => candidate.techId === prerequisite)?.label ?? prerequisite);
+    .map((prerequisite) => flattenTechTree(workspace.techTree).find((candidate) => candidate.techId === prerequisite)?.label ?? prerequisite);
 
   if (missingPrerequisites.length > 0) {
     return `前置：${missingPrerequisites.join("、")}`;
   }
 
-  if (preview.remainingBudgets[tech.budgetPool as keyof BudgetPools] < tech.budgetCost) {
+  if ("budgetPool" in tech && "budgetCost" in tech && tech.budgetCost > 0 && preview.remainingBudgets[tech.budgetPool as keyof BudgetPools] < tech.budgetCost) {
     return `${getBudgetPoolLabel(tech.budgetPool)}不足`;
   }
 
@@ -350,15 +358,18 @@ export function getTechResearchLockedReason(
 }
 
 export function buildTechResearchDescription(
-  tech: TechTreeNode,
+  tech: TechTreeChainTech | TechTreeNode,
   lockedReason: string | null,
   workspace: DecisionPlayerPhaseWorkspace,
   queued: boolean,
 ): string {
-  const parts = [`消耗 ${tech.budgetCost} ${getBudgetPoolLabel(tech.budgetPool)}。`];
-  if (tech.prerequisites.length > 0) {
-    const labels = tech.prerequisites.map((prerequisite) => {
-      return workspace.techTree.find((candidate) => candidate.techId === prerequisite)?.label ?? prerequisite;
+  const budgetLabel = ("budgetCost" in tech && tech.budgetCost > 0)
+    ? `消耗 ${tech.budgetCost} ${getBudgetPoolLabel("budgetPool" in tech ? tech.budgetPool : "governmentFiscal")}。`
+    : "通过研究设施推进。";
+  const parts = [budgetLabel];
+  if ((tech.prerequisites ?? []).length > 0) {
+    const labels = (tech.prerequisites ?? []).map((prerequisite) => {
+      return flattenTechTree(workspace.techTree).find((candidate) => candidate.techId === prerequisite)?.label ?? prerequisite;
     });
     parts.push(`前置：${labels.join("、")}。`);
   }
@@ -377,17 +388,17 @@ export function buildTechResearchDescription(
 }
 
 export function buildTechUnlockSummary(
-  tech: TechTreeNode,
+  tech: TechTreeChainTech | TechTreeNode,
   workspace: DecisionPlayerPhaseWorkspace,
 ): string {
   const parts: string[] = [];
-  if (tech.unlocksGoods.length > 0) {
+  if ("unlocksGoods" in tech && tech.unlocksGoods?.length > 0) {
     parts.push(`商品：${tech.unlocksGoods.map(getGoodsLabel).join("、")}`);
   }
-  if (tech.unlocksRoutes.length > 0) {
+  if ("unlocksRoutes" in tech && tech.unlocksRoutes?.length > 0) {
     parts.push(`路线：${tech.unlocksRoutes.map(getRouteLabel).join("、")}`);
   }
-  if (tech.unlocksActions.length > 0) {
+  if ("unlocksActions" in tech && tech.unlocksActions?.length > 0) {
     const actionLabels = tech.unlocksActions.map((actionId) => {
       return workspace.domesticMarketActions.find((action) => action.actionId === actionId)?.label
         ?? workspace.governmentActions.strategies.find((action) => action.actionId === actionId)?.label

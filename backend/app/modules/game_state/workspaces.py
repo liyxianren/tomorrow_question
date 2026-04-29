@@ -65,15 +65,7 @@ COUNTRY_LABELS: dict[str, str] = {
 }
 
 GOODS_LABELS: dict[str, str] = {
-    "coal": "煤炭",
-    "steel": "钢铁",
-    "grain": "粮食",
-    "cotton": "棉花",
-    "oil": "石油",
-    "rubber": "橡胶",
-    "minerals": "矿产",
-    "tea": "茶叶",
-    "silk": "丝绸",
+    "phase1_goods": "统一商品",
 }
 
 def hydrate_snapshot_workspaces(

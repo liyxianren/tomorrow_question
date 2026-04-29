@@ -21,15 +21,7 @@
         "electrified": 0
       },
       "goodsStock": {
-        "coal": 3,
-        "steel": 0,
-        "grain": 0,
-        "cotton": 2,
-        "oil": 0,
-        "rubber": 0,
-        "minerals": 0,
-        "tea": 0,
-        "silk": 0
+        "phase1_goods": 0
       },
       "army": {
         "infantry": 0,
@@ -48,8 +40,7 @@
         "nationalism": 1
       },
       "initialGoods": [
-        "coal",
-        "cotton"
+        "phase1_goods"
       ],
       "initialDiplomacy": [
         "asia_pacific"
@@ -78,15 +69,7 @@
         "electrified": 0
       },
       "goodsStock": {
-        "coal": 0,
-        "steel": 0,
-        "grain": 2,
-        "cotton": 0,
-        "oil": 0,
-        "rubber": 0,
-        "minerals": 0,
-        "tea": 2,
-        "silk": 0
+        "phase1_goods": 0
       },
       "army": {
         "infantry": 1,
@@ -105,8 +88,7 @@
         "nationalism": 1
       },
       "initialGoods": [
-        "grain",
-        "tea"
+        "phase1_goods"
       ],
       "initialDiplomacy": [
         "africa"
@@ -135,15 +117,7 @@
         "electrified": 0
       },
       "goodsStock": {
-        "coal": 3,
-        "steel": 3,
-        "grain": 0,
-        "cotton": 0,
-        "oil": 0,
-        "rubber": 0,
-        "minerals": 0,
-        "tea": 0,
-        "silk": 0
+        "phase1_goods": 0
       },
       "army": {
         "infantry": 1,
@@ -162,8 +136,7 @@
         "nationalism": 2
       },
       "initialGoods": [
-        "coal",
-        "steel"
+        "phase1_goods"
       ],
       "initialDiplomacy": [
         "americas"
@@ -192,15 +165,7 @@
         "electrified": 0
       },
       "goodsStock": {
-        "coal": 0,
-        "steel": 0,
-        "grain": 2,
-        "cotton": 0,
-        "oil": 0,
-        "rubber": 0,
-        "minerals": 2,
-        "tea": 0,
-        "silk": 0
+        "phase1_goods": 0
       },
       "army": {
         "infantry": 0,
@@ -219,8 +184,7 @@
         "nationalism": 1
       },
       "initialGoods": [
-        "grain",
-        "minerals"
+        "phase1_goods"
       ],
       "initialDiplomacy": [
         "middle_east"
@@ -249,15 +213,7 @@
         "electrified": 0
       },
       "goodsStock": {
-        "coal": 2,
-        "steel": 0,
-        "grain": 2,
-        "cotton": 0,
-        "oil": 0,
-        "rubber": 0,
-        "minerals": 0,
-        "tea": 0,
-        "silk": 0
+        "phase1_goods": 0
       },
       "army": {
         "infantry": 1,
@@ -276,8 +232,7 @@
         "nationalism": 2
       },
       "initialGoods": [
-        "grain",
-        "coal"
+        "phase1_goods"
       ],
       "initialDiplomacy": [
         "middle_east"

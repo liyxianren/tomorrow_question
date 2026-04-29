@@ -36,122 +36,18 @@
     "electrified": "steam"
   },
   "goods": {
-    "grain": {
-      "label": "粮食",
+    "phase1_goods": {
+      "label": "统一商品",
       "routeId": "handicraft",
       "unitBudgetCost": 1,
-      "unitOutput": 1,
-      "domesticReferencePrice": 4,
-      "overseasBasePrice": 3,
-      "demandThreshold": 5,
-      "priceFloor": 2,
-      "priceCeiling": 12,
-      "overseasPriceCeiling": 24,
-      "usageHint": "稳内需、低风险。"
-    },
-    "cotton": {
-      "label": "棉花",
-      "routeId": "handicraft",
-      "unitBudgetCost": 1,
-      "unitOutput": 1,
-      "domesticReferencePrice": 4,
-      "overseasBasePrice": 4,
-      "demandThreshold": 4,
-      "priceFloor": 2,
-      "priceCeiling": 12,
-      "overseasPriceCeiling": 24,
-      "usageHint": "出口原料。"
-    },
-    "tea": {
-      "label": "茶叶",
-      "routeId": "handicraft",
-      "unitBudgetCost": 2,
-      "unitOutput": 1,
-      "domesticReferencePrice": 5,
-      "overseasBasePrice": 7,
-      "demandThreshold": 3,
-      "priceFloor": 3,
-      "priceCeiling": 15,
-      "overseasPriceCeiling": 30,
-      "usageHint": "高价值出口品。"
-    },
-    "coal": {
-      "label": "煤炭",
-      "routeId": "handicraft",
-      "unitBudgetCost": 2,
-      "unitOutput": 1,
-      "domesticReferencePrice": 5,
-      "overseasBasePrice": 5,
-      "demandThreshold": 4,
-      "priceFloor": 3,
-      "priceCeiling": 14,
-      "overseasPriceCeiling": 28,
-      "usageHint": "工业基础品。"
-    },
-    "minerals": {
-      "label": "矿产",
-      "routeId": "handicraft",
-      "unitBudgetCost": 2,
       "unitOutput": 1,
       "domesticReferencePrice": 5,
       "overseasBasePrice": 6,
-      "demandThreshold": 3,
-      "priceFloor": 3,
-      "priceCeiling": 14,
-      "overseasPriceCeiling": 28,
-      "usageHint": "出口矿产资源。"
-    },
-    "steel": {
-      "label": "钢铁",
-      "routeId": "mechanized",
-      "unitBudgetCost": 3,
-      "unitOutput": 1,
-      "domesticReferencePrice": 8,
-      "overseasBasePrice": 11,
-      "demandThreshold": 4,
-      "priceFloor": 5,
-      "priceCeiling": 20,
-      "overseasPriceCeiling": 40,
-      "usageHint": "工业主力品。"
-    },
-    "silk": {
-      "label": "丝绸",
-      "routeId": "mechanized",
-      "unitBudgetCost": 3,
-      "unitOutput": 1,
-      "domesticReferencePrice": 7,
-      "overseasBasePrice": 10,
-      "demandThreshold": 2,
-      "priceFloor": 5,
-      "priceCeiling": 20,
-      "overseasPriceCeiling": 40,
-      "usageHint": "奢侈出口品。"
-    },
-    "oil": {
-      "label": "石油",
-      "routeId": "steam",
-      "unitBudgetCost": 4,
-      "unitOutput": 1,
-      "domesticReferencePrice": 9,
-      "overseasBasePrice": 12,
-      "demandThreshold": 2,
-      "priceFloor": 6,
-      "priceCeiling": 24,
-      "overseasPriceCeiling": 48,
-      "usageHint": "中后期高值品。"
-    },
-    "rubber": {
-      "label": "橡胶",
-      "routeId": "electrified",
-      "unitBudgetCost": 5,
-      "unitOutput": 1,
-      "domesticReferencePrice": 12,
-      "overseasBasePrice": 15,
-      "demandThreshold": 2,
-      "priceFloor": 8,
-      "priceCeiling": 28,
-      "overseasPriceCeiling": 56,
-      "usageHint": "终盘最高价值品。"
+      "demandThreshold": 50,
+      "priceFloor": 2,
+      "priceCeiling": 12,
+      "overseasPriceCeiling": 24,
+      "usageHint": "Phase 1 统一商品价格调节。"
     }
   }
 }
