@@ -31,6 +31,8 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
     generated_logs: list[dict[str, Any]] = []
     summary_lines: list[str] = []
 
+    all_conquest_actions: list[tuple[Any, list[dict[str, Any]]]] = []
+
     for player_state in updated_snapshot.player_states:
         submitted = turn_inputs_by_player_id.get(player_state.player_id)
         payload = dict(submitted.payload) if submitted is not None else default_decision_submission_payload()
@@ -45,7 +47,11 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
         factory_spent = _apply_phase1_production_plan(player_state, phase1_production, balance)
         domestic_spent = _apply_domestic_market_plan(player_state, payload.get("domesticMarketPlan") or {}, balance)
         government_spent = _apply_government_plan(player_state, payload.get("governmentPlan") or {}, balance)
-        military_spent = _apply_military_plan(player_state, payload.get("militaryPlan") or {}, balance, updated_snapshot)
+        military_plan = payload.get("militaryPlan") or {}
+        military_spent = _apply_military_plan(player_state, military_plan, balance, updated_snapshot)
+        conquest_actions = military_plan.get("conquestActions") or []
+        if conquest_actions:
+            all_conquest_actions.append((player_state, list(conquest_actions)))
         _apply_reform_plan(player_state, payload, balance)
         _apply_policy_plan(player_state, payload, balance)
         _apply_talent_plan(player_state, payload.get("talentPlan", {}), balance)
@@ -78,6 +84,9 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
                 "createdAt": None,
             }
         )
+
+    if all_conquest_actions:
+        _resolve_conquest_actions(all_conquest_actions, updated_snapshot, balance)
 
     return RuleResolution(
         updated_snapshot=updated_snapshot,
@@ -436,6 +445,95 @@ def _apply_military_plan(player_state, military_plan: dict[str, Any], balance, s
 
     player_state.budget_pools["governmentFiscal"] = max(0, remaining_budget)
     return spent
+
+
+def _resolve_conquest_actions(
+    all_conquest_actions: list[tuple[Any, list[dict[str, Any]]]],
+    snapshot,
+    balance,
+) -> None:
+    """Resolve army-based region conquest simultaneously across all players.
+
+    Conflict rule: per region, the qualifying attacker with the highest power wins;
+    ties mean nobody wins. Army is only deducted from winners.
+    """
+    regions_by_id = {region.region_id: region for region in snapshot.region_states}
+
+    # Per-player remaining army budget across this player's conquest list (cap requests by what's available).
+    remaining_army_by_player: dict[str, dict[str, int]] = {}
+    # region_id -> list of (player_state, infantry_used, artillery_used, attack_power)
+    region_attackers: dict[str, list[tuple[Any, int, int, int]]] = {}
+
+    for player_state, conquest_actions in all_conquest_actions:
+        if player_state.player_id not in remaining_army_by_player:
+            remaining_army_by_player[player_state.player_id] = {
+                "infantry": int(player_state.army.get("infantry", 0)),
+                "artillery": int(player_state.army.get("artillery", 0)),
+            }
+        seen_regions: set[str] = set()
+
+        for action in conquest_actions:
+            region_id = str(action.get("regionId") or "")
+            if not region_id or region_id in seen_regions:
+                continue
+            seen_regions.add(region_id)
+
+            requested_inf = max(0, int(action.get("infantry", 0)))
+            requested_art = max(0, int(action.get("artillery", 0)))
+            rem = remaining_army_by_player[player_state.player_id]
+            inf_used = min(requested_inf, rem["infantry"])
+            art_used = min(requested_art, rem["artillery"])
+            attack_power = inf_used + art_used * 2
+            if attack_power <= 0:
+                continue
+
+            blueprint = balance.regions.region_blueprints.get(region_id)
+            if blueprint is None or not blueprint.colonizable:
+                continue
+            target_region = regions_by_id.get(region_id)
+            if target_region is None:
+                continue
+            if target_region.controller == player_state.country.value:
+                continue
+            if not check_route_accessible(player_state.country.value, region_id, snapshot, balance):
+                continue
+
+            region_attackers.setdefault(region_id, []).append(
+                (player_state, inf_used, art_used, attack_power)
+            )
+
+    for region_id, attackers in region_attackers.items():
+        target_region = regions_by_id.get(region_id)
+        if target_region is None:
+            continue
+
+        if target_region.controller is None:
+            blueprint = balance.regions.region_blueprints.get(region_id)
+            min_army = max(1, int(getattr(blueprint, "min_army", 1) or 1))
+            threshold = min_army
+        else:
+            garrison_inf = int(target_region.garrison.get("infantry", 0))
+            garrison_art = int(target_region.garrison.get("artillery", 0))
+            threshold = max(1, (garrison_inf + garrison_art * 2) * 2)
+
+        qualified = [entry for entry in attackers if entry[3] >= threshold]
+        if not qualified:
+            continue
+
+        max_power = max(entry[3] for entry in qualified)
+        winners = [entry for entry in qualified if entry[3] == max_power]
+        if len(winners) != 1:
+            continue
+
+        winner_player, inf_used, art_used, _ = winners[0]
+        winner_player.army["infantry"] = max(
+            0, int(winner_player.army.get("infantry", 0)) - inf_used
+        )
+        winner_player.army["artillery"] = max(
+            0, int(winner_player.army.get("artillery", 0)) - art_used
+        )
+        target_region.controller = winner_player.country.value
+        target_region.garrison = {"infantry": inf_used, "artillery": art_used}
 
 
 def _apply_naval_deployment(player_state, military_plan: dict[str, Any], snapshot, balance) -> None:
