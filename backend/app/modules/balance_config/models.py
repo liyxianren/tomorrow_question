@@ -64,22 +64,25 @@ class ProductionGoodConfig:
 
 @dataclass(frozen=True, slots=True)
 class TechnologyBalanceConfig:
-    facility_cost: int
-    breakthrough_requirement: int
+    research_facility_cost: int
+    research_facility_progress_per_turn: int
+    breakthrough_die_sides: int
     route_unlocks: dict[str, str]
-    tech_tree: dict[str, "TechTreeNodeConfig"]
+    chains: dict[str, "ResearchChainConfig"]
 
 
 @dataclass(frozen=True, slots=True)
-class TechTreeNodeConfig:
+class ChainTechConfig:
     tech_id: str
     label: str
-    budget_pool: str
-    budget_cost: int
-    prerequisites: tuple[str, ...]
-    unlocks_goods: tuple[str, ...]
-    unlocks_actions: tuple[str, ...]
-    unlocks_routes: tuple[str, ...]
+    threshold: int
+
+
+@dataclass(frozen=True, slots=True)
+class ResearchChainConfig:
+    chain_id: str
+    label: str
+    techs: tuple[ChainTechConfig, ...]
 
 
 @dataclass(frozen=True, slots=True)

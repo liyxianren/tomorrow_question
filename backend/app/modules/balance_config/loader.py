@@ -12,6 +12,7 @@ from .models import (
     AbilitiesBalanceConfig,
     AbilityConfig,
     BalanceConfig,
+    ChainTechConfig,
     CountryBalanceConfig,
     DecisionActionConfig,
     DecisionActionsBalanceConfig,
@@ -28,6 +29,7 @@ from .models import (
     ReformConfig,
     ReformsBalanceConfig,
     ResearchActionsBalanceConfig,
+    ResearchChainConfig,
     TalentNodeConfig,
     TalentBranchConfig,
     TalentTreeConfig,
@@ -38,7 +40,6 @@ from .models import (
     ProductionBalanceConfig,
     RegionBlueprintConfig,
     RegionsBalanceConfig,
-    TechTreeNodeConfig,
     TechnologyBalanceConfig,
 )
 
@@ -297,32 +298,53 @@ def _build_goods_config(value: Any) -> dict[str, ProductionGoodConfig]:
 
 def _build_technology_config(payload: dict[str, Any], *, production: ProductionBalanceConfig) -> TechnologyBalanceConfig:
     route_unlocks = _require_string_mapping(payload.get("routeUnlocks"), "technology.routeUnlocks")
-    tech_tree = _build_tech_tree(payload.get("techTree"))
+    chains = _build_chains(payload.get("chains"))
     for route_key in route_unlocks:
         if route_key not in production.levels:
             raise BalanceConfigError(f"technology.routeUnlocks references unknown production route: {route_key}")
     return TechnologyBalanceConfig(
-        facility_cost=_require_non_negative_int(payload.get("facilityCost"), "technology.facilityCost"),
-        breakthrough_requirement=_require_non_negative_int(payload.get("breakthroughRequirement"), "technology.breakthroughRequirement"),
+        research_facility_cost=_require_non_negative_int(
+            payload.get("researchFacilityCost"), "technology.researchFacilityCost"
+        ),
+        research_facility_progress_per_turn=_require_non_negative_int(
+            payload.get("researchFacilityProgressPerTurn"), "technology.researchFacilityProgressPerTurn"
+        ),
+        breakthrough_die_sides=_require_non_negative_int(
+            payload.get("breakthroughDieSides"), "technology.breakthroughDieSides"
+        ),
         route_unlocks=route_unlocks,
-        tech_tree=tech_tree,
+        chains=chains,
     )
 
 
-def _build_tech_tree(value: Any) -> dict[str, TechTreeNodeConfig]:
-    mapping = _require_dict(value, "technology.techTree")
-    normalized: dict[str, TechTreeNodeConfig] = {}
-    for tech_id, raw_node in mapping.items():
-        node = _require_dict(raw_node, f"technology.techTree.{tech_id}")
-        normalized[str(tech_id)] = TechTreeNodeConfig(
-            tech_id=str(tech_id),
-            label=_require_non_empty_string(node.get("label"), f"technology.techTree.{tech_id}.label"),
-            budget_pool=_require_non_empty_string(node.get("budgetPool"), f"technology.techTree.{tech_id}.budgetPool"),
-            budget_cost=_require_non_negative_int(node.get("budgetCost"), f"technology.techTree.{tech_id}.budgetCost"),
-            prerequisites=_require_string_tuple(node.get("prerequisites", []), f"technology.techTree.{tech_id}.prerequisites"),
-            unlocks_goods=_require_string_tuple(node.get("unlocksGoods", []), f"technology.techTree.{tech_id}.unlocksGoods"),
-            unlocks_actions=_require_string_tuple(node.get("unlocksActions", []), f"technology.techTree.{tech_id}.unlocksActions"),
-            unlocks_routes=_require_string_tuple(node.get("unlocksRoutes", []), f"technology.techTree.{tech_id}.unlocksRoutes"),
+def _build_chains(value: Any) -> dict[str, ResearchChainConfig]:
+    mapping = _require_dict(value, "technology.chains")
+    normalized: dict[str, ResearchChainConfig] = {}
+    for chain_id, raw_chain in mapping.items():
+        chain = _require_dict(raw_chain, f"technology.chains.{chain_id}")
+        raw_techs = chain.get("techs")
+        if not isinstance(raw_techs, list):
+            raise BalanceConfigError(f"technology.chains.{chain_id}.techs must be a list.")
+        techs: list[ChainTechConfig] = []
+        for index, raw_tech in enumerate(raw_techs):
+            tech = _require_dict(raw_tech, f"technology.chains.{chain_id}.techs[{index}]")
+            techs.append(
+                ChainTechConfig(
+                    tech_id=_require_non_empty_string(
+                        tech.get("id"), f"technology.chains.{chain_id}.techs[{index}].id"
+                    ),
+                    label=_require_non_empty_string(
+                        tech.get("label"), f"technology.chains.{chain_id}.techs[{index}].label"
+                    ),
+                    threshold=_require_non_negative_int(
+                        tech.get("threshold"), f"technology.chains.{chain_id}.techs[{index}].threshold"
+                    ),
+                )
+            )
+        normalized[str(chain_id)] = ResearchChainConfig(
+            chain_id=str(chain_id),
+            label=_require_non_empty_string(chain.get("label"), f"technology.chains.{chain_id}.label"),
+            techs=tuple(techs),
         )
     return normalized
 
@@ -811,27 +833,20 @@ def _validate_technology(
     decision_actions: DecisionActionsBalanceConfig,
     military_actions: MilitaryActionsBalanceConfig,
 ) -> None:
-    tech_tree_keys = set(technology.tech_tree)
-    valid_action_ids = set(decision_actions.domestic_market_actions) | set(decision_actions.government_actions)
-    valid_action_ids |= set(military_actions.military_actions) | set(military_actions.diplomacy_actions)
+    del decision_actions, military_actions  # reserved for future chain-based unlocks
+    all_tech_ids: set[str] = set()
+    for chain_id, chain in technology.chains.items():
+        for tech in chain.techs:
+            if tech.tech_id in all_tech_ids:
+                raise BalanceConfigError(
+                    f"technology.chains duplicates tech id: {tech.tech_id} (chain {chain_id})"
+                )
+            all_tech_ids.add(tech.tech_id)
     for route_key, technology_key in technology.route_unlocks.items():
-        if technology_key not in tech_tree_keys:
+        if technology_key not in all_tech_ids:
             raise BalanceConfigError(f"technology.routeUnlocks references unknown technology: {technology_key}")
         if route_key not in production.levels:
             raise BalanceConfigError(f"technology.routeUnlocks references unknown route: {route_key}")
-    for tech_id, node in technology.tech_tree.items():
-        for prerequisite in node.prerequisites:
-            if prerequisite not in tech_tree_keys:
-                raise BalanceConfigError(f"technology.techTree.{tech_id} references unknown prerequisite: {prerequisite}")
-        for route_id in node.unlocks_routes:
-            if route_id not in production.levels or route_id == "idle":
-                raise BalanceConfigError(f"technology.techTree.{tech_id} references invalid unlock route: {route_id}")
-        for goods_id in node.unlocks_goods:
-            if goods_id not in production.goods:
-                raise BalanceConfigError(f"technology.techTree.{tech_id} references unknown goods: {goods_id}")
-        for action_id in node.unlocks_actions:
-            if action_id not in valid_action_ids:
-                raise BalanceConfigError(f"technology.techTree.{tech_id} references unknown action: {action_id}")
 
 
 def _validate_production(production: ProductionBalanceConfig) -> None:
