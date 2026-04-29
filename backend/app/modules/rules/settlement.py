@@ -79,6 +79,7 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
         _apply_ideology_progression(player_state, signal_values_by_player_id[player_state.player_id], balance)
         _apply_active_policy_effects(player_state, balance)
         _apply_permanent_reform_effects(player_state, balance)
+        _apply_phase3_research_progress(player_state, updated_snapshot, balance)
         player_state.phase1_economy.income_allocation_ratio = {
             "consumption": float(PHASE1_DEFAULT_RATIO["consumption"]),
             "investment": float(PHASE1_DEFAULT_RATIO["investment"]),
@@ -368,5 +369,54 @@ def _apply_permanent_reform_effects(player_state, balance) -> None:
         permanent = reform.effects.get("permanent") if isinstance(reform.effects, dict) else None
         if isinstance(permanent, dict):
             _apply_permanent_effects(player_state, permanent)
+
+
+def _apply_phase3_research_progress(player_state, snapshot, balance) -> None:
+    active = player_state.active_research
+    if active is None or active in player_state.unlocked_techs:
+        return
+
+    tech_config = None
+    for chain in balance.technology.chains.values():
+        for tech in chain.techs:
+            if tech.tech_id == active:
+                tech_config = tech
+                break
+        if tech_config is not None:
+            break
+    if tech_config is None:
+        return
+
+    facility_total = sum(int(value) for value in player_state.research_facilities.values())
+    new_progress = int(player_state.research_progress.get(active, 0)) + facility_total
+    player_state.research_progress[active] = new_progress
+
+    threshold = int(tech_config.threshold)
+    attempts = int(player_state.breakthrough_attempts.get(active, 0))
+    effective_threshold = max(1, threshold - attempts)
+
+    if new_progress < effective_threshold:
+        return
+
+    all_unlocked = {
+        tech_id
+        for ps in snapshot.player_states
+        for tech_id in ps.unlocked_techs
+    }
+    is_discovered = active in all_unlocked
+
+    if is_discovered and new_progress >= threshold * 2:
+        player_state.research_progress[active] = new_progress - threshold * 2
+        player_state.unlocked_techs.append(active)
+        player_state.breakthrough_attempts.pop(active, None)
+        return
+
+    roll = random.randint(1, int(balance.technology.breakthrough_die_sides))
+    if roll >= effective_threshold:
+        player_state.unlocked_techs.append(active)
+        player_state.research_progress[active] = 0
+        player_state.breakthrough_attempts.pop(active, None)
+    else:
+        player_state.breakthrough_attempts[active] = attempts + 1
 
 
