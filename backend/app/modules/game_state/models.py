@@ -299,6 +299,9 @@ class OceanNodeState:
     is_blockaded: bool = False
     reachable_routes: list[str] = field(default_factory=list)
 
+    def total_power(self) -> int:
+        return sum(self.navy_by_country.values())
+
     def to_payload(self) -> OceanNodeStatePayload:
         return {
             "nodeId": self.node_id,
