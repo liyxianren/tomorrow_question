@@ -543,6 +543,16 @@ def _build_military_workspace(snapshot: GameSnapshot, player: PlayerState) -> di
             "maxColonizationsPerRound": int(balance.military.max_colonizations_per_round),
         },
         "colonizationOptions": _build_colonization_options(snapshot, player),
+        "oceanNodes": [
+            {
+                "nodeId": node.node_id,
+                "navyByCountry": dict(node.navy_by_country),
+                "controller": node.controller,
+                "isBlockaded": node.is_blockaded,
+                "myFleet": int(node.navy_by_country.get(player.country.value, 0)),
+            }
+            for node in snapshot.ocean_node_states
+        ],
     }
 
 
@@ -626,6 +636,8 @@ def _build_colonization_options(snapshot: GameSnapshot, player: PlayerState) -> 
             "isColonized": already_colonized,
             "militaryPointCost": military_point_cost,
             "canColonize": not already_colonized and is_unlocked and has_diplomacy and has_military,
+            "independence": int(region.independence),
+            "garrison": dict(region.garrison),
             "lockedReason": (
                 "已被殖民" if already_colonized
                 else "需先永久解锁殖民扩张" if not is_unlocked

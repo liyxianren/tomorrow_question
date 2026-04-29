@@ -10,7 +10,8 @@
       },
       "requiredNodes": [],
       "colonizable": false,
-      "priceMultiplier": 0.9
+      "priceMultiplier": 0.9,
+      "minArmy": 1
     },
     {
       "regionId": "americas",
@@ -25,7 +26,8 @@
         "north_atlantic"
       ],
       "colonizable": true,
-      "priceMultiplier": 1.0
+      "priceMultiplier": 1.0,
+      "minArmy": 1
     },
     {
       "regionId": "africa",
@@ -39,7 +41,8 @@
         "mediterranean"
       ],
       "colonizable": true,
-      "priceMultiplier": 1.2
+      "priceMultiplier": 1.2,
+      "minArmy": 1
     },
     {
       "regionId": "middle_east",
@@ -54,7 +57,8 @@
         "mediterranean"
       ],
       "colonizable": true,
-      "priceMultiplier": 1.2
+      "priceMultiplier": 1.2,
+      "minArmy": 1
     },
     {
       "regionId": "asia_pacific",
@@ -68,7 +72,8 @@
         "indian_ocean"
       ],
       "colonizable": true,
-      "priceMultiplier": 1.1
+      "priceMultiplier": 1.1,
+      "minArmy": 1
     }
   ],
   "oceanNodes": [

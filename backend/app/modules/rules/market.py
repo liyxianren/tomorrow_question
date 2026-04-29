@@ -16,6 +16,7 @@ from .phase1_economy import (
     calculate_domestic_price,
     calculate_equilibrium_price,
 )
+from .route_utils import check_route_accessible
 
 
 def resolve_market_phase(*, snapshot, turn_inputs) -> RuleResolution:
@@ -36,6 +37,7 @@ def resolve_market_phase(*, snapshot, turn_inputs) -> RuleResolution:
             player_state,
             phase1_market,
             region_states_by_id=region_states_by_id,
+            snapshot=updated_snapshot,
         )
         summary_lines.append(
             f"{player_state.country.value} 本回合国内销售额 {domestic_revenue}，海外销售额 {overseas_revenue}，国家收入 {player_state.national_income}。"
@@ -76,6 +78,7 @@ def _apply_phase1_market(
     phase1_market: dict[str, object],
     *,
     region_states_by_id: dict[str, object],
+    snapshot,
 ) -> tuple[int, int]:
     """Phase-1 unified market: one good, supply-demand pricing, optional external markets at the same price."""
     balance = get_balance_config()
@@ -126,6 +129,10 @@ def _apply_phase1_market(
             player_state.military_points,
             region_id=region_id,
             established_diplomacy=player_state.established_diplomacy,
+        ):
+            continue
+        if not check_route_accessible(
+            player_state.country.value, region_id, snapshot, balance
         ):
             continue
         sold = min(quantity, available_inventory, overseas_capacity)

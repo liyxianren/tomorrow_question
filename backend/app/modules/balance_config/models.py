@@ -98,6 +98,7 @@ class RegionBlueprintConfig:
     required_nodes: tuple[str, ...]
     colonizable: bool = False
     price_multiplier: float = 1.0
+    min_army: int = 1
 
 
 @dataclass(frozen=True, slots=True)

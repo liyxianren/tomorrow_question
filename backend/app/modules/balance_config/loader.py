@@ -388,6 +388,10 @@ def _build_regions_config(payload: dict[str, Any]) -> RegionsBalanceConfig:
             required_nodes=_require_string_tuple(region.get("requiredNodes"), f"regions.regions[{index}].requiredNodes"),
             colonizable=bool(region.get("colonizable", False)),
             price_multiplier=float(region.get("priceMultiplier", 1.0)),
+            min_army=max(
+                1,
+                _require_non_negative_int(region.get("minArmy", 1), f"regions.regions[{index}].minArmy"),
+            ),
         )
 
     ocean_node_blueprints: dict[str, OceanNodeBlueprintConfig] = {}
