@@ -297,6 +297,7 @@ class GameSnapshotPayload(TypedDict):
     activeEvents: list[dict[str, Any]]
     marketPriceAdjustments: dict[str, int]
     eventDeck: list[str]
+    lootedRegionsThisTurn: NotRequired[list[str]]
 
 
 class PlayerTurnInputPayload(TypedDict):

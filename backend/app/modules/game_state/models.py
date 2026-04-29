@@ -342,6 +342,7 @@ class GameSnapshot:
     active_events: list[dict[str, Any]] = field(default_factory=list)
     market_price_adjustments: dict[str, int] = field(default_factory=dict)
     event_deck: list[str] = field(default_factory=list)
+    looted_regions_this_turn: set[str] = field(default_factory=set)
 
     def to_payload(self) -> GameSnapshotPayload:
         from .workspaces import build_phase_settlement_workspace, build_phase_workspace, build_ranking_workspace
@@ -375,6 +376,7 @@ class GameSnapshot:
             "activeEvents": deepcopy(self.active_events),
             "marketPriceAdjustments": _copy_int_mapping(self.market_price_adjustments),
             "eventDeck": _copy_string_list(self.event_deck),
+            "lootedRegionsThisTurn": sorted(self.looted_regions_this_turn),
         }
 
     @classmethod
@@ -401,6 +403,7 @@ class GameSnapshot:
             active_events=deepcopy(payload.get("activeEvents", [])),
             market_price_adjustments=_copy_int_mapping(payload.get("marketPriceAdjustments", {})),
             event_deck=_copy_string_list(payload.get("eventDeck", [])),
+            looted_regions_this_turn=set(payload.get("lootedRegionsThisTurn", []) or []),
         )
         if snapshot.rules_version != RULES_VERSION_V2:
             raise ValueError("Legacy snapshot is not compatible with rulesVersion v2. Please restart the room.")

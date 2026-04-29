@@ -104,8 +104,13 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
         player_state.goods_allocation = {}
 
     generated_logs.extend(
-        _apply_independence_progression(updated_snapshot, balance, looted_regions=set())
+        _apply_independence_progression(
+            updated_snapshot,
+            balance,
+            looted_regions=set(updated_snapshot.looted_regions_this_turn),
+        )
     )
+    updated_snapshot.looted_regions_this_turn = set()
 
     updated_snapshot.market_price_adjustments = _build_market_price_adjustments(
         previous_adjustments=snapshot.market_price_adjustments,

@@ -11,6 +11,7 @@ from app.modules.game_state.factory_economy import (
     goods_locked_reason,
     route_locked_reason,
 )
+from app.contracts.enums import RegionAccessLevel
 from app.modules.game_state.models import DEFAULT_PHASE1_CAPACITY_BY_MODE
 
 from .common import RuleResolution, clone_snapshot, default_decision_submission_payload, index_turn_inputs
@@ -443,8 +444,58 @@ def _apply_military_plan(player_state, military_plan: dict[str, Any], balance, s
             target_region.controller = player_state.country.value
             colonized_count += 1
 
+    if snapshot is not None:
+        _apply_looting_actions(
+            player_state,
+            military_plan.get("lootingActions", []) or [],
+            snapshot,
+            balance,
+        )
+
     player_state.budget_pools["governmentFiscal"] = max(0, remaining_budget)
     return spent
+
+
+def _apply_looting_actions(
+    player_state,
+    looting_actions: list[dict[str, Any]],
+    snapshot,
+    balance,
+) -> None:
+    """Loot raw materials from owned colonies. One action per colony per turn.
+
+    Each valid action transfers 1 unit from region.resource_limit into the
+    player's phase1 raw_materials and marks the region as looted for the turn
+    so the settlement-time independence penalty applies.
+    """
+    del balance
+    regions_by_id = {region.region_id: region for region in snapshot.region_states}
+    country_key = player_state.country.value
+    looted_this_turn = snapshot.looted_regions_this_turn
+
+    for action in looting_actions:
+        region_id = str(action.get("regionId") or "")
+        resource_type = str(action.get("resourceType") or "")
+        if not region_id or not resource_type:
+            continue
+        if region_id in looted_this_turn:
+            continue
+        region = regions_by_id.get(region_id)
+        if region is None:
+            continue
+        if region.controller != country_key:
+            continue
+        if region.access_level != RegionAccessLevel.COLONY:
+            continue
+        available = int(region.resource_limit.get(resource_type, 0))
+        if available <= 0:
+            continue
+        looted_amount = min(1, available)
+        region.resource_limit[resource_type] = available - looted_amount
+        player_state.phase1_economy.raw_materials = (
+            int(player_state.phase1_economy.raw_materials) + looted_amount
+        )
+        looted_this_turn.add(region_id)
 
 
 def _resolve_conquest_actions(
