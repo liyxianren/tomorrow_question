@@ -3,6 +3,7 @@ from __future__ import annotations
 import random
 from decimal import Decimal
 
+from app.contracts.enums import RegionAccessLevel
 from app.modules.balance_config import get_balance_config
 from app.modules.game_state.effects import apply_effects, reset_temporary_effects
 
@@ -101,6 +102,10 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
         player_state.overseas_sales_revenue = 0
         player_state.national_income = 0
         player_state.goods_allocation = {}
+
+    generated_logs.extend(
+        _apply_independence_progression(updated_snapshot, balance, looted_regions=set())
+    )
 
     updated_snapshot.market_price_adjustments = _build_market_price_adjustments(
         previous_adjustments=snapshot.market_price_adjustments,
@@ -420,6 +425,65 @@ def _apply_phase3_research_progress(player_state, snapshot, balance) -> None:
         player_state.breakthrough_attempts.pop(active, None)
     else:
         player_state.breakthrough_attempts[active] = attempts + 1
+
+
+def _apply_independence_progression(
+    snapshot,
+    balance,
+    *,
+    looted_regions: set[str],
+) -> list[dict[str, object]]:
+    """Update each controlled region's independence and trigger revolt at threshold.
+
+    Returns generated logs for any revolt events that occurred.
+    """
+    threshold = int(balance.military.independence_threshold)
+    logs: list[dict[str, object]] = []
+    for region in snapshot.region_states:
+        if region.controller is None:
+            region.independence = 0
+            continue
+
+        delta = 0
+
+        supply_total = sum(int(value) for value in region.market_supply.values())
+        demand_total = sum(int(value) for value in region.resource_limit.values())
+        if demand_total > 0:
+            ratio = supply_total / demand_total
+            if ratio > 2.0 or ratio < 0.5:
+                delta += 2
+            elif ratio > 1.3 or ratio < 0.7:
+                delta += 1
+
+        if region.region_id in looted_regions:
+            delta += 2
+
+        garrison_total = sum(int(value) for value in region.garrison.values())
+        delta -= garrison_total
+
+        region.independence = max(0, int(region.independence) + delta)
+
+        if region.independence >= threshold:
+            previous_controller = region.controller
+            region.controller = None
+            region.garrison = {}
+            region.independence = 0
+            region.access_level = RegionAccessLevel.CONCESSION
+            logs.append(
+                {
+                    "gameId": snapshot.game_id,
+                    "roundNo": snapshot.round_no,
+                    "phase": snapshot.phase,
+                    "kind": "settlement.region_revolt",
+                    "message": f"{region.region_id} revolted against {previous_controller}.",
+                    "details": {
+                        "regionId": region.region_id,
+                        "previousController": previous_controller,
+                    },
+                    "createdAt": None,
+                }
+            )
+    return logs
 
 
 def _resolve_naval_blockade(snapshot, balance) -> None:
