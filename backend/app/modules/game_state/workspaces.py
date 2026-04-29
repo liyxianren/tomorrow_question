@@ -665,10 +665,45 @@ def _build_national_ability(player: PlayerState) -> dict[str, Any] | None:
     }
 
 
-def _build_tech_tree(player: PlayerState) -> list[dict[str, Any]]:
-    # Shim: chain-based research replaces the legacy tech tree (Task 5 will rebuild this).
-    del player
-    return []
+def _build_tech_tree(player: PlayerState) -> dict[str, Any]:
+    balance = get_balance_config()
+    chains_payload: list[dict[str, Any]] = []
+    for chain_id, chain in balance.technology.chains.items():
+        techs_payload: list[dict[str, Any]] = []
+        for index, tech in enumerate(chain.techs):
+            attempts = int(player.breakthrough_attempts.get(tech.tech_id, 0))
+            effective_threshold = max(1, int(tech.threshold) - attempts)
+            is_unlocked = tech.tech_id in player.unlocked_techs
+            is_active = player.active_research == tech.tech_id
+            prereq_met = index == 0 or chain.techs[index - 1].tech_id in player.unlocked_techs
+            techs_payload.append(
+                {
+                    "techId": tech.tech_id,
+                    "label": tech.label,
+                    "threshold": int(tech.threshold),
+                    "progress": int(player.research_progress.get(tech.tech_id, 0)),
+                    "effectiveThreshold": effective_threshold,
+                    "isUnlocked": is_unlocked,
+                    "isActive": is_active,
+                    "canResearch": (not is_unlocked) and prereq_met,
+                    "isDiscovered": False,
+                    "breakthroughAttempts": attempts,
+                }
+            )
+        chains_payload.append(
+            {
+                "chainId": chain_id,
+                "label": chain.label,
+                "techs": techs_payload,
+            }
+        )
+    return {
+        "chains": chains_payload,
+        "researchFacilities": int(sum(player.research_facilities.values())),
+        "facilityCost": int(balance.technology.research_facility_cost),
+        "progressPerFacility": int(balance.technology.research_facility_progress_per_turn),
+        "activeResearch": player.active_research,
+    }
 
 
 def _price_trend(adjustment: int | None) -> str:

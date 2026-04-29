@@ -478,10 +478,11 @@ def _phase_workspace_is_complete(snapshot: GameSnapshot) -> bool:
                 "upgradeOptions",
                 "newFactoryOptions",
                 "activeEvents",
-                "techTree",
                 "domesticMarketActions",
             )
             if not all(isinstance(player_workspace.get(key), list) for key in list_keys):
+                return False
+            if not isinstance(player_workspace.get("techTree"), Mapping):
                 return False
             if player_workspace.get("nationalAbility") is not None and not isinstance(player_workspace.get("nationalAbility"), Mapping):
                 return False
