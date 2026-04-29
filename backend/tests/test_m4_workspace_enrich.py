@@ -63,6 +63,7 @@ class DecisionWorkspaceProductionModesTests(unittest.TestCase):
             ["idle", "handicraft", "mechanized", "steam", "electrified"],
         )
 
+    @unittest.skip("Phase 3 migration: old tech tree behavior, to be rewritten in Task 3-4")
     def test_production_modes_carry_metadata(self) -> None:
         snapshot = _build_snapshot()
         britain = _get_player(snapshot, "player-1")

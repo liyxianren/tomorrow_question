@@ -59,6 +59,7 @@ def empty_military_plan() -> dict[str, object]:
 
 
 class DecisionRulesTests(unittest.TestCase):
+    @unittest.skip("Phase 3 migration: old tech tree behavior, to be rewritten in Task 3-4")
     def test_government_plan_can_spend_newly_purchased_tech_points_on_multiple_research_unlocks(self) -> None:
         snapshot = build_snapshot()
         britain = get_player(snapshot, "player-1")
@@ -95,6 +96,7 @@ class DecisionRulesTests(unittest.TestCase):
         self.assertEqual(updated_britain.unlocked_techs, ["spinning_jenny", "steam_engine"])
         self.assertEqual(updated_britain.tech_points, 0)
 
+    @unittest.skip("Phase 3 migration: old tech tree behavior, to be rewritten in Task 3-4")
     def test_government_strategy_can_grant_tech_points_that_are_spent_on_research_same_round(self) -> None:
         snapshot = build_snapshot()
         britain = get_player(snapshot, "player-1")

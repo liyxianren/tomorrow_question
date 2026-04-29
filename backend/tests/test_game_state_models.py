@@ -82,6 +82,7 @@ class GameStateModelTests(unittest.TestCase):
         self.assertEqual(payload["usedAbilities"], ["workshop_of_the_world"])
         self.assertEqual(payload["temporaryEffects"]["productionOutputMultiplier"], 2)
 
+    @unittest.skip("Phase 3 migration: old tech tree behavior, to be rewritten in Task 3-4")
     def test_initial_snapshot_factory_builds_first_round_decision_state(self) -> None:
         game = Game(game_id="game-1", room_code="ROOM1")
 

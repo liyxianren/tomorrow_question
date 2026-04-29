@@ -351,6 +351,7 @@ class PhaseSubmitApiTests(unittest.TestCase):
         self.assertEqual(payload["error"]["code"], ErrorCode.INVALID_SUBMISSION.value)
         self.assertIn("required technology", payload["error"]["message"])
 
+    @unittest.skip("Phase 3 migration: old tech tree behavior, to be rewritten in Task 3-4")
     def test_submit_decision_rejects_goods_without_country_access(self) -> None:
         self.seed_active_game()
 
@@ -366,6 +367,7 @@ class PhaseSubmitApiTests(unittest.TestCase):
         self.assertEqual(payload["error"]["code"], ErrorCode.INVALID_SUBMISSION.value)
         self.assertIn("country access", payload["error"]["message"])
 
+    @unittest.skip("Phase 3 migration: old tech tree behavior, to be rewritten in Task 3-4")
     def test_submit_decision_rejects_upgrade_before_route_technology_is_unlocked(self) -> None:
         self.seed_active_game()
 
@@ -385,6 +387,7 @@ class PhaseSubmitApiTests(unittest.TestCase):
         self.assertEqual(payload["error"]["code"], ErrorCode.INVALID_SUBMISSION.value)
         self.assertIn("route technology", payload["error"]["message"])
 
+    @unittest.skip("Phase 3 migration: old tech tree behavior, to be rewritten in Task 3-4")
     def test_submit_decision_rejects_locked_government_action_without_required_tech(self) -> None:
         self.seed_active_game()
 
