@@ -45,6 +45,7 @@ export function createInitialPhaseDraft(phase: GamePhase): PhaseDraft {
           pointPurchases: [],
           strategySelections: [],
           techResearch: [],
+          adminPurchases: 0,
         },
         militaryPlan: {
           unlockColonization: false,

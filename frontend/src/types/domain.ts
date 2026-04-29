@@ -203,6 +203,7 @@ export interface GovernmentPlan {
   pointPurchases: PointPurchase[];
   strategySelections: GovernmentActionSelection[];
   techResearch: TechResearchSelection[];
+  adminPurchases?: number;
 }
 
 export interface MilitaryActionSelection {
@@ -565,8 +566,14 @@ export interface PolicyOption {
 
 export interface GovernmentReformsWorkspace {
   administrationCapacity: number;
+  adminPurchaseCost: number;
   completedReforms: string[];
   activePolicies: string[];
+  ideologyLevels: Record<string, number>;
+  ideologyMin: number;
+  ideologyMax: number;
+  revolutionThreshold: number;
+  terminalReformsByIdeology: Record<string, string>;
   availableReforms: ReformOption[];
   availablePolicies: PolicyOption[];
 }

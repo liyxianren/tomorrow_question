@@ -214,8 +214,14 @@ def build_decision_player_workspace(snapshot: GameSnapshot, player: PlayerState)
         "researchWorkspace": _build_research_workspace(snapshot, player),
         "governmentReforms": {
             "administrationCapacity": int(player.administration_capacity),
+            "adminPurchaseCost": int(balance.politics.administration_cost),
             "completedReforms": list(player.completed_reforms),
             "activePolicies": list(player.active_policies),
+            "ideologyLevels": dict(player.ideology_levels),
+            "ideologyMin": int(balance.politics.ideology_min),
+            "ideologyMax": int(balance.politics.ideology_max),
+            "revolutionThreshold": int(balance.politics.revolution_threshold),
+            "terminalReformsByIdeology": dict(balance.politics.terminal_reforms_by_ideology),
             "availableReforms": [
                 {
                     "reformId": reform.reform_id,

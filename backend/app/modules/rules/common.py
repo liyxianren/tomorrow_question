@@ -43,7 +43,12 @@ def default_decision_submission_payload() -> dict[str, Any]:
             "newFactoryOrders": [],
         },
         "domesticMarketPlan": {"domesticMarketActions": []},
-        "governmentPlan": {"pointPurchases": [], "strategySelections": [], "techResearch": []},
+        "governmentPlan": {
+            "pointPurchases": [],
+            "strategySelections": [],
+            "techResearch": [],
+            "adminPurchases": 0,
+        },
         "militaryPlan": {
             "unlockColonization": False,
             "militaryActions": [],

@@ -299,6 +299,30 @@ def _normalize_decision_submission(payload: dict[str, object]) -> dict[str, Any]
     normalized["governmentPlan"]["techResearch"] = _normalize_tech_research_list(
         government_plan.get("techResearch", [])
     )
+    raw_admin_purchases = government_plan.get("adminPurchases")
+    try:
+        normalized["governmentPlan"]["adminPurchases"] = max(0, int(raw_admin_purchases or 0))
+    except (TypeError, ValueError) as exc:
+        raise PhaseSubmissionError(
+            ErrorCode.INVALID_SUBMISSION,
+            "Decision submission.governmentPlan.adminPurchases must be a non-negative integer.",
+        ) from exc
+
+    raw_reforms = payload.get("reforms")
+    if isinstance(raw_reforms, list):
+        normalized["reforms"] = [
+            str(item).strip() for item in raw_reforms if isinstance(item, str) and item.strip()
+        ]
+    raw_activate = payload.get("activatePolicies")
+    if isinstance(raw_activate, list):
+        normalized["activatePolicies"] = [
+            str(item).strip() for item in raw_activate if isinstance(item, str) and item.strip()
+        ]
+    raw_deactivate = payload.get("deactivatePolicies")
+    if isinstance(raw_deactivate, list):
+        normalized["deactivatePolicies"] = [
+            str(item).strip() for item in raw_deactivate if isinstance(item, str) and item.strip()
+        ]
 
     military_plan = payload.get("militaryPlan")
     if military_plan is None:
@@ -673,41 +697,14 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
         )
 
     government_spend = 0
-    tech_points = int(player_state.tech_points)
-    military_points = int(player_state.military_points)
-    tech_cost = max(1, int(balance.technology.research_facility_cost // 5))
-    military_cost = max(1, int(balance.military.army_unit_cost))
+    admin_cost = max(1, int(balance.politics.administration_cost))
 
-    for purchase in payload.get("governmentPlan", {}).get("pointPurchases", []):
-        quantity = max(0, int(purchase.get("quantity", 0)))
-        point_type = str(purchase.get("pointType") or "")
-        if point_type == "tech":
-            government_spend += quantity * tech_cost
-            tech_points += quantity
-        elif point_type == "military":
-            government_spend += quantity * military_cost
-            military_points += quantity
-
-    for selection in payload.get("governmentPlan", {}).get("strategySelections", []):
-        action_id = str(selection.get("actionId") or "")
-        action = balance.decision_actions.government_actions.get(action_id)
-        if action is None:
-            raise PhaseSubmissionError(ErrorCode.INVALID_SUBMISSION, f"Unknown government action: {action_id}")
-        if action_locked_reason(player_state, action_id) is not None:
-            raise PhaseSubmissionError(
-                ErrorCode.INVALID_SUBMISSION,
-                f"Government action {action_id} requires required technology.",
-            )
-        if tech_points < int(action.tech_point_cost) or military_points < int(action.military_point_cost):
-            raise PhaseSubmissionError(
-                ErrorCode.INVALID_SUBMISSION,
-                f"Government action {action_id} does not have enough points.",
-            )
-        tech_points -= int(action.tech_point_cost)
-        military_points -= int(action.military_point_cost)
-        government_spend += int(action.budget_pool_cost)
-        tech_points = max(0, tech_points + int(action.effects.get("techPointsDelta", 0)))
-        military_points = max(0, military_points + int(action.effects.get("militaryPointsDelta", 0)))
+    raw_admin_purchase = payload.get("governmentPlan", {}).get("adminPurchases")
+    try:
+        admin_quantity = max(0, int(raw_admin_purchase or 0))
+    except (TypeError, ValueError):
+        admin_quantity = 0
+    government_spend += admin_quantity * admin_cost
 
     military_plan_spend = 0
     military_action_counts: dict[str, int] = {}
@@ -764,7 +761,7 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
 
     preview_established_diplomacy = set(player_state.established_diplomacy) | selected_diplomacy_regions
     preview_colonization_unlocked = bool(player_state.colonization_unlocked or unlock_colonization)
-    preview_military_points = int(military_points)
+    preview_military_points = int(player_state.military_points)
     colonization_target_ids: set[str] = set()
     colonization_actions = payload.get("militaryPlan", {}).get("colonizationActions", [])
     if len(colonization_actions) > int(balance.military.max_colonizations_per_round):

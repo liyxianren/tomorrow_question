@@ -426,3 +426,50 @@ export function removePointPurchase(
 function normalizeQuantity(value: number): number {
   return Math.max(0, Number.isFinite(value) ? value : 0);
 }
+
+export function setAdminPurchases(
+  draft: PhaseDraftByPhase["decision"],
+  quantity: number,
+): PhaseDraftByPhase["decision"] {
+  return {
+    ...draft,
+    governmentPlan: {
+      ...draft.governmentPlan,
+      adminPurchases: normalizeQuantity(quantity),
+    },
+  };
+}
+
+export function toggleReformQueue(
+  draft: PhaseDraftByPhase["decision"],
+  reformId: string,
+  queued: boolean,
+): PhaseDraftByPhase["decision"] {
+  const current = draft.reforms ?? [];
+  if (queued) {
+    if (current.includes(reformId)) return draft;
+    return { ...draft, reforms: [...current, reformId] };
+  }
+  return { ...draft, reforms: current.filter((id) => id !== reformId) };
+}
+
+export function togglePolicyQueue(
+  draft: PhaseDraftByPhase["decision"],
+  policyId: string,
+  active: boolean,
+): PhaseDraftByPhase["decision"] {
+  const activate = (draft.activatePolicies ?? []).filter((id) => id !== policyId);
+  const deactivate = (draft.deactivatePolicies ?? []).filter((id) => id !== policyId);
+  if (active) {
+    return {
+      ...draft,
+      activatePolicies: [...activate, policyId],
+      deactivatePolicies: deactivate,
+    };
+  }
+  return {
+    ...draft,
+    activatePolicies: activate,
+    deactivatePolicies: [...deactivate, policyId],
+  };
+}

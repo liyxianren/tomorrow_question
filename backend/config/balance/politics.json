@@ -4,7 +4,7 @@
     "egalitarianism",
     "nationalism"
   ],
-  "administrationCost": 12,
+  "administrationCost": 20,
   "ideologyMin": 0,
   "ideologyMax": 10,
   "revolutionThreshold": 10,

@@ -33,8 +33,9 @@ import {
   removeColonizationAction,
   removeMilitaryActionSelection,
   removePointPurchase,
-  setColonizationUnlockSelection,
   setAbilitySelectionTarget,
+  setAdminPurchases,
+  setColonizationUnlockSelection,
   setConquestAction,
   setNavalDeployment,
   setProductionOrderQuantity,
@@ -44,6 +45,8 @@ import {
   toggleGovernmentStrategySelection,
   toggleLootingAction,
   toggleNationalAbilitySelection,
+  togglePolicyQueue,
+  toggleReformQueue,
   toggleTalentUnlockSelection,
   toggleTechResearchSelection,
 } from "../../../features/game/decisionDrafts";
@@ -244,46 +247,20 @@ export function DecisionWorkbench({
           }}
         />
       ) : activeStep === "government" ? (
-        <>
-          <GovernmentPanel
-            workspace={workspace}
-            draft={draft}
-            remainingGovernmentBudget={workspace.budgetPools.governmentFiscal - spendSummary.governmentSpend}
-            onAbilityTargetChange={(ideology) => {
-              if (!workspace.nationalAbility) {
-                return;
-              }
-              handleDraftChange("government", setAbilitySelectionTarget(draft, workspace.nationalAbility.abilityId, ideology));
-            }}
-            onResearchToggle={(techId, checked) => {
-              handleDraftChange("government", toggleTechResearchSelection(draft, techId, checked));
-            }}
-            onStrategyToggle={(actionId, checked) => {
-              handleDraftChange("government", toggleGovernmentStrategySelection(draft, actionId, checked));
-            }}
-            onTechPurchase={() => {
-              handleDraftChange("government", addPointPurchase(draft, "tech"));
-            }}
-            onTechRefund={() => {
-              handleDraftChange("government", removePointPurchase(draft, "tech"));
-            }}
-            onToggleAbility={(checked) => {
-              handleDraftChange(
-                "government",
-                workspace.nationalAbility
-                  ? toggleNationalAbilitySelection(draft, workspace.nationalAbility, checked)
-                  : draft,
-              );
-            }}
-          />
-          {workspace.governmentReforms ? (
-            <GovernmentReformPanel
-              reforms={workspace.governmentReforms}
-              draft={draft}
-              onChange={(next) => handleDraftChange("government", next)}
-            />
-          ) : null}
-        </>
+        <GovernmentPanel
+          workspace={workspace}
+          draft={draft}
+          remainingGovernmentBudget={workspace.budgetPools.governmentFiscal - spendSummary.governmentSpend}
+          onAdminPurchase={(quantity) => {
+            handleDraftChange("government", setAdminPurchases(draft, quantity));
+          }}
+          onEnactReform={(reformId, queued) => {
+            handleDraftChange("government", toggleReformQueue(draft, reformId, queued));
+          }}
+          onTogglePolicy={(policyId, active) => {
+            handleDraftChange("government", togglePolicyQueue(draft, policyId, active));
+          }}
+        />
       ) : activeStep === "military" ? (
         <MilitaryPanel
           workspace={workspace}

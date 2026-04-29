@@ -36,7 +36,6 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
         government_before = int(player_state.budget_pools.get("governmentFiscal", 0))
 
         _apply_active_event_effects(player_state, updated_snapshot.active_events)
-        _apply_ability_selection(player_state, payload.get("abilitySelection"), balance)
 
         phase1_production = payload.get("phase1Production") or {}
         factory_spent = _apply_phase1_production_plan(player_state, phase1_production, balance)
@@ -206,42 +205,28 @@ def _apply_domestic_market_plan(player_state, domestic_plan: dict[str, Any], bal
 
 
 def _apply_government_plan(player_state, government_plan: dict[str, Any], balance) -> int:
+    """Phase-2 government plan: spend fiscal to buy administration capacity.
+
+    Old tech-grant and executive-agenda paths were removed in favor of the
+    reform/policy/ideology system; legacy submission fields are accepted but
+    no longer apply effects (kept for payload-shape compatibility).
+    """
     spent = 0
     remaining_budget = int(player_state.budget_pools.get("governmentFiscal", 0))
-    tech_cost = max(1, int(balance.technology.research_facility_cost // 5))
-    military_cost = max(1, int(balance.military.army_unit_cost))
+    admin_cost = max(1, int(balance.politics.administration_cost))
 
-    for purchase in government_plan.get("pointPurchases", []):
-        point_type = str(purchase.get("pointType"))
-        quantity = max(0, int(purchase.get("quantity", 0)))
-        unit_cost = tech_cost if point_type == "tech" else military_cost
-        affordable = min(quantity, max(0, (remaining_budget - spent) // max(1, unit_cost)))
-        if affordable <= 0:
-            continue
-        spent += affordable * unit_cost
-        if point_type == "tech":
-            player_state.tech_points += affordable
-        else:
-            player_state.military_points += affordable
-
-    for selection in government_plan.get("strategySelections", []):
-        action_id = str(selection.get("actionId"))
-        action = balance.decision_actions.government_actions.get(action_id)
-        if action is None:
-            continue
-        if action_locked_reason(player_state, action_id) is not None:
-            continue
-        if remaining_budget - spent < action.budget_pool_cost:
-            continue
-        if player_state.tech_points < action.tech_point_cost or player_state.military_points < action.military_point_cost:
-            continue
-        spent += int(action.budget_pool_cost)
-        player_state.tech_points -= int(action.tech_point_cost)
-        player_state.military_points -= int(action.military_point_cost)
-        _apply_ratio_delta(player_state, action.ratio_delta)
-        apply_effects(player_state, action.effects)
-        if action_id not in player_state.policies:
-            player_state.policies.append(action_id)
+    raw_admin_purchase = government_plan.get("adminPurchases")
+    try:
+        admin_quantity = max(0, int(raw_admin_purchase or 0))
+    except (TypeError, ValueError):
+        admin_quantity = 0
+    if admin_quantity > 0:
+        affordable = min(admin_quantity, (remaining_budget - spent) // admin_cost)
+        if affordable > 0:
+            spent += affordable * admin_cost
+            player_state.administration_capacity = (
+                int(player_state.administration_capacity) + affordable
+            )
 
     player_state.budget_pools["governmentFiscal"] = max(0, remaining_budget - spent)
     return spent
