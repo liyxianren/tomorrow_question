@@ -18,6 +18,7 @@ from .phase1_economy import (
     PRODUCTION_MODE_OUTPUT_RATIOS,
     calculate_production_output,
 )
+from .route_utils import check_route_accessible
 
 
 PHASE1_GOODS_KEY = "phase1_goods"
@@ -376,6 +377,9 @@ def _apply_military_plan(player_state, military_plan: dict[str, Any], balance, s
         spent += int(action.budget_pool_cost)
         apply_effects(player_state, action.effects)
 
+    if snapshot is not None:
+        _apply_naval_deployment(player_state, military_plan, snapshot, balance)
+
     for selection in military_plan.get("diplomacyActions", []):
         action_id = str(selection.get("actionId") or "")
         action = balance.military_actions.diplomacy_actions.get(action_id)
@@ -384,6 +388,10 @@ def _apply_military_plan(player_state, military_plan: dict[str, Any], balance, s
         if action.target_region in player_state.established_diplomacy:
             continue
         if remaining_budget < int(action.budget_pool_cost):
+            continue
+        if snapshot is not None and not check_route_accessible(
+            player_state.country.value, action.target_region, snapshot, balance
+        ):
             continue
         remaining_budget -= int(action.budget_pool_cost)
         spent += int(action.budget_pool_cost)
@@ -428,6 +436,39 @@ def _apply_military_plan(player_state, military_plan: dict[str, Any], balance, s
 
     player_state.budget_pools["governmentFiscal"] = max(0, remaining_budget)
     return spent
+
+
+def _apply_naval_deployment(player_state, military_plan: dict[str, Any], snapshot, balance) -> None:
+    del balance
+    deployment = military_plan.get("navalDeployment")
+    if not isinstance(deployment, dict):
+        return
+
+    total_fleets = int(player_state.navy.get("fleets", 0))
+    nodes_by_id = {node.node_id: node for node in snapshot.ocean_node_states}
+    country_key = player_state.country.value
+
+    sanitized: dict[str, int] = {}
+    for node_id, raw_count in deployment.items():
+        node_id_str = str(node_id)
+        if node_id_str not in nodes_by_id:
+            continue
+        try:
+            count = int(raw_count)
+        except (TypeError, ValueError):
+            return
+        if count < 0 or count > total_fleets:
+            return
+        sanitized[node_id_str] = count
+
+    if sum(sanitized.values()) > total_fleets:
+        return
+
+    for node in snapshot.ocean_node_states:
+        if node.node_id in sanitized:
+            node.navy_by_country[country_key] = sanitized[node.node_id]
+        elif country_key in node.navy_by_country:
+            node.navy_by_country[country_key] = 0
 
 
 def _apply_talent_plan(player_state, talent_plan: dict[str, Any], balance) -> None:

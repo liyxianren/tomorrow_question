@@ -23,6 +23,8 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
     total_sold_by_goods: dict[str, int] = {}
     signal_values_by_player_id: dict[str, dict[str, int]] = {}
 
+    _resolve_naval_blockade(updated_snapshot, balance)
+
     for player_state in updated_snapshot.player_states:
         colony_income = 0
         for region_state in updated_snapshot.region_states:
@@ -418,5 +420,24 @@ def _apply_phase3_research_progress(player_state, snapshot, balance) -> None:
         player_state.breakthrough_attempts.pop(active, None)
     else:
         player_state.breakthrough_attempts[active] = attempts + 1
+
+
+def _resolve_naval_blockade(snapshot, balance) -> None:
+    threshold = int(balance.military.ocean_control_threshold)
+    for node in snapshot.ocean_node_states:
+        non_zero = [(country, count) for country, count in node.navy_by_country.items() if count > 0]
+        if not non_zero:
+            node.controller = None
+            node.is_blockaded = False
+            continue
+        non_zero.sort(key=lambda item: item[1], reverse=True)
+        top_country, top_count = non_zero[0]
+        runner_up_count = non_zero[1][1] if len(non_zero) > 1 else 0
+        if top_count >= threshold and top_count > runner_up_count:
+            node.controller = top_country
+            node.is_blockaded = True
+        else:
+            node.controller = None
+            node.is_blockaded = False
 
 

@@ -36,6 +36,7 @@ class BackendStructureTests(unittest.TestCase):
                 "decision.py",
                 "market.py",
                 "phase1_economy.py",
+                "route_utils.py",
                 "settlement.py",
             },
         )
