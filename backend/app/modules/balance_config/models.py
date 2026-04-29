@@ -67,7 +67,7 @@ class TechnologyBalanceConfig:
     research_facility_cost: int
     research_facility_progress_per_turn: int
     breakthrough_die_sides: int
-    route_unlocks: dict[str, str]
+    route_unlocks: dict[str, list[str]]
     chains: dict[str, "ResearchChainConfig"]
 
 

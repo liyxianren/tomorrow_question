@@ -43,7 +43,7 @@ class BalanceConfigTests(unittest.TestCase):
         self.assertEqual(config.market.region_goods_premiums["middle_east"]["steel"], 3)
         self.assertEqual(config.countries["britain"].initial_goods, ("coal", "cotton"))
         self.assertEqual(config.technology.chains["mechanical"].techs[0].tech_id, "spinning_jenny")
-        self.assertEqual(config.technology.route_unlocks["mechanized"], "spinning_jenny")
+        self.assertEqual(config.technology.route_unlocks["mechanized"], ["spinning_jenny"])
         self.assertGreaterEqual(len(config.events.events), 8)
         self.assertEqual(config.events.events[0].duration_rounds, 1)
         self.assertEqual(

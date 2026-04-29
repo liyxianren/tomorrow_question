@@ -297,7 +297,17 @@ def _build_goods_config(value: Any) -> dict[str, ProductionGoodConfig]:
 
 
 def _build_technology_config(payload: dict[str, Any], *, production: ProductionBalanceConfig) -> TechnologyBalanceConfig:
-    route_unlocks = _require_string_mapping(payload.get("routeUnlocks"), "technology.routeUnlocks")
+    raw_unlocks = _require_dict(payload.get("routeUnlocks"), "technology.routeUnlocks")
+    route_unlocks: dict[str, list[str]] = {}
+    for route_key, raw_value in raw_unlocks.items():
+        if isinstance(raw_value, list):
+            route_unlocks[str(route_key)] = [str(v) for v in raw_value]
+        elif isinstance(raw_value, str):
+            route_unlocks[str(route_key)] = [str(raw_value)]
+        else:
+            raise BalanceConfigError(
+                f"technology.routeUnlocks.{route_key} must be a string or list of strings."
+            )
     chains = _build_chains(payload.get("chains"))
     for route_key in route_unlocks:
         if route_key not in production.levels:
@@ -842,9 +852,10 @@ def _validate_technology(
                     f"technology.chains duplicates tech id: {tech.tech_id} (chain {chain_id})"
                 )
             all_tech_ids.add(tech.tech_id)
-    for route_key, technology_key in technology.route_unlocks.items():
-        if technology_key not in all_tech_ids:
-            raise BalanceConfigError(f"technology.routeUnlocks references unknown technology: {technology_key}")
+    for route_key, required_techs in technology.route_unlocks.items():
+        for technology_key in required_techs:
+            if technology_key not in all_tech_ids:
+                raise BalanceConfigError(f"technology.routeUnlocks references unknown technology: {technology_key}")
         if route_key not in production.levels:
             raise BalanceConfigError(f"technology.routeUnlocks references unknown route: {route_key}")
 

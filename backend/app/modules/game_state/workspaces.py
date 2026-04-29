@@ -341,13 +341,13 @@ def _build_phase1_production_modes(player: PlayerState) -> list[dict[str, Any]]:
 
     modes: list[dict[str, Any]] = []
     for mode in PHASE1_MODE_ORDER:
-        required_tech = route_unlocks.get(mode)
+        required_techs = route_unlocks.get(mode)
         if mode == "idle":
             is_available = True
-        elif required_tech is None:
+        elif required_techs is None:
             is_available = True
         else:
-            is_available = required_tech in player.unlocked_techs
+            is_available = all(t in player.unlocked_techs for t in required_techs)
         modes.append(
             {
                 "mode": mode,
@@ -358,7 +358,7 @@ def _build_phase1_production_modes(player: PlayerState) -> list[dict[str, Any]]:
                 "buildCost": int(new_factory_costs.get(mode, 0)),
                 "upgradeCost": int(upgrade_costs.get(mode, 0)),
                 "currentCapacity": int(capacity_by_mode.get(mode, 0)),
-                "requiredTech": required_tech,
+                "requiredTech": required_techs,
                 "isAvailable": is_available,
             }
         )

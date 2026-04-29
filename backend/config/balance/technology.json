@@ -3,9 +3,9 @@
   "researchFacilityProgressPerTurn": 1,
   "breakthroughDieSides": 10,
   "routeUnlocks": {
-    "mechanized": "spinning_jenny",
-    "steam": "watt_engine",
-    "electrified": "power_generation"
+    "mechanized": ["spinning_jenny"],
+    "steam": ["watt_engine", "lathe"],
+    "electrified": ["power_generation", "combustion_engine"]
   },
   "chains": {
     "electrical": {
