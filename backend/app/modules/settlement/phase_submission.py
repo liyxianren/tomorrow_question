@@ -675,7 +675,7 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
     government_spend = 0
     tech_points = int(player_state.tech_points)
     military_points = int(player_state.military_points)
-    tech_cost = max(1, int(balance.technology.facility_cost // 5))
+    tech_cost = max(1, int(balance.technology.research_facility_cost // 5))
     military_cost = max(1, int(balance.military.army_unit_cost))
 
     for purchase in payload.get("governmentPlan", {}).get("pointPurchases", []):
@@ -814,40 +814,7 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
             )
         preview_military_points -= int(balance.military.colonization_military_point_cost)
 
-    preview_unlocked_techs = list(player_state.unlocked_techs)
-    tech_research_spend_by_pool: dict[str, int] = {}
-    for research_selection in payload.get("governmentPlan", {}).get("techResearch", []):
-        tech_id = str(research_selection.get("techId") or "")
-        tech = balance.technology.tech_tree.get(tech_id)
-        if tech is None:
-            raise PhaseSubmissionError(
-                ErrorCode.INVALID_SUBMISSION,
-                f"Unknown techResearch techId: {tech_id}",
-            )
-        if tech_id in preview_unlocked_techs:
-            continue
-        if any(prerequisite not in preview_unlocked_techs for prerequisite in tech.prerequisites):
-            raise PhaseSubmissionError(
-                ErrorCode.INVALID_SUBMISSION,
-                f"Tech research {tech_id} is missing prerequisites.",
-            )
-        pool_key = tech.budget_pool
-        pool_budget = int(player_state.budget_pools.get(pool_key, 0))
-        pool_spent = tech_research_spend_by_pool.get(pool_key, 0)
-        # 加上该池已花费的其他预算（工厂/国内/政府）
-        if pool_key == "factory":
-            pool_spent += factory_spend
-        elif pool_key == "domesticMarket":
-            pool_spent += domestic_spend
-        elif pool_key == "governmentFiscal":
-            pool_spent += government_spend + military_plan_spend
-        if pool_budget - pool_spent < int(tech.budget_cost):
-            raise PhaseSubmissionError(
-                ErrorCode.INVALID_SUBMISSION,
-                f"Tech research {tech_id} exceeds {pool_key} budget.",
-            )
-        tech_research_spend_by_pool[pool_key] = tech_research_spend_by_pool.get(pool_key, 0) + int(tech.budget_cost)
-        preview_unlocked_techs.append(tech_id)
+    # Shim: chain-based research replaces per-tech submission validation (Task 3 will restore it).
 
     if government_spend + military_plan_spend > government_budget:
         raise PhaseSubmissionError(

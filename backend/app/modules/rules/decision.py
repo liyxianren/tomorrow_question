@@ -297,7 +297,7 @@ def _apply_domestic_market_plan(player_state, domestic_plan: dict[str, Any], bal
 def _apply_government_plan(player_state, government_plan: dict[str, Any], balance) -> int:
     spent = 0
     remaining_budget = int(player_state.budget_pools.get("governmentFiscal", 0))
-    tech_cost = max(1, int(balance.technology.facility_cost // 5))
+    tech_cost = max(1, int(balance.technology.research_facility_cost // 5))
     military_cost = max(1, int(balance.military.army_unit_cost))
 
     for purchase in government_plan.get("pointPurchases", []):
@@ -337,20 +337,8 @@ def _apply_government_plan(player_state, government_plan: dict[str, Any], balanc
 
 
 def _apply_tech_research(player_state, tech_selections: list[dict[str, Any]], balance) -> None:
-    for selection in tech_selections:
-        tech_id = str(selection.get("techId") or "")
-        tech = balance.technology.tech_tree.get(tech_id)
-        if tech is None or tech_id in player_state.unlocked_techs:
-            continue
-        if any(prerequisite not in player_state.unlocked_techs for prerequisite in tech.prerequisites):
-            continue
-        # 从对应预算池扣除
-        pool_key = tech.budget_pool
-        current_budget = int(player_state.budget_pools.get(pool_key, 0))
-        if current_budget < int(tech.budget_cost):
-            continue
-        player_state.budget_pools[pool_key] = current_budget - int(tech.budget_cost)
-        player_state.unlocked_techs.append(tech_id)
+    # Shim: chain-based research replaces this; Task 3 will rewrite it.
+    del player_state, tech_selections, balance
 
 
 def _apply_military_plan(player_state, military_plan: dict[str, Any], balance, snapshot=None) -> int:

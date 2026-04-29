@@ -42,8 +42,7 @@ class BalanceConfigTests(unittest.TestCase):
         self.assertEqual(config.production.new_factory_costs["handicraft"], 20)
         self.assertEqual(config.market.region_goods_premiums["middle_east"]["steel"], 3)
         self.assertEqual(config.countries["britain"].initial_goods, ("coal", "cotton"))
-        self.assertIn("spinning_jenny", config.technology.tech_tree)
-        self.assertEqual(config.technology.tech_tree["spinning_jenny"].unlocks_goods, ("steel", "silk"))
+        self.assertEqual(config.technology.chains["mechanical"].techs[0].tech_id, "spinning_jenny")
         self.assertEqual(config.technology.route_unlocks["mechanized"], "spinning_jenny")
         self.assertGreaterEqual(len(config.events.events), 8)
         self.assertEqual(config.events.events[0].duration_rounds, 1)
@@ -113,7 +112,7 @@ class BalanceConfigTests(unittest.TestCase):
             with self.assertRaises(BalanceConfigError):
                 get_balance_config(config_dir)
 
-    def test_invalid_tech_tree_prerequisite_fails_validation(self) -> None:
+    def test_invalid_tech_chain_duplicate_id_fails_validation(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             config_dir = Path(temp_dir) / "balance"
             config_dir.mkdir(parents=True, exist_ok=True)
@@ -121,7 +120,8 @@ class BalanceConfigTests(unittest.TestCase):
             for source_path in source_dir.glob("*.json"):
                 payload = json.loads(source_path.read_text(encoding="utf-8"))
                 if source_path.name == "technology.json":
-                    payload["techTree"]["steam_engine"]["prerequisites"] = ["missing_tech"]
+                    # Duplicate a tech_id across chains to trigger validation error.
+                    payload["chains"]["mechanical"]["techs"][0]["id"] = "leyden_jar"
                 (config_dir / source_path.name).write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
 
             with self.assertRaises(BalanceConfigError):

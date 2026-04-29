@@ -96,7 +96,11 @@ def _build_player_state(*, player_id: str, country: CountryCode) -> PlayerState:
     balance_config = get_balance_config()
     baseline = balance_config.countries[country.value]
     production_levels = balance_config.production.levels
-    technology_tracks = tuple(balance_config.technology.tech_tree)
+    technology_tracks = tuple(
+        tech.tech_id
+        for chain in balance_config.technology.chains.values()
+        for tech in chain.techs
+    )
     ideology_keys = balance_config.politics.ideology_keys
     goods_stock_keys = tuple(
         dict.fromkeys(
@@ -129,6 +133,9 @@ def _build_player_state(*, player_id: str, country: CountryCode) -> PlayerState:
         research={tech: 0 for tech in technology_tracks},
         research_facilities={key: int(value) for key, value in baseline.research_facilities.items()},
         unlocked_techs=[],
+        active_research=None,
+        research_progress={},
+        breakthrough_attempts={},
         goods_allocation={},
         army={key: int(value) for key, value in baseline.army.items()},
         navy={key: int(value) for key, value in baseline.navy.items()},

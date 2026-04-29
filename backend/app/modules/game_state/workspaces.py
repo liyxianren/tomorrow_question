@@ -28,7 +28,6 @@ from .factory_economy import (
     expansion_option_max_quantity,
     get_route_label,
     goods_locked_reason,
-    is_tech_researchable,
     iter_visible_route_ids,
     new_factory_option_max_quantity,
     overseas_reference_price_range,
@@ -214,7 +213,7 @@ def build_decision_player_workspace(snapshot: GameSnapshot, player: PlayerState)
         "domesticMarketActions": domestic_actions,
         "governmentActions": {
             "pointPurchaseCosts": {
-                "tech": max(1, balance.technology.facility_cost // 5),
+                "tech": max(1, balance.technology.research_facility_cost // 5),
                 "military": max(1, balance.military.army_unit_cost),
             },
             "strategies": government_actions,
@@ -667,23 +666,9 @@ def _build_national_ability(player: PlayerState) -> dict[str, Any] | None:
 
 
 def _build_tech_tree(player: PlayerState) -> list[dict[str, Any]]:
-    tech_tree = []
-    for tech_id, tech in get_balance_config().technology.tech_tree.items():
-        tech_tree.append(
-            {
-                "techId": tech_id,
-                "label": tech.label,
-                "budgetPool": tech.budget_pool,
-                "budgetCost": tech.budget_cost,
-                "prerequisites": list(tech.prerequisites),
-                "isUnlocked": tech_id in player.unlocked_techs,
-                "canResearch": is_tech_researchable(player, tech_id),
-                "unlocksGoods": list(tech.unlocks_goods),
-                "unlocksActions": list(tech.unlocks_actions),
-                "unlocksRoutes": list(tech.unlocks_routes),
-            }
-        )
-    return tech_tree
+    # Shim: chain-based research replaces the legacy tech tree (Task 5 will rebuild this).
+    del player
+    return []
 
 
 def _price_trend(adjustment: int | None) -> str:

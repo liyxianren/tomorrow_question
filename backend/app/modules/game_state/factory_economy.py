@@ -81,11 +81,11 @@ def goods_locked_reason(player: PlayerState, route_id: str, goods_id: str | None
         if goods_id in initial_goods:
             return None if current_route_capacity(player, route_id) > 0 else f"需要{route_label}产能"
 
+        # Shim: chain-based research no longer maps tech → goods. Skip the tech gate entirely
+        # so non-initial goods remain producible if route capacity is available (Tasks 3-4 restore proper gating).
         tech = goods_unlocking_tech(goods_id)
         if tech is not None and tech.tech_id not in player.unlocked_techs:
             return f"需要研究「{tech.label}」"
-        if tech is None:
-            return "该国无该商品生产资格"
 
     route_reason = route_locked_reason(player, route_id)
     if route_reason is not None:
@@ -107,35 +107,27 @@ def country_initial_goods(player: PlayerState) -> tuple[str, ...]:
 
 
 def goods_unlocking_tech(goods_id: str):
-    for tech in get_balance_config().technology.tech_tree.values():
-        if goods_id in tech.unlocks_goods:
-            return tech
+    # Shim: chain-based research has no per-goods unlocks (Tasks 3-4 will replace this).
+    del goods_id
     return None
 
 
 def action_unlocking_tech(action_id: str):
-    for tech in get_balance_config().technology.tech_tree.values():
-        if action_id in tech.unlocks_actions:
-            return tech
+    # Shim: chain-based research has no per-action unlocks (Tasks 3-4 will replace this).
+    del action_id
     return None
 
 
 def route_unlocking_tech(route_id: str):
-    tech_id = get_balance_config().technology.route_unlocks.get(route_id)
-    if tech_id is None:
-        return None
-    return get_balance_config().technology.tech_tree.get(tech_id)
+    # Shim: chain-based research has no per-route unlocks (Tasks 3-4 will replace this).
+    del route_id
+    return None
 
 
 def is_tech_researchable(player: PlayerState, tech_id: str) -> bool:
-    tech = get_balance_config().technology.tech_tree.get(tech_id)
-    if tech is None or tech.tech_id in player.unlocked_techs:
-        return False
-    if any(prerequisite not in player.unlocked_techs for prerequisite in tech.prerequisites):
-        return False
-    # 检查对应预算池是否足够
-    current_budget = int(player.budget_pools.get(tech.budget_pool, 0))
-    return current_budget >= int(tech.budget_cost)
+    # Shim: tech research is gated by chains now (Tasks 3-4 will replace this).
+    del player, tech_id
+    return False
 
 
 def is_route_available(player: PlayerState, route_id: str) -> bool:

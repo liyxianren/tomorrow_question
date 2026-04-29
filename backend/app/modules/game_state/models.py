@@ -152,6 +152,9 @@ class PlayerState:
     research: dict[str, int] = field(default_factory=dict)
     research_facilities: dict[str, int] = field(default_factory=dict)
     unlocked_techs: list[str] = field(default_factory=list)
+    active_research: str | None = None
+    research_progress: dict[str, int] = field(default_factory=dict)
+    breakthrough_attempts: dict[str, int] = field(default_factory=dict)
     goods_allocation: dict[str, int] = field(default_factory=dict)
     army: dict[str, int] = field(default_factory=dict)
     navy: dict[str, int] = field(default_factory=dict)
@@ -188,6 +191,9 @@ class PlayerState:
             "research": _copy_int_mapping(self.research),
             "researchFacilities": _copy_int_mapping(self.research_facilities),
             "unlockedTechs": _copy_string_list(self.unlocked_techs),
+            "activeResearch": self.active_research,
+            "researchProgress": _copy_int_mapping(self.research_progress),
+            "breakthroughAttempts": _copy_int_mapping(self.breakthrough_attempts),
             "goodsAllocation": _copy_int_mapping(self.goods_allocation),
             "army": _copy_int_mapping(self.army),
             "navy": _copy_int_mapping(self.navy),
@@ -226,6 +232,9 @@ class PlayerState:
             research=_copy_int_mapping(payload["research"]),
             research_facilities=_copy_int_mapping(payload["researchFacilities"]),
             unlocked_techs=_copy_string_list(payload["unlockedTechs"]),
+            active_research=payload.get("activeResearch"),
+            research_progress=_copy_int_mapping(payload.get("researchProgress", {})),
+            breakthrough_attempts=_copy_int_mapping(payload.get("breakthroughAttempts", {})),
             goods_allocation=_copy_int_mapping(payload["goodsAllocation"]),
             army=_copy_int_mapping(payload["army"]),
             navy=_copy_int_mapping(payload["navy"]),
