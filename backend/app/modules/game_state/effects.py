@@ -64,6 +64,9 @@ def apply_effects(player_state, effects: dict[str, Any]) -> None:
         delta = int(effects["handicraftCapacityDelta"])
         current = int(player_state.production_capacity.get("handicraft", 0))
         player_state.production_capacity["handicraft"] = max(0, current + delta)
+        # Sync to phase1 economy capacity_by_mode
+        current_mode = int(player_state.phase1_economy.capacity_by_mode.get("handicraft", 0))
+        player_state.phase1_economy.capacity_by_mode["handicraft"] = max(0, current_mode + delta)
 
     if "techPointsDelta" in effects:
         player_state.tech_points = max(0, int(player_state.tech_points) + int(effects["techPointsDelta"]))

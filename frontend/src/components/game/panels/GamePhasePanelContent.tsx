@@ -619,20 +619,16 @@ export function SettlementWorkbench({
         </div>
       </article>
       {workspace.phase1Economy?.consumptionPool != null && workspace.phase1Economy?.poolDeltaPreview && (
-        <p style={{ margin: "4px 0 0", color: "#b45309", fontSize: 13 }}>
-          国民消费（自然消耗）: -{Math.round(workspace.phase1Economy.consumptionPool * 0.3)}
-          {" | "}
-          新增分配: +{Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)}
-        </p>
-      )}
-      {workspace.phase1Economy?.poolDeltaPreview && (
         <article className="gp-card">
-          <h3 style={{ margin: 0 }}>🏭 2.0 收入分配预览（5:3:2）</h3>
-          <p className="gp-step-desc" style={{ marginTop: 4 }}>新经济模型：消费 : 投资 : 财政 = 5 : 3 : 2</p>
+          <h3 style={{ margin: 0 }}>💰 消费池变化</h3>
+          <p className="gp-step-desc" style={{ marginTop: 4 }}>
+            上期余额 {workspace.phase1Economy.consumptionPool} + 新增 {Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)} = {workspace.phase1Economy.consumptionPool + Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)}
+            ，经过 30% 自然消费后结余 {Math.round((workspace.phase1Economy.consumptionPool + workspace.phase1Economy.poolDeltaPreview.consumption) * 0.7)}
+          </p>
           <div className="gp-grid">
-            <MetricCard hint="进入消费池，影响下一轮均衡价格。" label="消费池" value={Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)} />
-            <MetricCard hint="进入投资池，用于产能建设与升级。" label="投资池" value={Math.round(workspace.phase1Economy.poolDeltaPreview.investment)} />
-            <MetricCard hint="进入财政池，用于科技、军事、政治。" label="财政池" value={Math.round(workspace.phase1Economy.poolDeltaPreview.fiscal)} />
+            <MetricCard hint="上一轮消费池余额。" label="上期余额" value={workspace.phase1Economy.consumptionPool} />
+            <MetricCard hint="本回合收入按 5:3:2 分配到消费池的部分。" label="新增分配" value={Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)} />
+            <MetricCard hint="经过自然消费后的最终消费池。" label="结余" value={Math.round((workspace.phase1Economy.consumptionPool + workspace.phase1Economy.poolDeltaPreview.consumption) * 0.7)} />
           </div>
         </article>
       )}
