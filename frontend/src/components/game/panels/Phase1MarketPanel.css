@@ -1,69 +1,47 @@
-/* ── Phase1 Market Panel (统一商品市场 2.0) ── */
+/* ── Phase1 Market Panel (Redesigned) ── */
 
 .phase1-market {
   display: flex;
   flex-direction: column;
-  gap: var(--game-gap-section, 18px);
-  padding: 18px;
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015));
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.phase1-market__header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
   gap: 12px;
-  flex-wrap: wrap;
+  padding: 14px;
+  border-radius: var(--game-radius-md, 14px);
+  border: 1px solid rgba(212, 175, 55, 0.15);
+  background: linear-gradient(160deg, rgba(20, 16, 10, 0.92) 0%, rgba(10, 8, 5, 0.96) 100%);
+  box-shadow: 0 0 18px -10px rgba(212, 175, 55, 0.3);
 }
 
-.phase1-market__title {
-  font-family: var(--font-serif, Georgia, serif);
-  font-size: 18px;
-  margin: 0;
-  color: var(--game-text-primary, #fff5e7);
-}
-
-.phase1-market__subtitle {
-  font-size: 12px;
-  color: var(--game-text-secondary, rgba(255, 255, 255, 0.6));
-}
-
-/* ── Summary pills ── */
+/* ── Summary Bar ── */
 
 .phase1-market__summary {
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 6px;
 }
 
-.phase1-market__pill {
+.phase1-market__stat {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  min-width: 110px;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 6px;
+  border-radius: 8px;
+  background: rgba(212, 175, 55, 0.06);
+  border: 1px solid rgba(212, 175, 55, 0.12);
 }
 
-.phase1-market__pill--accent {
-  background: rgba(252, 235, 156, 0.1);
-  border-color: rgba(252, 235, 156, 0.35);
-}
-
-.phase1-market__pill-label {
-  font-size: 11px;
-  color: var(--game-text-secondary, rgba(255, 255, 255, 0.65));
-  letter-spacing: 0.04em;
-}
-
-.phase1-market__pill-value {
+.phase1-market__stat-value {
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--game-text-value, #fceb9c);
+  font-family: var(--font-serif, Georgia, serif);
+  line-height: 1.1;
+}
+
+.phase1-market__stat-label {
+  font-size: 10px;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.6));
+  letter-spacing: 0.04em;
 }
 
 /* ── Card ── */
@@ -71,208 +49,299 @@
 .phase1-market__card {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 16px;
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--game-radius-sm, 10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(160deg, rgba(14, 18, 26, 0.84) 0%, rgba(8, 11, 16, 0.96) 100%);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
 }
+
+.phase1-market__card--active {
+  border-color: rgba(212, 175, 55, 0.4);
+  box-shadow: 0 0 10px -4px rgba(212, 175, 55, 0.25);
+}
+
+.phase1-market__card--locked {
+  opacity: 0.5;
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.phase1-market__card--domestic {
+  border-color: rgba(212, 175, 55, 0.25);
+}
+
+/* ── Card Header ── */
 
 .phase1-market__card-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 6px;
 }
 
-.phase1-market__card-header strong {
-  font-size: 15px;
+.phase1-market__card-name {
+  font-size: 14px;
+  font-weight: 600;
   color: var(--game-text-primary, #fff5e7);
+  font-family: var(--font-serif, Georgia, serif);
 }
 
-.phase1-market__card-hint {
-  font-size: 12px;
+.phase1-market__card-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
   color: var(--game-text-secondary, rgba(255, 255, 255, 0.6));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  white-space: nowrap;
 }
 
-/* ── Price display ── */
-
-.phase1-market__price-display {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+.phase1-market__card-lock {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--game-text-warn, #f6ad55);
+  border: 1px solid rgba(246, 173, 85, 0.18);
+  white-space: nowrap;
 }
 
-.phase1-market__price-block {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+.phase1-market__card-lock-icon {
+  flex-shrink: 0;
+  color: inherit;
 }
 
-.phase1-market__price-label {
-  font-size: 12px;
-  color: var(--game-text-secondary, rgba(255, 255, 255, 0.6));
-}
-
-.phase1-market__price-value {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--game-text-value, #fceb9c);
-  line-height: 1.1;
-}
+/* ── Balance Indicator ── */
 
 .phase1-market__balance {
   font-size: 11px;
-  color: var(--game-text-secondary, rgba(255, 255, 255, 0.55));
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
 }
 
 .phase1-market__balance--shortage {
   color: #f08072;
-  font-weight: 600;
+  background: rgba(240, 128, 114, 0.1);
 }
 
 .phase1-market__balance--surplus {
   color: #6dd99a;
-  font-weight: 600;
+  background: rgba(109, 217, 154, 0.1);
 }
 
 .phase1-market__balance--balanced {
   color: #d6c98e;
-  font-weight: 600;
+  background: rgba(214, 201, 142, 0.1);
 }
 
-/* ── Slider row ── */
+/* ── Stepper ── */
 
-.phase1-market__slider-row {
+.phase1-market__stepper {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 4px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.phase1-market__slider {
-  flex: 1;
-  height: 4px;
-  -webkit-appearance: none;
-  appearance: none;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
-  outline: none;
-}
-
-.phase1-market__slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--game-text-value, #fceb9c);
-  border: 2px solid rgba(0, 0, 0, 0.5);
-  cursor: pointer;
-}
-
-.phase1-market__slider::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--game-text-value, #fceb9c);
-  border: 2px solid rgba(0, 0, 0, 0.5);
-  cursor: pointer;
-}
-
-.phase1-market__slider-input {
-  width: 80px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.3);
+.phase1-market__stepper-btn,
+.phase1-market__stepper-zero,
+.phase1-market__stepper-max {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--game-text-primary, #fff5e7);
-  font-size: 14px;
-  text-align: right;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 600;
+  transition: background 0.12s ease, border-color 0.12s ease, transform 0.08s ease;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-.phase1-market__slider-max {
-  font-size: 13px;
+.phase1-market__stepper-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.phase1-market__stepper-zero,
+.phase1-market__stepper-max {
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  letter-spacing: 0.03em;
+}
+
+.phase1-market__stepper-btn:active:not(:disabled),
+.phase1-market__stepper-zero:active:not(:disabled),
+.phase1-market__stepper-max:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.phase1-market__stepper-btn:hover:not(:disabled),
+.phase1-market__stepper-zero:hover:not(:disabled),
+.phase1-market__stepper-max:hover:not(:disabled) {
+  background: rgba(212, 175, 55, 0.15);
+  border-color: rgba(212, 175, 55, 0.35);
+}
+
+.phase1-market__stepper-btn:disabled,
+.phase1-market__stepper-zero:disabled,
+.phase1-market__stepper-max:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.phase1-market__stepper-value {
+  flex: 1;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--game-text-value, #fceb9c);
+  font-family: var(--font-serif, Georgia, serif);
+  min-width: 32px;
+}
+
+/* ── Preview Grid ── */
+
+.phase1-market__preview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  animation: phase1-market-fade 0.25s ease;
+}
+
+.phase1-market__preview-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.phase1-market__preview-label {
+  font-size: 10px;
   color: var(--game-text-secondary, rgba(255, 255, 255, 0.6));
+  letter-spacing: 0.04em;
 }
 
-.phase1-market__feedback {
-  margin: 0;
-  font-size: 13px;
-  color: var(--game-text-secondary, rgba(255, 255, 255, 0.78));
+.phase1-market__preview-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--game-text-primary, #fff5e7);
+  font-family: var(--font-serif, Georgia, serif);
+  line-height: 1.1;
 }
 
-.phase1-market__feedback strong {
+.phase1-market__preview-value--gold {
   color: var(--game-text-value, #fceb9c);
 }
 
-/* ── Regions ── */
-
-.phase1-market__regions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+@keyframes phase1-market-fade {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-.phase1-market__region {
+/* ── Overseas Price ── */
+
+.phase1-market__overseas-price {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.phase1-market__overseas-price-label {
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.6));
+}
+
+.phase1-market__overseas-price-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--game-text-value, #fceb9c);
+}
+
+/* ── Regions Grid ── */
+
+.phase1-market__regions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+/* ── Footer ── */
+
+.phase1-market__footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.phase1-market__region--locked {
-  opacity: 0.5;
-}
-
-.phase1-market__region-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.phase1-market__region-info strong {
-  font-size: 14px;
-  color: var(--game-text-primary, #fff5e7);
-}
-
-.phase1-market__region-access {
-  font-size: 11px;
-  color: var(--game-text-secondary, rgba(255, 255, 255, 0.55));
-}
-
-.phase1-market__region-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.phase1-market__region-input {
-  width: 80px;
-  padding: 6px 10px;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding: 8px 12px;
   border-radius: 8px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: var(--game-text-primary, #fff5e7);
-  font-size: 14px;
-  text-align: right;
+  background: rgba(212, 175, 55, 0.08);
+  border: 1px solid rgba(212, 175, 55, 0.18);
 }
 
-.phase1-market__region-locked {
+.phase1-market__footer-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.phase1-market__footer-label {
   font-size: 12px;
-  color: var(--game-text-warn, #f08072);
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.6));
 }
 
-@media (max-width: 720px) {
-  .phase1-market__price-display {
+.phase1-market__footer-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--game-text-primary, #fff5e7);
+}
+
+.phase1-market__footer-value--highlight {
+  font-size: 18px;
+  color: var(--game-text-value, #fceb9c);
+}
+
+/* ── Mobile ── */
+
+@media (max-width: 480px) {
+  .phase1-market__summary {
+    gap: 4px;
+  }
+
+  .phase1-market__stat {
+    padding: 6px 4px;
+  }
+
+  .phase1-market__stat-value {
+    font-size: 15px;
+  }
+
+  .phase1-market__preview-grid {
     grid-template-columns: 1fr;
+  }
+
+  .phase1-market__regions-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 }

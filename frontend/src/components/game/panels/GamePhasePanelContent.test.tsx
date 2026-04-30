@@ -296,7 +296,7 @@ describe("GamePhasePanelContent", () => {
     expect(screen.getByText("中东 已建交")).toBeInTheDocument();
   });
 
-  it("builds the 2.0 market payload with domestic and overseas sale orders", async () => {
+  it("builds the 2.0 market payload with phase1Market allocations", async () => {
     renderPanel("market", {
       marketWorkspace: createMarketPlayerWorkspace({
         regionAccessStatus: [
@@ -306,6 +306,8 @@ describe("GamePhasePanelContent", () => {
             accessLevel: "concession",
             isAccessible: true,
             isDiplomacyEstablished: true,
+            isColonized: false,
+            controller: null,
             acceptedGoods: ["grain"],
           },
         ],
@@ -313,27 +315,29 @@ describe("GamePhasePanelContent", () => {
     });
     const user = userEvent.setup();
 
-    await user.click(screen.getByLabelText("增加粮食国内市场卖量"));
-    await user.click(screen.getByLabelText("增加粮食国内市场卖量"));
-    await user.click(screen.getByLabelText("增加粮食亚太卖量"));
+    // Click the domestic market stepper "+" button twice
+    const domesticIncreaseBtn = screen.getByLabelText("增加国内市场投放");
+    await user.click(domesticIncreaseBtn);
+    await user.click(domesticIncreaseBtn);
 
-    expect(readDraftJson()).toEqual({
-      phase1Market: {
-        domesticAllocation: 0,
-        externalAllocations: [],
-      },
-      saleOrders: [
-        { goodsId: "grain", market: "domestic", quantity: 2 },
-        { goodsId: "grain", market: "overseas", quantity: 1, regionId: "asia_pacific" },
-      ],
+    // Click the overseas region stepper "+" button
+    const overseasIncreaseBtn = screen.getByLabelText("增加亚太投放");
+    await user.click(overseasIncreaseBtn);
+
+    const draft = readDraftJson();
+    expect(draft.phase1Market).toEqual({
+      domesticAllocation: 2,
+      externalAllocations: [{ marketId: "asia_pacific", quantity: 1 }],
     });
   });
 
-  it("shows price trend context in the market sell rows", () => {
+  it("renders the Phase1MarketPanel with summary stats", () => {
     renderPanel("market");
 
-    expect(screen.getAllByText("行情上涨 +1").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("行情下跌 -1").length).toBeGreaterThan(0);
-    expect(screen.getByText("参考价 3")).toBeInTheDocument();
+    const panel = screen.getByTestId("phase1-market-panel");
+    expect(panel).toBeInTheDocument();
+    expect(within(panel).getByText("商品库存")).toBeInTheDocument();
+    expect(within(panel).getByText("本国需求")).toBeInTheDocument();
+    expect(within(panel).getByText("消费池")).toBeInTheDocument();
   });
 });

@@ -41,157 +41,225 @@ export function Phase1MarketPanel({
     0,
   );
 
-  const clampedAllocation = clamp(draftAllocation, 0, totalGoods);
+  const clampedDomestic = clamp(draftAllocation, 0, totalGoods);
 
   const preview = useMemo(
-    () => calculatePreview(clampedAllocation, domesticDemand, equilibriumPrice, domesticPricePreview),
-    [clampedAllocation, domesticDemand, equilibriumPrice, domesticPricePreview],
+    () => calculatePreview(clampedDomestic, domesticDemand, equilibriumPrice, domesticPricePreview),
+    [clampedDomestic, domesticDemand, equilibriumPrice, domesticPricePreview],
   );
 
   const overseasRegions = regionAccessStatus.filter((status) => status.regionId !== "domestic");
+  const totalAllocated = clampedDomestic + externalAllocationTotal;
 
-  const remainingForExternal = Math.max(0, totalGoods - clampedAllocation);
+  function handleDomesticDelta(delta: number) {
+    onAllocationChange(clamp(clampedDomestic + delta, 0, totalGoods));
+  }
+
+  function handleDomesticZero() {
+    onAllocationChange(0);
+  }
+
+  function handleDomesticMax() {
+    onAllocationChange(totalGoods);
+  }
 
   return (
     <section className="phase1-market" data-testid="phase1-market-panel">
-      <div className="phase1-market__header">
-        <h3 className="phase1-market__title">📊 统一商品市场（2.0）</h3>
-        <span className="phase1-market__subtitle">基于供需的均衡价格机制</span>
-      </div>
-
+      {/* ── Summary Bar ── */}
       <div className="phase1-market__summary">
-        <SummaryPill label="可售商品" value={totalGoods} />
-        <SummaryPill label="本国需求" value={domesticDemand} />
-        <SummaryPill label="消费池" value={consumerPool} />
-        <SummaryPill label="均衡价格" value={Math.round(equilibriumPrice * 100) / 100} accent />
+        <div className="phase1-market__stat">
+          <span className="phase1-market__stat-value">{totalGoods}</span>
+          <span className="phase1-market__stat-label">商品库存</span>
+        </div>
+        <div className="phase1-market__stat">
+          <span className="phase1-market__stat-value">{domesticDemand}</span>
+          <span className="phase1-market__stat-label">本国需求</span>
+        </div>
+        <div className="phase1-market__stat">
+          <span className="phase1-market__stat-value">{consumerPool}</span>
+          <span className="phase1-market__stat-label">消费池</span>
+        </div>
       </div>
 
-      <article className="phase1-market__card">
-        <div className="phase1-market__card-header">
-          <strong>国内市场投放</strong>
-          <span className="phase1-market__card-hint">
-            滑动调整投放量，价格根据供需关系实时浮动
+      {/* ── Domestic Market Card ── */}
+      <article className="phase1-market__card phase1-market__card--domestic">
+        <header className="phase1-market__card-header">
+          <span className="phase1-market__card-name">国内市场</span>
+          <span className={`phase1-market__balance phase1-market__balance--${preview.tone}`}>
+            {preview.balanceLabel}
           </span>
+        </header>
+
+        <div className="phase1-market__stepper">
+          <button
+            type="button"
+            className="phase1-market__stepper-btn"
+            disabled={clampedDomestic <= 0}
+            onClick={() => handleDomesticDelta(-1)}
+            aria-label="减少国内市场投放"
+          >
+            −
+          </button>
+          <button
+            type="button"
+            className="phase1-market__stepper-zero"
+            disabled={clampedDomestic <= 0}
+            onClick={handleDomesticZero}
+            aria-label="国内市场投放清零"
+          >
+            0
+          </button>
+          <span className="phase1-market__stepper-value">{clampedDomestic}</span>
+          <button
+            type="button"
+            className="phase1-market__stepper-btn"
+            disabled={clampedDomestic >= totalGoods}
+            onClick={() => handleDomesticDelta(1)}
+            aria-label="增加国内市场投放"
+          >
+            +
+          </button>
+          <button
+            type="button"
+            className="phase1-market__stepper-max"
+            disabled={clampedDomestic >= totalGoods}
+            onClick={handleDomesticMax}
+            aria-label="国内市场投放最大"
+          >
+            MAX
+          </button>
         </div>
 
-        <div className="phase1-market__price-display">
-          <div className="phase1-market__price-block">
-            <span className="phase1-market__price-label">实时价格</span>
-            <strong className="phase1-market__price-value">{preview.price}</strong>
-            <span className={`phase1-market__balance phase1-market__balance--${preview.tone}`}>
-              {preview.balanceLabel}
-            </span>
+        <div className="phase1-market__preview-grid">
+          <div className="phase1-market__preview-block">
+            <span className="phase1-market__preview-label">价格</span>
+            <strong className="phase1-market__preview-value">{preview.price}</strong>
           </div>
-          <div className="phase1-market__price-block">
-            <span className="phase1-market__price-label">预计成交量</span>
-            <strong className="phase1-market__price-value">{preview.soldQty}</strong>
-            <span className="phase1-market__balance">min(投放, 需求)</span>
+          <div className="phase1-market__preview-block">
+            <span className="phase1-market__preview-label">成交量</span>
+            <strong className="phase1-market__preview-value">{preview.soldQty}</strong>
           </div>
-          <div className="phase1-market__price-block">
-            <span className="phase1-market__price-label">预计收入</span>
-            <strong className="phase1-market__price-value">{preview.revenue}</strong>
-            <span className="phase1-market__balance">{preview.soldQty} × {preview.price}</span>
+          <div className="phase1-market__preview-block">
+            <span className="phase1-market__preview-label">收入</span>
+            <strong className="phase1-market__preview-value phase1-market__preview-value--gold">{preview.revenue}</strong>
           </div>
         </div>
-
-        <div className="phase1-market__slider-row">
-          <input
-            aria-label="国内市场投放量"
-            className="phase1-market__slider"
-            max={totalGoods}
-            min={0}
-            onChange={(event) => onAllocationChange(clamp(Number(event.target.value), 0, totalGoods))}
-            step={1}
-            type="range"
-            value={clampedAllocation}
-          />
-          <input
-            aria-label="国内市场投放量数字输入"
-            className="phase1-market__slider-input"
-            max={totalGoods}
-            min={0}
-            onChange={(event) => onAllocationChange(clamp(Number(event.target.value), 0, totalGoods))}
-            type="number"
-            value={clampedAllocation}
-          />
-          <span className="phase1-market__slider-max">/ {totalGoods}</span>
-        </div>
-
-        <p className="phase1-market__feedback">
-          按当前投放 <strong>{clampedAllocation}</strong> → 价格 <strong>{preview.price}</strong> → 预计收入 <strong>{preview.revenue}</strong>
-        </p>
       </article>
 
-      {overseasRegions.length > 0 ? (
-        <article className="phase1-market__card">
-          <div className="phase1-market__card-header">
-            <strong>海外市场投放</strong>
-            <span className="phase1-market__card-hint">
-              剩余可投放：{remainingForExternal} / {totalGoods}
-            </span>
-          </div>
-          <div className="phase1-market__regions">
-            {overseasRegions.map((region) => {
-              const allocation = externalAllocations.find((item) => item.marketId === region.regionId);
-              const quantity = allocation?.quantity ?? 0;
-              const accessible = region.isAccessible;
-              return (
-                <div
-                  key={region.regionId}
-                  className={`phase1-market__region${accessible ? "" : " phase1-market__region--locked"}`}
-                >
-                  <div className="phase1-market__region-info">
-                    <strong>{region.label}</strong>
-                    <span className="phase1-market__region-access">
-                      {getRegionAccessLevelLabel(region.accessLevel)}
-                    </span>
-                  </div>
-                  <div className="phase1-market__region-controls">
-                    {accessible ? (
-                      <input
-                        aria-label={`${region.label}投放量`}
-                        className="phase1-market__region-input"
-                        min={0}
-                        onChange={(event) => onExternalAllocationChange(
-                          region.regionId,
-                          clamp(Number(event.target.value), 0, totalGoods),
-                        )}
-                        type="number"
-                        value={quantity}
-                      />
-                    ) : (
-                      <span className="phase1-market__region-locked">未开放</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          {externalAllocationTotal > 0 ? (
-            <p className="phase1-market__feedback">
-              海外合计已投放 <strong>{externalAllocationTotal}</strong> 件
-            </p>
-          ) : null}
-        </article>
-      ) : null}
-    </section>
-  );
-}
+      {/* ── Overseas Market Cards ── */}
+      {overseasRegions.length > 0 && (
+        <div className="phase1-market__regions-grid">
+          {overseasRegions.map((region) => {
+            const allocation = externalAllocations.find((item) => item.marketId === region.regionId);
+            const quantity = allocation?.quantity ?? 0;
+            const accessible = region.isAccessible;
+            const maxForRegion = Math.max(0, totalGoods - clampedDomestic - externalAllocationTotal + quantity);
+            const overseasPrice = Math.round(equilibriumPrice * 1.2 * 100) / 100;
 
-function SummaryPill({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: number | string;
-  accent?: boolean;
-}) {
-  return (
-    <div className={`phase1-market__pill${accent ? " phase1-market__pill--accent" : ""}`}>
-      <span className="phase1-market__pill-label">{label}</span>
-      <strong className="phase1-market__pill-value">{value}</strong>
-    </div>
+            function handleRegionDelta(delta: number) {
+              onExternalAllocationChange(region.regionId, clamp(quantity + delta, 0, maxForRegion));
+            }
+
+            function handleRegionZero() {
+              onExternalAllocationChange(region.regionId, 0);
+            }
+
+            function handleRegionMax() {
+              onExternalAllocationChange(region.regionId, maxForRegion);
+            }
+
+            const cardClass = [
+              "phase1-market__card",
+              "phase1-market__card--overseas",
+              !accessible && "phase1-market__card--locked",
+              accessible && quantity > 0 && "phase1-market__card--active",
+            ]
+              .filter(Boolean)
+              .join(" ");
+
+            return (
+              <article key={region.regionId} className={cardClass}>
+                <header className="phase1-market__card-header">
+                  <span className="phase1-market__card-name">{region.label}</span>
+                  {accessible ? (
+                    <span className="phase1-market__card-badge">{getRegionAccessLevelLabel(region.accessLevel)}</span>
+                  ) : (
+                    <span className="phase1-market__card-lock" title={region.isColonized ? "已被殖民" : "未开放"}>
+                      <svg className="phase1-market__card-lock-icon" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <rect x="3" y="7" width="10" height="7" rx="1.5" />
+                        <path d="M5 7V5a3 3 0 0 1 6 0v2" />
+                      </svg>
+                      未开放
+                    </span>
+                  )}
+                </header>
+
+                {accessible ? (
+                  <>
+                    <div className="phase1-market__stepper">
+                      <button
+                        type="button"
+                        className="phase1-market__stepper-btn"
+                        disabled={quantity <= 0}
+                        onClick={() => handleRegionDelta(-1)}
+                        aria-label={`减少${region.label}投放`}
+                      >
+                        −
+                      </button>
+                      <button
+                        type="button"
+                        className="phase1-market__stepper-zero"
+                        disabled={quantity <= 0}
+                        onClick={handleRegionZero}
+                        aria-label={`${region.label}投放清零`}
+                      >
+                        0
+                      </button>
+                      <span className="phase1-market__stepper-value">{quantity}</span>
+                      <button
+                        type="button"
+                        className="phase1-market__stepper-btn"
+                        disabled={quantity >= maxForRegion}
+                        onClick={() => handleRegionDelta(1)}
+                        aria-label={`增加${region.label}投放`}
+                      >
+                        +
+                      </button>
+                      <button
+                        type="button"
+                        className="phase1-market__stepper-max"
+                        disabled={quantity >= maxForRegion}
+                        onClick={handleRegionMax}
+                        aria-label={`${region.label}投放最大`}
+                      >
+                        MAX
+                      </button>
+                    </div>
+
+                    <div className="phase1-market__overseas-price">
+                      <span className="phase1-market__overseas-price-label">海外价格</span>
+                      <strong className="phase1-market__overseas-price-value">{overseasPrice}</strong>
+                    </div>
+                  </>
+                ) : null}
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Footer ── */}
+      <div className="phase1-market__footer">
+        <span className="phase1-market__footer-row">
+          <span className="phase1-market__footer-label">总投放</span>
+          <span className="phase1-market__footer-value">{totalAllocated} / {totalGoods}</span>
+        </span>
+        <span className="phase1-market__footer-row">
+          <span className="phase1-market__footer-label">预计总收入</span>
+          <span className="phase1-market__footer-value phase1-market__footer-value--highlight">{preview.revenue}</span>
+        </span>
+      </div>
+    </section>
   );
 }
 

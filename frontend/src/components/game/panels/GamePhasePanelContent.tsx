@@ -1,8 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 
-import { MarketSellCard as MarketSellCardComponent } from "./MarketSellCard";
 import { Phase1MarketPanel } from "./Phase1MarketPanel";
-import { buildMarketDeckViewModel as buildMarketDeckViewModelFn } from "../../../features/game/marketDeck/viewModel";
 import { TalentTreePanel } from "./TalentTreePanel";
 import { MilitaryPanel } from "./MilitaryPanel";
 import { GovernmentPanel } from "./GovernmentPanel";
@@ -76,7 +74,7 @@ import type {
   IncomeAllocationRatio,
   IdeologyKey,
   MarketPlayerPhaseWorkspace,
-  MarketRegionReferencePrice,
+
   PlayerPhaseWorkspace,
   PlayerState,
   SettlementPlayerPhaseWorkspace,
@@ -881,7 +879,6 @@ function DecisionStepFooter({
 
 export function MarketWorkbench({
   workspace,
-  playerState,
   draft,
   onChange,
 }: {
@@ -890,17 +887,6 @@ export function MarketWorkbench({
   draft: PhaseDraftByPhase["market"];
   onChange: (value: PhaseDraftByPhase["market"]) => void;
 }) {
-  const marketViewModel = buildMarketDeckViewModelFn(workspace, draft);
-  const riskLines = calculateMarketRiskLines(
-    { ...workspace, sellableInventory: asArray(workspace.sellableInventory) },
-    draft,
-  );
-
-  function handleQuantityChange(goodsId: string, regionId: string | null, quantity: number) {
-    const market = regionId === null ? "domestic" : "overseas";
-    onChange(setSaleOrderQuantity(draft, goodsId, market, Math.max(0, quantity), regionId ?? undefined));
-  }
-
   function handlePhase1AllocationChange(domesticAllocation: number) {
     const previous = draft.phase1Market ?? {
       domesticAllocation: 0,
@@ -939,6 +925,19 @@ export function MarketWorkbench({
     externalAllocations: [],
   };
 
+  const externalTotal = phase1Draft.externalAllocations.reduce(
+    (sum, item) => sum + Math.max(0, item.quantity),
+    0,
+  );
+  const estimatedRevenue = phase1Economy
+    ? calculatePhase1Revenue(
+        phase1Draft.domesticAllocation,
+        externalTotal,
+        phase1Economy.domesticDemand ?? 0,
+        phase1Economy.equilibriumPrice ?? 0,
+      )
+    : 0;
+
   return (
     <section data-testid="market-workbench" className="gp-section">
       <article className="gp-card gp-card--primary gp-step-header">
@@ -948,9 +947,10 @@ export function MarketWorkbench({
             <h2 className="gp-step-title">{workspace.countryLabel}的本轮销售</h2>
           </div>
           <div className="gp-step-header__pills">
-            <span className="gp-step-pill">国内承接 <strong>{marketViewModel.domesticMarketCapacity}</strong></span>
-            <span className="gp-step-pill">海外承接 <strong>{marketViewModel.overseasMarketCapacity}</strong></span>
-            <span className="gp-step-pill">预计收入 <strong>{marketViewModel.totalNationalIncome}</strong></span>
+            <span className="gp-step-pill">商品库存 <strong>{phase1GoodsInventory}</strong></span>
+            <span className="gp-step-pill">预计收入 <strong>{estimatedRevenue}</strong></span>
+            <span className="gp-step-pill">国内投放 <strong>{phase1Draft.domesticAllocation}</strong></span>
+            <span className="gp-step-pill">海外投放 <strong>{externalTotal}</strong></span>
           </div>
         </div>
       </article>
@@ -966,27 +966,6 @@ export function MarketWorkbench({
           onAllocationChange={handlePhase1AllocationChange}
           onExternalAllocationChange={handlePhase1ExternalChange}
         />
-      ) : null}
-
-      <div className="gp-section" style={{ gap: 16 }}>
-        {marketViewModel.goodCards.map((card) => (
-          <MarketSellCardComponent
-            key={card.goodsId}
-            card={card}
-            onQuantityChange={handleQuantityChange}
-          />
-        ))}
-      </div>
-
-      {riskLines.length > 0 ? (
-        <article className="gp-card">
-          <h3 style={{ margin: 0 }}>压仓库风险</h3>
-          <div className="gp-inner-group" style={{ gap: 8 }}>
-            {riskLines.map((line) => (
-              <div key={line} style={{ color: "var(--game-text-warn)" }}>{line}</div>
-            ))}
-          </div>
-        </article>
       ) : null}
     </section>
   );
@@ -1457,8 +1436,14 @@ function buildTechTreeSections(workspace: DecisionPlayerPhaseWorkspace): Array<{
   ].filter((section) => section.nodes.length > 0);
 }
 
-function asArray<T>(value: unknown): T[] {
-  return Array.isArray(value) ? (value as T[]) : [];
+function calculatePhase1Revenue(
+  domesticAllocation: number,
+  externalAllocation: number,
+  demand: number,
+  equilibriumPrice: number,
+): number {
+  const domesticSold = Math.min(domesticAllocation, demand);
+  return domesticSold * equilibriumPrice + externalAllocation * Math.round(equilibriumPrice * 1.2);
 }
 
 function buildProductionHint(option: FactoryProductionOption, availableBatches: number): string {
@@ -1555,112 +1540,6 @@ function buildPointPurchaseFeedback(
     return undefined;
   }
   return `已购买 ${quantity} 点${label}，政府财政 -${quantity * cost}。`;
-}
-
-function getSaleOrderQuantity(
-  draft: PhaseDraftByPhase["market"],
-  goodsId: string,
-  market: "domestic" | "overseas",
-  regionId?: string,
-): number {
-  return draft.saleOrders.find((item) => {
-    if (item.goodsId !== goodsId || item.market !== market) {
-      return false;
-    }
-    return market === "domestic" ? true : item.regionId === regionId;
-  })?.quantity ?? 0;
-}
-
-function setSaleOrderQuantity(
-  draft: PhaseDraftByPhase["market"],
-  goodsId: string,
-  market: "domestic" | "overseas",
-  quantity: number,
-  regionId?: string,
-): PhaseDraftByPhase["market"] {
-  const nextQuantity = normalizeQuantity(quantity);
-  const remainingOrders = draft.saleOrders.filter((item) => {
-    if (item.goodsId !== goodsId || item.market !== market) {
-      return true;
-    }
-    return market === "domestic" ? false : item.regionId !== regionId;
-  });
-  const nextOrders = nextQuantity > 0
-    ? [
-        ...remainingOrders,
-        market === "domestic"
-          ? { goodsId, market, quantity: nextQuantity }
-          : { goodsId, market, quantity: nextQuantity, regionId },
-      ]
-    : remainingOrders;
-
-  return {
-    ...draft,
-    saleOrders: nextOrders,
-  };
-}
-
-function calculateMarketRevenuePreview(
-  workspace: MarketPlayerPhaseWorkspace,
-  draft: PhaseDraftByPhase["market"],
-) {
-  const domesticRevenue = draft.saleOrders
-    .filter((item) => item.market === "domestic")
-    .reduce((sum, item) => {
-      const inventory = workspace.sellableInventory.find((candidate) => candidate.goodsId === item.goodsId);
-      return sum + item.quantity * (inventory?.domesticReferencePrice ?? 0);
-    }, 0);
-  const overseasRevenue = draft.saleOrders
-    .filter((item) => item.market === "overseas")
-    .reduce((sum, item) => {
-      const inventory = workspace.sellableInventory.find((candidate) => candidate.goodsId === item.goodsId);
-      const price = inventory?.overseasReferencePrices.find((candidate) => candidate.regionId === item.regionId);
-      return sum + item.quantity * (price?.unitPrice ?? 0);
-    }, 0);
-
-  return {
-    domesticRevenue,
-    overseasRevenue,
-    nationalIncome: domesticRevenue + overseasRevenue,
-  };
-}
-
-function calculateMarketRiskLines(
-  workspace: MarketPlayerPhaseWorkspace,
-  draft: PhaseDraftByPhase["market"],
-): string[] {
-  const lines: string[] = [];
-  for (const item of workspace.sellableInventory) {
-    const allocated = draft.saleOrders.filter((order) => order.goodsId === item.goodsId).reduce((sum, order) => sum + order.quantity, 0);
-    if (allocated > item.quantity) {
-      lines.push(`${item.label} 已分配 ${allocated}，超过当前库存 ${item.quantity}。`);
-    } else if (allocated < item.quantity) {
-      lines.push(`${item.label} 仍有 ${item.quantity - allocated} 件未安排卖向，可能继续压仓库。`);
-    }
-  }
-  const domesticAllocated = draft.saleOrders.filter((order) => order.market === "domestic").reduce((sum, order) => sum + order.quantity, 0);
-  if (domesticAllocated > workspace.domesticMarketCapacity) {
-    lines.push(`国内卖量 ${domesticAllocated} 超过承接能力 ${workspace.domesticMarketCapacity}。`);
-  }
-  const overseasAllocated = draft.saleOrders.filter((order) => order.market === "overseas").reduce((sum, order) => sum + order.quantity, 0);
-  if (overseasAllocated > workspace.overseasMarketCapacity) {
-    lines.push(`海外卖量 ${overseasAllocated} 超过承接能力 ${workspace.overseasMarketCapacity}。`);
-  }
-  return lines;
-}
-
-function formatOverseasRange(prices: MarketRegionReferencePrice[]): string {
-  if (prices.length === 0) {
-    return "0";
-  }
-  const values = prices.map((item) => item.unitPrice);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  return min === max ? String(min) : `${min}-${max}`;
-}
-
-function normalizeQuantity(value: number): number {
-  return Math.max(0, Number.isFinite(value) ? value : 0);
 }
 
 function setPhase1RawMaterialAssignment(

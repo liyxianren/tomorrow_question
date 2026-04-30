@@ -516,6 +516,19 @@ export function createMarketPlayerWorkspace(
         acceptedGoods: ["oil", "tea"],
       },
     ],
+    phase1Economy: {
+      capacityByMode: {},
+      rawMaterials: 10,
+      goodsInventory: 5,
+      productionModes: [],
+      domesticDemand: 3,
+      equilibriumPrice: 4,
+      domesticPricePreview: 4,
+      investmentPool: 12,
+      incomeAllocationRatio: {},
+      marketMetrics: {},
+    },
+    phase1GoodsAvailable: 5,
     ...overrides,
   };
 }
