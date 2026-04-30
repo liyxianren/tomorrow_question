@@ -230,6 +230,8 @@ def build_decision_player_workspace(snapshot: GameSnapshot, player: PlayerState)
                     "adminCost": int(reform.admin_cost),
                     "isCompleted": reform.reform_id in player.completed_reforms,
                     "isBlocked": _is_reform_blocked_for_workspace(player, reform, balance),
+                    "effects": reform.effects,
+                    "unlocksPolicies": list(reform.unlocks_policies),
                 }
                 for reform in balance.reforms.reforms.values()
             ],
