@@ -1,6 +1,6 @@
 {
-  "armyUnitCost": 10,
-  "navyUnitCost": 50,
+  "armyUnitCost": 8,
+  "navyUnitCost": 25,
   "oceanControlThreshold": 2,
   "independenceThreshold": 10,
   "colonizationUnlockCost": 10,

@@ -60,7 +60,7 @@ def build_turn_input_payload(
 
 def build_decision_payload(
     *,
-    goods_id: str = "coal",
+    goods_id: str = "phase1_goods",
     quantity: int = 1,
     point_purchases: list[dict[str, object]] | None = None,
     talent_unlocks: list[str] | None = None,
@@ -76,13 +76,14 @@ def build_decision_payload(
         "governmentPlan": {
             "pointPurchases": list(point_purchases or []),
             "strategySelections": [],
-            "techResearch": [],
+            "adminPurchases": 0,
         },
         "militaryPlan": {
-            "unlockColonization": False,
             "militaryActions": [],
             "diplomacyActions": [],
-            "colonizationActions": [],
+            "navalDeployment": {},
+            "conquestActions": [],
+            "lootingActions": [],
         },
         "talentPlan": {
             "talentUnlocks": [{"nodeId": node_id} for node_id in (talent_unlocks or [])],
@@ -90,7 +91,7 @@ def build_decision_payload(
     }
 
 
-def build_market_payload(*, goods_id: str = "steel", quantity: int = 1) -> dict[str, object]:
+def build_market_payload(*, goods_id: str = "phase1_goods", quantity: int = 1) -> dict[str, object]:
     return {
         "saleOrders": [{"goodsId": goods_id, "market": "domestic", "quantity": quantity}],
     }
@@ -232,6 +233,7 @@ class SubmissionApplicationTransactionTests(unittest.TestCase):
         game_payload = self.games.get("game-1")
         initial_snapshot_payload = self.snapshots.get(game_payload["activeSnapshotId"])
         initial_snapshot_payload["nationalStateByPlayer"]["player-1"]["budgetPools"]["governmentFiscal"] = 100
+        initial_snapshot_payload["nationalStateByPlayer"]["player-1"]["techPoints"] = 5
         self.snapshots.save(initial_snapshot_payload)
 
         self.persist_turn_inputs(

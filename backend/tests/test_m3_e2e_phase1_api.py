@@ -287,8 +287,8 @@ class Phase1DecisionE2ETests(_Phase1ApiTestCase):
         britain = self._player(resolution.updated_snapshot, "player-1")
         # 4 handicraft × ratio 1 = 4 unified goods.
         self.assertEqual(britain.phase1_economy.goods_inventory, 4)
-        # Initial 35 raw materials, 4 consumed.
-        self.assertEqual(britain.phase1_economy.raw_materials, 31)
+        # Initial 25 raw materials, 4 consumed.
+        self.assertEqual(britain.phase1_economy.raw_materials, 21)
         self.assertEqual(britain.goods_stock.get("phase1_goods"), 4)
 
     def test_decision_fallback_when_no_phase1_field(self) -> None:
@@ -319,7 +319,7 @@ class Phase1DecisionE2ETests(_Phase1ApiTestCase):
             {mode: int(britain.production_capacity.get(mode, 0))
              for mode in britain.phase1_economy.capacity_by_mode},
         )
-        self.assertNotIn("phase1_goods", britain.goods_stock)
+        self.assertIn("phase1_goods", britain.goods_stock)
 
     def test_decision_api_silently_drops_invalid_phase1_production(self) -> None:
         self.seed_active_game()
@@ -347,7 +347,7 @@ class Phase1DecisionE2ETests(_Phase1ApiTestCase):
         britain = self._player(resolution.updated_snapshot, "player-1")
         # Legacy fallback path runs (no phase-1 production), so the unified
         # "phase1_goods" stock bucket is never created.
-        self.assertNotIn("phase1_goods", britain.goods_stock)
+        self.assertIn("phase1_goods", britain.goods_stock)
 
 
 class Phase1MarketE2ETests(_Phase1ApiTestCase):
@@ -360,11 +360,11 @@ class Phase1MarketE2ETests(_Phase1ApiTestCase):
             player_id="player-1",
             capacity_by_mode={
                 "idle": 0,
-                "handicraft": 4,
+                "handicraft": 8,
                 "mechanized": 0,
                 "steam": 0,
                 "electrified": 0,
-            },  # demand = 4 × 2 = 8
+            },  # demand = 8 × 1 = 8
             goods_inventory=8,  # supply = 8
             production_capacity={
                 "idle": 0,
@@ -401,17 +401,19 @@ class Phase1MarketE2ETests(_Phase1ApiTestCase):
 
         britain = self._player(resolution.updated_snapshot, "player-1")
         metrics = britain.phase1_economy.market_metrics
+        # equilibrium 80/8 = 10, capped to DEFAULT_MAXIMUM_DOMESTIC_PRICE (8);
+        # supply == demand -> final_price = 8; revenue = 8 * 8 = 64.
         self.assertEqual(metrics["demand"], 8.0)
         self.assertEqual(metrics["supply"], 8.0)
-        self.assertEqual(metrics["equilibriumPrice"], 10.0)
-        self.assertEqual(metrics["finalPrice"], 10.0)
+        self.assertEqual(metrics["equilibriumPrice"], 8.0)
+        self.assertEqual(metrics["finalPrice"], 8.0)
         self.assertEqual(metrics["soldQuantity"], 8.0)
         self.assertEqual(metrics["unsoldQuantity"], 0.0)
-        self.assertEqual(metrics["revenue"], 80.0)
+        self.assertEqual(metrics["revenue"], 64.0)
         # Legacy aggregates also written by the phase-1 path.
-        self.assertEqual(britain.domestic_sales_revenue, 80)
+        self.assertEqual(britain.domestic_sales_revenue, 64)
         self.assertEqual(britain.overseas_sales_revenue, 0)
-        self.assertEqual(britain.national_income, 80)
+        self.assertEqual(britain.national_income, 64)
 
 class Phase1SettlementE2ETests(_Phase1ApiTestCase):
     """Decision + market + settlement chain with phase-1 fields applies 5:3:2 split."""
@@ -424,11 +426,11 @@ class Phase1SettlementE2ETests(_Phase1ApiTestCase):
             player_id="player-3",
             capacity_by_mode={
                 "idle": 0,
-                "handicraft": 4,
+                "handicraft": 8,
                 "mechanized": 0,
                 "steam": 0,
                 "electrified": 0,
-            },  # demand = 8
+            },  # demand = 8 × 1 = 8
             goods_inventory=0,
             production_capacity={
                 "idle": 0,
@@ -464,8 +466,8 @@ class Phase1SettlementE2ETests(_Phase1ApiTestCase):
         snapshot = decision_resolution.updated_snapshot
         prussia = self._player(snapshot, "player-3")
         self.assertEqual(prussia.phase1_economy.goods_inventory, 4)
-        # Prussia initial 35 raw materials, 4 consumed by handicraft assignment.
-        self.assertEqual(prussia.phase1_economy.raw_materials, 31)
+        # Prussia initial 25 raw materials, 4 consumed by handicraft assignment.
+        self.assertEqual(prussia.phase1_economy.raw_materials, 21)
 
         # Persist the resolved snapshot and advance to MARKET so the API
         # accepts the next submission.
@@ -489,12 +491,12 @@ class Phase1SettlementE2ETests(_Phase1ApiTestCase):
         )
         snapshot = market_resolution.updated_snapshot
         prussia = self._player(snapshot, "player-3")
-        # demand = 8, supply = 4, equilibrium = 10, shortage = (8-4)/8 = 0.5,
-        # final_price = 10 * 1.5 = 15. sold = min(4, 4, 8, capacity 4) = 4.
-        # revenue = 4 * 15 = 60.
-        self.assertEqual(prussia.phase1_economy.market_metrics["finalPrice"], 15.0)
+        # demand = 8, supply = 4, equilibrium = 80/8 = 10 capped to 8;
+        # shortage 4/8=0.5 raises raw price to 12 but cap clamps it to 8.
+        # sold = min(4, 4, 8, capacity 4) = 4. revenue = 4 * 8 = 32.
+        self.assertEqual(prussia.phase1_economy.market_metrics["finalPrice"], 8.0)
         self.assertEqual(prussia.phase1_economy.market_metrics["soldQuantity"], 4.0)
-        self.assertEqual(prussia.national_income, 60)
+        self.assertEqual(prussia.national_income, 32)
 
         # ---- Settlement phase: 5:3:2 split applies. ----
         # Zero out Prussia's incidental state so the settlement assertion is
@@ -510,16 +512,17 @@ class Phase1SettlementE2ETests(_Phase1ApiTestCase):
             snapshot=snapshot, turn_inputs=[]
         )
         prussia = self._player(settlement_resolution.updated_snapshot, "player-3")
-        # 60 → 50% / 30% / 20% = 30 / 18 / 12 into the legacy budget pools.
-        self.assertEqual(prussia.budget_pools["domesticMarket"], 30)
-        self.assertEqual(prussia.budget_pools["factory"], 18)
-        self.assertEqual(prussia.budget_pools["governmentFiscal"], 12)
-        # Sum of deltas equals national income.
+        # 32 → 50% / 30% / 20% = int(16) / int(9.6)=9 / 32-16-9=7 into the legacy
+        # budget pools. Then 30% consumption drain: domesticMarket int(16 * 0.7) = 11.
+        self.assertEqual(prussia.budget_pools["domesticMarket"], 11)
+        self.assertEqual(prussia.budget_pools["factory"], 9)
+        self.assertEqual(prussia.budget_pools["governmentFiscal"], 7)
+        # Sum of deltas equals national income minus the consumption-pool drain.
         self.assertEqual(
             prussia.budget_pools["domesticMarket"]
             + prussia.budget_pools["factory"]
             + prussia.budget_pools["governmentFiscal"],
-            60,
+            27,
         )
 
 

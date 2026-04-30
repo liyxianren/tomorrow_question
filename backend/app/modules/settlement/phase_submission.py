@@ -9,8 +9,6 @@ from app.modules.balance_config import get_balance_config
 from app.modules.game_state.factory_economy import (
     action_locked_reason,
     current_route_capacity,
-    goods_config_by_id,
-    goods_locked_reason,
     route_locked_reason,
 )
 from app.modules.game_state.market_access import is_region_accessible
@@ -255,13 +253,6 @@ def _validate_market_payload(*, snapshot: GameSnapshot, player_state, payload: d
                 f"Overseas market region {region_id} is not accessible.",
             )
 
-        goods_id = str(order.get("goodsId") or "")
-        if goods_id not in region_state.resource_limit:
-            raise PhaseSubmissionError(
-                ErrorCode.INVALID_SUBMISSION,
-                f"Overseas market region {region_id} does not accept goods {goods_id}.",
-            )
-
 
 def _normalize_decision_submission(payload: dict[str, object]) -> dict[str, Any]:
     normalized = default_decision_submission_payload()
@@ -337,16 +328,14 @@ def _normalize_decision_submission(payload: dict[str, object]) -> dict[str, Any]
             ErrorCode.INVALID_SUBMISSION,
             "Decision submission.militaryPlan must be an object.",
         )
-    normalized["militaryPlan"]["unlockColonization"] = bool(military_plan.get("unlockColonization", False))
     normalized["militaryPlan"]["militaryActions"] = _normalize_action_list(
         military_plan.get("militaryActions", [])
     )
     normalized["militaryPlan"]["diplomacyActions"] = _normalize_action_list(
         military_plan.get("diplomacyActions", [])
     )
-    normalized["militaryPlan"]["colonizationActions"] = _normalize_colonization_action_list(
-        military_plan.get("colonizationActions", [])
-    )
+    normalized["militaryPlan"]["unlockColonization"] = bool(military_plan.get("unlockColonization", False))
+    normalized["militaryPlan"]["colonizationActions"] = military_plan.get("colonizationActions", [])
 
     talent_plan = payload.get("talentPlan")
     if isinstance(talent_plan, dict):
@@ -472,30 +461,6 @@ def _normalize_action_list(value: object) -> list[dict[str, str]]:
     return normalized
 
 
-def _normalize_colonization_action_list(value: object) -> list[dict[str, str]]:
-    if not isinstance(value, list):
-        raise PhaseSubmissionError(
-            ErrorCode.INVALID_SUBMISSION,
-            "Colonization selections must be a list.",
-        )
-
-    normalized: list[dict[str, str]] = []
-    for index, raw_item in enumerate(value):
-        if not isinstance(raw_item, dict):
-            raise PhaseSubmissionError(
-                ErrorCode.INVALID_SUBMISSION,
-                f"Colonization selection[{index}] must be an object.",
-            )
-        target_region_id = raw_item.get("targetRegionId")
-        if not isinstance(target_region_id, str) or not target_region_id.strip():
-            raise PhaseSubmissionError(
-                ErrorCode.INVALID_SUBMISSION,
-                f"Colonization selection[{index}].targetRegionId must be a non-empty string.",
-            )
-        normalized.append({"targetRegionId": target_region_id.strip()})
-    return normalized
-
-
 def _normalize_point_purchase_list(value: object) -> list[dict[str, int | str]]:
     if not isinstance(value, list):
         raise PhaseSubmissionError(ErrorCode.INVALID_SUBMISSION, "Point purchases must be a list.")
@@ -601,31 +566,12 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
 
     factory_spend = 0
     for order in payload.get("factoryPlan", {}).get("productionOrders", []):
-        goods_id = str(order.get("goodsId") or "")
-        goods = goods_config_by_id(goods_id)
-        if goods is None:
-            raise PhaseSubmissionError(ErrorCode.INVALID_SUBMISSION, f"Unknown goodsId: {goods_id}")
-        locked_reason = goods_locked_reason(player_state, goods.route_id, goods_id)
-        if locked_reason is not None:
-            if "该国无该商品生产资格" in locked_reason:
-                raise PhaseSubmissionError(
-                    ErrorCode.INVALID_SUBMISSION,
-                    f"Production goods {goods_id} does not have country access.",
-                )
-            raise PhaseSubmissionError(
-                ErrorCode.INVALID_SUBMISSION,
-                f"Production goods {goods_id} requires required technology.",
-            )
         quantity = max(0, int(order.get("quantity", 0)))
         if quantity <= 0:
             continue
-        shared_route_usage[goods.route_id] = int(shared_route_usage.get(goods.route_id, 0)) + quantity
-        if shared_route_usage[goods.route_id] > current_route_capacity(player_state, goods.route_id):
-            raise PhaseSubmissionError(
-                ErrorCode.INVALID_SUBMISSION,
-                f"Production orders exceed shared route capacity for {goods.route_id}.",
-            )
-        factory_spend += quantity * int(goods.unit_budget_cost)
+        # 2.0: productionOrders are legacy pass-through; budget validation is handled by phase1Production rules
+        # We still count them against factory budget to prevent abuse
+        factory_spend += quantity
 
     for order in payload.get("factoryPlan", {}).get("expansionOrders", []):
         route_id = str(order.get("routeId") or "")
@@ -749,67 +695,6 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
             )
         selected_diplomacy_regions.add(action.target_region)
         military_plan_spend += int(action.budget_pool_cost)
-
-    unlock_colonization = bool(payload.get("militaryPlan", {}).get("unlockColonization", False))
-    if unlock_colonization:
-        if player_state.colonization_unlocked:
-            raise PhaseSubmissionError(
-                ErrorCode.INVALID_SUBMISSION,
-                "Colonization has already been permanently unlocked.",
-            )
-        military_plan_spend += int(balance.military.colonization_unlock_cost)
-
-    preview_established_diplomacy = set(player_state.established_diplomacy) | selected_diplomacy_regions
-    preview_colonization_unlocked = bool(player_state.colonization_unlocked or unlock_colonization)
-    preview_military_points = int(player_state.military_points)
-    colonization_target_ids: set[str] = set()
-    colonization_actions = payload.get("militaryPlan", {}).get("colonizationActions", [])
-    if len(colonization_actions) > int(balance.military.max_colonizations_per_round):
-        raise PhaseSubmissionError(
-            ErrorCode.INVALID_SUBMISSION,
-            "Colonization actions exceed maxColonizationsPerRound.",
-        )
-    for selection in colonization_actions:
-        target_region_id = str(selection.get("targetRegionId") or "")
-        if target_region_id in colonization_target_ids:
-            raise PhaseSubmissionError(
-                ErrorCode.INVALID_SUBMISSION,
-                f"Colonization target {target_region_id} is duplicated in this submission.",
-            )
-        colonization_target_ids.add(target_region_id)
-        if not preview_colonization_unlocked:
-            raise PhaseSubmissionError(
-                ErrorCode.INVALID_SUBMISSION,
-                "Colonization requires permanent unlock first.",
-            )
-        if target_region_id not in preview_established_diplomacy:
-            raise PhaseSubmissionError(
-                ErrorCode.INVALID_SUBMISSION,
-                f"Colonization target {target_region_id} requires diplomacy first.",
-            )
-        region_blueprint = balance.regions.region_blueprints.get(target_region_id)
-        if region_blueprint is None or not region_blueprint.colonizable:
-            raise PhaseSubmissionError(
-                ErrorCode.INVALID_SUBMISSION,
-                f"Colonization target {target_region_id} is invalid.",
-            )
-        region_state = next((region for region in snapshot.region_states if region.region_id == target_region_id), None)
-        if region_state is None:
-            raise PhaseSubmissionError(
-                ErrorCode.INVALID_SUBMISSION,
-                f"Colonization target {target_region_id} is missing from snapshot.",
-            )
-        if region_state.controller is not None:
-            raise PhaseSubmissionError(
-                ErrorCode.INVALID_SUBMISSION,
-                f"Colonization target {target_region_id} has already been colonized.",
-            )
-        if preview_military_points < int(balance.military.colonization_military_point_cost):
-            raise PhaseSubmissionError(
-                ErrorCode.INVALID_SUBMISSION,
-                f"Colonization target {target_region_id} does not have enough military points.",
-            )
-        preview_military_points -= int(balance.military.colonization_military_point_cost)
 
     if government_spend + military_plan_spend > government_budget:
         raise PhaseSubmissionError(

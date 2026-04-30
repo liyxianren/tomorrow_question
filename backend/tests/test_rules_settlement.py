@@ -48,9 +48,10 @@ class SettlementRulesTests(unittest.TestCase):
         resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
         updated_britain = get_player(resolution.updated_snapshot, "player-1")
 
-        # 5:3:2 of 12 -> 6 / 3 / 3 deltas added to existing pools.
+        # 5:3:2 of 12 -> 6 / 3 / 3 deltas added to existing pools, then 30%
+        # consumption-pool drain on domesticMarket: (8 + 6) * 0.7 = 9.
         self.assertEqual(updated_britain.cumulative_national_income, 32)
-        self.assertEqual(updated_britain.budget_pools["domesticMarket"], 14)
+        self.assertEqual(updated_britain.budget_pools["domesticMarket"], 9)
         self.assertEqual(updated_britain.budget_pools["factory"], 12)
         self.assertEqual(updated_britain.budget_pools["governmentFiscal"], 14)
         self.assertEqual(updated_britain.national_income, 0)
@@ -71,9 +72,10 @@ class SettlementRulesTests(unittest.TestCase):
         summary_card = next(card for card in resolution.summary["summaryCards"] if card["playerId"] == "player-1")
         generated_log = next(log for log in resolution.generated_logs if log["details"]["playerId"] == "player-1")
 
-        # National income 12 + colony income 5 = 17, split 5:3:2 -> 8 / 5 / 4.
+        # National income 12 + colony income 5 = 17, split 5:3:2 -> 8 / 5 / 4,
+        # then 30% consumption-pool drain on domesticMarket: 8 * 0.7 = 5.
         self.assertEqual(updated_britain.cumulative_national_income, 37)
-        self.assertEqual(updated_britain.budget_pools, {"domesticMarket": 8, "factory": 5, "governmentFiscal": 4})
+        self.assertEqual(updated_britain.budget_pools, {"domesticMarket": 5, "factory": 5, "governmentFiscal": 4})
         self.assertEqual(summary_card["colonyIncome"], 5)
         self.assertEqual(generated_log["details"]["colonyIncome"], 5)
 

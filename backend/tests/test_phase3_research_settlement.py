@@ -53,18 +53,18 @@ class Phase3ResearchSettlementTests(unittest.TestCase):
         snapshot = build_snapshot()
         balance = get_balance_config()
         britain = get_player(snapshot, "player-1")
-        # leyden_jar threshold=3, prior progress 1 + 1 facility = 2 < 3.
-        britain.active_research = "leyden_jar"
-        britain.research_progress = {"leyden_jar": 1}
+        # voltaic_pile threshold=3, prior progress 1 + 1 facility = 2 < 3.
+        britain.active_research = "voltaic_pile"
+        britain.research_progress = {"voltaic_pile": 1}
         britain.research_facilities = {"electrical": 1}
 
         with patch("app.modules.rules.settlement.random.randint") as mock_roll:
             _apply_phase3_research_progress(britain, snapshot, balance)
             mock_roll.assert_not_called()
 
-        self.assertEqual(britain.research_progress.get("leyden_jar"), 2)
-        self.assertNotIn("leyden_jar", britain.unlocked_techs)
-        self.assertEqual(britain.breakthrough_attempts.get("leyden_jar", 0), 0)
+        self.assertEqual(britain.research_progress.get("voltaic_pile"), 2)
+        self.assertNotIn("voltaic_pile", britain.unlocked_techs)
+        self.assertEqual(britain.breakthrough_attempts.get("voltaic_pile", 0), 0)
 
     def test_successful_breakthrough_unlocks_and_clears_progress(self) -> None:
         snapshot = build_snapshot()
@@ -121,21 +121,21 @@ class Phase3ResearchSettlementTests(unittest.TestCase):
         balance = get_balance_config()
         britain = get_player(snapshot, "player-1")
         france = get_player(snapshot, "player-2")
-        # France has already unlocked leyden_jar (threshold=3).
-        france.unlocked_techs.append("leyden_jar")
+        # voltaic_pile threshold=3, France already unlocked it.
+        france.unlocked_techs.append("voltaic_pile")
         # Britain accumulates progress=5+1=6 >= 2*3, direct-unlock without dice.
-        britain.active_research = "leyden_jar"
-        britain.research_progress = {"leyden_jar": 5}
+        britain.active_research = "voltaic_pile"
+        britain.research_progress = {"voltaic_pile": 5}
         britain.research_facilities = {"electrical": 1}
 
         with patch("app.modules.rules.settlement.random.randint") as mock_roll:
             _apply_phase3_research_progress(britain, snapshot, balance)
             mock_roll.assert_not_called()
 
-        self.assertIn("leyden_jar", britain.unlocked_techs)
+        self.assertIn("voltaic_pile", britain.unlocked_techs)
         # Direct-unlock consumes 2*threshold from total accumulated progress.
-        self.assertEqual(britain.research_progress.get("leyden_jar"), 0)
-        self.assertNotIn("leyden_jar", britain.breakthrough_attempts)
+        self.assertEqual(britain.research_progress.get("voltaic_pile"), 0)
+        self.assertNotIn("voltaic_pile", britain.breakthrough_attempts)
 
     def test_no_active_research_is_noop(self) -> None:
         snapshot = build_snapshot()

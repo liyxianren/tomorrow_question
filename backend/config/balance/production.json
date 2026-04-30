@@ -14,21 +14,21 @@
     "electrified": 8
   },
   "expansionCosts": {
-    "handicraft": 5,
-    "mechanized": 10,
-    "steam": 18,
-    "electrified": 30
+    "handicraft": 3,
+    "mechanized": 6,
+    "steam": 12,
+    "electrified": 20
   },
   "upgradeCosts": {
-    "mechanized": 20,
-    "steam": 30,
-    "electrified": 40
+    "mechanized": 12,
+    "steam": 20,
+    "electrified": 30
   },
   "newFactoryCosts": {
-    "handicraft": 20,
-    "mechanized": 40,
-    "steam": 60,
-    "electrified": 80
+    "handicraft": 12,
+    "mechanized": 25,
+    "steam": 40,
+    "electrified": 55
   },
   "upgradeSourceLevels": {
     "mechanized": "handicraft",
@@ -43,7 +43,7 @@
       "unitOutput": 1,
       "domesticReferencePrice": 5,
       "overseasBasePrice": 6,
-      "demandThreshold": 50,
+      "demandThreshold": 30,
       "priceFloor": 2,
       "priceCeiling": 12,
       "overseasPriceCeiling": 24,

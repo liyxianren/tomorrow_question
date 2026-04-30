@@ -157,7 +157,7 @@ class InitialSnapshotPhase1EconomySeedingTests(unittest.TestCase):
             )
 
     def test_capacity_by_mode_matches_legacy_production_capacity_for_known_country(self) -> None:
-        # Britain baseline has handicraft=4 in production.json.
+        # Britain baseline has handicraft=8 in production.json.
         game = create_game(room_code="ROOM01", game_id="game-1")
         snapshot = create_initial_snapshot(
             game=game,
@@ -171,7 +171,7 @@ class InitialSnapshotPhase1EconomySeedingTests(unittest.TestCase):
             },
         )
         britain = next(p for p in snapshot.player_states if p.country == CountryCode.BRITAIN)
-        self.assertEqual(britain.phase1_economy.capacity_by_mode["handicraft"], 4)
+        self.assertEqual(britain.phase1_economy.capacity_by_mode["handicraft"], 8)
         self.assertEqual(britain.phase1_economy.capacity_by_mode["idle"], 0)
         self.assertEqual(britain.phase1_economy.capacity_by_mode["mechanized"], 0)
         self.assertEqual(britain.phase1_economy.capacity_by_mode["steam"], 0)
@@ -230,7 +230,7 @@ class InitialSnapshotPhase1EconomySeedingTests(unittest.TestCase):
         britain_payload = payload["nationalStateByPlayer"]["player-britain"]
         self.assertEqual(
             britain_payload["phase1Economy"]["capacityByMode"]["handicraft"],
-            4,
+            8,
         )
 
 

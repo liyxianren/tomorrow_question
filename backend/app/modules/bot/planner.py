@@ -28,29 +28,10 @@ def _plan_decision(workspace: Mapping[str, Any]) -> dict[str, Any]:
             "newFactoryOrders": [],
         },
         "domesticMarketPlan": {"domesticMarketActions": []},
-        "governmentPlan": {"pointPurchases": [], "strategySelections": []},
+        "governmentPlan": {"adminPurchases": 0, "pointPurchases": [], "strategySelections": []},
     }
 
     budget_pools = _as_mapping(workspace.get("budgetPools"))
-
-    production_options = [
-        option for option in _as_list(workspace.get("productionOptions")) if isinstance(option, dict)
-    ]
-    first_production = next(
-        (
-            option
-            for option in production_options
-            if str(option.get("goodsId") or "") and int(option.get("maxQuantity", 0)) > 0
-        ),
-        None,
-    )
-    if first_production is not None:
-        draft["factoryPlan"]["productionOrders"].append(
-            {
-                "goodsId": str(first_production.get("goodsId")),
-                "quantity": 1,
-            }
-        )
 
     domestic_actions = [
         action for action in _as_list(workspace.get("domesticMarketActions")) if isinstance(action, dict)
@@ -69,32 +50,15 @@ def _plan_decision(workspace: Mapping[str, Any]) -> dict[str, Any]:
             {"actionId": str(first_domestic_action.get("actionId"))}
         )
 
-    government_actions = _as_mapping(workspace.get("governmentActions"))
-    point_purchase_costs = _as_mapping(government_actions.get("pointPurchaseCosts"))
-    government_budget = int(budget_pools.get("governmentFiscal", 0))
-    tech_cost = max(1, int(point_purchase_costs.get("tech", 0) or 0))
-    if government_budget >= tech_cost:
-        draft["governmentPlan"]["pointPurchases"].append({"pointType": "tech", "quantity": 1})
-        government_budget -= tech_cost
+    research_target = _find_research_target(workspace)
+    if research_target:
+        draft["researchTarget"] = research_target
 
-    strategies = [
-        action for action in _as_list(government_actions.get("strategies")) if isinstance(action, dict)
-    ]
-    first_strategy = next(
-        (
-            action
-            for action in strategies
-            if str(action.get("actionId") or "")
-            and government_budget >= int(action.get("cost", 0))
-            and int(workspace.get("techPoints", 0)) + _planned_point_quantity(draft, "tech") >= int(action.get("techPointCost", 0))
-            and int(workspace.get("militaryPoints", 0)) + _planned_point_quantity(draft, "military") >= int(action.get("militaryPointCost", 0))
-        ),
-        None,
-    )
-    if first_strategy is not None:
-        draft["governmentPlan"]["strategySelections"].append(
-            {"actionId": str(first_strategy.get("actionId"))}
-        )
+    government_budget = int(budget_pools.get("governmentFiscal", 0))
+    gov_reforms = _as_mapping(workspace.get("governmentReforms"))
+    admin_cost = max(1, int(gov_reforms.get("adminPurchaseCost", 0) or 0))
+    if government_budget >= admin_cost:
+        draft["governmentPlan"]["adminPurchases"] = government_budget // admin_cost
 
     phase1_economy = _as_mapping(workspace.get("phase1Economy"))
     if phase1_economy:
@@ -178,9 +142,17 @@ def _as_list(value: object) -> list[Any]:
     return list(value) if isinstance(value, list) else []
 
 
-def _planned_point_quantity(draft: dict[str, Any], point_type: str) -> int:
-    return sum(
-        int(purchase.get("quantity", 0))
-        for purchase in _as_list(_as_mapping(draft.get("governmentPlan")).get("pointPurchases"))
-        if isinstance(purchase, dict) and str(purchase.get("pointType")) == point_type
-    )
+def _find_research_target(workspace: Mapping[str, Any]) -> str | None:
+    """Find the first unresearched technology in the first available chain."""
+    tech_tree = _as_mapping(workspace.get("techTree"))
+    chains = _as_list(tech_tree.get("chains"))
+    for chain in chains:
+        if not isinstance(chain, dict):
+            continue
+        techs = _as_list(chain.get("techs"))
+        for tech in techs:
+            if not isinstance(tech, dict):
+                continue
+            if not bool(tech.get("isUnlocked")):
+                return str(tech.get("techId") or "")
+    return None

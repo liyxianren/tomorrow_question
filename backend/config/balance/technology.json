@@ -1,6 +1,6 @@
 {
-  "researchFacilityCost": 12,
-  "researchFacilityProgressPerTurn": 1,
+  "researchFacilityCost": 6,
+  "researchFacilityProgressPerTurn": 2,
   "breakthroughDieSides": 10,
   "routeUnlocks": {
     "mechanized": ["spinning_jenny"],
@@ -11,24 +11,24 @@
     "electrical": {
       "label": "电气链",
       "techs": [
-        { "id": "leyden_jar", "label": "莱顿瓶", "threshold": 3 },
-        { "id": "voltaic_pile", "label": "伏打电堆", "threshold": 4 },
-        { "id": "power_generation", "label": "发电", "threshold": 5 }
+        { "id": "leyden_jar", "label": "莱顿瓶", "threshold": 2 },
+        { "id": "voltaic_pile", "label": "伏打电堆", "threshold": 3 },
+        { "id": "power_generation", "label": "发电", "threshold": 4 }
       ]
     },
     "mechanical": {
       "label": "机械链",
       "techs": [
-        { "id": "spinning_jenny", "label": "珍妮纺纱机", "threshold": 3 },
-        { "id": "lathe", "label": "车床", "threshold": 4 }
+        { "id": "spinning_jenny", "label": "珍妮纺纱机", "threshold": 2 },
+        { "id": "lathe", "label": "车床", "threshold": 3 }
       ]
     },
     "steam": {
       "label": "蒸汽链",
       "techs": [
-        { "id": "bessemer_process", "label": "贝塞麦炼钢", "threshold": 3 },
-        { "id": "watt_engine", "label": "瓦特蒸汽机", "threshold": 4 },
-        { "id": "combustion_engine", "label": "内燃机", "threshold": 5 }
+        { "id": "bessemer_process", "label": "贝塞麦炼钢", "threshold": 2 },
+        { "id": "watt_engine", "label": "瓦特蒸汽机", "threshold": 3 },
+        { "id": "combustion_engine", "label": "内燃机", "threshold": 4 }
       ]
     }
   }

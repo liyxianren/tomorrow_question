@@ -263,7 +263,7 @@ class DecisionPhase1ProductionTests(unittest.TestCase):
         # Mirror also flows into legacy production_capacity for frontend compat.
         self.assertEqual(updated.production_capacity["handicraft"], starting_handicraft + 2)
         self.assertEqual(updated.production_capacity["mechanized"], starting_mechanized + 1)
-        self.assertEqual(updated.budget_pools["factory"], 100 - 40 - 40)
+        self.assertEqual(updated.budget_pools["factory"], 100 - 12 * 2 - 25)
 
     def test_phase1_upgrade_orders_move_capacity_between_modes(self) -> None:
         snapshot = _build_snapshot()
@@ -298,7 +298,7 @@ class DecisionPhase1ProductionTests(unittest.TestCase):
         self.assertEqual(updated.phase1_economy.capacity_by_mode["mechanized"], 1)
         self.assertEqual(updated.production_capacity["handicraft"], 3)
         self.assertEqual(updated.production_capacity["mechanized"], 1)
-        self.assertEqual(updated.budget_pools["factory"], 50 - 20)
+        self.assertEqual(updated.budget_pools["factory"], 50 - 12)
 
     def test_phase1_production_skips_mirror_when_new_path_taken(self) -> None:
         # Direct write semantics: the new path should NOT subsequently overwrite
@@ -404,8 +404,8 @@ class MarketPhase1Tests(unittest.TestCase):
         britain = _get_player(snapshot, "player-1")
         # Calibrate so equilibrium price is 10 and supply == demand == 8 -> final price 10.
         britain.phase1_economy.capacity_by_mode = {
-            "idle": 0, "handicraft": 4, "mechanized": 0, "steam": 0, "electrified": 0,
-        }  # demand = 4 * 2 = 8
+            "idle": 0, "handicraft": 8, "mechanized": 0, "steam": 0, "electrified": 0,
+        }  # demand = 8 * 1 = 8
         britain.phase1_economy.goods_inventory = 8
         britain.budget_pools = {"domesticMarket": 80, "factory": 0, "governmentFiscal": 0}
         britain.income_summary["domesticMarketCapacity"] = 8  # avoid capacity-clipping the sale
@@ -422,22 +422,22 @@ class MarketPhase1Tests(unittest.TestCase):
         )
 
         updated = _get_player(resolution.updated_snapshot, "player-1")
-        # equilibrium = 80 / 8 = 10; supply = demand = 8 -> final_price = 10.
-        # 8 sold at 10 -> revenue 80.
-        self.assertEqual(updated.domestic_sales_revenue, 80)
+        # equilibrium = 80 / 8 = 10, capped to DEFAULT_MAXIMUM_DOMESTIC_PRICE (8);
+        # supply = demand = 8 -> final_price = 8. 8 sold at 8 -> revenue 64.
+        self.assertEqual(updated.domestic_sales_revenue, 64)
         self.assertEqual(updated.overseas_sales_revenue, 0)
-        self.assertEqual(updated.national_income, 80)
+        self.assertEqual(updated.national_income, 64)
         self.assertEqual(updated.phase1_economy.goods_inventory, 0)
         self.assertEqual(updated.phase1_economy.market_metrics["soldQuantity"], 8.0)
         self.assertEqual(updated.phase1_economy.market_metrics["unsoldQuantity"], 0.0)
-        self.assertEqual(updated.phase1_economy.market_metrics["revenue"], 80.0)
+        self.assertEqual(updated.phase1_economy.market_metrics["revenue"], 64.0)
 
     def test_phase1_market_external_allocation_uses_overseas_capacity_and_diplomacy(self) -> None:
         snapshot = _build_snapshot(GamePhase.MARKET)
         britain = _get_player(snapshot, "player-1")
         britain.phase1_economy.capacity_by_mode = {
-            "idle": 0, "handicraft": 4, "mechanized": 0, "steam": 0, "electrified": 0,
-        }
+            "idle": 0, "handicraft": 8, "mechanized": 0, "steam": 0, "electrified": 0,
+        }  # demand = 8 * 1 = 8
         britain.phase1_economy.goods_inventory = 8
         britain.budget_pools = {"domesticMarket": 80, "factory": 0, "governmentFiscal": 0}
         britain.income_summary["domesticMarketCapacity"] = 4
@@ -465,11 +465,12 @@ class MarketPhase1Tests(unittest.TestCase):
         )
 
         updated = _get_player(resolution.updated_snapshot, "player-1")
-        # Domestic sells 4 at final_price = 10. Overseas (Europe, multiplier 0.9)
-        # sells 4 at int(equilibrium 10 * 0.9) = 9, so 4 * 9 = 36.
-        self.assertEqual(updated.domestic_sales_revenue, 40)
-        self.assertEqual(updated.overseas_sales_revenue, 36)
-        self.assertEqual(updated.national_income, 76)
+        # equilibrium = 80 / 8 = 10, capped to 8. Domestic shortage 4/8 raises
+        # raw price to 12 but the cap clamps it back to 8 -> 4 sold at 8 = 32.
+        # Overseas (Europe, multiplier 0.9): int(8 * 0.9) = 7, so 4 * 7 = 28.
+        self.assertEqual(updated.domestic_sales_revenue, 32)
+        self.assertEqual(updated.overseas_sales_revenue, 28)
+        self.assertEqual(updated.national_income, 60)
         self.assertEqual(updated.phase1_economy.market_metrics["soldQuantity"], 8.0)
 
 
@@ -491,11 +492,12 @@ class SettlementPhase1Tests(unittest.TestCase):
 
         updated = _get_player(resolution.updated_snapshot, "player-3")
         delta = allocate_revenue_to_pools(Decimal(100))
-        # 100 * 0.5 = 50 -> domesticMarket; 100 * 0.3 = 30 -> factory; remainder 20 -> governmentFiscal.
-        self.assertEqual(updated.budget_pools["domesticMarket"], int(delta.consumption))
+        # 100 * 0.5 = 50 -> domesticMarket, then 30% consumption drain -> 50 * 0.7 = 35
+        # 100 * 0.3 = 30 -> factory; remainder 20 -> governmentFiscal.
+        self.assertEqual(updated.budget_pools["domesticMarket"], int(int(delta.consumption) * 0.7))
         self.assertEqual(updated.budget_pools["factory"], int(delta.investment))
         self.assertEqual(updated.budget_pools["governmentFiscal"], 100 - int(delta.consumption) - int(delta.investment))
-        self.assertEqual(updated.budget_pools["domesticMarket"], 50)
+        self.assertEqual(updated.budget_pools["domesticMarket"], 35)
         self.assertEqual(updated.budget_pools["factory"], 30)
         self.assertEqual(updated.budget_pools["governmentFiscal"], 20)
 
@@ -527,7 +529,7 @@ class SettlementPhase1Tests(unittest.TestCase):
         updated = _get_player(resolution.updated_snapshot, "player-3")
         self.assertEqual(
             updated.phase1_economy.raw_materials,
-            12 + 21,  # prussia rawMaterialsPerTurn = 21 from countries.json
+            12 + 12,  # prussia rawMaterialsPerTurn = 12 from countries.json
         )
 
 if __name__ == "__main__":

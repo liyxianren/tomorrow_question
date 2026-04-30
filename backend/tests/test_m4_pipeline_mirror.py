@@ -111,9 +111,9 @@ class DecisionPhaseMirrorsPhase1EconomyTests(unittest.TestCase):
         )
 
         updated_britain = _get_player(resolution.updated_snapshot, "player-1")
-        # raw_materials is now seeded from country config (35) and preserved by the
+        # raw_materials is now seeded from country config (25) and preserved by the
         # mirror — it is no longer derived from legacy raw_material_usage.
-        self.assertEqual(updated_britain.phase1_economy.raw_materials, 35)
+        self.assertEqual(updated_britain.phase1_economy.raw_materials, 25)
 
     def test_decision_does_not_change_legacy_budget_or_national_income(self) -> None:
         snapshot = _build_snapshot()

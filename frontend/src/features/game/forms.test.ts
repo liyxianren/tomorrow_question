@@ -18,6 +18,7 @@ describe("createInitialPhaseDraft", () => {
         pointPurchases: [],
         strategySelections: [],
         techResearch: [],
+        adminPurchases: 0,
       },
       militaryPlan: {
         unlockColonization: false,

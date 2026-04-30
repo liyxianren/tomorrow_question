@@ -51,10 +51,8 @@ def build_turn_input(player_id: str, payload: dict[str, object]) -> PlayerTurnIn
 
 def empty_military_plan() -> dict[str, object]:
     return {
-        "unlockColonization": False,
         "militaryActions": [],
         "diplomacyActions": [],
-        "colonizationActions": [],
     }
 
 
@@ -153,17 +151,18 @@ class DecisionRulesTests(unittest.TestCase):
                         "domesticMarketPlan": {"domesticMarketActions": []},
                         "governmentPlan": {
                             "pointPurchases": [],
-                            "strategySelections": [{"actionId": "trade_agreement"}],
-                            "techResearch": [],
+                            "strategySelections": [],
+                            "adminPurchases": 0,
                         },
                         "militaryPlan": {
-                            "unlockColonization": False,
                             "militaryActions": [
                                 {"actionId": "naval_drill"},
                                 {"actionId": "recruit_infantry"},
                             ],
                             "diplomacyActions": [],
-                            "colonizationActions": [],
+                            "navalDeployment": {},
+                            "conquestActions": [],
+                            "lootingActions": [],
                         },
                     },
                 )
@@ -171,7 +170,7 @@ class DecisionRulesTests(unittest.TestCase):
         )
 
         updated_britain = get_player(resolution.updated_snapshot, "player-1")
-        self.assertEqual(updated_britain.budget_pools["governmentFiscal"], 2)
+        self.assertEqual(updated_britain.budget_pools["governmentFiscal"], 8)
         self.assertEqual(updated_britain.military_points, britain.military_points + 2)
 
     def test_military_plan_establishes_diplomacy_and_applies_expedition_effects(self) -> None:
@@ -213,12 +212,12 @@ class DecisionRulesTests(unittest.TestCase):
         self.assertIn("americas", updated_france.established_diplomacy)
         self.assertEqual(updated_france.military_points, france.military_points + 2)
 
-    def test_military_plan_can_unlock_and_colonize_after_same_round_diplomacy(self) -> None:
+    def test_military_plan_can_conquer_colonizable_region(self) -> None:
         snapshot = build_snapshot()
         britain = get_player(snapshot, "player-1")
         britain.budget_pools = {"domesticMarket": 12, "factory": 14, "governmentFiscal": 18}
-        britain.military_points = 3
-        britain.established_diplomacy = ["asia_pacific"]
+        britain.army = {"infantry": 2, "artillery": 0}
+        britain.established_diplomacy = ["americas"]
 
         resolution = resolve_decision_phase(
             snapshot=snapshot,
@@ -235,10 +234,9 @@ class DecisionRulesTests(unittest.TestCase):
                         "domesticMarketPlan": {"domesticMarketActions": []},
                         "governmentPlan": {"pointPurchases": [], "strategySelections": [], "techResearch": []},
                         "militaryPlan": {
-                            "unlockColonization": True,
                             "militaryActions": [],
-                            "diplomacyActions": [{"actionId": "establish_americas"}],
-                            "colonizationActions": [{"targetRegionId": "americas"}],
+                            "diplomacyActions": [],
+                            "conquestActions": [{"regionId": "americas", "infantry": 1, "artillery": 0}],
                         },
                     },
                 )
@@ -246,13 +244,10 @@ class DecisionRulesTests(unittest.TestCase):
         )
 
         updated_britain = get_player(resolution.updated_snapshot, "player-1")
-        americas = next(region for region in resolution.updated_snapshot.region_states if region.region_id == "americas")
+        americas_region = next(region for region in resolution.updated_snapshot.region_states if region.region_id == "americas")
 
-        self.assertEqual(updated_britain.budget_pools["governmentFiscal"], 3)
-        self.assertEqual(updated_britain.military_points, 0)
-        self.assertTrue(updated_britain.colonization_unlocked)
-        self.assertIn("americas", updated_britain.established_diplomacy)
-        self.assertEqual(americas.controller, updated_britain.country.value)
+        self.assertEqual(updated_britain.army["infantry"], 1)
+        self.assertEqual(americas_region.controller, updated_britain.country.value)
 
 
 if __name__ == "__main__":

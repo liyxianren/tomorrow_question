@@ -102,6 +102,7 @@ class NationalStatePayload(TypedDict):
     militaryPoints: int
     productionCapacity: dict[str, int]
     pendingProductionCapacity: dict[str, int]
+    # Deprecated (1.0): only key 'phase1_goods' used post-Phase1; dict retained for legacy compatibility
     goodsStock: dict[str, int]
     rawMaterialUsage: dict[str, int]
     research: dict[str, int]
@@ -152,7 +153,8 @@ class RankingEntryPayload(TypedDict):
 
 
 class ProductionOrderPayload(TypedDict):
-    goodsId: str
+    # Deprecated (1.0): goodsId is legacy multi-goods identifier; 2.0 uses phase1Production instead
+    goodsId: NotRequired[str]
     quantity: int
 
 
@@ -264,7 +266,8 @@ class DecisionSubmissionPayload(TypedDict):
 
 
 class SaleOrderPayload(TypedDict):
-    goodsId: str
+    # Deprecated (1.0): goodsId is legacy multi-goods identifier; 2.0 uses phase1Market instead
+    goodsId: NotRequired[str]
     market: Literal["domestic", "overseas"]
     quantity: int
     regionId: NotRequired[str]

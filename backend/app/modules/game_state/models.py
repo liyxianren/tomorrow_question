@@ -147,6 +147,7 @@ class PlayerState:
     military_points: int = 0
     production_capacity: dict[str, int] = field(default_factory=dict)
     pending_production_capacity: dict[str, int] = field(default_factory=dict)
+    # Only key 'phase1_goods' used post-Phase1; dict retained for legacy compatibility
     goods_stock: dict[str, int] = field(default_factory=dict)
     raw_material_usage: dict[str, int] = field(default_factory=dict)
     research: dict[str, int] = field(default_factory=dict)

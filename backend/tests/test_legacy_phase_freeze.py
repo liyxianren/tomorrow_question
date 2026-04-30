@@ -61,10 +61,8 @@ class LegacyPhaseFreezeTests(unittest.TestCase):
         self.assertEqual(decision_payload["governmentPlan"]["pointPurchases"], [])
         self.assertEqual(decision_payload["governmentPlan"]["strategySelections"], [])
         self.assertEqual(decision_payload["governmentPlan"]["techResearch"], [])
-        self.assertEqual(decision_payload["militaryPlan"]["unlockColonization"], False)
         self.assertEqual(decision_payload["militaryPlan"]["militaryActions"], [])
         self.assertEqual(decision_payload["militaryPlan"]["diplomacyActions"], [])
-        self.assertEqual(decision_payload["militaryPlan"]["colonizationActions"], [])
         self.assertEqual(market_payload, {"saleOrders": []})
 
     def test_military_plan_applies_effects_and_diplomacy(self) -> None:

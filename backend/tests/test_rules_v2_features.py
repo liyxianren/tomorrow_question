@@ -72,7 +72,7 @@ class V2FeatureRulesTests(unittest.TestCase):
 
         updated_britain = get_player(resolution.updated_snapshot, "player-1")
         self.assertEqual(updated_britain.temporary_effects, DEFAULT_TEMPORARY_EFFECTS)
-        self.assertEqual(resolution.updated_snapshot.market_price_adjustments["grain"], 1)
+        self.assertEqual(resolution.updated_snapshot.market_price_adjustments["phase1_goods"], 1)
         self.assertEqual(
             [event["eventId"] for event in resolution.updated_snapshot.active_events],
             ["harvest_boom", "trade_winds"],

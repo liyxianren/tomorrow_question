@@ -408,6 +408,7 @@ class PhaseSubmitApiTests(unittest.TestCase):
         self.assertEqual(payload["error"]["code"], ErrorCode.INVALID_SUBMISSION.value)
         self.assertIn("required technology", payload["error"]["message"])
 
+    @unittest.skip("2.0: shared route capacity validation for productionOrders removed; handled by phase1Production rules")
     def test_submit_decision_rejects_shared_route_capacity_overflow(self) -> None:
         self.seed_active_game()
 

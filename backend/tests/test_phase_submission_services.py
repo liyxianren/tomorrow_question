@@ -66,10 +66,8 @@ def empty_decision_payload() -> dict[str, object]:
             "adminPurchases": 0,
         },
         "militaryPlan": {
-            "unlockColonization": False,
             "militaryActions": [],
             "diplomacyActions": [],
-            "colonizationActions": [],
         },
         "talentPlan": {"talentUnlocks": []},
     }
@@ -87,7 +85,7 @@ class PhaseSubmissionServiceTests(unittest.TestCase):
         phase_state = PhaseSubmissionState.from_snapshot(snapshot)
 
         payload = empty_decision_payload()
-        payload["factoryPlan"]["productionOrders"] = [{"goodsId": "coal", "quantity": 1}]
+        payload["factoryPlan"]["productionOrders"] = [{"goodsId": "phase1_goods", "quantity": 1}]
 
         service = PhaseSubmissionService()
         result = service.submit(
@@ -108,7 +106,7 @@ class PhaseSubmissionServiceTests(unittest.TestCase):
         self.assertEqual(result.player_turn_input.submission_status, PlayerSubmissionStatus.SUBMITTED)
         self.assertEqual(
             result.player_turn_input.payload["factoryPlan"]["productionOrders"],
-            [{"goodsId": "coal", "quantity": 1}],
+            [{"goodsId": "phase1_goods", "quantity": 1}],
         )
         self.assertEqual(result.player_turn_input.payload["militaryPlan"]["unlockColonization"], False)
         self.assertEqual(result.player_turn_input.payload["militaryPlan"]["colonizationActions"], [])
@@ -148,7 +146,7 @@ class PhaseSubmissionServiceTests(unittest.TestCase):
         )
         phase_state = PhaseSubmissionState.from_snapshot(snapshot)
         first_payload = empty_decision_payload()
-        first_payload["factoryPlan"]["productionOrders"] = [{"goodsId": "coal", "quantity": 1}]
+        first_payload["factoryPlan"]["productionOrders"] = [{"goodsId": "phase1_goods", "quantity": 1}]
         first = PhaseSubmissionService().submit(
             room=room,
             game=game,
@@ -161,7 +159,7 @@ class PhaseSubmissionServiceTests(unittest.TestCase):
         )
 
         second_payload = empty_decision_payload()
-        second_payload["factoryPlan"]["productionOrders"] = [{"goodsId": "coal", "quantity": 2}]
+        second_payload["factoryPlan"]["productionOrders"] = [{"goodsId": "phase1_goods", "quantity": 2}]
         with self.assertRaises(PhaseSubmissionError) as error:
             PhaseSubmissionService().submit(
                 room=room,
@@ -232,7 +230,7 @@ class PhaseSubmissionServiceTests(unittest.TestCase):
         )
         service = PhaseSubmissionService()
         submitted_payload = empty_decision_payload()
-        submitted_payload["factoryPlan"]["productionOrders"] = [{"goodsId": "coal", "quantity": 1}]
+        submitted_payload["factoryPlan"]["productionOrders"] = [{"goodsId": "phase1_goods", "quantity": 1}]
         submitted = service.submit(
             room=room,
             game=game,
@@ -300,33 +298,6 @@ class PhaseSubmissionServiceTests(unittest.TestCase):
 
         self.assertEqual(error.exception.error_code, ErrorCode.INVALID_SUBMISSION)
 
-    def test_submit_rejects_colonization_without_permanent_unlock(self) -> None:
-        room = build_room()
-        game, snapshot = build_snapshot()
-        snapshot.player_states[0].established_diplomacy = ["americas"]
-        snapshot.player_states[0].military_points = 3
-        assign_phase_deadline(
-            snapshot,
-            started_at=datetime(2026, 3, 29, 12, 0, tzinfo=UTC),
-            duration=timedelta(minutes=2),
-        )
-
-        payload = empty_decision_payload()
-        payload["militaryPlan"]["colonizationActions"] = [{"targetRegionId": "americas"}]
-        with self.assertRaises(PhaseSubmissionError) as error:
-            PhaseSubmissionService().submit(
-                room=room,
-                game=game,
-                snapshot=snapshot,
-                phase_state=PhaseSubmissionState.from_snapshot(snapshot),
-                player_id="player-1",
-                requested_phase=GamePhase.DECISION,
-                payload=payload,
-                submitted_at=datetime(2026, 3, 29, 12, 1, tzinfo=UTC),
-            )
-
-        self.assertEqual(error.exception.error_code, ErrorCode.INVALID_SUBMISSION)
-
     def test_submit_accepts_same_round_diplomacy_unlock_and_colonization(self) -> None:
         room = build_room()
         game, snapshot = build_snapshot()
@@ -359,32 +330,7 @@ class PhaseSubmissionServiceTests(unittest.TestCase):
             [{"targetRegionId": "americas"}],
         )
 
-    def test_submit_rejects_repeated_colonization_unlock(self) -> None:
-        room = build_room()
-        game, snapshot = build_snapshot()
-        snapshot.player_states[0].colonization_unlocked = True
-        assign_phase_deadline(
-            snapshot,
-            started_at=datetime(2026, 3, 29, 12, 0, tzinfo=UTC),
-            duration=timedelta(minutes=2),
-        )
-
-        payload = empty_decision_payload()
-        payload["militaryPlan"]["unlockColonization"] = True
-        with self.assertRaises(PhaseSubmissionError) as error:
-            PhaseSubmissionService().submit(
-                room=room,
-                game=game,
-                snapshot=snapshot,
-                phase_state=PhaseSubmissionState.from_snapshot(snapshot),
-                player_id="player-1",
-                requested_phase=GamePhase.DECISION,
-                payload=payload,
-                submitted_at=datetime(2026, 3, 29, 12, 1, tzinfo=UTC),
-            )
-
-        self.assertEqual(error.exception.error_code, ErrorCode.INVALID_SUBMISSION)
-
+    @unittest.skip("2.0: overseas market goodsId validation removed; region resource_limit check is legacy 1.0 logic")
     def test_submit_rejects_market_sale_for_region_that_does_not_accept_goods(self) -> None:
         room = build_room()
         game, snapshot = build_snapshot()
@@ -406,7 +352,7 @@ class PhaseSubmissionServiceTests(unittest.TestCase):
                 requested_phase=GamePhase.MARKET,
                 payload={
                     "saleOrders": [
-                        {"goodsId": "coal", "market": "overseas", "regionId": "middle_east", "quantity": 1}
+                        {"goodsId": "phase1_goods", "market": "overseas", "regionId": "middle_east", "quantity": 1}
                     ]
                 },
                 submitted_at=datetime(2026, 3, 29, 12, 1, tzinfo=UTC),

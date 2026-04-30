@@ -37,11 +37,11 @@ class ProductionModeConstantsTests(unittest.TestCase):
         self.assertEqual(PRODUCTION_MODE_OUTPUT_RATIOS["electrified"], Decimal("8"))
 
     def test_demand_coefficients_match_user_requirements(self):
-        self.assertEqual(PRODUCTION_MODE_DEMAND_COEFFICIENTS["idle"], Decimal("1"))
-        self.assertEqual(PRODUCTION_MODE_DEMAND_COEFFICIENTS["handicraft"], Decimal("2"))
-        self.assertEqual(PRODUCTION_MODE_DEMAND_COEFFICIENTS["mechanized"], Decimal("3"))
-        self.assertEqual(PRODUCTION_MODE_DEMAND_COEFFICIENTS["steam"], Decimal("4"))
-        self.assertEqual(PRODUCTION_MODE_DEMAND_COEFFICIENTS["electrified"], Decimal("5"))
+        self.assertEqual(PRODUCTION_MODE_DEMAND_COEFFICIENTS["idle"], Decimal("0"))
+        self.assertEqual(PRODUCTION_MODE_DEMAND_COEFFICIENTS["handicraft"], Decimal("1"))
+        self.assertEqual(PRODUCTION_MODE_DEMAND_COEFFICIENTS["mechanized"], Decimal("2"))
+        self.assertEqual(PRODUCTION_MODE_DEMAND_COEFFICIENTS["steam"], Decimal("3"))
+        self.assertEqual(PRODUCTION_MODE_DEMAND_COEFFICIENTS["electrified"], Decimal("4"))
 
 
 class CalculateModeOutputTests(unittest.TestCase):
@@ -95,29 +95,30 @@ class CalculateDomesticDemandTests(unittest.TestCase):
     """本国总需求 = Σ(产能 × 需求系数)。"""
 
     def test_doc_example_idle_20_handicraft_10_mechanized_10(self):
-        # docs/第一阶段-市场与生产机制.md 12.1: 20 + 20 + 30 = 70
+        # 新系数: 0 + 10 + 20 = 30
         demand = calculate_domestic_demand(
             {"idle": 20, "handicraft": 10, "mechanized": 10}
         )
-        self.assertEqual(demand, Decimal("70"))
+        self.assertEqual(demand, Decimal("30"))
 
     def test_empty_capacities_returns_zero(self):
         self.assertEqual(calculate_domestic_demand({}), Decimal("0"))
 
     def test_each_mode_demand_coefficient(self):
-        self.assertEqual(calculate_domestic_demand({"idle": 1}), Decimal("1"))
-        self.assertEqual(calculate_domestic_demand({"handicraft": 1}), Decimal("2"))
-        self.assertEqual(calculate_domestic_demand({"mechanized": 1}), Decimal("3"))
-        self.assertEqual(calculate_domestic_demand({"steam": 1}), Decimal("4"))
-        self.assertEqual(calculate_domestic_demand({"electrified": 1}), Decimal("5"))
+        self.assertEqual(calculate_domestic_demand({"idle": 1}), Decimal("0"))
+        self.assertEqual(calculate_domestic_demand({"handicraft": 1}), Decimal("1"))
+        self.assertEqual(calculate_domestic_demand({"mechanized": 1}), Decimal("2"))
+        self.assertEqual(calculate_domestic_demand({"steam": 1}), Decimal("3"))
+        self.assertEqual(calculate_domestic_demand({"electrified": 1}), Decimal("4"))
 
 
 class CalculateEquilibriumPriceTests(unittest.TestCase):
     """均衡价格 = 阶段开始时消费池 / 本国需求。"""
 
     def test_doc_example_pool_700_demand_70(self):
+        # 700/70 = 10, capped at DEFAULT_MAXIMUM_DOMESTIC_PRICE (8).
         price = calculate_equilibrium_price(consumption_pool=700, demand=70)
-        self.assertEqual(price, Decimal("10"))
+        self.assertEqual(price, Decimal("8"))
 
     def test_zero_demand_returns_zero(self):
         # 防御除零：demand=0 时返回 0，避免运行时崩溃。
@@ -131,17 +132,19 @@ class CalculateDomesticPriceTests(unittest.TestCase):
     """本国市场价格波动公式。"""
 
     def test_supply_equals_demand_returns_equilibrium(self):
+        # equilibrium 10 capped to 8 by DEFAULT_MAXIMUM_DOMESTIC_PRICE.
         price = calculate_domestic_price(
             equilibrium_price=Decimal("10"), supply=70, demand=70
         )
-        self.assertEqual(price, Decimal("10"))
+        self.assertEqual(price, Decimal("8"))
 
     def test_shortage_increases_price(self):
-        # supply 50, demand 70 -> 短缺率 20/70, 价格 10 * (1 + 2/7) = 90/7 ≈ 12.857142857
+        # supply 50, demand 70 -> 短缺率 20/70, 原始价格 10 * (1 + 2/7) ≈ 12.857，
+        # 被 DEFAULT_MAXIMUM_DOMESTIC_PRICE (8) 限制为 8。
         price = calculate_domestic_price(
             equilibrium_price=Decimal("10"), supply=50, demand=70
         )
-        self.assertAlmostEqual(float(price), 12.857142857, places=6)
+        self.assertEqual(price, Decimal("8"))
 
     def test_surplus_decreases_price(self):
         # supply 90, demand 70 -> 过剩率 20/70, 价格 10 * (1 - 2/7) = 50/7 ≈ 7.142857143
@@ -178,37 +181,40 @@ class ResolveDomesticMarketTests(unittest.TestCase):
     """本国市场结算：价格、成交量、销售额、未售出。"""
 
     def test_doc_example_supply_50(self):
-        # docs/2.0迁移前逻辑推演与计划.md 表格行: supply 50 -> price 12.857..., revenue 642.857...
+        # supply 50, demand 70, pool 700: equilibrium 10 capped to 8;
+        # 短缺加价 8*(1+2/7)≈10.286 也被上限 8 截断；revenue = 50*8 = 400。
         outcome = resolve_domestic_market(
             supply=50, demand=70, consumption_pool=700
         )
         self.assertIsInstance(outcome, DomesticMarketOutcome)
         self.assertEqual(outcome.demand, Decimal("70"))
         self.assertEqual(outcome.supply, Decimal("50"))
-        self.assertEqual(outcome.equilibrium_price, Decimal("10"))
-        self.assertAlmostEqual(float(outcome.final_price), 12.857142857, places=6)
+        self.assertEqual(outcome.equilibrium_price, Decimal("8"))
+        self.assertEqual(outcome.final_price, Decimal("8"))
         self.assertEqual(outcome.sold_quantity, Decimal("50"))
-        self.assertAlmostEqual(float(outcome.revenue), 642.857142857, places=4)
+        self.assertEqual(outcome.revenue, Decimal("400"))
         self.assertEqual(outcome.unsold_quantity, Decimal("0"))
 
     def test_doc_example_supply_90(self):
-        # docs/2.0迁移前逻辑推演与计划.md 表格行: supply 90 -> price 7.142..., revenue 500
+        # supply 90, demand 70, pool 700: equilibrium 10 capped to 8。
+        # 过剩降价 8*(1-2/7)=40/7≈5.714；revenue = 70*40/7 = 400。
         outcome = resolve_domestic_market(
             supply=90, demand=70, consumption_pool=700
         )
-        self.assertAlmostEqual(float(outcome.final_price), 7.142857143, places=6)
+        self.assertAlmostEqual(float(outcome.final_price), 5.714285714, places=6)
         self.assertEqual(outcome.sold_quantity, Decimal("70"))
-        self.assertAlmostEqual(float(outcome.revenue), 500.0, places=4)
+        self.assertAlmostEqual(float(outcome.revenue), 400.0, places=4)
         # 过剩商品 90-70=20 进入未成交。
         self.assertEqual(outcome.unsold_quantity, Decimal("20"))
 
     def test_doc_example_supply_70_equilibrium(self):
+        # equilibrium 10 capped to 8；supply==demand → final_price = 8。
         outcome = resolve_domestic_market(
             supply=70, demand=70, consumption_pool=700
         )
-        self.assertEqual(outcome.final_price, Decimal("10"))
+        self.assertEqual(outcome.final_price, Decimal("8"))
         self.assertEqual(outcome.sold_quantity, Decimal("70"))
-        self.assertEqual(outcome.revenue, Decimal("700"))
+        self.assertEqual(outcome.revenue, Decimal("560"))
         self.assertEqual(outcome.unsold_quantity, Decimal("0"))
 
 
