@@ -59,6 +59,8 @@ function calculateNonResearchSpendByPool(
   workspace: DecisionPlayerPhaseWorkspace,
   draft: PhaseDraftByPhase["decision"],
 ): BudgetPools {
+  // TODO: Legacy 1.0 factory spend — uses productionOptions/expansionOptions/upgradeOptions/newFactoryOptions
+  // In 2.0 mode (phase1Economy), factoryPlan orders may be empty; spend comes from phase1Production instead
   const productionSpend = draft.factoryPlan.productionOrders.reduce((sum, item) => {
     const option = workspace.productionOptions.find((candidate) => candidate.goodsId === item.goodsId);
     return sum + item.quantity * (option?.unitBudgetCost ?? 0);

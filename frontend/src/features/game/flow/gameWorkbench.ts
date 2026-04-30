@@ -196,7 +196,7 @@ function createResourceStripViewModel({
     { label: "政府财政", value: currentPlayerState.budgetPools.governmentFiscal },
   ];
 
-  if (currentPhase === "decision" && currentPlayerWorkspace && "productionOptions" in currentPlayerWorkspace) {
+  if (currentPhase === "decision" && currentPlayerWorkspace && "militaryWorkspace" in currentPlayerWorkspace) {
     const spendSummary = calculateDecisionSpendSummary(currentPlayerWorkspace as DecisionPlayerPhaseWorkspace, draftPayload);
     if (spendSummary.factorySpend > currentPlayerState.budgetPools.factory) {
       metrics[1].tone = "warning";
@@ -424,22 +424,23 @@ function buildCurrentResourceLines({
     return ["等待当前阶段资源同步。"];
   }
 
-  if (currentPhase === "decision" && "productionOptions" in currentPlayerWorkspace) {
+  if (currentPhase === "decision" && "militaryWorkspace" in currentPlayerWorkspace) {
     const workspace = currentPlayerWorkspace as DecisionPlayerPhaseWorkspace;
     const spendSummary = calculateDecisionSpendSummary(workspace, draftPayload);
     const draft = normalizeDecisionDraft(draftPayload);
     if (decisionFlowState.activeStep === "factory") {
-      return [
+      const lines = [
         `工厂 · 剩余 ${currentPlayerState.budgetPools.factory - spendSummary.factorySpend}`,
-        ...workspace.routeSummaries.map((summary) => {
-          const allocated = getAllocatedProductionBatchesForRoute(
-            draftPayload,
-            workspace.productionOptions,
-            summary.routeId,
-          );
-          return `${summary.routeLabel} 剩余 ${Math.max(summary.availableBatchesThisRound - allocated, 0)} 批`;
-        }),
       ];
+      const phase1 = workspace.phase1Economy;
+      if (phase1) {
+        const rawAssignments = (draftPayload as Record<string, unknown>).phase1Production as { rawMaterialAssignments?: Record<string, number> } | undefined;
+        const assignments = rawAssignments?.rawMaterialAssignments ?? {};
+        const totalAssigned = Object.values(assignments).reduce((s, v) => s + v, 0);
+        lines.push(`原材料 ${phase1.rawMaterials} · 已分配 ${totalAssigned}`);
+        lines.push(`库存 ${phase1.goodsInventory} · 国内需求 ${phase1.domesticDemand}`);
+      }
+      return lines;
     }
 
     if (decisionFlowState.activeStep === "domestic") {
@@ -531,7 +532,7 @@ function buildSubmitLines({
     return lines;
   }
 
-  if (currentPhase === "decision" && "productionOptions" in currentPlayerWorkspace) {
+  if (currentPhase === "decision" && "militaryWorkspace" in currentPlayerWorkspace) {
     const spendSummary = calculateDecisionSpendSummary(currentPlayerWorkspace, draftPayload);
     lines.push(`工厂预计消耗 ${spendSummary.factorySpend}，内需预计消耗 ${spendSummary.domesticSpend}，政府预计消耗 ${spendSummary.governmentSpend}。`);
     lines.push(`当前已规划生产批次 ${spendSummary.productionBatches}。`);
@@ -570,7 +571,7 @@ function buildValidationLines({
     return ["财政结算阶段没有玩家硬约束需要确认。"];
   }
 
-  if (currentPhase === "decision" && "productionOptions" in currentPlayerWorkspace) {
+  if (currentPhase === "decision" && "militaryWorkspace" in currentPlayerWorkspace) {
     const lines: string[] = [];
     const spendSummary = calculateDecisionSpendSummary(currentPlayerWorkspace, draftPayload);
     const draft = normalizeDecisionDraft(draftPayload);
@@ -583,14 +584,33 @@ function buildValidationLines({
     if (spendSummary.governmentSpend > currentPlayerState.budgetPools.governmentFiscal) {
       lines.push(`政府动作消耗 ${spendSummary.governmentSpend}，超过政府财政预算 ${currentPlayerState.budgetPools.governmentFiscal}。`);
     }
-    for (const routeSummary of currentPlayerWorkspace.routeSummaries) {
-      const allocated = getAllocatedProductionBatchesForRoute(
-        draftPayload,
-        currentPlayerWorkspace.productionOptions,
-        routeSummary.routeId,
-      );
-      if (allocated > routeSummary.availableBatchesThisRound) {
-        lines.push(`${routeSummary.routeLabel} 已安排 ${allocated} 批，超过本回合共享产能 ${routeSummary.availableBatchesThisRound}。`);
+    const phase1 = currentPlayerWorkspace.phase1Economy;
+    if (phase1) {
+      // 2.0: Validate raw material assignments against available resources and per-mode capacity
+      const phase1Prod = draftPayload as Record<string, unknown>;
+      const rawAssignments = (phase1Prod.phase1Production as { rawMaterialAssignments?: Record<string, number> } | undefined)?.rawMaterialAssignments ?? {};
+      const totalAssigned = Object.values(rawAssignments).reduce((s, v) => s + v, 0);
+      if (totalAssigned > phase1.rawMaterials) {
+        lines.push(`原材料分配 ${totalAssigned}，超过可用原材料 ${phase1.rawMaterials}。`);
+      }
+      for (const [modeId, assigned] of Object.entries(rawAssignments)) {
+        const capacity = phase1.capacityByMode[modeId] ?? 0;
+        if (assigned > capacity) {
+          const modeLabel = phase1.productionModes.find((m) => m.mode === modeId)?.label ?? modeId;
+          lines.push(`${modeLabel} 分配 ${assigned}，超过产能 ${capacity}。`);
+        }
+      }
+    } else {
+      // Legacy 1.0 fallback: validate route batch allocation
+      for (const routeSummary of currentPlayerWorkspace.routeSummaries) {
+        const allocated = getAllocatedProductionBatchesForRoute(
+          draftPayload,
+          currentPlayerWorkspace.productionOptions,
+          routeSummary.routeId,
+        );
+        if (allocated > routeSummary.availableBatchesThisRound) {
+          lines.push(`${routeSummary.routeLabel} 已安排 ${allocated} 批，超过本回合共享产能 ${routeSummary.availableBatchesThisRound}。`);
+        }
       }
     }
     for (const action of currentPlayerWorkspace.militaryWorkspace.availableMilitaryActions) {
@@ -705,6 +725,9 @@ function normalizeDecisionDraft(draftPayload: Record<string, unknown>) {
       abilityId?: string;
       targetIdeology?: string;
     };
+    phase1Production?: {
+      rawMaterialAssignments?: Record<string, number>;
+    };
   };
   const targetIdeology = isIdeologyKey(draft.abilitySelection?.targetIdeology)
     ? draft.abilitySelection.targetIdeology
@@ -746,6 +769,9 @@ function normalizeDecisionDraft(draftPayload: Record<string, unknown>) {
       talentUnlocks: draft.talentPlan?.talentUnlocks ?? [],
     },
     abilitySelection,
+    phase1Production: {
+      rawMaterialAssignments: draft.phase1Production?.rawMaterialAssignments ?? {},
+    },
   };
 }
 
@@ -754,7 +780,10 @@ function hasDecisionStepContent(
   step: DecisionStepId,
 ): boolean {
   if (step === "factory") {
+    const hasPhase1 = Object.keys(draft.phase1Production.rawMaterialAssignments).length > 0
+      && Object.values(draft.phase1Production.rawMaterialAssignments).some((v) => v > 0);
     return (
+      hasPhase1 ||
       draft.factoryPlan.productionOrders.some((o) => o.quantity > 0) ||
       draft.factoryPlan.expansionOrders.some((o) => o.quantity > 0) ||
       draft.factoryPlan.upgradeOrders.some((o) => o.quantity > 0) ||
@@ -827,6 +856,7 @@ function calculateMarketRevenuePreview(
   };
 }
 
+// TODO: Remove once legacy 1.0 factory path is fully replaced by phase1Economy
 function getAllocatedProductionBatchesForRoute(
   draftPayload: Record<string, unknown>,
   productionOptions: DecisionPlayerPhaseWorkspace["productionOptions"],

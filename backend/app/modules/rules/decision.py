@@ -204,12 +204,7 @@ def _apply_domestic_market_plan(player_state, domestic_plan: dict[str, Any], bal
 
 
 def _apply_government_plan(player_state, government_plan: dict[str, Any], balance) -> int:
-    """Phase-2 government plan: spend fiscal to buy administration capacity.
-
-    Old tech-grant and executive-agenda paths were removed in favor of the
-    reform/policy/ideology system; legacy submission fields are accepted but
-    no longer apply effects (kept for payload-shape compatibility).
-    """
+    """Phase-2 government plan: spend fiscal to buy administration capacity."""
     spent = 0
     remaining_budget = int(player_state.budget_pools.get("governmentFiscal", 0))
     admin_cost = max(1, int(balance.politics.administration_cost))

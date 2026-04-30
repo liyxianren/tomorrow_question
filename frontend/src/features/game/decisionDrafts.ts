@@ -26,6 +26,7 @@ export function setProductionOrderQuantity(
   };
 }
 
+// TODO: Legacy 1.0 helper — still used by FactoryPanel and commandDeck until they migrate to phase1Economy
 export function getAllocatedProductionBatchesForRoute(
   draft: PhaseDraftByPhase["decision"],
   productionOptions: Array<{ goodsId: string; routeId: string }>,
