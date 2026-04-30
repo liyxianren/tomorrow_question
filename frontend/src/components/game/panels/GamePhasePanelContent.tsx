@@ -618,6 +618,13 @@ export function SettlementWorkbench({
           <MetricCard hint="结算后回到政府财政预算池。" label="政府财政" value={workspace.budgetAllocation.governmentFiscal} />
         </div>
       </article>
+      {workspace.phase1Economy?.consumptionPool != null && workspace.phase1Economy?.poolDeltaPreview && (
+        <p style={{ margin: "4px 0 0", color: "#b45309", fontSize: 13 }}>
+          国民消费（自然消耗）: -{Math.round(workspace.phase1Economy.consumptionPool * 0.3)}
+          {" | "}
+          新增分配: +{Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)}
+        </p>
+      )}
       {workspace.phase1Economy?.poolDeltaPreview && (
         <article className="gp-card">
           <h3 style={{ margin: 0 }}>🏭 2.0 收入分配预览（5:3:2）</h3>

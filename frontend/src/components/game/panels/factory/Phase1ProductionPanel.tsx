@@ -31,6 +31,11 @@ export function Phase1ProductionPanel({
     return sum + assigned * mode.outputRatio;
   }, 0);
 
+  const totalCapacity = modes.reduce((sum, mode) => {
+    return sum + (mode.isAvailable ? mode.currentCapacity : 0);
+  }, 0);
+  const capacityShortfall = totalCapacity < rawMaterials;
+
   return (
     <section className="phase1-panel" data-testid="phase1-production-panel">
       {/* ── Summary Bar ── */}
@@ -50,7 +55,17 @@ export function Phase1ProductionPanel({
           <span className="phase1-panel__stat-value">{investmentPool}</span>
           <span className="phase1-panel__stat-label">投资池</span>
         </div>
+        <div className="phase1-panel__stat">
+          <span className={`phase1-panel__stat-value${capacityShortfall ? ' phase1-panel__stat-value--warn' : ''}`}>{totalCapacity}</span>
+          <span className="phase1-panel__stat-label">总产能</span>
+        </div>
       </div>
+
+      {capacityShortfall && (
+        <div className="phase1-panel__capacity-warning" data-testid="capacity-warning">
+          ⚠️ 产能不足：原材料 {rawMaterials}，但总产能只有 {totalCapacity}，最多使用 {totalCapacity} 件
+        </div>
+      )}
 
       {/* ── Production Mode Cards ── */}
       <div className="phase1-panel__grid">
@@ -112,12 +127,17 @@ export function Phase1ProductionPanel({
               </header>
 
               {/* Capacity */}
-              {!isLocked && (
-                <div className="phase1-card__capacity">
-                  <span className="phase1-card__capacity-label">产能</span>
-                  <span className="phase1-card__capacity-value">{mode.currentCapacity}</span>
-                </div>
-              )}
+            {!isLocked && (
+              <div className="phase1-card__capacity">
+                <span className="phase1-card__capacity-label">产能</span>
+                <span className="phase1-card__capacity-value">
+                  {mode.currentCapacity}
+                  {assigned > 0 && assigned === mode.currentCapacity && (
+                    <span className="phase1-card__capacity-full">已满</span>
+                  )}
+                </span>
+              </div>
+            )}
 
               {/* Stepper */}
               {!isLocked && (

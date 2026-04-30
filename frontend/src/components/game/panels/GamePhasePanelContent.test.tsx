@@ -337,7 +337,7 @@ describe("GamePhasePanelContent", () => {
     const panel = screen.getByTestId("phase1-market-panel");
     expect(panel).toBeInTheDocument();
     expect(within(panel).getByText("商品库存")).toBeInTheDocument();
-    expect(within(panel).getByText("本国需求")).toBeInTheDocument();
-    expect(within(panel).getByText("消费池")).toBeInTheDocument();
+    expect(within(panel).getByText("市场需求")).toBeInTheDocument();
+    expect(within(panel).getByText("购买力")).toBeInTheDocument();
   });
 });

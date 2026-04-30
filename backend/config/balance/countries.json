@@ -11,7 +11,7 @@
         "factory": 3.0,
         "governmentFiscal": 2.0
       },
-      "techPoints": 0,
+      "techPoints": 1,
       "militaryPoints": 1,
       "productionCapacity": {
         "idle": 0,
@@ -30,7 +30,7 @@
       "navy": {
         "fleets": 1
       },
-      "administrationCapacity": 2,
+      "administrationCapacity": 3,
       "researchFacilities": {
         "academy": 1
       },
@@ -59,7 +59,7 @@
         "factory": 3.0,
         "governmentFiscal": 2.0
       },
-      "techPoints": 0,
+      "techPoints": 1,
       "militaryPoints": 0,
       "productionCapacity": {
         "idle": 0,
@@ -78,7 +78,7 @@
       "navy": {
         "fleets": 1
       },
-      "administrationCapacity": 2,
+      "administrationCapacity": 3,
       "researchFacilities": {
         "academy": 0
       },
@@ -107,7 +107,7 @@
         "factory": 3.0,
         "governmentFiscal": 2.0
       },
-      "techPoints": 0,
+      "techPoints": 1,
       "militaryPoints": 1,
       "productionCapacity": {
         "idle": 0,
@@ -126,7 +126,7 @@
       "navy": {
         "fleets": 0
       },
-      "administrationCapacity": 2,
+      "administrationCapacity": 3,
       "researchFacilities": {
         "academy": 1
       },
@@ -155,7 +155,7 @@
         "factory": 3.0,
         "governmentFiscal": 2.0
       },
-      "techPoints": 0,
+      "techPoints": 1,
       "militaryPoints": 1,
       "productionCapacity": {
         "idle": 0,
@@ -174,7 +174,7 @@
       "navy": {
         "fleets": 0
       },
-      "administrationCapacity": 2,
+      "administrationCapacity": 3,
       "researchFacilities": {
         "academy": 0
       },
@@ -203,7 +203,7 @@
         "factory": 3.0,
         "governmentFiscal": 2.0
       },
-      "techPoints": 0,
+      "techPoints": 1,
       "militaryPoints": 1,
       "productionCapacity": {
         "idle": 0,
@@ -222,7 +222,7 @@
       "navy": {
         "fleets": 0
       },
-      "administrationCapacity": 2,
+      "administrationCapacity": 3,
       "researchFacilities": {
         "academy": 0
       },

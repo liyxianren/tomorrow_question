@@ -73,11 +73,11 @@ export function Phase1MarketPanel({
         </div>
         <div className="phase1-market__stat">
           <span className="phase1-market__stat-value">{domesticDemand}</span>
-          <span className="phase1-market__stat-label">本国需求</span>
+          <span className="phase1-market__stat-label">市场需求</span>
         </div>
         <div className="phase1-market__stat">
           <span className="phase1-market__stat-value">{consumerPool}</span>
-          <span className="phase1-market__stat-label">消费池</span>
+          <span className="phase1-market__stat-label">购买力</span>
         </div>
       </div>
 
@@ -136,7 +136,7 @@ export function Phase1MarketPanel({
             <strong className="phase1-market__preview-value">{preview.price}</strong>
           </div>
           <div className="phase1-market__preview-block">
-            <span className="phase1-market__preview-label">成交量</span>
+            <span className="phase1-market__preview-label">可售出</span>
             <strong className="phase1-market__preview-value">{preview.soldQty}</strong>
           </div>
           <div className="phase1-market__preview-block">
@@ -306,18 +306,18 @@ function calculatePreview(
 
   const ratio = allocation / demand;
   let price = equilibriumPrice;
-  let balanceLabel = "供需平衡";
+  let balanceLabel = "供需均衡";
   let tone: PreviewResult["tone"] = "balanced";
 
   if (ratio < 1) {
     const scale = 1 + (1 - ratio) * 0.5;
     price = Math.round(equilibriumPrice * scale);
-    balanceLabel = `短缺 +${Math.round((scale - 1) * 100)}%`;
+    balanceLabel = "供不应求";
     tone = "shortage";
   } else if (ratio > 1) {
     const scale = Math.max(0.5, 1 - (ratio - 1) * 0.3);
     price = Math.round(equilibriumPrice * scale);
-    balanceLabel = `过剩 ${Math.round((scale - 1) * 100)}%`;
+    balanceLabel = "供过于求";
     tone = "surplus";
   }
 

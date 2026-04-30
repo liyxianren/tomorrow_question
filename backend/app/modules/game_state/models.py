@@ -143,7 +143,7 @@ class PlayerState:
     budget_pools: dict[str, int] = field(
         default_factory=lambda: {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
     )
-    tech_points: int = 0
+    tech_points: int = 1
     military_points: int = 0
     production_capacity: dict[str, int] = field(default_factory=dict)
     pending_production_capacity: dict[str, int] = field(default_factory=dict)
@@ -159,7 +159,7 @@ class PlayerState:
     goods_allocation: dict[str, int] = field(default_factory=dict)
     army: dict[str, int] = field(default_factory=dict)
     navy: dict[str, int] = field(default_factory=dict)
-    administration_capacity: int = 0
+    administration_capacity: int = 3
     ideology_levels: dict[str, int] = field(default_factory=dict)
     reforms: list[str] = field(default_factory=list)
     policies: list[str] = field(default_factory=list)
