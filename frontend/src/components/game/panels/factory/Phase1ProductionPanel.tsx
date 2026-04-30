@@ -63,7 +63,7 @@ export function Phase1ProductionPanel({
 
       {capacityShortfall && (
         <div className="phase1-panel__capacity-warning" data-testid="capacity-warning">
-          ⚠️ 产能不足：原材料 {rawMaterials}，但总产能只有 {totalCapacity}，最多使用 {totalCapacity} 件
+          ℹ️ 产能限制：当前总产能 {totalCapacity}，最多消耗 {totalCapacity} 件原材料（剩余 {rawMaterials - totalCapacity} 件保留至下回合）
         </div>
       )}
 
@@ -76,7 +76,7 @@ export function Phase1ProductionPanel({
           const noCapacity = mode.currentCapacity <= 0;
           const disabled = isLocked || noCapacity || !onAssignmentChange;
 
-          const maxAlloc = Math.min(mode.currentCapacity, rawMaterials);
+          const maxAlloc = Math.min(mode.currentCapacity, remainingRawMaterials + assigned);
 
           function handleDelta(delta: number) {
             if (!onAssignmentChange) return;

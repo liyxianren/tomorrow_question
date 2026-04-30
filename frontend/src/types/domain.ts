@@ -424,6 +424,7 @@ export interface RegionAccessStatus {
   isColonized: boolean;
   controller: string | null;
   acceptedGoods: string[];
+  priceMultiplier: number;
 }
 
 export interface TechTreeChainTech {

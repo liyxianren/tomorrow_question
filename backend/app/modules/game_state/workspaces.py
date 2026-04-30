@@ -575,6 +575,7 @@ def _build_research_workspace(snapshot: GameSnapshot, player: PlayerState) -> di
 
 
 def _build_region_access_status(snapshot: GameSnapshot, player: PlayerState) -> list[dict[str, Any]]:
+    balance = get_balance_config()
     return [
         {
             "regionId": region.region_id,
@@ -590,6 +591,9 @@ def _build_region_access_status(snapshot: GameSnapshot, player: PlayerState) -> 
             "acceptedGoods": list(region.resource_limit),
             "isColonized": region.controller is not None,
             "controller": region.controller,
+            "priceMultiplier": float(
+                balance.regions.region_blueprints[region.region_id].price_multiplier
+            ) if region.region_id in balance.regions.region_blueprints else 1.0,
         }
         for region in snapshot.region_states
     ]

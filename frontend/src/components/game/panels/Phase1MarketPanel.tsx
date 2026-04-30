@@ -51,6 +51,12 @@ export function Phase1MarketPanel({
   const overseasRegions = regionAccessStatus.filter((status) => status.regionId !== "domestic");
   const totalAllocated = clampedDomestic + externalAllocationTotal;
 
+  const overseasRevenue = externalAllocations.reduce((sum, alloc) => {
+    const region = overseasRegions.find((r) => r.regionId === alloc.marketId);
+    const mult = region?.priceMultiplier ?? 1.0;
+    return sum + alloc.quantity * Math.round(equilibriumPrice * mult * 100) / 100;
+  }, 0);
+
   function handleDomesticDelta(delta: number) {
     onAllocationChange(clamp(clampedDomestic + delta, 0, totalGoods));
   }
@@ -154,7 +160,8 @@ export function Phase1MarketPanel({
             const quantity = allocation?.quantity ?? 0;
             const accessible = region.isAccessible;
             const maxForRegion = Math.max(0, totalGoods - clampedDomestic - externalAllocationTotal + quantity);
-            const overseasPrice = Math.round(equilibriumPrice * 1.2 * 100) / 100;
+            const multiplier = region.priceMultiplier ?? 1.0;
+            const overseasPrice = Math.round(equilibriumPrice * multiplier * 100) / 100;
 
             function handleRegionDelta(delta: number) {
               onExternalAllocationChange(region.regionId, clamp(quantity + delta, 0, maxForRegion));
@@ -256,7 +263,7 @@ export function Phase1MarketPanel({
         </span>
         <span className="phase1-market__footer-row">
           <span className="phase1-market__footer-label">预计总收入</span>
-          <span className="phase1-market__footer-value phase1-market__footer-value--highlight">{preview.revenue}</span>
+          <span className="phase1-market__footer-value phase1-market__footer-value--highlight">{Math.round(preview.revenue + overseasRevenue)}</span>
         </span>
       </div>
     </section>

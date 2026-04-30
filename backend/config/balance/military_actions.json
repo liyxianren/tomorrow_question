@@ -2,7 +2,7 @@
   "militaryActions": {
     "recruit_infantry": {
       "label": "征募步兵",
-      "budgetPoolCost": 4,
+      "budgetPoolCost": 2,
       "militaryPointCost": 0,
       "maxPerRound": 3,
       "effects": {
@@ -22,7 +22,7 @@
     },
     "naval_drill": {
       "label": "海军演练",
-      "budgetPoolCost": 6,
+      "budgetPoolCost": 4,
       "militaryPointCost": 0,
       "maxPerRound": 2,
       "effects": {
@@ -46,25 +46,25 @@
   "diplomacyActions": {
     "establish_americas": {
       "label": "与美洲建交",
-      "budgetPoolCost": 5,
+      "budgetPoolCost": 3,
       "targetRegion": "americas",
       "description": "与美洲建立外交关系，永久开放贸易通道。"
     },
     "establish_africa": {
       "label": "与非洲建交",
-      "budgetPoolCost": 5,
+      "budgetPoolCost": 3,
       "targetRegion": "africa",
       "description": "与非洲建立外交关系，永久开放贸易通道。"
     },
     "establish_middle_east": {
       "label": "与中东建交",
-      "budgetPoolCost": 5,
+      "budgetPoolCost": 3,
       "targetRegion": "middle_east",
       "description": "与中东建立外交关系，永久开放贸易通道。"
     },
     "establish_asia_pacific": {
       "label": "与亚太建交",
-      "budgetPoolCost": 5,
+      "budgetPoolCost": 3,
       "targetRegion": "asia_pacific",
       "description": "与亚太建立外交关系，永久开放贸易通道。"
     }
