@@ -22,6 +22,79 @@ const IDEOLOGY_META: Record<IdeologyKey, { label: string; icon: string }> = {
 
 const IDEOLOGY_KEYS: IdeologyKey[] = ["liberalism", "egalitarianism", "nationalism"];
 
+const IDEOLOGY_LABELS: Record<IdeologyKey, string> = {
+  liberalism: "自由主义",
+  egalitarianism: "平等主义",
+  nationalism: "民族主义",
+};
+
+function formatReformEffects(
+  effects: Record<string, unknown>,
+  unlocksPolicies: string[],
+): string[] {
+  const tags: string[] = [];
+
+  const ideologyDelta = effects.ideologyDelta as Record<string, number> | undefined;
+  if (ideologyDelta) {
+    for (const [key, delta] of Object.entries(ideologyDelta)) {
+      const label = IDEOLOGY_LABELS[key as IdeologyKey] ?? key;
+      tags.push(`${label} ${delta > 0 ? "+" : ""}${delta}`);
+    }
+  }
+
+  const ratioDelta = effects.ratioDelta as Record<string, number> | undefined;
+  if (ratioDelta) {
+    const names: Record<string, string> = {
+      factory: "工厂",
+      consumption: "消费",
+      fiscal: "财政",
+      domesticMarket: "国内",
+      governmentFiscal: "政府",
+    };
+    for (const [key, delta] of Object.entries(ratioDelta)) {
+      const label = names[key] ?? key;
+      tags.push(`${label}分配 ${delta > 0 ? "+" : ""}${delta}`);
+    }
+  }
+
+  const ratioOverride = effects.ratioOverride as Record<string, number> | undefined;
+  if (ratioOverride) {
+    const names: Record<string, string> = {
+      factory: "工厂",
+      consumption: "消费",
+      fiscal: "财政",
+    };
+    const parts = Object.entries(ratioOverride).map(
+      ([k, v]) => `${names[k] ?? k}:${v}`,
+    );
+    tags.push(`分配锁定 ${parts.join("/")}`);
+  }
+
+  if (effects.upgradeCostMultiplier !== undefined) {
+    tags.push(`升级成本 ×${effects.upgradeCostMultiplier}`);
+  }
+
+  if (effects.productionCapacityDelta !== undefined) {
+    const delta = effects.productionCapacityDelta as Record<string, number>;
+    for (const [key, val] of Object.entries(delta)) {
+      tags.push(`${key === "all" ? "全品类" : key}产能 ${val > 0 ? "+" : ""}${val}`);
+    }
+  }
+
+  const permanent = effects.permanent as Record<string, unknown> | undefined;
+  if (permanent) {
+    if (permanent.techPointsPerTurn !== undefined) {
+      tags.push(`每回合 +${permanent.techPointsPerTurn} 科技点`);
+    }
+  }
+
+  if (unlocksPolicies.length > 0) {
+    tags.push(`解锁 ${unlocksPolicies.length} 项政策`);
+  }
+
+  return tags;
+}
+
 export interface GovernmentPanelProps {
   workspace: DecisionPlayerPhaseWorkspace;
   draft: PhaseDraftByPhase["decision"];
@@ -225,6 +298,22 @@ export function GovernmentPanel({
                     <p className="government-action-card__desc">
                       {REFORM_PATH_LABELS[path]} · 实施后永久改变国家结构。
                     </p>
+                    {(() => {
+                      const effectTags = formatReformEffects(
+                        reform.effects ?? {},
+                        reform.unlocksPolicies ?? [],
+                      );
+                      if (effectTags.length === 0) return null;
+                      return (
+                        <div className="government-action-card__effects">
+                          {effectTags.map((tag) => (
+                            <span key={tag} className="government-action-card__effect-tag">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
                     <div className="government-action-card__footer">
                       <span className="government-action-card__status">
                         {queued ? "✓ 已排队" : lockedReason ?? "可实施"}

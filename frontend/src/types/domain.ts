@@ -429,6 +429,10 @@ export interface RegionAccessStatus {
 export interface TechTreeChainTech {
   techId: string;
   label: string;
+  budgetPool?: string;
+  budgetCost?: number;
+  unlocksGoods?: string[];
+  unlocksRoutes?: string[];
   threshold: number;
   progress: number;
   effectiveThreshold: number;
@@ -551,6 +555,8 @@ export interface ReformOption {
   adminCost: number;
   isCompleted: boolean;
   isBlocked: boolean;
+  effects: Record<string, unknown>;
+  unlocksPolicies: string[];
 }
 
 export interface PolicyOption {
