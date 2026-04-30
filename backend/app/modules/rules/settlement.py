@@ -38,6 +38,10 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
         allocation = _allocate_income_phase1(national_income=effective_income)
         for key, value in allocation.items():
             player_state.budget_pools[key] = int(player_state.budget_pools.get(key, 0)) + int(value)
+        # 消费池消耗率：打断"收入→消费池→价格→收入"的指数增长正反馈
+        consumption_pool = int(player_state.budget_pools.get("domesticMarket", 0))
+        drain_rate = Decimal("0.3")
+        player_state.budget_pools["domesticMarket"] = int(Decimal(str(consumption_pool)) * (1 - drain_rate))
         player_state.cumulative_national_income = int(player_state.cumulative_national_income) + effective_income
         for route_key, pending in list(player_state.pending_production_capacity.items()):
             player_state.production_capacity[route_key] = int(player_state.production_capacity.get(route_key, 0)) + int(pending)
@@ -421,6 +425,7 @@ def _apply_phase3_research_progress(player_state, snapshot, balance) -> None:
         player_state.research_progress[active] = new_progress - threshold * 2
         player_state.unlocked_techs.append(active)
         player_state.breakthrough_attempts.pop(active, None)
+        player_state.tech_points = int(player_state.tech_points) + 1
         return
 
     roll = random.randint(1, int(balance.technology.breakthrough_die_sides))
@@ -428,6 +433,7 @@ def _apply_phase3_research_progress(player_state, snapshot, balance) -> None:
         player_state.unlocked_techs.append(active)
         player_state.research_progress[active] = 0
         player_state.breakthrough_attempts.pop(active, None)
+        player_state.tech_points = int(player_state.tech_points) + 1
     else:
         player_state.breakthrough_attempts[active] = attempts + 1
 

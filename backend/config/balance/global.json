@@ -2,8 +2,8 @@
   "totalRounds": 15,
   "phaseDurationSeconds": 15,
   "baseIncomePerRound": 0,
-  "baseOverseasCapacity": 2,
-  "rawMaterialsPerTurn": 20,
+  "baseOverseasCapacity": 5,
+  "rawMaterialsPerTurn": 12,
   "rankingTieBreakOrder": [
     "productionCapacity",
     "controlledRegions",

@@ -2,20 +2,20 @@
   "countries": {
     "britain": {
       "budgetPools": {
-        "domesticMarket": 12,
+        "domesticMarket": 24,
         "factory": 14,
-        "governmentFiscal": 22
+        "governmentFiscal": 10
       },
       "incomeAllocationRatio": {
-        "domesticMarket": 2.5,
+        "domesticMarket": 5.0,
         "factory": 3.0,
-        "governmentFiscal": 4.5
+        "governmentFiscal": 2.0
       },
       "techPoints": 0,
       "militaryPoints": 1,
       "productionCapacity": {
         "idle": 0,
-        "handicraft": 4,
+        "handicraft": 8,
         "mechanized": 0,
         "steam": 0,
         "electrified": 0
@@ -30,7 +30,7 @@
       "navy": {
         "fleets": 1
       },
-      "administrationCapacity": 0,
+      "administrationCapacity": 2,
       "researchFacilities": {
         "academy": 1
       },
@@ -45,25 +45,25 @@
       "initialDiplomacy": [
         "asia_pacific"
       ],
-      "initialRawMaterials": 35,
-      "rawMaterialsPerTurn": 21
+      "initialRawMaterials": 25,
+      "rawMaterialsPerTurn": 12
     },
     "france": {
       "budgetPools": {
-        "domesticMarket": 12,
-        "factory": 12,
-        "governmentFiscal": 20
+        "domesticMarket": 22,
+        "factory": 13,
+        "governmentFiscal": 9
       },
       "incomeAllocationRatio": {
-        "domesticMarket": 3.5,
+        "domesticMarket": 5.0,
         "factory": 3.0,
-        "governmentFiscal": 3.5
+        "governmentFiscal": 2.0
       },
       "techPoints": 0,
       "militaryPoints": 0,
       "productionCapacity": {
         "idle": 0,
-        "handicraft": 3,
+        "handicraft": 7,
         "mechanized": 0,
         "steam": 0,
         "electrified": 0
@@ -78,7 +78,7 @@
       "navy": {
         "fleets": 1
       },
-      "administrationCapacity": 1,
+      "administrationCapacity": 2,
       "researchFacilities": {
         "academy": 0
       },
@@ -93,25 +93,25 @@
       "initialDiplomacy": [
         "africa"
       ],
-      "initialRawMaterials": 33,
-      "rawMaterialsPerTurn": 20
+      "initialRawMaterials": 25,
+      "rawMaterialsPerTurn": 12
     },
     "prussia": {
       "budgetPools": {
-        "domesticMarket": 10,
+        "domesticMarket": 21,
         "factory": 12,
-        "governmentFiscal": 20
+        "governmentFiscal": 9
       },
       "incomeAllocationRatio": {
-        "domesticMarket": 2.0,
-        "factory": 4.0,
-        "governmentFiscal": 4.0
+        "domesticMarket": 5.0,
+        "factory": 3.0,
+        "governmentFiscal": 2.0
       },
       "techPoints": 0,
       "militaryPoints": 1,
       "productionCapacity": {
         "idle": 0,
-        "handicraft": 2,
+        "handicraft": 6,
         "mechanized": 1,
         "steam": 0,
         "electrified": 0
@@ -126,7 +126,7 @@
       "navy": {
         "fleets": 0
       },
-      "administrationCapacity": 0,
+      "administrationCapacity": 2,
       "researchFacilities": {
         "academy": 1
       },
@@ -141,25 +141,25 @@
       "initialDiplomacy": [
         "americas"
       ],
-      "initialRawMaterials": 35,
-      "rawMaterialsPerTurn": 21
+      "initialRawMaterials": 25,
+      "rawMaterialsPerTurn": 12
     },
     "austria": {
       "budgetPools": {
-        "domesticMarket": 11,
+        "domesticMarket": 22,
         "factory": 13,
-        "governmentFiscal": 20
+        "governmentFiscal": 9
       },
       "incomeAllocationRatio": {
-        "domesticMarket": 3.0,
+        "domesticMarket": 5.0,
         "factory": 3.0,
-        "governmentFiscal": 4.0
+        "governmentFiscal": 2.0
       },
       "techPoints": 0,
       "militaryPoints": 1,
       "productionCapacity": {
         "idle": 0,
-        "handicraft": 3,
+        "handicraft": 7,
         "mechanized": 0,
         "steam": 0,
         "electrified": 0
@@ -174,7 +174,7 @@
       "navy": {
         "fleets": 0
       },
-      "administrationCapacity": 1,
+      "administrationCapacity": 2,
       "researchFacilities": {
         "academy": 0
       },
@@ -189,25 +189,25 @@
       "initialDiplomacy": [
         "middle_east"
       ],
-      "initialRawMaterials": 30,
-      "rawMaterialsPerTurn": 20
+      "initialRawMaterials": 25,
+      "rawMaterialsPerTurn": 12
     },
     "russia": {
       "budgetPools": {
-        "domesticMarket": 14,
+        "domesticMarket": 24,
         "factory": 14,
-        "governmentFiscal": 20
+        "governmentFiscal": 10
       },
       "incomeAllocationRatio": {
-        "domesticMarket": 3.5,
-        "factory": 3.5,
-        "governmentFiscal": 3.0
+        "domesticMarket": 5.0,
+        "factory": 3.0,
+        "governmentFiscal": 2.0
       },
       "techPoints": 0,
       "militaryPoints": 1,
       "productionCapacity": {
         "idle": 0,
-        "handicraft": 4,
+        "handicraft": 8,
         "mechanized": 0,
         "steam": 0,
         "electrified": 0
@@ -222,7 +222,7 @@
       "navy": {
         "fleets": 0
       },
-      "administrationCapacity": 0,
+      "administrationCapacity": 2,
       "researchFacilities": {
         "academy": 0
       },
@@ -237,8 +237,8 @@
       "initialDiplomacy": [
         "middle_east"
       ],
-      "initialRawMaterials": 28,
-      "rawMaterialsPerTurn": 23
+      "initialRawMaterials": 25,
+      "rawMaterialsPerTurn": 12
     }
   }
 }

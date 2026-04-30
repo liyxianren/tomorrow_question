@@ -32,15 +32,18 @@ PRODUCTION_MODE_OUTPUT_RATIOS: Mapping[str, Decimal] = {
 
 # 各生产方式的需求系数：每单位产能创造的本国需求。
 PRODUCTION_MODE_DEMAND_COEFFICIENTS: Mapping[str, Decimal] = {
-    "idle": Decimal("1"),
-    "handicraft": Decimal("2"),
-    "mechanized": Decimal("3"),
-    "steam": Decimal("4"),
-    "electrified": Decimal("5"),
+    "idle": Decimal("0"),
+    "handicraft": Decimal("1"),
+    "mechanized": Decimal("2"),
+    "steam": Decimal("3"),
+    "electrified": Decimal("4"),
 }
 
 # 价格下限：避免极端过剩时本国价格归零或为负。
 DEFAULT_MINIMUM_DOMESTIC_PRICE: Decimal = Decimal("1")
+
+# 价格上限：避免消费池膨胀时均衡价失真。
+DEFAULT_MAXIMUM_DOMESTIC_PRICE: Decimal = Decimal("8")
 
 # 销售收入分配比例 5:3:2。
 DEFAULT_INCOME_ALLOCATION_RATIO: Mapping[str, Decimal] = {
@@ -86,7 +89,12 @@ def calculate_equilibrium_price(*, consumption_pool: Number, demand: Number) -> 
     demand_d = _to_decimal(demand)
     if demand_d == 0:
         return Decimal("0")
-    return _to_decimal(consumption_pool) / demand_d
+    raw = _to_decimal(consumption_pool) / demand_d
+    if raw < DEFAULT_MINIMUM_DOMESTIC_PRICE:
+        return DEFAULT_MINIMUM_DOMESTIC_PRICE
+    if raw > DEFAULT_MAXIMUM_DOMESTIC_PRICE:
+        return DEFAULT_MAXIMUM_DOMESTIC_PRICE
+    return raw
 
 
 def calculate_domestic_price(
@@ -95,12 +103,14 @@ def calculate_domestic_price(
     supply: Number,
     demand: Number,
     minimum_price: Number = DEFAULT_MINIMUM_DOMESTIC_PRICE,
+    maximum_price: Number = DEFAULT_MAXIMUM_DOMESTIC_PRICE,
 ) -> Decimal:
-    """Apply shortage / surplus adjustment to equilibrium price with floor."""
+    """Apply shortage / surplus adjustment to equilibrium price with floor and ceiling."""
     equilibrium_d = _to_decimal(equilibrium_price)
     supply_d = _to_decimal(supply)
     demand_d = _to_decimal(demand)
     minimum_d = _to_decimal(minimum_price)
+    maximum_d = _to_decimal(maximum_price)
 
     if demand_d == 0:
         return minimum_d
@@ -114,7 +124,11 @@ def calculate_domestic_price(
         surplus_rate = (supply_d - demand_d) / demand_d
         raw_price = equilibrium_d * (Decimal("1") - surplus_rate)
 
-    return raw_price if raw_price > minimum_d else minimum_d
+    if raw_price < minimum_d:
+        return minimum_d
+    if raw_price > maximum_d:
+        return maximum_d
+    return raw_price
 
 
 @dataclass(frozen=True)
