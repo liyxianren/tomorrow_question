@@ -60,9 +60,6 @@ def empty_decision_payload() -> dict[str, object]:
         },
         "domesticMarketPlan": {"domesticMarketActions": []},
         "governmentPlan": {
-            "pointPurchases": [],
-            "strategySelections": [],
-            "techResearch": [],
             "adminPurchases": 0,
         },
         "militaryPlan": {

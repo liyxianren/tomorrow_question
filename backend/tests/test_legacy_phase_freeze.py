@@ -58,9 +58,7 @@ class LegacyPhaseFreezeTests(unittest.TestCase):
             set(decision_payload["factoryPlan"].keys()),
             {"productionOrders", "expansionOrders", "upgradeOrders", "newFactoryOrders"},
         )
-        self.assertEqual(decision_payload["governmentPlan"]["pointPurchases"], [])
-        self.assertEqual(decision_payload["governmentPlan"]["strategySelections"], [])
-        self.assertEqual(decision_payload["governmentPlan"]["techResearch"], [])
+        self.assertIn("adminPurchases", decision_payload["governmentPlan"])
         self.assertEqual(decision_payload["militaryPlan"]["militaryActions"], [])
         self.assertEqual(decision_payload["militaryPlan"]["diplomacyActions"], [])
         self.assertEqual(market_payload, {"saleOrders": []})

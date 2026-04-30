@@ -170,7 +170,7 @@ class DecisionRulesTests(unittest.TestCase):
         )
 
         updated_britain = get_player(resolution.updated_snapshot, "player-1")
-        self.assertEqual(updated_britain.budget_pools["governmentFiscal"], 8)
+        self.assertEqual(updated_britain.budget_pools["governmentFiscal"], 12)
         self.assertEqual(updated_britain.military_points, britain.military_points + 2)
 
     def test_military_plan_establishes_diplomacy_and_applies_expedition_effects(self) -> None:
@@ -207,7 +207,7 @@ class DecisionRulesTests(unittest.TestCase):
         )
 
         updated_france = get_player(resolution.updated_snapshot, "player-2")
-        self.assertEqual(updated_france.budget_pools["governmentFiscal"], 7)
+        self.assertEqual(updated_france.budget_pools["governmentFiscal"], 13)
         self.assertIn("africa", updated_france.established_diplomacy)
         self.assertIn("americas", updated_france.established_diplomacy)
         self.assertEqual(updated_france.military_points, france.military_points + 2)

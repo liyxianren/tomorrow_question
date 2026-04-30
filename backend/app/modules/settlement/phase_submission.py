@@ -282,13 +282,13 @@ def _normalize_decision_submission(payload: dict[str, object]) -> dict[str, Any]
             "Decision submission.governmentPlan must be an object.",
         )
     normalized["governmentPlan"]["pointPurchases"] = _normalize_point_purchase_list(
-        government_plan.get("pointPurchases")
+        government_plan.get("pointPurchases") or []
     )
     normalized["governmentPlan"]["strategySelections"] = _normalize_action_list(
-        government_plan.get("strategySelections")
+        government_plan.get("strategySelections") or []
     )
     normalized["governmentPlan"]["techResearch"] = _normalize_tech_research_list(
-        government_plan.get("techResearch", [])
+        government_plan.get("techResearch") or []
     )
     raw_admin_purchases = government_plan.get("adminPurchases")
     try:
