@@ -1,5 +1,6 @@
+import { useCallback } from "react";
 import type { Phase1ProductionMode } from "../../../../types";
-import { getProductionRouteLabel, getTechnologyLabel } from "../../../../features/game/panelGlossary";
+import { getTechnologyLabel } from "../../../../features/game/panelGlossary";
 import "./Phase1ProductionPanel.css";
 
 export function Phase1ProductionPanel({
@@ -31,148 +32,157 @@ export function Phase1ProductionPanel({
   }, 0);
 
   return (
-    <section className="phase1-production-panel" data-testid="phase1-production-panel">
-      <div className="phase1-production-panel__summary">
-        <div className="phase1-production-panel__summary-item">
-          <span className="phase1-production-panel__summary-label">原材料</span>
-          <span className="phase1-production-panel__summary-value">
-            {remainingRawMaterials} / {rawMaterials}
+    <section className="phase1-panel" data-testid="phase1-production-panel">
+      {/* ── Summary Bar ── */}
+      <div className="phase1-panel__summary">
+        <div className="phase1-panel__stat">
+          <span className="phase1-panel__stat-value">
+            {remainingRawMaterials}
+            <span className="phase1-panel__stat-unit"> / {rawMaterials}</span>
           </span>
+          <span className="phase1-panel__stat-label">原材料</span>
         </div>
-        <div className="phase1-production-panel__summary-item">
-          <span className="phase1-production-panel__summary-label">投资池</span>
-          <span className="phase1-production-panel__summary-value">{investmentPool}</span>
+        <div className="phase1-panel__stat">
+          <span className="phase1-panel__stat-value">{goodsInventory}</span>
+          <span className="phase1-panel__stat-label">商品库存</span>
         </div>
-        <div className="phase1-production-panel__summary-item">
-          <span className="phase1-production-panel__summary-label">商品库存</span>
-          <span className="phase1-production-panel__summary-value">{goodsInventory}</span>
-        </div>
-        <div className="phase1-production-panel__summary-item">
-          <span className="phase1-production-panel__summary-label">预计需求</span>
-          <span className="phase1-production-panel__summary-value">{domesticDemand}</span>
-        </div>
-        <div className="phase1-production-panel__summary-item">
-          <span className="phase1-production-panel__summary-label">均衡价</span>
-          <span className="phase1-production-panel__summary-value">{Math.round(equilibriumPrice * 100) / 100}</span>
-        </div>
-        <div className="phase1-production-panel__summary-item">
-          <span className="phase1-production-panel__summary-label">国内成交价预测</span>
-          <span className="phase1-production-panel__summary-value">{Math.round(domesticPricePreview * 100) / 100}</span>
+        <div className="phase1-panel__stat">
+          <span className="phase1-panel__stat-value">{investmentPool}</span>
+          <span className="phase1-panel__stat-label">投资池</span>
         </div>
       </div>
 
-      <div className="phase1-production-panel__grid">
+      {/* ── Production Mode Cards ── */}
+      <div className="phase1-panel__grid">
         {modes.map((mode) => {
           const assigned = assignments[mode.mode] ?? 0;
           const expectedOutput = assigned * mode.outputRatio;
-          const expectedDemand = mode.currentCapacity * mode.demandCoefficient;
           const isLocked = !mode.isAvailable;
           const noCapacity = mode.currentCapacity <= 0;
-          const inputDisabled = isLocked || noCapacity || !onAssignmentChange;
-          const inputMax = Math.min(mode.currentCapacity, rawMaterials);
+          const disabled = isLocked || noCapacity || !onAssignmentChange;
 
-          function handleChange(raw: string) {
-            if (!onAssignmentChange) {
-              return;
-            }
-            const numeric = Number(raw);
-            const safe = Number.isFinite(numeric) ? Math.floor(Math.max(0, numeric)) : 0;
-            const clamped = Math.min(safe, mode.currentCapacity);
-            onAssignmentChange(mode.mode, clamped);
+          const maxAlloc = Math.min(mode.currentCapacity, rawMaterials);
+
+          function handleDelta(delta: number) {
+            if (!onAssignmentChange) return;
+            const next = Math.min(Math.max(0, assigned + delta), maxAlloc);
+            onAssignmentChange(mode.mode, next);
           }
 
-          const cardClassName = [
-            "phase1-mode-card",
-            isLocked ? "phase1-mode-card--locked" : "",
-            assigned > 0 ? "phase1-mode-card--active" : "",
+          function handleMax() {
+            if (!onAssignmentChange) return;
+            onAssignmentChange(mode.mode, maxAlloc);
+          }
+
+          function handleZero() {
+            if (!onAssignmentChange) return;
+            onAssignmentChange(mode.mode, 0);
+          }
+
+          const cardClass = [
+            "phase1-card",
+            isLocked && "phase1-card--locked",
+            assigned > 0 && "phase1-card--active",
           ]
             .filter(Boolean)
             .join(" ");
 
           return (
-            <article key={mode.mode} className={cardClassName}>
-              <header className="phase1-mode-card__header">
-                <div className="phase1-mode-card__title-group">
-                  <span className="phase1-mode-card__name">{mode.label}</span>
-                  <span className="phase1-mode-card__mode-id">{getProductionRouteLabel(mode.mode)}</span>
-                </div>
+            <article key={mode.mode} className={cardClass}>
+              {/* Header: name + lock */}
+              <header className="phase1-card__header">
+                <span className="phase1-card__name">{mode.label}</span>
                 {isLocked ? (
-                  <span className="phase1-mode-card__lock-tag">
-                    🔒 {mode.requiredTech
-                      ? `需 ${(Array.isArray(mode.requiredTech) ? mode.requiredTech : [mode.requiredTech]).map((t: string) => getTechnologyLabel(t)).join("、")}`
+                  <span className="phase1-card__lock" title={
+                    mode.requiredTech
+                      ? (Array.isArray(mode.requiredTech) ? mode.requiredTech : [mode.requiredTech])
+                          .map((t: string) => getTechnologyLabel(t)).join("、")
+                      : "未解锁"
+                  }>
+                    <svg className="phase1-card__lock-icon" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <rect x="3" y="7" width="10" height="7" rx="1.5" />
+                      <path d="M5 7V5a3 3 0 0 1 6 0v2" />
+                    </svg>
+                    {mode.requiredTech
+                      ? (Array.isArray(mode.requiredTech) ? mode.requiredTech : [mode.requiredTech])
+                          .map((t: string) => getTechnologyLabel(t)).join("、")
                       : "未解锁"}
                   </span>
                 ) : null}
               </header>
 
-              <dl className="phase1-mode-card__stats">
-                <div className="phase1-mode-card__stat">
-                  <dt>当前产能</dt>
-                  <dd>{mode.currentCapacity}</dd>
+              {/* Capacity */}
+              {!isLocked && (
+                <div className="phase1-card__capacity">
+                  <span className="phase1-card__capacity-label">产能</span>
+                  <span className="phase1-card__capacity-value">{mode.currentCapacity}</span>
                 </div>
-                <div className="phase1-mode-card__stat">
-                  <dt>效率</dt>
-                  <dd>
-                    {mode.inputRatio} 原材料 → {mode.outputRatio} 商品
-                  </dd>
-                </div>
-                <div className="phase1-mode-card__stat">
-                  <dt>需求系数</dt>
-                  <dd>{mode.demandCoefficient} / 产能</dd>
-                </div>
-                {mode.buildCost !== null ? (
-                  <div className="phase1-mode-card__stat">
-                    <dt>新建成本</dt>
-                    <dd>{mode.buildCost}</dd>
-                  </div>
-                ) : null}
-                {mode.upgradeCost !== null ? (
-                  <div className="phase1-mode-card__stat">
-                    <dt>升级成本</dt>
-                    <dd>{mode.upgradeCost}</dd>
-                  </div>
-                ) : null}
-                <div className="phase1-mode-card__stat">
-                  <dt>预计创造需求</dt>
-                  <dd>{expectedDemand}</dd>
-                </div>
-              </dl>
+              )}
 
-              <div className="phase1-mode-card__assign">
-                <label className="phase1-mode-card__assign-label" htmlFor={`phase1-assign-${mode.mode}`}>
-                  分配原材料
-                </label>
-                <input
-                  id={`phase1-assign-${mode.mode}`}
-                  className="phase1-mode-card__input"
-                  type="number"
-                  min={0}
-                  max={inputMax}
-                  step={1}
-                  value={assigned}
-                  disabled={inputDisabled}
-                  onChange={(event) => handleChange(event.target.value)}
-                  aria-label={`为 ${mode.label} 分配原材料`}
-                />
-                <span className="phase1-mode-card__assign-hint">
-                  上限 {inputMax}（产能 {mode.currentCapacity}）
-                </span>
-              </div>
+              {/* Stepper */}
+              {!isLocked && (
+                <div className="phase1-card__stepper">
+                  <button
+                    type="button"
+                    className="phase1-card__stepper-btn"
+                    disabled={disabled || assigned <= 0}
+                    onClick={() => handleDelta(-1)}
+                    aria-label={`${mode.label} 减少`}
+                  >
+                    −
+                  </button>
+                  <button
+                    type="button"
+                    className="phase1-card__stepper-zero"
+                    disabled={disabled || assigned <= 0}
+                    onClick={handleZero}
+                    aria-label={`${mode.label} 清零`}
+                  >
+                    0
+                  </button>
+                  <span className="phase1-card__stepper-value">{assigned}</span>
+                  <button
+                    type="button"
+                    className="phase1-card__stepper-btn"
+                    disabled={disabled || assigned >= maxAlloc}
+                    onClick={() => handleDelta(1)}
+                    aria-label={`${mode.label} 增加`}
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    className="phase1-card__stepper-max"
+                    disabled={disabled || assigned >= maxAlloc}
+                    onClick={handleMax}
+                    aria-label={`${mode.label} 最大`}
+                  >
+                    MAX
+                  </button>
+                </div>
+              )}
 
-              <footer className="phase1-mode-card__footer">
-                <span className="phase1-mode-card__output-label">预计产出</span>
-                <span className="phase1-mode-card__output-value">{expectedOutput}</span>
-              </footer>
+              {/* Expected output */}
+              {!isLocked && assigned > 0 && (
+                <div className="phase1-card__output">
+                  <span className="phase1-card__output-label">预计产出</span>
+                  <span className="phase1-card__output-value">{expectedOutput}</span>
+                </div>
+              )}
             </article>
           );
         })}
       </div>
 
-      <div className="phase1-production-panel__total">
-        <span className="phase1-production-panel__total-label">总预计产出</span>
-        <span className="phase1-production-panel__total-value">{totalOutput}</span>
-        <span className="phase1-production-panel__total-meta">
-          已分配原材料 {totalAssigned} / {rawMaterials}
+      {/* ── Footer ── */}
+      <div className="phase1-panel__footer">
+        <span className="phase1-panel__footer-row">
+          <span className="phase1-panel__footer-label">总分配原材料</span>
+          <span className="phase1-panel__footer-value">{totalAssigned} / {rawMaterials}</span>
+        </span>
+        <span className="phase1-panel__footer-row">
+          <span className="phase1-panel__footer-label">总预计产出</span>
+          <span className="phase1-panel__footer-value phase1-panel__footer-value--highlight">{totalOutput}</span>
         </span>
       </div>
     </section>
@@ -180,5 +190,8 @@ export function Phase1ProductionPanel({
 }
 
 function sumValues(values: Record<string, number>): number {
-  return Object.values(values).reduce((sum, value) => sum + (Number.isFinite(value) ? value : 0), 0);
+  return Object.values(values).reduce(
+    (sum, value) => sum + (Number.isFinite(value) ? value : 0),
+    0,
+  );
 }

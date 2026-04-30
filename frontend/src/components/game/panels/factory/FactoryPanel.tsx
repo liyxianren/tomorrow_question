@@ -11,10 +11,6 @@ import {
   flattenTechTree,
   formatPriceTrendText,
 } from "../../../../features/game/decisionShared";
-import { FactoryRouteLane } from "./FactoryRouteLane";
-import { FactoryConstructionPanel } from "./FactoryConstructionPanel";
-import { FactoryTechPanel } from "./FactoryTechPanel";
-import { FactoryIntelPanel } from "./FactoryIntelPanel";
 import { Phase1ProductionPanel } from "./Phase1ProductionPanel";
 import "./FactoryPanel.css";
 
@@ -40,34 +36,6 @@ export function FactoryPanel({
   onPhase1RawMaterialAssignmentChange?: (mode: string, quantity: number) => void;
 }) {
   const techPreview = calculateTechResearchPreview(workspace, draft);
-  const scheduledBatches = draft.factoryPlan.productionOrders.reduce((sum, item) => sum + item.quantity, 0);
-  const constructionOrders =
-    draft.factoryPlan.expansionOrders.reduce((sum, item) => sum + item.quantity, 0)
-    + draft.factoryPlan.upgradeOrders.reduce((sum, item) => sum + item.quantity, 0)
-    + draft.factoryPlan.newFactoryOrders.reduce((sum, item) => sum + item.quantity, 0);
-  const nextCapacityDelta = calculateNextCapacityDelta(workspace, draft);
-
-  const routeSignals = workspace.routeSummaries.map((summary) => {
-    const allocated = getAllocatedProductionBatchesForRoute(draft, workspace.productionOptions, summary.routeId);
-    return {
-      routeId: summary.routeId,
-      routeLabel: summary.routeLabel,
-      currentCapacity: summary.currentCapacity,
-      pendingCapacity: summary.pendingCapacity,
-      remainingBatches: Math.max(summary.availableBatchesThisRound - allocated, 0),
-      totalBatches: summary.availableBatchesThisRound,
-    };
-  });
-
-  const availableProductionOptions = workspace.productionOptions.filter(
-    (option) => resolveProductionLockedReason(option, workspace, techPreview.unlockedTechIds) === null,
-  );
-  const lockedProductionOptions = workspace.productionOptions.filter(
-    (option) => resolveProductionLockedReason(option, workspace, techPreview.unlockedTechIds) !== null,
-  );
-
-  const factoryTechs = flattenTechTree(workspace.techTree).filter((tech) => "budgetPool" in tech && tech.budgetPool === "factory");
-
   const phase1Economy = workspace.phase1Economy;
   const phase1Assignments = draft.phase1Production?.rawMaterialAssignments ?? {};
 
@@ -79,115 +47,23 @@ export function FactoryPanel({
       </div>
 
       {phase1Economy && phase1Economy.productionModes && phase1Economy.productionModes.length > 0 ? (
-        <>
-          <h3 className="factory-section-label">🏭 产能结构（2.0）</h3>
-          <Phase1ProductionPanel
-            modes={phase1Economy.productionModes}
-            rawMaterials={phase1Economy.rawMaterials}
-            investmentPool={phase1Economy.investmentPool}
-            domesticDemand={phase1Economy.domesticDemand}
-            equilibriumPrice={phase1Economy.equilibriumPrice}
-            domesticPricePreview={phase1Economy.domesticPricePreview}
-            goodsInventory={phase1Economy.goodsInventory}
-            assignments={phase1Assignments}
-            onAssignmentChange={onPhase1RawMaterialAssignmentChange}
-          />
-        </>
+        <Phase1ProductionPanel
+          modes={phase1Economy.productionModes}
+          rawMaterials={phase1Economy.rawMaterials}
+          investmentPool={phase1Economy.investmentPool}
+          domesticDemand={phase1Economy.domesticDemand}
+          equilibriumPrice={phase1Economy.equilibriumPrice}
+          domesticPricePreview={phase1Economy.domesticPricePreview}
+          goodsInventory={phase1Economy.goodsInventory}
+          assignments={phase1Assignments}
+          onAssignmentChange={onPhase1RawMaterialAssignmentChange}
+        />
       ) : null}
-
-      <h3 className="factory-section-label">工业总览</h3>
-      <div className="factory-stats">
-        <div className="factory-stat">
-          <span className="factory-stat__icon">💰</span>
-          <span className="factory-stat__value">{`工厂预算剩余 ${remainingFactoryBudget}`}</span>
-        </div>
-        <div className="factory-stat">
-          <span className="factory-stat__icon">📦</span>
-          <span className="factory-stat__value">{scheduledBatches}</span>
-          <span className="factory-stat__label">排产批次</span>
-        </div>
-        <div className="factory-stat">
-          <span className="factory-stat__icon">🏗️</span>
-          <span className="factory-stat__value">{constructionOrders}</span>
-          <span className="factory-stat__label">建设订单</span>
-        </div>
-        <div className="factory-stat">
-          <span className="factory-stat__icon">📈</span>
-          <span className="factory-stat__value">{`下回合产能变化 ${formatSignedValue(nextCapacityDelta)}`}</span>
-        </div>
-      </div>
-
-      <div className="factory-route-pills">
-        {routeSignals.map((route) => (
-          <article key={route.routeId} className="factory-route-pill">
-            <span className="factory-route-pill__name">{route.routeLabel}</span>
-            <span className="factory-route-pill__batches">{`${route.routeLabel}剩余 ${route.remainingBatches} / ${route.totalBatches} 批`}</span>
-            <span className="factory-route-pill__meta">
-              当前产能 {route.currentCapacity} · 下回合 {route.pendingCapacity >= 0 ? `+${route.pendingCapacity}` : route.pendingCapacity}
-            </span>
-          </article>
-        ))}
-      </div>
-
-      <h3 className="factory-section-label">产线排程</h3>
-      {routeSignals.map((route) => {
-        const routeOptions = availableProductionOptions.filter((opt) => opt.routeId === route.routeId);
-        return (
-          <FactoryRouteLane
-            key={route.routeId}
-            routeId={route.routeId}
-            routeLabel={route.routeLabel}
-            currentCapacity={route.currentCapacity}
-            pendingCapacity={route.pendingCapacity}
-            remainingBatches={route.remainingBatches}
-            totalBatches={route.totalBatches}
-            productionOptions={routeOptions}
-            draft={draft}
-            remainingBudget={remainingFactoryBudget}
-            onQuantityChange={onProductionQuantityChange}
-          />
-        );
-      })}
-
-      <FactoryConstructionPanel
-        expansionOptions={workspace.expansionOptions}
-        upgradeOptions={workspace.upgradeOptions}
-        newFactoryOptions={workspace.newFactoryOptions}
-        draft={draft}
-        remainingBudget={remainingFactoryBudget}
-        unlockedTechIds={techPreview.unlockedTechIds}
-        workspace={workspace}
-        onQuantityChange={onConstructionQuantityChange}
-      />
-
-      <FactoryTechPanel
-        techs={factoryTechs}
-        techPreview={techPreview}
-        workspace={workspace}
-        draft={draft}
-        onToggle={onTechnologyToggle}
-      />
-
-      <FactoryIntelPanel
-        items={lockedProductionOptions.map((option) => ({
-          id: `intel-${option.goodsId}`,
-          title: option.label,
-          routeLabel: option.routeLabel,
-          lockedReason: resolveProductionLockedReason(option, workspace, techPreview.unlockedTechIds) ?? "",
-          description: option.usageHint,
-          badges: [
-            `适配路线 ${option.routeLabel}`,
-            `国内 ${option.domesticReferencePrice}`,
-            `海外 ${option.overseasReferencePriceMin}-${option.overseasReferencePriceMax}`,
-            formatPriceTrendText(option.priceTrend, option.priceAdjustment),
-          ],
-        }))}
-      />
     </section>
   );
 }
 
-/* ── Helpers (moved from viewModel.ts) ── */
+/* ── Helpers (kept for external use) ── */
 
 export function resolveProductionLockedReason(
   option: FactoryProductionOption,
