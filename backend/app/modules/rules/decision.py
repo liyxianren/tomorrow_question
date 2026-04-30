@@ -484,13 +484,6 @@ def _apply_talent_plan(player_state, talent_plan: dict[str, Any], balance) -> No
         apply_effects(player_state, node.permanent_effects)
 
 
-def _apply_ratio_delta(player_state, ratio_delta: dict[str, float]) -> None:
-    for key, delta in ratio_delta.items():
-        player_state.income_allocation_ratio[key] = max(
-            0.0,
-            float(player_state.income_allocation_ratio.get(key, 0.0)) + float(delta),
-        )
-
 def _apply_active_event_effects(player_state, active_events: list[dict[str, Any]]) -> None:
     for event in active_events:
         effects = event.get("effects")
