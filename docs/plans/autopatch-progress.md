@@ -2,9 +2,8 @@
 
 ## 当前状态
 - Branch: feature/game-balance-rebalance
-- **358 passed**, 12 skipped (was 344 → +14 new tests)
+- **359 passed**, 12 skipped (was 358 → +1 comprehensive 5-round E2E)
 - 后端运行中 (port 5001)
-- 测试端口已修复: test_military_system.py 5000→5001
 
 ## 已完成
 - [x] P0-1 需求系数 (mechanized 2→1.5)
@@ -41,6 +40,14 @@
   - Austria ausgleich_1867: domestic+3, overseas+2 临时效果
   - Russia emancipation_reform: idle→handicraft, egalitarianism+2
   - 错误国家不能使用能力 / 能力不能重复使用
+- [x] **完整5回合API级E2E测试 (殖民+掠夺+天赋+能力 综合)** ✅
+  - R1: 生产+军事招募+解锁殖民+建立外交+殖民美洲+使用workshop能力
+  - R2: 掠夺棉花+解锁天赋链(ind_basic_metallurgy, ind_process_improvement)+法国code_napoleon+普鲁士krupp_steel
+  - R3: 二次掠夺+深度天赋(ind_standardization)+跨分支天赋
+  - R4: 三次掠夺+能力重复使用被拒(workshop_of_the_world)
+  - R5: 最终状态累积验证
+  - 殖民地因持续掠夺独立度升高后叛乱 (independence mechanics verified)
+  - 所有5国累积收入非负
 
 ## 已知API格式
 - productionOrders: `[{"goodsId": "phase1_goods", "quantity": N}]`
@@ -54,6 +61,6 @@
 - market: `{"saleOrders": [], "phase1Market": {"domesticAllocation": N}}`
 
 ## 下一步
-1. 完整5回合API级E2E测试 (殖民+掠夺+天赋+能力 综合)
-2. 前端集成验证 (确保前端发送的 lootingActions/talentPlan/abilitySelection 正确到达后端)
-3. 性能测试 (多玩家并发提交)
+1. 前端集成验证 (确保前端发送的 lootingActions/talentPlan/abilitySelection 正确到达后端)
+2. 性能测试 (多玩家并发提交)
+3. 边界场景测试 (殖民地资源耗尽、天赋树满级、同时殖民多区域)
