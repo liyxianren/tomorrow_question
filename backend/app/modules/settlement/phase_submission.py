@@ -689,6 +689,13 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
         admin_quantity = 0
     government_spend += admin_quantity * admin_cost
 
+    # Validate strategy selections (government actions) budget
+    for selection in payload.get("governmentPlan", {}).get("strategySelections", []):
+        action_id = str(selection.get("actionId") or "")
+        action = balance.decision_actions.government_actions.get(action_id)
+        if action is not None:
+            government_spend += int(action.budget_pool_cost)
+
     military_plan_spend = 0
     military_action_counts: dict[str, int] = {}
     for selection in payload.get("militaryPlan", {}).get("militaryActions", []):

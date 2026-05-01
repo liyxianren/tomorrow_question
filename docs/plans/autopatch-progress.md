@@ -2,7 +2,7 @@
 
 ## 当前状态
 - Branch: feature/game-balance-rebalance
-- **372 passed**, 12 skipped (was 368 → +4 Austria/Russia ability tests)
+- **384 passed**, 12 skipped (was 372 → +12: 8 production upgrade + 4 strategy selections)
 - 后端运行中 (port 5001)
 
 ## 已完成
@@ -20,49 +20,27 @@
 - [x] 测试端口修复 (test_military_system.py: 5000→5001)
 - [x] **API级E2E全链路验证** (5回合完整游戏) ✅
 - [x] **Bug Fix: API Normalizer 丢失 lootingActions** ✅
-  - `phase_submission.py` 不持久化 `lootingActions`、`navalDeployment`、`conquestActions`
-  - 通过 API 提交的掠夺行动被静默丢弃，resolver 从 DB 加载时得到空列表
-  - 修复: 在 `_normalize_decision_submission` 中增加这三个字段的持久化
 - [x] **多回合殖民掠夺E2E验证** ✅
-  - 3回合完整链路: colonize(R1) → loot cotton(R2) → loot cotton(R3)
-  - raw_materials 每回合 +1, resource_limit 每回合 -1
-  - independence ≥ 2 (looting + supply/demand imbalance)
 - [x] **天赋系统链路E2E验证** ✅
-  - 购买科技点 (pointPurchases tech) → 解锁天赋 (talentUnlocks)
-  - 序列依赖: 不解锁 node[1] 不能解锁 node[2]
-  - 3节点连续解锁: ind_basic_metallurgy → ind_process_improvement → ind_standardization
-  - 跨分支独立: industry/domestic/government/military 各自独立
-  - 科技点不足阻止解锁
 - [x] **五国差异化E2E验证** ✅
-  - Britain workshop_of_the_world: 产出翻倍 (4→8 goods)
-  - France code_napoleon: 意识形态重置为3, 目标+3
-  - Prussia krupp_steel: mechanized→steam 免费升级 (max 2)
-  - Austria ausgleich_1867: domestic+3, overseas+2 临时效果
-  - Russia emancipation_reform: idle→handicraft, egalitarianism+2
-  - 错误国家不能使用能力 / 能力不能重复使用
 - [x] **完整5回合API级E2E测试 (殖民+掠夺+天赋+能力 综合)** ✅
-  - R1: 生产+军事招募+解锁殖民+建立外交+殖民美洲+使用workshop能力
-  - R2: 掠夺棉花+解锁天赋链(ind_basic_metallurgy, ind_process_improvement)+法国code_napoleon+普鲁士krupp_steel
-  - R3: 二次掠夺+深度天赋(ind_standardization)+跨分支天赋
-  - R4: 三次掠夺+能力重复使用被拒(workshop_of_the_world)
-  - R5: 最终状态累积验证
-  - 殖民地因持续掠夺独立度升高后叛乱 (independence mechanics verified)
-  - 所有5国累积收入非负
 - [x] **边缘场景E2E测试** ✅ (9个测试, test_edge_cases.py)
-  - 殖民地资源耗尽: cotton从4掠夺到0, 再掠夺为no-op
-  - 天赋树满级: 解锁工业分支全部5节点, 累计产能+8
-  - 天赋序列依赖: 跳过前置节点被拒绝
-  - 多区域殖民: 美洲R1→非洲R2 (max 1/round生效)
-  - 同回合双殖民: 仅第一个生效
-  - 殖民地叛乱后重占: 叛乱重置后可重新殖民
-  - 驻军防叛乱: 驻军3抵消掠夺+2独立度
-  - 跨分支天赋独立: 工业/军事互不影响
-  - 重复天赋解锁忽略: 同节点不重复生效
 - [x] **五国能力全覆盖E2E测试** ✅ (4个测试)
-  - Austria ausgleich_1867: 国内+3, 海外+2 市场能力
-  - Austria 错误国家使用能力被拒
-  - Russia emancipation_reform: idle→handicraft + 平等主义+2
-  - Russia 无idle时仍提升意识形态
+- [x] **生产模式升级链路E2E测试** ✅ (8个测试, test_production_upgrade_chain.py)
+  - handicraft→mechanized→steam→electrified 完整升级链
+  - 科技解锁→产能升级→产出验证 (×1→×2→×4→×8)
+  - 科技锁: 无spinning_jenny不能升级到mechanized
+  - 源模式约束: handicraft不能直接升级到steam (API 400拒绝)
+  - 预算约束: 超预算请求被API拒绝 (400)
+  - 源产能约束: 超源产能请求被API拒绝 (400)
+  - 研究进度积累: 失败尝试降低有效阈值
+  - 产出倍率验证: mechanized(×2) > handicraft(×1)
+- [x] **Bug Fix: strategySelections 未被 resolver 处理** ✅
+  - `_apply_government_plan` 不处理 `strategySelections`
+  - 政府行动 (trade_agreement, domestic_stimulus 等) 提交后被静默丢弃
+  - 修复: 在 resolver 中增加 strategy selections 处理 (预算扣除 + 效果应用 + 比率调整)
+  - 修复: 在 submission validator 中增加 strategy selections 预算验证
+  - 4个E2E测试验证: 效果应用、比率调整、预算扣除、超预算拒绝
 
 ## 已知API格式
 - productionOrders: `[{"goodsId": "phase1_goods", "quantity": N}]`
@@ -74,8 +52,12 @@
 - talentUnlocks: `[{"nodeId": "ind_basic_metallurgy"}]`
 - abilitySelection: `{"abilityId": "workshop_of_the_world"}` / `{"abilityId": "code_napoleon", "targetIdeology": "liberalism"}`
 - market: `{"saleOrders": [], "phase1Market": {"domesticAllocation": N}}`
+- strategySelections: `[{"actionId": "trade_agreement"}]` (government actions)
+- upgradeOrders: `[{"routeId": "mechanized", "quantity": N}]` (production upgrades)
+- newFactoryOrders: `[{"routeId": "handicraft", "quantity": N}]` (build factories)
+- researchTarget: `"spinning_jenny"` (set active research)
 
 ## 下一步
-1. 前端集成验证 (确保前端发送的 lootingActions/talentPlan/abilitySelection 正确到达后端)
+1. 前端集成验证 (确保前端发送的 lootingActions/talentPlan/abilitySelection/strategySelections/upgradeOrders 正确到达后端)
 2. 性能测试 (多玩家并发提交)
-3. 生产模式升级测试 (handicraft→mechanized→steam→electrified 完整升级链路)
+3. expand_research 策略 (regularPolicy) 通过 activatePolicies 的完整链路验证

@@ -217,7 +217,7 @@ def _apply_domestic_market_plan(player_state, domestic_plan: dict[str, Any], bal
 
 
 def _apply_government_plan(player_state, government_plan: dict[str, Any], balance) -> int:
-    """Phase-2 government plan: spend fiscal to buy administration capacity and points."""
+    """Phase-2 government plan: spend fiscal on admin capacity, points, and strategy actions."""
     spent = 0
     remaining_budget = int(player_state.budget_pools.get("governmentFiscal", 0))
     admin_cost = max(1, int(balance.politics.administration_cost))
@@ -250,6 +250,25 @@ def _apply_government_plan(player_state, government_plan: dict[str, Any], balanc
                 player_state.tech_points = int(player_state.tech_points) + affordable
             elif point_type == "military":
                 player_state.military_points = int(player_state.military_points) + affordable
+
+    # Process strategy selections (government actions)
+    from app.modules.game_state.effects import apply_effects
+    for selection in government_plan.get("strategySelections") or []:
+        action_id = str(selection.get("actionId") or "")
+        action = balance.decision_actions.government_actions.get(action_id)
+        if action is None:
+            continue
+        cost = int(action.budget_pool_cost)
+        if cost > 0 and spent + cost > remaining_budget:
+            continue
+        if cost > 0:
+            spent += cost
+        apply_effects(player_state, action.effects)
+        for pool_key, delta in action.ratio_delta.items():
+            player_state.income_allocation_ratio[pool_key] = max(
+                0.0,
+                float(player_state.income_allocation_ratio.get(pool_key, 0.0)) + float(delta),
+            )
 
     player_state.budget_pools["governmentFiscal"] = max(0, remaining_budget - spent)
     return spent
