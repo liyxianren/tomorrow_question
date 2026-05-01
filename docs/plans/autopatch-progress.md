@@ -2,7 +2,7 @@
 
 ## 当前状态
 - Branch: feature/game-balance-rebalance
-- **399 passed**, 12 skipped (was 391 → +8: expand_administration + budgetCost fix)
+- **407 passed**, 12 skipped (was 399 → +8: remaining regularPolicies E2E)
 - 后端运行中 (port 5001)
 
 ## 已完成
@@ -61,6 +61,12 @@
   - 行政能力不足阻止激活
   - 预算成本扣除 (15)
   - 超预算拒绝 (400)
+- [x] **剩余 regularPolicies 完整链路E2E验证** ✅ (8个测试, test_regular_policies_e2e.py)
+  - expand_army: 激活 + 军事增长 + 预算扣除 + 超预算拒绝
+  - reduce_army: 财政退款机制
+  - raise_consumption_tax: API级激活
+  - public_offering: requiresReform 门控 (stock_market)
+  - social_welfare: requiresReform 门控 (social_relief) + welfareTransfer
 
 ## 已知API格式
 - productionOrders: `[{"goodsId": "phase1_goods", "quantity": N}]`
@@ -80,4 +86,4 @@
 ## 下一步
 1. 前端集成验证 (确保前端发送的 lootingActions/talentPlan/abilitySelection/strategySelections/upgradeOrders 正确到达后端)
 2. 性能测试 (多玩家并发提交)
-3. social_welfare / public_offering / raise_consumption_tax 等其他 regularPolicy 的链路验证
+3. 战争系统完整链路验证 (conquest + naval + looting 综合)
