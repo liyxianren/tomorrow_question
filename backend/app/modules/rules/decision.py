@@ -36,6 +36,7 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
         government_before = int(player_state.budget_pools.get("governmentFiscal", 0))
 
         _apply_active_event_effects(player_state, updated_snapshot.active_events)
+        _apply_ability_selection(player_state, payload.get("abilitySelection"), balance)
 
         phase1_production = payload.get("phase1Production") or {}
         factory_spent = _apply_phase1_production_plan(player_state, phase1_production, balance)
@@ -170,6 +171,9 @@ def _apply_phase1_production_plan(player_state, phase1_production: dict[str, Any
             available_raw -= capped
 
     output_decimal = calculate_production_output(raw_assignments)
+    multiplier = int(player_state.temporary_effects.get("productionOutputMultiplier", 1))
+    if multiplier > 1:
+        output_decimal = output_decimal * multiplier
     output_int = int(output_decimal)
     raw_used = sum(raw_assignments.values())
 
@@ -281,6 +285,18 @@ def _apply_military_plan(player_state, military_plan: dict[str, Any], balance, s
         spent += int(action.budget_pool_cost)
         player_state.established_diplomacy.append(action.target_region)
 
+    # ── unlockColonization ───────────────────────────────────────────────
+    if military_plan.get("unlockColonization", False) and not player_state.colonization_unlocked:
+        unlock_cost = int(balance.military.colonization_unlock_cost)
+        if remaining_budget >= unlock_cost:
+            remaining_budget -= unlock_cost
+            spent += unlock_cost
+            player_state.colonization_unlocked = True
+
+    # ── colonizationActions ──────────────────────────────────────────────
+    if snapshot is not None:
+        _apply_colonization_actions(player_state, military_plan, snapshot, balance)
+
     if snapshot is not None:
         _apply_looting_actions(
             player_state,
@@ -291,6 +307,66 @@ def _apply_military_plan(player_state, military_plan: dict[str, Any], balance, s
 
     player_state.budget_pools["governmentFiscal"] = max(0, remaining_budget)
     return spent
+
+
+def _apply_colonization_actions(
+    player_state,
+    military_plan: dict[str, Any],
+    snapshot,
+    balance,
+) -> None:
+    """Colonize regions using military points (mp-based colonization).
+
+    Requires: colonization_unlocked=True, diplomacy established, enough mp.
+    Each colonization costs colonizationMilitaryPointCost mp.
+    """
+    colonization_actions = military_plan.get("colonizationActions", [])
+    if not colonization_actions:
+        return
+    if not player_state.colonization_unlocked:
+        return
+
+    regions_by_id = {region.region_id: region for region in snapshot.region_states}
+    country_key = player_state.country.value
+    mp_cost = int(balance.military.colonization_military_point_cost)
+    max_per_round = int(balance.military.max_colonizations_per_round)
+    colonized_count = 0
+
+    for action in colonization_actions:
+        if colonized_count >= max_per_round:
+            break
+        region_id = str(action.get("targetRegionId") or "")
+        if not region_id:
+            continue
+
+        blueprint = balance.regions.region_blueprints.get(region_id)
+        if blueprint is None or not blueprint.colonizable:
+            continue
+
+        # Must have diplomacy with the region
+        if region_id not in player_state.established_diplomacy:
+            continue
+
+        target_region = regions_by_id.get(region_id)
+        if target_region is None:
+            continue
+
+        # Must not already be controlled by this player
+        if target_region.controller == country_key:
+            continue
+
+        # Check route accessibility
+        if not check_route_accessible(country_key, region_id, snapshot, balance):
+            continue
+
+        # Must have enough military points
+        if player_state.military_points < mp_cost:
+            continue
+
+        player_state.military_points -= mp_cost
+        target_region.controller = country_key
+        target_region.access_level = RegionAccessLevel.COLONY
+        colonized_count += 1
 
 
 def _apply_looting_actions(
