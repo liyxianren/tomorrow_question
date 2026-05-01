@@ -6,9 +6,10 @@
       "militaryPointCost": 0,
       "maxPerRound": 3,
       "effects": {
-        "militaryPointsDelta": 1
+        "militaryPointsDelta": 1,
+        "armyDelta": {"infantry": 1}
       },
-      "description": "征募步兵部队，增加军事点。"
+      "description": "征募步兵部队，增加军事点和步兵单位。"
     },
     "train_artillery": {
       "label": "训练炮兵",
@@ -16,9 +17,10 @@
       "militaryPointCost": 0,
       "maxPerRound": 2,
       "effects": {
-        "militaryPointsDelta": 2
+        "militaryPointsDelta": 2,
+        "armyDelta": {"artillery": 1}
       },
-      "description": "训练重型炮兵，快速提升军事力量。"
+      "description": "训练重型炮兵，增加军事点和炮兵单位。"
     },
     "naval_drill": {
       "label": "海军演练",

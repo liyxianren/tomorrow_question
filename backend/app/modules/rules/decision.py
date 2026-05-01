@@ -217,7 +217,7 @@ def _apply_domestic_market_plan(player_state, domestic_plan: dict[str, Any], bal
 
 
 def _apply_government_plan(player_state, government_plan: dict[str, Any], balance) -> int:
-    """Phase-2 government plan: spend fiscal to buy administration capacity."""
+    """Phase-2 government plan: spend fiscal to buy administration capacity and points."""
     spent = 0
     remaining_budget = int(player_state.budget_pools.get("governmentFiscal", 0))
     admin_cost = max(1, int(balance.politics.administration_cost))
@@ -234,6 +234,22 @@ def _apply_government_plan(player_state, government_plan: dict[str, Any], balanc
             player_state.administration_capacity = (
                 int(player_state.administration_capacity) + affordable
             )
+
+    # Process point purchases (tech/military)
+    point_costs = {"tech": 2, "military": 10}  # budget cost per point
+    for purchase in government_plan.get("pointPurchases") or []:
+        point_type = str(purchase.get("pointType", ""))
+        quantity = max(0, int(purchase.get("quantity", 0)))
+        if point_type not in point_costs or quantity <= 0:
+            continue
+        cost_per_point = point_costs[point_type]
+        affordable = min(quantity, (remaining_budget - spent) // cost_per_point)
+        if affordable > 0:
+            spent += affordable * cost_per_point
+            if point_type == "tech":
+                player_state.tech_points = int(player_state.tech_points) + affordable
+            elif point_type == "military":
+                player_state.military_points = int(player_state.military_points) + affordable
 
     player_state.budget_pools["governmentFiscal"] = max(0, remaining_budget - spent)
     return spent

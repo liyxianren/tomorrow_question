@@ -128,8 +128,8 @@ class GameStateWorkspaceTests(unittest.TestCase):
         )
 
         self.assertFalse(capability["isUnlocked"])
-        self.assertEqual(capability["unlockCost"], 10)
-        self.assertEqual(capability["militaryPointCost"], 3)
+        self.assertEqual(capability["unlockCost"], 5)
+        self.assertEqual(capability["militaryPointCost"], 2)
         self.assertEqual(capability["incomePerColonyPerRound"], 5)
         self.assertEqual(capability["maxColonizationsPerRound"], 1)
         self.assertNotIn("budgetCost", americas)
