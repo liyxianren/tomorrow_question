@@ -2,7 +2,7 @@
 
 ## 当前状态
 - Branch: feature/game-balance-rebalance
-- **407 passed** (unit), **30 passed** (API E2E), 12 skipped
+- **407 passed** (unit), **32 passed** (API E2E), 12 skipped
 - 后端运行中 (port 5001)
 
 ## 已完成
@@ -73,6 +73,11 @@
   - 海军部署持久化验证 (build_fleet→navalDeployment→ocean node)
   - 征服+掠夺同回合提交验证
   - 跨回合多次掠夺资源转移验证
+- [x] **独立运动系统完整链路API级E2E验证** ✅ (2个测试, test_independence_e2e.py)
+  - 独立性增长验证: 每次掠夺+2独立性 (2→4→6→8)
+  - 起义阈值验证: 独立性达10触发起义 (controller→None, access→concession, indep→0)
+  - 殖民→反复掠夺→起义→失去殖民地 完整链路
+  - 注: 起义日志通过game_logs表持久化，不在lastSettlementSummary中
 
 ## 已知API格式
 - productionOrders: `[{"goodsId": "phase1_goods", "quantity": N}]`
@@ -94,4 +99,3 @@
 ## 下一步
 1. 前端集成验证 (确保前端发送的 lootingActions/talentPlan/abilitySelection/strategySelections/upgradeOrders 正确到达后端)
 2. 性能测试 (多玩家并发提交)
-3. 独立运动系统完整链路验证 (independence threshold → rebellion → loss of colony)
