@@ -356,12 +356,19 @@ def _normalize_decision_submission(payload: dict[str, object]) -> dict[str, Any]
         raw_assignments = phase1_production.get("rawMaterialAssignments")
         if isinstance(raw_assignments, dict) and raw_assignments:
             normalized["phase1Production"] = phase1_production
+
+    raw_research_target = payload.get("researchTarget")
+    if isinstance(raw_research_target, str) and raw_research_target.strip():
+        normalized["researchTarget"] = raw_research_target.strip()
+
     return normalized
 
 
 def _normalize_market_submission(payload: dict[str, object]) -> dict[str, Any]:
     normalized = default_market_submission_payload()
     raw_orders = payload.get("saleOrders")
+    if raw_orders is None:
+        raw_orders = []
     if not isinstance(raw_orders, list):
         raise PhaseSubmissionError(ErrorCode.INVALID_SUBMISSION, "Market submission.saleOrders must be a list.")
 
@@ -412,6 +419,8 @@ def _normalize_market_submission(payload: dict[str, object]) -> dict[str, Any]:
 
 
 def _normalize_order_list(value: object, id_key: str) -> list[dict[str, int | str]]:
+    if value is None:
+        value = []
     if not isinstance(value, list):
         raise PhaseSubmissionError(ErrorCode.INVALID_SUBMISSION, f"Decision submission.{id_key} orders must be a list.")
 

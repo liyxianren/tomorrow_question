@@ -51,6 +51,7 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
         _apply_talent_plan(player_state, payload.get("talentPlan", {}), balance)
         _apply_phase3_research_plan(player_state, payload, balance)
 
+
         summary_lines.append(
             (
                 f"{player_state.country.value} 决策完成：国内市场 {domestic_before}->{player_state.budget_pools['domesticMarket']}，"

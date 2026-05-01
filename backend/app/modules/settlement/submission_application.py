@@ -376,7 +376,8 @@ def run_phase_settlement(
         game.is_finished = is_game_finished
         game.set_active_snapshot(updated_snapshot)
         recovery_repository.games.save(game.to_payload(), commit=False)
-        recovery_repository.snapshots.save(updated_snapshot.to_payload(), commit=False)
+        _snap_payload = updated_snapshot.to_payload()
+        recovery_repository.snapshots.save(_snap_payload, commit=False)
 
         persisted_logs = _build_persisted_logs(
             settled_snapshot=snapshot,
