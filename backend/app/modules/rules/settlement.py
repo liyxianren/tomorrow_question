@@ -404,7 +404,8 @@ def _apply_phase3_research_progress(player_state, snapshot, balance) -> None:
         return
 
     facility_total = sum(int(value) for value in player_state.research_facilities.values())
-    new_progress = int(player_state.research_progress.get(active, 0)) + facility_total
+    progress_per_turn = int(balance.technology.research_facility_progress_per_turn)
+    new_progress = int(player_state.research_progress.get(active, 0)) + facility_total * progress_per_turn
     player_state.research_progress[active] = new_progress
 
     threshold = int(tech_config.threshold)

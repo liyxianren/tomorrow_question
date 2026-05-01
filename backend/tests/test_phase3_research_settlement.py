@@ -40,22 +40,22 @@ class Phase3ResearchSettlementTests(unittest.TestCase):
         snapshot = build_snapshot()
         balance = get_balance_config()
         britain = get_player(snapshot, "player-1")
-        # voltaic_pile threshold=4, 1 facility, no prior progress -> progress = 1, no roll.
+        # voltaic_pile threshold=3, 1 facility, no prior progress -> progress = 2, no roll.
         britain.active_research = "voltaic_pile"
         britain.research_facilities = {"electrical": 1}
 
         _apply_phase3_research_progress(britain, snapshot, balance)
 
-        self.assertEqual(britain.research_progress.get("voltaic_pile"), 1)
+        self.assertEqual(britain.research_progress.get("voltaic_pile"), 2)
         self.assertNotIn("voltaic_pile", britain.unlocked_techs)
 
     def test_progress_below_threshold_returns_without_unlock(self) -> None:
         snapshot = build_snapshot()
         balance = get_balance_config()
         britain = get_player(snapshot, "player-1")
-        # voltaic_pile threshold=3, prior progress 1 + 1 facility = 2 < 3.
+        # voltaic_pile threshold=3, prior progress 0 + 1 facility×2 = 2 < 3.
         britain.active_research = "voltaic_pile"
-        britain.research_progress = {"voltaic_pile": 1}
+        britain.research_progress = {"voltaic_pile": 0}
         britain.research_facilities = {"electrical": 1}
 
         with patch("app.modules.rules.settlement.random.randint") as mock_roll:
@@ -70,9 +70,9 @@ class Phase3ResearchSettlementTests(unittest.TestCase):
         snapshot = build_snapshot()
         balance = get_balance_config()
         britain = get_player(snapshot, "player-1")
-        # leyden_jar threshold=3, prior 2 + 1 facility = 3 >= 3.
+        # leyden_jar threshold=2, prior 0 + 1 facility×2 = 2 >= 2.
         britain.active_research = "leyden_jar"
-        britain.research_progress = {"leyden_jar": 2}
+        britain.research_progress = {"leyden_jar": 0}
         britain.research_facilities = {"electrical": 1}
 
         with patch("app.modules.rules.settlement.random.randint", return_value=10):
@@ -86,16 +86,16 @@ class Phase3ResearchSettlementTests(unittest.TestCase):
         snapshot = build_snapshot()
         balance = get_balance_config()
         britain = get_player(snapshot, "player-1")
-        # leyden_jar threshold=3, prior 2 + 1 facility = 3 >= 3, roll fails.
+        # leyden_jar threshold=2, prior 0 + 1 facility×2 = 2 >= 2, roll fails.
         britain.active_research = "leyden_jar"
-        britain.research_progress = {"leyden_jar": 2}
+        britain.research_progress = {"leyden_jar": 0}
         britain.research_facilities = {"electrical": 1}
 
         with patch("app.modules.rules.settlement.random.randint", return_value=1):
             _apply_phase3_research_progress(britain, snapshot, balance)
 
         self.assertNotIn("leyden_jar", britain.unlocked_techs)
-        self.assertEqual(britain.research_progress.get("leyden_jar"), 3)
+        self.assertEqual(britain.research_progress.get("leyden_jar"), 2)
         self.assertEqual(britain.breakthrough_attempts.get("leyden_jar"), 1)
 
     def test_soft_pity_lowers_effective_threshold(self) -> None:
@@ -123,7 +123,7 @@ class Phase3ResearchSettlementTests(unittest.TestCase):
         france = get_player(snapshot, "player-2")
         # voltaic_pile threshold=3, France already unlocked it.
         france.unlocked_techs.append("voltaic_pile")
-        # Britain accumulates progress=5+1=6 >= 2*3, direct-unlock without dice.
+        # Britain accumulates progress=5+2=7 >= 2*3=6, direct-unlock without dice.
         britain.active_research = "voltaic_pile"
         britain.research_progress = {"voltaic_pile": 5}
         britain.research_facilities = {"electrical": 1}
@@ -133,8 +133,8 @@ class Phase3ResearchSettlementTests(unittest.TestCase):
             mock_roll.assert_not_called()
 
         self.assertIn("voltaic_pile", britain.unlocked_techs)
-        # Direct-unlock consumes 2*threshold from total accumulated progress.
-        self.assertEqual(britain.research_progress.get("voltaic_pile"), 0)
+        # Direct-unlock consumes 2*threshold=6 from 7, leaving 1.
+        self.assertEqual(britain.research_progress.get("voltaic_pile"), 1)
         self.assertNotIn("voltaic_pile", britain.breakthrough_attempts)
 
     def test_no_active_research_is_noop(self) -> None:
@@ -155,15 +155,15 @@ class Phase3ResearchSettlementTests(unittest.TestCase):
         snapshot = build_snapshot()
         balance = get_balance_config()
         britain = get_player(snapshot, "player-1")
-        # power_generation threshold=5, 3 facilities -> progress 3 < 5, no roll.
+        # power_generation threshold=4, 1 facility×2 = 2 < 4, no roll.
         britain.active_research = "power_generation"
-        britain.research_facilities = {"electrical": 1, "mechanical": 1, "steam": 1}
+        britain.research_facilities = {"electrical": 1}
 
         with patch("app.modules.rules.settlement.random.randint") as mock_roll:
             _apply_phase3_research_progress(britain, snapshot, balance)
             mock_roll.assert_not_called()
 
-        self.assertEqual(britain.research_progress.get("power_generation"), 3)
+        self.assertEqual(britain.research_progress.get("power_generation"), 2)
         self.assertNotIn("power_generation", britain.unlocked_techs)
 
     def test_max_pity_effective_threshold_one_guarantees_success(self) -> None:
