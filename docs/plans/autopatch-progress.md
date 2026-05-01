@@ -2,7 +2,7 @@
 
 ## 当前状态
 - Branch: feature/game-balance-rebalance
-- **391 passed**, 12 skipped (was 384 → +7: expand_research E2E)
+- **399 passed**, 12 skipped (was 391 → +8: expand_administration + budgetCost fix)
 - 后端运行中 (port 5001)
 
 ## 已完成
@@ -49,6 +49,18 @@
   - 激活时扣除行政成本
   - 多回合累积 (3回合 = +3 academies)
   - 已激活策略不可重复激活
+- [x] **Bug Fix: policy budgetCost 未被验证和扣除** ✅
+  - `_apply_policy_plan` 从不扣除 budgetCost (expand_research=12, expand_administration=15 等)
+  - `_validate_decision_payload` 从不验证 activatePolicies 的预算
+  - 修复: 验证 + 扣除 budgetCost
+  - 2个E2E测试验证: 预算扣除 + 超预算拒绝
+- [x] **expand_administration 策略完整链路E2E验证** ✅ (6个测试, test_expand_administration_e2e.py)
+  - 政策激活 + 行政成本扣除
+  - 结算净行政能力为0 (−1 cost + 1 delta)
+  - 跨回合保持活跃
+  - 行政能力不足阻止激活
+  - 预算成本扣除 (15)
+  - 超预算拒绝 (400)
 
 ## 已知API格式
 - productionOrders: `[{"goodsId": "phase1_goods", "quantity": N}]`
@@ -68,5 +80,4 @@
 ## 下一步
 1. 前端集成验证 (确保前端发送的 lootingActions/talentPlan/abilitySelection/strategySelections/upgradeOrders 正确到达后端)
 2. 性能测试 (多玩家并发提交)
-3. expand_administration 策略 (regularPolicy) 通过 activatePolicies 的完整链路验证
-4. social_welfare / public_offering 等其他 regularPolicy 的链路验证
+3. social_welfare / public_offering / raise_consumption_tax 等其他 regularPolicy 的链路验证
