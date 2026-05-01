@@ -1,18 +1,17 @@
 """
-E2E tests for expand_research regularPolicy via activatePolicies.
+E2E tests for expand_administration regularPolicy via activatePolicies.
 
-Verifies the complete chain:
-  1. Activate expand_research via activatePolicies → policy added to active_policies
-  2. Settlement phase applies researchFacilityDelta each turn (academy +1)
-  3. Deactivate → effects stop accumulating
-  4. Budget cost (12) is deducted from governmentFiscal when activated
-  5. Admin cost check: insufficient admin → policy not activated
-  6. Multiple turns: facilities grow each turn the policy is active
+Verifies:
+  1. Activation deducts adminCostPerTurn (1) + budgetCost (15)
+  2. Settlement: net admin = 0 per turn (−1 cost + 1 delta)
+  3. Policy stays active across turns
+  4. Insufficient admin prevents activation
+  5. Budget cost deducted on activation
 """
 
 import tempfile
 import unittest
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from pathlib import Path
 from uuid import uuid4
 
@@ -30,7 +29,6 @@ from app.modules.room.selectors import room_to_payload
 from app.modules.room.service import (
     add_member, assign_country, create_room, mark_member_ready, start_game,
 )
-from app.modules.rules.decision import resolve_decision_phase
 from app.modules.rules.settlement import resolve_settlement_phase
 from app.modules.session.selectors import session_to_payload
 from app.modules.session.service import create_session
@@ -77,12 +75,11 @@ def _decision_payload(**overrides) -> dict:
     return payload
 
 
-class ExpandResearchE2ETest(unittest.TestCase):
-    """Full E2E: activate expand_research → settlement → verify facility growth."""
+class ExpandAdministrationE2ETest(unittest.TestCase):
 
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
-        self.db_path = Path(self.temp_dir.name) / "expand-research.sqlite3"
+        self.db_path = Path(self.temp_dir.name) / "expand-admin.sqlite3"
         self.frontend_dist = Path(self.temp_dir.name) / "frontend-dist"
         settings = Settings(
             app_env="test", secret_key="test-secret", host="127.0.0.1", port=5000,
@@ -125,8 +122,6 @@ class ExpandResearchE2ETest(unittest.TestCase):
         for s in sessions:
             SessionRepository(conn).save(session_to_payload(s))
         conn.close()
-
-    # ── DB helpers ──
 
     def _load_snapshot(self) -> GameSnapshot:
         conn = connect_database(self.db_path)
@@ -198,7 +193,6 @@ class ExpandResearchE2ETest(unittest.TestCase):
         return updated
 
     def _full_round(self, britain_payload: dict, snapshot: GameSnapshot) -> GameSnapshot:
-        """Submit decisions for all players, then settlement."""
         self._submit_decisions_for_all({"session-1": britain_payload})
         snapshot = self._load_snapshot()
         snapshot = self._resolve_settlement(snapshot)
@@ -206,191 +200,104 @@ class ExpandResearchE2ETest(unittest.TestCase):
 
     # ── Tests ──
 
-    def test_expand_research_activation_adds_policy(self):
-        """Activating expand_research adds it to active_policies."""
+    def test_activation_adds_policy(self):
         self.seed_active_game()
         snapshot = self._load_snapshot()
         britain = self._player(snapshot, "player-1")
-
-        # Ensure enough admin capacity and budget
-        britain.administration_capacity = 10
-        britain.budget_pools["governmentFiscal"] = 100
-        self._save_snapshot(snapshot)
-
-        # Activate expand_research
-        payload = _decision_payload(activate_policies=["expand_research"])
-        self._submit_decisions_for_all({"session-1": payload})
-        snapshot = self._load_snapshot()
-        britain = self._player(snapshot, "player-1")
-
-        self.assertIn("expand_research", britain.active_policies)
-
-    def test_expand_research_facility_growth_per_settlement(self):
-        """Each settlement turn, expand_research adds +1 academy."""
-        self.seed_active_game()
-        snapshot = self._load_snapshot()
-        britain = self._player(snapshot, "player-1")
-
-        # Set up: enough admin, budget, and initial facilities
-        britain.administration_capacity = 20
-        britain.budget_pools["governmentFiscal"] = 500
-        initial_academies = britain.research_facilities.get("academy", 1)
-        self._save_snapshot(snapshot)
-
-        # Turn 1: activate expand_research
-        payload = _decision_payload(activate_policies=["expand_research"])
-        snapshot = self._full_round(payload, snapshot)
-        britain = self._player(snapshot, "player-1")
-
-        # Policy should be active
-        self.assertIn("expand_research", britain.active_policies)
-        # After settlement: academies should have grown by 1
-        self.assertEqual(britain.research_facilities.get("academy", 0), initial_academies + 1)
-
-        # Turn 2: keep policy active (don't re-activate, just submit empty)
-        snapshot = self._full_round(_empty_decision_payload(), snapshot)
-        britain = self._player(snapshot, "player-1")
-
-        # Still active, academies grow again
-        self.assertIn("expand_research", britain.active_policies)
-        self.assertEqual(britain.research_facilities.get("academy", 0), initial_academies + 2)
-
-    def test_expand_research_deactivation_stops_growth(self):
-        """Deactivating expand_research stops facility growth."""
-        self.seed_active_game()
-        snapshot = self._load_snapshot()
-        britain = self._player(snapshot, "player-1")
-
-        britain.administration_capacity = 20
-        britain.budget_pools["governmentFiscal"] = 500
-        initial_academies = britain.research_facilities.get("academy", 1)
-        self._save_snapshot(snapshot)
-
-        # Turn 1: activate
-        payload = _decision_payload(activate_policies=["expand_research"])
-        snapshot = self._full_round(payload, snapshot)
-        britain = self._player(snapshot, "player-1")
-        self.assertIn("expand_research", britain.active_policies)
-        academies_after_1 = britain.research_facilities.get("academy", 0)
-
-        # Turn 2: deactivate
-        payload = _decision_payload(deactivate_policies=["expand_research"])
-        snapshot = self._full_round(payload, snapshot)
-        britain = self._player(snapshot, "player-1")
-        self.assertNotIn("expand_research", britain.active_policies)
-        # Academies should NOT have grown this turn (policy was deactivated before settlement)
-        self.assertEqual(britain.research_facilities.get("academy", 0), academies_after_1)
-
-    def test_expand_research_insufficient_admin_not_activated(self):
-        """If admin capacity < adminCostPerTurn, policy is not activated."""
-        self.seed_active_game()
-        snapshot = self._load_snapshot()
-        britain = self._player(snapshot, "player-1")
-
-        # Set admin to 0
-        britain.administration_capacity = 0
-        britain.budget_pools["governmentFiscal"] = 100
-        self._save_snapshot(snapshot)
-
-        payload = _decision_payload(activate_policies=["expand_research"])
-        self._submit_decisions_for_all({"session-1": payload})
-        snapshot = self._load_snapshot()
-        britain = self._player(snapshot, "player-1")
-
-        # Should NOT be activated
-        self.assertNotIn("expand_research", britain.active_policies)
-
-    def test_expand_research_admin_cost_deducted_on_activation(self):
-        """Activating expand_research deducts adminCostPerTurn from admin capacity."""
-        self.seed_active_game()
-        snapshot = self._load_snapshot()
-        britain = self._player(snapshot, "player-1")
-
         britain.administration_capacity = 5
         britain.budget_pools["governmentFiscal"] = 100
         self._save_snapshot(snapshot)
 
-        payload = _decision_payload(activate_policies=["expand_research"])
+        payload = _decision_payload(activate_policies=["expand_administration"])
         self._submit_decisions_for_all({"session-1": payload})
         snapshot = self._load_snapshot()
         britain = self._player(snapshot, "player-1")
 
-        # expand_research has adminCostPerTurn=1
+        self.assertIn("expand_administration", britain.active_policies)
+        # Admin deducted by 1 (adminCostPerTurn)
         self.assertEqual(britain.administration_capacity, 4)
-        self.assertIn("expand_research", britain.active_policies)
 
-    def test_expand_research_multi_turn_accumulation(self):
-        """Over 3 turns, academies grow by exactly 3 (one per settlement)."""
+    def test_settlement_net_admin_zero(self):
+        """expand_administration: −1 cost + 1 delta = net 0 per settlement."""
         self.seed_active_game()
         snapshot = self._load_snapshot()
         britain = self._player(snapshot, "player-1")
-
-        britain.administration_capacity = 20
-        britain.budget_pools["governmentFiscal"] = 500
-        initial_academies = britain.research_facilities.get("academy", 1)
+        britain.administration_capacity = 5
+        britain.budget_pools["governmentFiscal"] = 100
+        initial_admin = britain.administration_capacity
         self._save_snapshot(snapshot)
 
-        # Activate on turn 1
-        payload = _decision_payload(activate_policies=["expand_research"])
+        # Activate
+        payload = _decision_payload(activate_policies=["expand_administration"])
         snapshot = self._full_round(payload, snapshot)
-
-        # Turn 2 & 3: policy stays active
-        for _ in range(2):
-            snapshot = self._full_round(_empty_decision_payload(), snapshot)
-
         britain = self._player(snapshot, "player-1")
-        self.assertEqual(britain.research_facilities.get("academy", 0), initial_academies + 3)
 
-    def test_expand_research_already_active_no_double_activation(self):
-        """Activating an already-active policy is a no-op (no double effects)."""
+        # After settlement: admin should be same as initial (−1 activation, −1 settlement cost, +1 delta)
+        # Activation: admin goes from 5 → 4
+        # Settlement: admin goes from 4 → 3 (cost) → 4 (delta) = 4
+        # Round 2 starts with admin = 4
+        self.assertIn("expand_administration", britain.active_policies)
+        self.assertEqual(britain.administration_capacity, initial_admin - 1)
+
+    def test_policy_stays_active_across_turns(self):
+        """Policy remains active when admin capacity is sufficient."""
         self.seed_active_game()
         snapshot = self._load_snapshot()
         britain = self._player(snapshot, "player-1")
-
-        britain.administration_capacity = 20
-        britain.budget_pools["governmentFiscal"] = 500
-        initial_academies = britain.research_facilities.get("academy", 1)
-        self._save_snapshot(snapshot)
-
-        # Turn 1: activate
-        payload = _decision_payload(activate_policies=["expand_research"])
-        snapshot = self._full_round(payload, snapshot)
-
-        # Turn 2: try to activate again (should be no-op since already active)
-        payload = _decision_payload(activate_policies=["expand_research"])
-        snapshot = self._full_round(payload, snapshot)
-
-        britain = self._player(snapshot, "player-1")
-        # Should only be +2 (one per settlement), not +3
-        self.assertEqual(britain.research_facilities.get("academy", 0), initial_academies + 2)
-
-    def test_expand_research_budget_cost_deducted(self):
-        """expand_research has budgetCost=12 — deducted from governmentFiscal on activation."""
-        self.seed_active_game()
-        snapshot = self._load_snapshot()
-        britain = self._player(snapshot, "player-1")
-        britain.administration_capacity = 10
+        britain.administration_capacity = 5
         britain.budget_pools["governmentFiscal"] = 100
         self._save_snapshot(snapshot)
 
-        payload = _decision_payload(activate_policies=["expand_research"])
+        # Turn 1: activate
+        payload = _decision_payload(activate_policies=["expand_administration"])
+        snapshot = self._full_round(payload, snapshot)
+
+        # Turn 2: just settle
+        snapshot = self._full_round(_empty_decision_payload(), snapshot)
+        britain = self._player(snapshot, "player-1")
+
+        self.assertIn("expand_administration", britain.active_policies)
+
+    def test_insufficient_admin_prevents_activation(self):
+        self.seed_active_game()
+        snapshot = self._load_snapshot()
+        britain = self._player(snapshot, "player-1")
+        britain.administration_capacity = 0
+        britain.budget_pools["governmentFiscal"] = 100
+        self._save_snapshot(snapshot)
+
+        payload = _decision_payload(activate_policies=["expand_administration"])
         self._submit_decisions_for_all({"session-1": payload})
         snapshot = self._load_snapshot()
         britain = self._player(snapshot, "player-1")
 
-        self.assertIn("expand_research", britain.active_policies)
-        self.assertEqual(britain.budget_pools["governmentFiscal"], 88)  # 100 - 12
+        self.assertNotIn("expand_administration", britain.active_policies)
 
-    def test_expand_research_over_budget_rejected(self):
-        """Activating expand_research with insufficient budget is rejected (400)."""
+    def test_budget_cost_deducted(self):
         self.seed_active_game()
         snapshot = self._load_snapshot()
         britain = self._player(snapshot, "player-1")
-        britain.administration_capacity = 10
-        britain.budget_pools["governmentFiscal"] = 5  # Not enough for budgetCost=12
+        britain.administration_capacity = 5
+        britain.budget_pools["governmentFiscal"] = 100
         self._save_snapshot(snapshot)
 
-        payload = _decision_payload(activate_policies=["expand_research"])
+        payload = _decision_payload(activate_policies=["expand_administration"])
+        self._submit_decisions_for_all({"session-1": payload})
+        snapshot = self._load_snapshot()
+        britain = self._player(snapshot, "player-1")
+
+        # budgetCost = 15
+        self.assertEqual(britain.budget_pools["governmentFiscal"], 85)
+
+    def test_over_budget_rejected(self):
+        self.seed_active_game()
+        snapshot = self._load_snapshot()
+        britain = self._player(snapshot, "player-1")
+        britain.administration_capacity = 5
+        britain.budget_pools["governmentFiscal"] = 10  # Not enough for budgetCost=15
+        self._save_snapshot(snapshot)
+
+        payload = _decision_payload(activate_policies=["expand_administration"])
         resp = self.client.post(
             "/api/v1/games/game-1/phases/decision/submit",
             json={"payload": payload},
@@ -399,3 +306,5 @@ class ExpandResearchE2ETest(unittest.TestCase):
         self.assertEqual(resp.status_code, 400)
 
 
+if __name__ == "__main__":
+    unittest.main()

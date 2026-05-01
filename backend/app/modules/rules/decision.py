@@ -841,6 +841,10 @@ def _apply_policy_plan(player_state, payload: dict[str, Any], balance) -> list[s
         player_state.administration_capacity = (
             int(player_state.administration_capacity) - int(policy.admin_cost_per_turn)
         )
+        budget_cost = int(policy.budget_cost)
+        if budget_cost > 0:
+            pool = player_state.budget_pools.get("governmentFiscal", 0)
+            player_state.budget_pools["governmentFiscal"] = max(0, int(pool) - budget_cost)
         player_state.active_policies.append(policy_id)
         activated.append(policy_id)
 
