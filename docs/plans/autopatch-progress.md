@@ -2,7 +2,7 @@
 
 ## 当前状态
 - Branch: feature/game-balance-rebalance
-- **359 passed**, 12 skipped (was 358 → +1 comprehensive 5-round E2E)
+- **368 passed**, 12 skipped (was 359 → +9 edge case tests)
 - 后端运行中 (port 5001)
 
 ## 已完成
@@ -48,6 +48,16 @@
   - R5: 最终状态累积验证
   - 殖民地因持续掠夺独立度升高后叛乱 (independence mechanics verified)
   - 所有5国累积收入非负
+- [x] **边缘场景E2E测试** ✅ (9个测试, test_edge_cases.py)
+  - 殖民地资源耗尽: cotton从4掠夺到0, 再掠夺为no-op
+  - 天赋树满级: 解锁工业分支全部5节点, 累计产能+8
+  - 天赋序列依赖: 跳过前置节点被拒绝
+  - 多区域殖民: 美洲R1→非洲R2 (max 1/round生效)
+  - 同回合双殖民: 仅第一个生效
+  - 殖民地叛乱后重占: 叛乱重置后可重新殖民
+  - 驻军防叛乱: 驻军3抵消掠夺+2独立度
+  - 跨分支天赋独立: 工业/军事互不影响
+  - 重复天赋解锁忽略: 同节点不重复生效
 
 ## 已知API格式
 - productionOrders: `[{"goodsId": "phase1_goods", "quantity": N}]`
@@ -63,4 +73,4 @@
 ## 下一步
 1. 前端集成验证 (确保前端发送的 lootingActions/talentPlan/abilitySelection 正确到达后端)
 2. 性能测试 (多玩家并发提交)
-3. 边界场景测试 (殖民地资源耗尽、天赋树满级、同时殖民多区域)
+3. 国家能力边界测试 (所有5国能力的完整覆盖: Austria, Russia)
