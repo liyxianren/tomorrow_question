@@ -2,7 +2,7 @@
 
 ## 当前状态
 - Branch: feature/game-balance-rebalance
-- **384 passed**, 12 skipped (was 372 → +12: 8 production upgrade + 4 strategy selections)
+- **391 passed**, 12 skipped (was 384 → +7: expand_research E2E)
 - 后端运行中 (port 5001)
 
 ## 已完成
@@ -39,8 +39,16 @@
   - `_apply_government_plan` 不处理 `strategySelections`
   - 政府行动 (trade_agreement, domestic_stimulus 等) 提交后被静默丢弃
   - 修复: 在 resolver 中增加 strategy selections 处理 (预算扣除 + 效果应用 + 比率调整)
-  - 修复: 在 submission validator 中增加 strategy selections 预算验证
-  - 4个E2E测试验证: 效果应用、比率调整、预算扣除、超预算拒绝
+- [x] **策略选择 (strategySelections) 完整验证** ✅ (4个测试)
+  - 效果应用、比率调整、预算扣除、超预算拒绝
+- [x] **expand_research 策略完整链路E2E验证** ✅ (7个测试, test_expand_research_e2e.py)
+  - 政策激活 (activatePolicies API → active_policies)
+  - 设施增长 (每settlement +1 academy)
+  - 去激活停止增长
+  - 行政能力不足阻止激活
+  - 激活时扣除行政成本
+  - 多回合累积 (3回合 = +3 academies)
+  - 已激活策略不可重复激活
 
 ## 已知API格式
 - productionOrders: `[{"goodsId": "phase1_goods", "quantity": N}]`
@@ -60,4 +68,5 @@
 ## 下一步
 1. 前端集成验证 (确保前端发送的 lootingActions/talentPlan/abilitySelection/strategySelections/upgradeOrders 正确到达后端)
 2. 性能测试 (多玩家并发提交)
-3. expand_research 策略 (regularPolicy) 通过 activatePolicies 的完整链路验证
+3. expand_administration 策略 (regularPolicy) 通过 activatePolicies 的完整链路验证
+4. social_welfare / public_offering 等其他 regularPolicy 的链路验证
