@@ -40,7 +40,7 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
             player_state.budget_pools[key] = int(player_state.budget_pools.get(key, 0)) + int(value)
         # 消费池消耗率：打断"收入→消费池→价格→收入"的指数增长正反馈
         consumption_pool = int(player_state.budget_pools.get("domesticMarket", 0))
-        drain_rate = Decimal("0.3")
+        drain_rate = Decimal("0.4")
         player_state.budget_pools["domesticMarket"] = int(Decimal(str(consumption_pool)) * (1 - drain_rate))
         player_state.cumulative_national_income = int(player_state.cumulative_national_income) + effective_income
         for route_key, pending in list(player_state.pending_production_capacity.items()):

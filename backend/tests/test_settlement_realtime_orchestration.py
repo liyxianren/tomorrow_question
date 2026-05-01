@@ -415,8 +415,8 @@ class SettlementRealtimeOrchestrationTests(unittest.TestCase):
         updated_player = next(player for player in outcome.updated_snapshot.player_states if player.player_id == "player-1")
         self.assertEqual(updated_player.cumulative_national_income, 30)
         # Phase-1 5:3:2 split of 10 -> 5/3/2 deltas applied to existing pools,
-        # then 30% consumption-pool drain on domesticMarket: (5+5) * 0.7 = 7.
-        self.assertEqual(updated_player.budget_pools, {"domesticMarket": 7, "factory": 8, "governmentFiscal": 7})
+        # then 40% consumption-pool drain on domesticMarket: (5+5) * 0.6 = 6.
+        self.assertEqual(updated_player.budget_pools, {"domesticMarket": 6, "factory": 8, "governmentFiscal": 7})
 
         phase_started_payload = emit_mock.call_args_list[1].args[1]["payload"]
         self.assertEqual(phase_started_payload["snapshot"]["phaseWorkspace"]["phase"], GamePhase.DECISION)

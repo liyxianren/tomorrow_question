@@ -492,12 +492,12 @@ class SettlementPhase1Tests(unittest.TestCase):
 
         updated = _get_player(resolution.updated_snapshot, "player-3")
         delta = allocate_revenue_to_pools(Decimal(100))
-        # 100 * 0.5 = 50 -> domesticMarket, then 30% consumption drain -> 50 * 0.7 = 35
+        # 100 * 0.5 = 50 -> domesticMarket, then 40% consumption drain -> 50 * 0.6 = 30
         # 100 * 0.3 = 30 -> factory; remainder 20 -> governmentFiscal.
-        self.assertEqual(updated.budget_pools["domesticMarket"], int(int(delta.consumption) * 0.7))
+        self.assertEqual(updated.budget_pools["domesticMarket"], int(int(delta.consumption) * 0.6))
         self.assertEqual(updated.budget_pools["factory"], int(delta.investment))
         self.assertEqual(updated.budget_pools["governmentFiscal"], 100 - int(delta.consumption) - int(delta.investment))
-        self.assertEqual(updated.budget_pools["domesticMarket"], 35)
+        self.assertEqual(updated.budget_pools["domesticMarket"], 30)
         self.assertEqual(updated.budget_pools["factory"], 30)
         self.assertEqual(updated.budget_pools["governmentFiscal"], 20)
 

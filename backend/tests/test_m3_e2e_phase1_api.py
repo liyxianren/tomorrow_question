@@ -513,8 +513,8 @@ class Phase1SettlementE2ETests(_Phase1ApiTestCase):
         )
         prussia = self._player(settlement_resolution.updated_snapshot, "player-3")
         # 32 → 50% / 30% / 20% = int(16) / int(9.6)=9 / 32-16-9=7 into the legacy
-        # budget pools. Then 30% consumption drain: domesticMarket int(16 * 0.7) = 11.
-        self.assertEqual(prussia.budget_pools["domesticMarket"], 11)
+        # budget pools. Then 40% consumption drain: domesticMarket int(16 * 0.6) = 9.
+        self.assertEqual(prussia.budget_pools["domesticMarket"], 9)
         self.assertEqual(prussia.budget_pools["factory"], 9)
         self.assertEqual(prussia.budget_pools["governmentFiscal"], 7)
         # Sum of deltas equals national income minus the consumption-pool drain.
@@ -522,7 +522,7 @@ class Phase1SettlementE2ETests(_Phase1ApiTestCase):
             prussia.budget_pools["domesticMarket"]
             + prussia.budget_pools["factory"]
             + prussia.budget_pools["governmentFiscal"],
-            27,
+            25,
         )
 
 
