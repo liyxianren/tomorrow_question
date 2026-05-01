@@ -2,7 +2,7 @@
 
 ## 当前状态
 - Branch: feature/game-balance-rebalance
-- **407 passed**, 12 skipped (was 399 → +8: remaining regularPolicies E2E)
+- **407 passed** (unit), **30 passed** (API E2E), 12 skipped
 - 后端运行中 (port 5001)
 
 ## 已完成
@@ -67,13 +67,21 @@
   - raise_consumption_tax: API级激活
   - public_offering: requiresReform 门控 (stock_market)
   - social_welfare: requiresReform 门控 (social_relief) + welfareTransfer
+- [x] **战争系统完整链路API级E2E验证** ✅ (5个测试, test_war_system_e2e.py)
+  - 军队征兵→征服未占领区域 (recruit→conquest via API)
+  - 殖民→掠夺完整管线 (unlock→diplomacy→colonize→loot)
+  - 海军部署持久化验证 (build_fleet→navalDeployment→ocean node)
+  - 征服+掠夺同回合提交验证
+  - 跨回合多次掠夺资源转移验证
 
 ## 已知API格式
 - productionOrders: `[{"goodsId": "phase1_goods", "quantity": N}]`
 - militaryActions: `[{"actionId": "recruit_infantry"}]`
 - diplomacyActions: `[{"actionId": "establish_africa"}]`
 - colonizationActions: `[{"targetRegionId": "africa"}]`
+- conquestActions: `[{"regionId": "americas", "infantry": N, "artillery": N}]`
 - lootingActions: `[{"regionId": "americas", "resourceType": "cotton"}]`
+- navalDeployment: `{"north_atlantic": N, "mediterranean": M}`
 - pointPurchases: `[{"pointType": "military", "quantity": N}]`
 - talentUnlocks: `[{"nodeId": "ind_basic_metallurgy"}]`
 - abilitySelection: `{"abilityId": "workshop_of_the_world"}` / `{"abilityId": "code_napoleon", "targetIdeology": "liberalism"}`
@@ -86,4 +94,4 @@
 ## 下一步
 1. 前端集成验证 (确保前端发送的 lootingActions/talentPlan/abilitySelection/strategySelections/upgradeOrders 正确到达后端)
 2. 性能测试 (多玩家并发提交)
-3. 战争系统完整链路验证 (conquest + naval + looting 综合)
+3. 独立运动系统完整链路验证 (independence threshold → rebellion → loss of colony)
