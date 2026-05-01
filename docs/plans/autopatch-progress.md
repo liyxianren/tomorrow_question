@@ -2,7 +2,7 @@
 
 ## 当前状态
 - Branch: feature/game-balance-rebalance
-- **344 passed**, 12 skipped
+- **358 passed**, 12 skipped (was 344 → +14 new tests)
 - 后端运行中 (port 5001)
 - 测试端口已修复: test_military_system.py 5000→5001
 
@@ -18,38 +18,42 @@
 - [x] 五国差异化验证 (323 passed)
 - [x] 消费池衰减实际验证 (需求9→11, 价格稳定)
 - [x] **殖民完整链路验证** (unlock→diplomacy→colonize→loot) ✅ 9个单元测试全部通过
-  - 单回合完整链路: recruit→unlock→diplomacy→colonize (britain: govFiscal 10→0, mp 1→0)
-  - 多回合链路: 殖民→掠夺棉花 (raw_materials 25→26)
-  - 无殖民不可掠夺
-  - 无外交不可殖民
-  - 无解锁不可殖民
-  - 军事点不足阻止殖民
-  - maxColonizationsPerRound=1 生效
-  - 殖民后掠夺独立性惩罚 +2
 - [x] 测试端口修复 (test_military_system.py: 5000→5001)
 - [x] **API级E2E全链路验证** (5回合完整游戏) ✅
-  - 创建房间→加入bot→选国→开局→决策提交→市场提交→结算自动推进
-  - 生产链路: phase1Production rawMaterialAssignments → goods=4 ✓
-  - 军事链路: recruit_infantry (2 GF, +1 mp) → mp=2 ✓
-  - 点数购买: pointPurchases military (4 GF, +2 mp) → mp=4 ✓
-  - 解锁殖民: unlockColonization (5 GF) → colonizationUnlocked=true ✓
-  - 外交链路: establish_africa (actionId格式) → diplomacy扩展 ✓
-  - 殖民链路: colonize africa (2 MP) → controller=britain, access=colony ✓
-  - 殖民收入: settlement phase自动 +5 income/colony/round → income=37(32+5) ✓
-  - 预算衰减+收入分配: 5:3:2 split正常运作 ✓
-  - bot自动提交: 所有bot在decision/market/settlement阶段均自动提交 ✓
-  - 阶段自动推进: decision→market→settlement→decision(下一回合) ✓
-  - 预算校验: 超支提交被正确拒绝 (INVALID_SUBMISSION) ✓
+- [x] **Bug Fix: API Normalizer 丢失 lootingActions** ✅
+  - `phase_submission.py` 不持久化 `lootingActions`、`navalDeployment`、`conquestActions`
+  - 通过 API 提交的掠夺行动被静默丢弃，resolver 从 DB 加载时得到空列表
+  - 修复: 在 `_normalize_decision_submission` 中增加这三个字段的持久化
+- [x] **多回合殖民掠夺E2E验证** ✅
+  - 3回合完整链路: colonize(R1) → loot cotton(R2) → loot cotton(R3)
+  - raw_materials 每回合 +1, resource_limit 每回合 -1
+  - independence ≥ 2 (looting + supply/demand imbalance)
+- [x] **天赋系统链路E2E验证** ✅
+  - 购买科技点 (pointPurchases tech) → 解锁天赋 (talentUnlocks)
+  - 序列依赖: 不解锁 node[1] 不能解锁 node[2]
+  - 3节点连续解锁: ind_basic_metallurgy → ind_process_improvement → ind_standardization
+  - 跨分支独立: industry/domestic/government/military 各自独立
+  - 科技点不足阻止解锁
+- [x] **五国差异化E2E验证** ✅
+  - Britain workshop_of_the_world: 产出翻倍 (4→8 goods)
+  - France code_napoleon: 意识形态重置为3, 目标+3
+  - Prussia krupp_steel: mechanized→steam 免费升级 (max 2)
+  - Austria ausgleich_1867: domestic+3, overseas+2 临时效果
+  - Russia emancipation_reform: idle→handicraft, egalitarianism+2
+  - 错误国家不能使用能力 / 能力不能重复使用
 
 ## 已知API格式
 - productionOrders: `[{"goodsId": "phase1_goods", "quantity": N}]`
 - militaryActions: `[{"actionId": "recruit_infantry"}]`
 - diplomacyActions: `[{"actionId": "establish_africa"}]`
 - colonizationActions: `[{"targetRegionId": "africa"}]`
+- lootingActions: `[{"regionId": "americas", "resourceType": "cotton"}]`
 - pointPurchases: `[{"pointType": "military", "quantity": N}]`
+- talentUnlocks: `[{"nodeId": "ind_basic_metallurgy"}]`
+- abilitySelection: `{"abilityId": "workshop_of_the_world"}` / `{"abilityId": "code_napoleon", "targetIdeology": "liberalism"}`
 - market: `{"saleOrders": [], "phase1Market": {"domesticAllocation": N}}`
 
 ## 下一步
-1. 多回合殖民掠夺验证 (loot API)
-2. 天赋系统链路验证
-3. 五国差异化能力验证
+1. 完整5回合API级E2E测试 (殖民+掠夺+天赋+能力 综合)
+2. 前端集成验证 (确保前端发送的 lootingActions/talentPlan/abilitySelection 正确到达后端)
+3. 性能测试 (多玩家并发提交)
