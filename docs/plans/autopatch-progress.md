@@ -2,7 +2,7 @@
 
 ## 当前状态
 - Branch: feature/game-balance-rebalance
-- **368 passed**, 12 skipped (was 359 → +9 edge case tests)
+- **372 passed**, 12 skipped (was 368 → +4 Austria/Russia ability tests)
 - 后端运行中 (port 5001)
 
 ## 已完成
@@ -58,6 +58,11 @@
   - 驻军防叛乱: 驻军3抵消掠夺+2独立度
   - 跨分支天赋独立: 工业/军事互不影响
   - 重复天赋解锁忽略: 同节点不重复生效
+- [x] **五国能力全覆盖E2E测试** ✅ (4个测试)
+  - Austria ausgleich_1867: 国内+3, 海外+2 市场能力
+  - Austria 错误国家使用能力被拒
+  - Russia emancipation_reform: idle→handicraft + 平等主义+2
+  - Russia 无idle时仍提升意识形态
 
 ## 已知API格式
 - productionOrders: `[{"goodsId": "phase1_goods", "quantity": N}]`
@@ -73,4 +78,4 @@
 ## 下一步
 1. 前端集成验证 (确保前端发送的 lootingActions/talentPlan/abilitySelection 正确到达后端)
 2. 性能测试 (多玩家并发提交)
-3. 国家能力边界测试 (所有5国能力的完整覆盖: Austria, Russia)
+3. 生产模式升级测试 (handicraft→mechanized→steam→electrified 完整升级链路)
