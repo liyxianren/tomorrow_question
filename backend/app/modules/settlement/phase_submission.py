@@ -336,6 +336,9 @@ def _normalize_decision_submission(payload: dict[str, object]) -> dict[str, Any]
     )
     normalized["militaryPlan"]["unlockColonization"] = bool(military_plan.get("unlockColonization", False))
     normalized["militaryPlan"]["colonizationActions"] = military_plan.get("colonizationActions", [])
+    normalized["militaryPlan"]["lootingActions"] = military_plan.get("lootingActions", [])
+    normalized["militaryPlan"]["navalDeployment"] = military_plan.get("navalDeployment", {})
+    normalized["militaryPlan"]["conquestActions"] = military_plan.get("conquestActions", [])
 
     talent_plan = payload.get("talentPlan")
     if isinstance(talent_plan, dict):
