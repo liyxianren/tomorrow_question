@@ -2,7 +2,7 @@
 
 ## 当前状态
 - Branch: feature/game-balance-rebalance
-- **332 passed**, 12 skipped, 12 E2E tests (multi-round, need SocketIO)
+- **344 passed**, 12 skipped
 - 后端运行中 (port 5001)
 - 测试端口已修复: test_military_system.py 5000→5001
 
@@ -27,12 +27,29 @@
   - maxColonizationsPerRound=1 生效
   - 殖民后掠夺独立性惩罚 +2
 - [x] 测试端口修复 (test_military_system.py: 5000→5001)
+- [x] **API级E2E全链路验证** (5回合完整游戏) ✅
+  - 创建房间→加入bot→选国→开局→决策提交→市场提交→结算自动推进
+  - 生产链路: phase1Production rawMaterialAssignments → goods=4 ✓
+  - 军事链路: recruit_infantry (2 GF, +1 mp) → mp=2 ✓
+  - 点数购买: pointPurchases military (4 GF, +2 mp) → mp=4 ✓
+  - 解锁殖民: unlockColonization (5 GF) → colonizationUnlocked=true ✓
+  - 外交链路: establish_africa (actionId格式) → diplomacy扩展 ✓
+  - 殖民链路: colonize africa (2 MP) → controller=britain, access=colony ✓
+  - 殖民收入: settlement phase自动 +5 income/colony/round → income=37(32+5) ✓
+  - 预算衰减+收入分配: 5:3:2 split正常运作 ✓
+  - bot自动提交: 所有bot在decision/market/settlement阶段均自动提交 ✓
+  - 阶段自动推进: decision→market→settlement→decision(下一回合) ✓
+  - 预算校验: 超支提交被正确拒绝 (INVALID_SUBMISSION) ✓
 
-## E2E测试说明
-test_military_system.py 中的多回合测试 (colonization_full_flow, duplicate_diplomacy 等)
-需要 SocketIO 实时层 + phase timer 触发 settlement，无法在 pytest 静态环境中运行。
-已用单元测试 (test_colonization_chain.py) 覆盖相同逻辑。
+## 已知API格式
+- productionOrders: `[{"goodsId": "phase1_goods", "quantity": N}]`
+- militaryActions: `[{"actionId": "recruit_infantry"}]`
+- diplomacyActions: `[{"actionId": "establish_africa"}]`
+- colonizationActions: `[{"targetRegionId": "africa"}]`
+- pointPurchases: `[{"pointType": "military", "quantity": N}]`
+- market: `{"saleOrders": [], "phase1Market": {"domesticAllocation": N}}`
 
 ## 下一步
-1. UI验证
-2. 如果发现真实bug，修复并验证
+1. 多回合殖民掠夺验证 (loot API)
+2. 天赋系统链路验证
+3. 五国差异化能力验证
