@@ -262,7 +262,7 @@ def _normalize_decision_submission(payload: dict[str, object]) -> dict[str, Any]
         raise PhaseSubmissionError(ErrorCode.INVALID_SUBMISSION, "Decision submission.factoryPlan must be an object.")
     normalized["factoryPlan"]["productionOrders"] = _normalize_order_list(factory_plan.get("productionOrders"), "goodsId")
     normalized["factoryPlan"]["expansionOrders"] = _normalize_order_list(factory_plan.get("expansionOrders"), "routeId")
-    normalized["factoryPlan"]["upgradeOrders"] = _normalize_order_list(factory_plan.get("upgradeOrders"), "routeId")
+    normalized["factoryPlan"]["upgradeOrders"] = _normalize_upgrade_orders(factory_plan.get("upgradeOrders"))
     normalized["factoryPlan"]["newFactoryOrders"] = _normalize_order_list(factory_plan.get("newFactoryOrders"), "routeId")
 
     domestic_plan = payload.get("domesticMarketPlan")
@@ -446,6 +446,31 @@ def _normalize_order_list(value: object, id_key: str) -> list[dict[str, int | st
                 f"Decision submission order[{index}].quantity must be an integer.",
             ) from exc
         normalized.append({id_key: raw_id.strip(), "quantity": quantity})
+    return normalized
+
+
+def _normalize_upgrade_orders(value: object) -> list[dict[str, int | str]]:
+    """Upgrade orders use routeId (target mode name), e.g. 'mechanized'."""
+    if value is None:
+        value = []
+    if not isinstance(value, list):
+        raise PhaseSubmissionError(ErrorCode.INVALID_SUBMISSION, "Decision submission.upgradeOrders must be a list.")
+
+    normalized: list[dict[str, int | str]] = []
+    for index, raw_item in enumerate(value):
+        if not isinstance(raw_item, dict):
+            continue
+        # Accept both routeId and targetMode as the target
+        route_id = str(raw_item.get("routeId") or raw_item.get("targetMode") or "").strip()
+        if not route_id:
+            continue
+        try:
+            quantity = max(0, int(raw_item.get("quantity", 0)))
+        except (TypeError, ValueError):
+            continue
+        if quantity <= 0:
+            continue
+        normalized.append({"routeId": route_id, "quantity": quantity})
     return normalized
 
 

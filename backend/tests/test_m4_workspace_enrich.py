@@ -73,13 +73,13 @@ class DecisionWorkspaceProductionModesTests(unittest.TestCase):
 
         handicraft = modes["handicraft"]
         self.assertEqual(handicraft["outputRatio"], 1)
-        self.assertEqual(handicraft["demandCoefficient"], 2)
+        self.assertEqual(handicraft["demandCoefficient"], 1.0)
         self.assertIsNone(handicraft["requiredTech"])
         self.assertTrue(handicraft["isAvailable"])
 
         mechanized = modes["mechanized"]
         self.assertEqual(mechanized["outputRatio"], 2)
-        self.assertEqual(mechanized["demandCoefficient"], 3)
+        self.assertEqual(mechanized["demandCoefficient"], 1.5)
         self.assertEqual(mechanized["requiredTech"], "spinning_jenny")
         self.assertFalse(mechanized["isAvailable"])
 
@@ -90,7 +90,7 @@ class DecisionWorkspaceProductionModesTests(unittest.TestCase):
 
         electrified = modes["electrified"]
         self.assertEqual(electrified["outputRatio"], 8)
-        self.assertEqual(electrified["demandCoefficient"], 5)
+        self.assertEqual(electrified["demandCoefficient"], 3.5)
         self.assertEqual(electrified["requiredTech"], "electrification")
         self.assertFalse(electrified["isAvailable"])
 

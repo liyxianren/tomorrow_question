@@ -39,7 +39,12 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
         _apply_ability_selection(player_state, payload.get("abilitySelection"), balance)
 
         phase1_production = payload.get("phase1Production") or {}
-        factory_spent = _apply_phase1_production_plan(player_state, phase1_production, balance)
+        upgrade_orders = (
+            payload.get("factoryPlan", {}).get("upgradeOrders", [])
+            or phase1_production.get("upgradeOrders", [])
+            or []
+        )
+        factory_spent = _apply_phase1_production_plan(player_state, phase1_production, balance, upgrade_orders)
         domestic_spent = _apply_domestic_market_plan(player_state, payload.get("domesticMarketPlan") or {}, balance)
         government_spent = _apply_government_plan(player_state, payload.get("governmentPlan") or {}, balance)
         military_plan = payload.get("militaryPlan") or {}
@@ -94,7 +99,7 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
     )
 
 
-def _apply_phase1_production_plan(player_state, phase1_production: dict[str, Any], balance) -> int:
+def _apply_phase1_production_plan(player_state, phase1_production: dict[str, Any], balance, upgrade_orders=None) -> int:
     """Phase-1 unified production: build/upgrade capacity_by_mode, then turn raw materials into goods."""
     spent = 0
     remaining_budget = int(player_state.budget_pools.get("factory", 0))
@@ -124,9 +129,12 @@ def _apply_phase1_production_plan(player_state, phase1_production: dict[str, Any
         spent += total_cost
         remaining_budget -= total_cost
 
-    for order in phase1_production.get("upgradeOrders", []) or []:
-        source_mode = str(order.get("sourceMode") or "")
-        target_mode = str(order.get("targetMode") or "")
+    for order in (upgrade_orders or []):
+        route_id = str(order.get("routeId") or "")
+        if not route_id:
+            continue
+        source_mode = str(balance.production.upgrade_source_levels.get(route_id) or "")
+        target_mode = route_id
         quantity = max(0, int(order.get("quantity", 0)))
         if source_mode not in DEFAULT_PHASE1_CAPACITY_BY_MODE:
             continue

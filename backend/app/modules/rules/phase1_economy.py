@@ -34,9 +34,9 @@ PRODUCTION_MODE_OUTPUT_RATIOS: Mapping[str, Decimal] = {
 PRODUCTION_MODE_DEMAND_COEFFICIENTS: Mapping[str, Decimal] = {
     "idle": Decimal("0"),
     "handicraft": Decimal("1"),
-    "mechanized": Decimal("2"),
-    "steam": Decimal("3"),
-    "electrified": Decimal("4"),
+    "mechanized": Decimal("1.5"),
+    "steam": Decimal("2.5"),
+    "electrified": Decimal("3.5"),
 }
 
 # 价格下限：避免极端过剩时本国价格归零或为负。

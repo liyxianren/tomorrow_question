@@ -285,7 +285,7 @@ class DecisionPhase1ProductionTests(unittest.TestCase):
                     _decision_payload(
                         phase1_production={
                             "upgradeOrders": [
-                                {"sourceMode": "handicraft", "targetMode": "mechanized", "quantity": 1},
+                                {"routeId": "mechanized", "quantity": 1},
                             ],
                         }
                     ),

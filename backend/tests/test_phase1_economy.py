@@ -39,9 +39,9 @@ class ProductionModeConstantsTests(unittest.TestCase):
     def test_demand_coefficients_match_user_requirements(self):
         self.assertEqual(PRODUCTION_MODE_DEMAND_COEFFICIENTS["idle"], Decimal("0"))
         self.assertEqual(PRODUCTION_MODE_DEMAND_COEFFICIENTS["handicraft"], Decimal("1"))
-        self.assertEqual(PRODUCTION_MODE_DEMAND_COEFFICIENTS["mechanized"], Decimal("2"))
-        self.assertEqual(PRODUCTION_MODE_DEMAND_COEFFICIENTS["steam"], Decimal("3"))
-        self.assertEqual(PRODUCTION_MODE_DEMAND_COEFFICIENTS["electrified"], Decimal("4"))
+        self.assertEqual(PRODUCTION_MODE_DEMAND_COEFFICIENTS["mechanized"], Decimal("1.5"))
+        self.assertEqual(PRODUCTION_MODE_DEMAND_COEFFICIENTS["steam"], Decimal("2.5"))
+        self.assertEqual(PRODUCTION_MODE_DEMAND_COEFFICIENTS["electrified"], Decimal("3.5"))
 
 
 class CalculateModeOutputTests(unittest.TestCase):
@@ -95,11 +95,11 @@ class CalculateDomesticDemandTests(unittest.TestCase):
     """本国总需求 = Σ(产能 × 需求系数)。"""
 
     def test_doc_example_idle_20_handicraft_10_mechanized_10(self):
-        # 新系数: 0 + 10 + 20 = 30
+        # 新系数: 0 + 10 + 15 = 25
         demand = calculate_domestic_demand(
             {"idle": 20, "handicraft": 10, "mechanized": 10}
         )
-        self.assertEqual(demand, Decimal("30"))
+        self.assertEqual(demand, Decimal("25"))
 
     def test_empty_capacities_returns_zero(self):
         self.assertEqual(calculate_domestic_demand({}), Decimal("0"))
@@ -107,9 +107,9 @@ class CalculateDomesticDemandTests(unittest.TestCase):
     def test_each_mode_demand_coefficient(self):
         self.assertEqual(calculate_domestic_demand({"idle": 1}), Decimal("0"))
         self.assertEqual(calculate_domestic_demand({"handicraft": 1}), Decimal("1"))
-        self.assertEqual(calculate_domestic_demand({"mechanized": 1}), Decimal("2"))
-        self.assertEqual(calculate_domestic_demand({"steam": 1}), Decimal("3"))
-        self.assertEqual(calculate_domestic_demand({"electrified": 1}), Decimal("4"))
+        self.assertEqual(calculate_domestic_demand({"mechanized": 1}), Decimal("1.5"))
+        self.assertEqual(calculate_domestic_demand({"steam": 1}), Decimal("2.5"))
+        self.assertEqual(calculate_domestic_demand({"electrified": 1}), Decimal("3.5"))
 
 
 class CalculateEquilibriumPriceTests(unittest.TestCase):

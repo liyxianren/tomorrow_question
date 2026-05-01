@@ -332,7 +332,7 @@ def _build_phase1_production_modes(player: PlayerState) -> list[dict[str, Any]]:
                 "label": PHASE1_MODE_LABELS.get(mode, mode),
                 "inputRatio": 1,
                 "outputRatio": int(PRODUCTION_MODE_OUTPUT_RATIOS[mode]),
-                "demandCoefficient": int(PRODUCTION_MODE_DEMAND_COEFFICIENTS[mode]),
+                "demandCoefficient": float(PRODUCTION_MODE_DEMAND_COEFFICIENTS[mode]),
                 "buildCost": int(new_factory_costs.get(mode, 0)),
                 "upgradeCost": int(upgrade_costs.get(mode, 0)),
                 "currentCapacity": int(capacity_by_mode.get(mode, 0)),
