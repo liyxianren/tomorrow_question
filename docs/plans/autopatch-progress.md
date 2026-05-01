@@ -2,8 +2,9 @@
 
 ## 当前状态
 - Branch: feature/game-balance-rebalance
-- **407 passed** (unit), **32 passed** (API E2E), 12 skipped
+- **407 passed** (unit), **49 passed** (API E2E incl. frontend integration), 12 skipped
 - 后端运行中 (port 5001)
+- ⚠️ PhaseTimer `run_forever` 导致 Flask 进程 99% CPU (pre-existing, 非 autopatch 回归)
 
 ## 已完成
 - [x] P0-1 需求系数 (mechanized 2→1.5)
@@ -78,6 +79,11 @@
   - 起义阈值验证: 独立性达10触发起义 (controller→None, access→concession, indep→0)
   - 殖民→反复掠夺→起义→失去殖民地 完整链路
   - 注: 起义日志通过game_logs表持久化，不在lastSettlementSummary中
+- [x] **前端集成E2E验证** ✅ (17个测试, test_frontend_integration.py)
+  - 验证前端 `createInitialPhaseDraft` 精确 payload shape 被后端正确处理
+  - 所有字段 (lootingActions/navalDeployment/conquestActions/talentPlan/abilitySelection/strategySelections/upgradeOrders/researchTarget) 全部正常通过 normalizer
+  - 5回合多轮游戏模拟 (decision→market→settlement→next round)
+  - 全特性组合单次提交验证
 
 ## 已知API格式
 - productionOrders: `[{"goodsId": "phase1_goods", "quantity": N}]`
@@ -97,5 +103,6 @@
 - researchTarget: `"spinning_jenny"` (set active research)
 
 ## 下一步
-1. 前端集成验证 (确保前端发送的 lootingActions/talentPlan/abilitySelection/strategySelections/upgradeOrders 正确到达后端)
+1. ~~前端集成验证~~ ✅ 完成 (17个测试全部通过, payload shape完全对齐)
 2. 性能测试 (多玩家并发提交)
+3. 修复 PhaseTimer `run_forever` CPU 100% 问题 (可能需要改用 `time.sleep` 或增大 poll 间隔)
