@@ -648,3 +648,115 @@ class TestTalentCrossBranchIndependence(EdgeCaseTestBase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ── Austria & Russia Ability Tests ──────────────────────────────────────
+
+
+class TestAustriaAbility(EdgeCaseTestBase):
+    """Austria's ausgleich_1867: +3 domesticMarketCapacity, +2 overseasMarketCapacity."""
+
+    def test_austria_ausgleich_1867_effect(self):
+        """Using ausgleich_1867 should boost domestic and overseas market capacity."""
+        self.seed_active_game()
+        snapshot = self._load_snapshot()
+
+        austria = self._player(snapshot, "player-4")
+        self.assertEqual(austria.country, CountryCode.AUSTRIA)
+        initial_domestic = austria.income_summary.get("domesticMarketCapacity", 0)
+        initial_overseas = austria.income_summary.get("overseasMarketCapacity", 0)
+
+        # Use Austria's ability
+        snapshot = self._submit_decisions_for_all({
+            "session-4": _decision_payload(
+                ability_selection={"abilityId": "ausgleich_1867"},
+                phase1_production={"rawMaterialAssignments": {"handicraft": 4}},
+            ),
+        })
+
+        austria = self._player(snapshot, "player-4")
+        self.assertIn("ausgleich_1867", austria.used_abilities, "Austria ability used")
+        self.assertEqual(austria.income_summary.get("domesticMarketCapacity", 0),
+                         initial_domestic + 3, "Domestic capacity +3")
+        self.assertEqual(austria.income_summary.get("overseasMarketCapacity", 0),
+                         initial_overseas + 2, "Overseas capacity +2")
+
+    def test_austria_ability_wrong_country_rejected(self):
+        """Britain cannot use Austria's ability."""
+        self.seed_active_game()
+        snapshot = self._load_snapshot()
+
+        snapshot = self._submit_decisions_for_all({
+            "session-1": _decision_payload(
+                ability_selection={"abilityId": "ausgleich_1867"},
+                phase1_production={"rawMaterialAssignments": {"handicraft": 4}},
+            ),
+        })
+
+        britain = self._player(snapshot, "player-1")
+        self.assertNotIn("ausgleich_1867", britain.used_abilities,
+                         "Britain cannot use Austria's ability")
+
+
+class TestRussiaAbility(EdgeCaseTestBase):
+    """Russia's emancipation_reform: convert idle→handicraft, egalitarianism+2."""
+
+    def test_russia_emancipation_reform_effect(self):
+        """With idle capacity, emancipation converts it to handicraft and boosts egalitarianism."""
+        self.seed_active_game()
+        snapshot = self._load_snapshot()
+
+        # Give Russia some idle capacity for the ability to convert
+        def _prep(snap):
+            russia = self._player(snap, "player-5")
+            russia.production_capacity["idle"] = 3
+            russia.phase1_economy.capacity_by_mode["idle"] = 3
+            russia.ideology_levels["egalitarianism"] = 1
+        snapshot = self._override_snapshot(snapshot, _prep)
+
+        russia = self._player(snapshot, "player-5")
+        initial_handicraft = russia.production_capacity.get("handicraft", 0)
+        initial_idle = russia.production_capacity.get("idle", 0)
+        initial_egal = russia.ideology_levels.get("egalitarianism", 0)
+        self.assertEqual(initial_idle, 3, "Pre: Russia has 3 idle capacity")
+
+        # Use Russia's ability
+        snapshot = self._submit_decisions_for_all({
+            "session-5": _decision_payload(
+                ability_selection={"abilityId": "emancipation_reform"},
+                phase1_production={"rawMaterialAssignments": {"handicraft": 4}},
+            ),
+        })
+
+        russia = self._player(snapshot, "player-5")
+        self.assertIn("emancipation_reform", russia.used_abilities, "Russia ability used")
+        # idle → handicraft: idle=0, handicraft += 3
+        self.assertEqual(russia.production_capacity.get("idle", 0), 0, "Idle capacity = 0")
+        self.assertEqual(russia.production_capacity.get("handicraft", 0),
+                         initial_handicraft + 3, "Handicraft += idle (3)")
+        # egalitarianism +2
+        self.assertEqual(russia.ideology_levels.get("egalitarianism", 0),
+                         initial_egal + 2, "Egalitarianism +2")
+
+    def test_russia_ability_no_idle_capacity_still_boosts_ideology(self):
+        """With 0 idle, emancipation still boosts egalitarianism but doesn't change capacity."""
+        self.seed_active_game()
+        snapshot = self._load_snapshot()
+
+        russia = self._player(snapshot, "player-5")
+        initial_handicraft = russia.production_capacity.get("handicraft", 0)
+        initial_egal = russia.ideology_levels.get("egalitarianism", 0)
+
+        snapshot = self._submit_decisions_for_all({
+            "session-5": _decision_payload(
+                ability_selection={"abilityId": "emancipation_reform"},
+                phase1_production={"rawMaterialAssignments": {"handicraft": 4}},
+            ),
+        })
+
+        russia = self._player(snapshot, "player-5")
+        self.assertIn("emancipation_reform", russia.used_abilities)
+        self.assertEqual(russia.production_capacity.get("handicraft", 0),
+                         initial_handicraft, "Handicraft unchanged (no idle to convert)")
+        self.assertEqual(russia.ideology_levels.get("egalitarianism", 0),
+                         initial_egal + 2, "Egalitarianism +2 even with no idle")
