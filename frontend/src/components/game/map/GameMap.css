@@ -255,7 +255,7 @@
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 10;
-  width: min(90%, 860px);
+  width: min(96%, 1280px);
   max-height: 80vh;
   overflow-y: auto;
 }
