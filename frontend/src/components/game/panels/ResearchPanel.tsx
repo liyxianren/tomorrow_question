@@ -1,5 +1,6 @@
 import { getTechnologyLabel as fallbackTechLabel } from "../../../features/game/panelGlossary";
 import type { TechTreeData, TechTreeChainTech } from "../../../types";
+import { DecisionStatStrip } from "./shared/DecisionStatStrip";
 import "./ResearchPanel.css";
 
 interface ResearchPanelProps {
@@ -20,26 +21,22 @@ export function ResearchPanel({
 
   return (
     <div className="research-panel">
-      <div className="research-panel__header">
-        <span className="research-panel__header-label">🔬 研究设施</span>
-        <span className="research-panel__header-value">
-          {researchFacilities} 所 · 每所 {progressPerFacility} 进度/回合 · 维护 {facilityCost} 财政/所
-        </span>
-      </div>
-
-      {activeResearch && (
-        <div className="research-panel__header">
-          <span className="research-panel__header-label">⚡ 当前研究</span>
-          <span className="research-panel__header-value">{activeTechLabel ?? fallbackTechLabel(activeResearch)}</span>
-        </div>
-      )}
-
-      {!activeResearch && (
-        <div className="research-panel__header">
-          <span className="research-panel__header-label">💡 提示</span>
-          <span className="research-panel__header-value">点击下方科技选择研究目标，提交决策后开始研究</span>
-        </div>
-      )}
+      <DecisionStatStrip
+        items={[
+          {
+            icon: "🔬",
+            value: `${researchFacilities} 所 · 每所 ${progressPerFacility} 进度/回合 · 维护 ${facilityCost} 财政/所`,
+            label: "研究设施",
+          },
+          {
+            icon: "⚡",
+            value: activeResearch
+              ? (activeTechLabel ?? fallbackTechLabel(activeResearch))
+              : "点击下方科技选择研究目标，提交决策后开始研究",
+            label: "当前研究",
+          },
+        ]}
+      />
 
       <div className="research-panel__chains">
         {chains.map((chain) => (

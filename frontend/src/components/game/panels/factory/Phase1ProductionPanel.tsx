@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import type { Phase1ProductionMode } from "../../../../types";
 import { getTechnologyLabel } from "../../../../features/game/panelGlossary";
+import { DecisionStatStrip } from "../shared/DecisionStatStrip";
 import "./Phase1ProductionPanel.css";
 
 export function Phase1ProductionPanel({
@@ -39,27 +40,21 @@ export function Phase1ProductionPanel({
   return (
     <section className="phase1-panel" data-testid="phase1-production-panel">
       {/* ── Summary Bar ── */}
-      <div className="phase1-panel__summary">
-        <div className="phase1-panel__stat">
-          <span className="phase1-panel__stat-value">
-            {remainingRawMaterials}
-            <span className="phase1-panel__stat-unit"> / {rawMaterials}</span>
-          </span>
-          <span className="phase1-panel__stat-label">原材料</span>
-        </div>
-        <div className="phase1-panel__stat">
-          <span className="phase1-panel__stat-value">{goodsInventory}</span>
-          <span className="phase1-panel__stat-label">商品库存</span>
-        </div>
-        <div className="phase1-panel__stat">
-          <span className="phase1-panel__stat-value">{investmentPool}</span>
-          <span className="phase1-panel__stat-label">投资池</span>
-        </div>
-        <div className="phase1-panel__stat">
-          <span className={`phase1-panel__stat-value${capacityShortfall ? ' phase1-panel__stat-value--warn' : ''}`}>{totalCapacity}</span>
-          <span className="phase1-panel__stat-label">总产能</span>
-        </div>
-      </div>
+      <DecisionStatStrip
+        items={[
+          {
+            value: `${remainingRawMaterials} / ${rawMaterials}`,
+            label: "原材料",
+          },
+          { value: goodsInventory, label: "商品库存" },
+          { value: investmentPool, label: "投资池" },
+          {
+            value: totalCapacity,
+            label: "总产能",
+            tone: capacityShortfall ? "warning" : undefined,
+          },
+        ]}
+      />
 
       {capacityShortfall && (
         <div className="phase1-panel__capacity-warning" data-testid="capacity-warning">

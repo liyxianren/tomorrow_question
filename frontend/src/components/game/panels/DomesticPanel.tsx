@@ -3,6 +3,7 @@ import type { PhaseDraftByPhase } from "../../../features/game/forms";
 import {
   buildEffectMetrics,
 } from "../../../features/game/decisionShared";
+import { DecisionStatStrip } from "./shared/DecisionStatStrip";
 import "./DomesticPanel.css";
 
 const ACTION_ICONS: Record<string, string> = {
@@ -40,18 +41,31 @@ export function DomesticPanel({
         <span className="domestic-panel__budget">国内预算 {remainingDomesticBudget}</span>
       </div>
 
-      <div className="domestic-stats">
-        <div className="domestic-stat">
-          <span className="domestic-stat__icon">💰</span>
-          <span className="domestic-stat__value">{remainingDomesticBudget}</span>
-          <span className="domestic-stat__label">预算剩余</span>
-        </div>
-        <div className="domestic-stat">
-          <span className="domestic-stat__icon">📋</span>
-          <span className="domestic-stat__value">{selectedActionIds.size}</span>
-          <span className="domestic-stat__label">已选动作</span>
-        </div>
-      </div>
+      <DecisionStatStrip
+        items={[
+          {
+            icon: "📊",
+            value:
+              (workspace as DecisionPlayerPhaseWorkspace & {
+                domesticStats?: { demand?: string | number; supply?: string | number };
+              }).domesticStats?.demand ?? "—",
+            label: "国内需求",
+          },
+          {
+            icon: "📦",
+            value:
+              (workspace as DecisionPlayerPhaseWorkspace & {
+                domesticStats?: { demand?: string | number; supply?: string | number };
+              }).domesticStats?.supply ?? "—",
+            label: "国内供给",
+          },
+          {
+            icon: "✅",
+            value: draft.domesticMarketPlan.domesticMarketActions.length,
+            label: "已选动作",
+          },
+        ]}
+      />
 
       <h4 className="domestic-section-label">🏪 民生政策</h4>
       <div className="domestic-actions">

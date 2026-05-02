@@ -132,7 +132,6 @@ describe("GamePhasePanelContent", () => {
 
     const factoryPanel = screen.getByTestId("factory-panel");
     expect(within(factoryPanel).getByRole("heading", { name: "🏭 工业区" })).toBeInTheDocument();
-    expect(within(factoryPanel).getByText("工厂预算 15")).toBeInTheDocument();
   });
 
   it.skip("updates industrial overview and route capacity when production changes (legacy — removed with v1 panels)", async () => {

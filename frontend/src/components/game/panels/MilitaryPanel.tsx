@@ -1,6 +1,7 @@
 import type { DecisionPlayerPhaseWorkspace } from "../../../types";
 import type { PhaseDraftByPhase } from "../../../features/game/forms";
 import { buildEffectMetrics } from "../../../features/game/decisionShared";
+import { DecisionStatStrip } from "./shared/DecisionStatStrip";
 import "./MilitaryPanel.css";
 
 const REGION_ICONS: Record<string, string> = {
@@ -107,28 +108,14 @@ export function MilitaryPanel({
         <span className="military-panel__budget">财政 {remainingGovernmentBudget}</span>
       </div>
 
-      <div className="military-stats">
-        <div className="military-stat">
-          <span className="military-stat__icon">⚔️</span>
-          <span className="military-stat__value">{mil.militaryPoints}</span>
-          <span className="military-stat__label">军事点</span>
-        </div>
-        <div className="military-stat">
-          <span className="military-stat__icon">⛵</span>
-          <span className="military-stat__value">{mil.navy.fleets ?? 0}</span>
-          <span className="military-stat__label">舰队</span>
-        </div>
-        <div className="military-stat">
-          <span className="military-stat__icon">🌍</span>
-          <span className="military-stat__value">{mil.overseasCapacity}</span>
-          <span className="military-stat__label">海外承接</span>
-        </div>
-        <div className="military-stat">
-          <span className="military-stat__icon">🏳️</span>
-          <span className="military-stat__value">{mil.establishedDiplomacy.length}</span>
-          <span className="military-stat__label">已建交</span>
-        </div>
-      </div>
+      <DecisionStatStrip
+        items={[
+          { icon: "⚔️", value: mil.militaryPoints, label: "军事点" },
+          { icon: "⛵", value: mil.navy.fleets ?? 0, label: "舰队" },
+          { icon: "🌍", value: mil.overseasCapacity, label: "海外承接" },
+          { icon: "🏳️", value: mil.establishedDiplomacy.length, label: "已建交" },
+        ]}
+      />
 
       {oceanNodes.length > 0 && (
         <>

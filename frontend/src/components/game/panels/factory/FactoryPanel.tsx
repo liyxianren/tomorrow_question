@@ -45,7 +45,6 @@ export function FactoryPanel({
     <section className="factory-panel" data-testid="factory-panel">
       <div className="factory-panel__header">
         <h3 className="factory-panel__title">🏭 工业区</h3>
-        <span className="factory-panel__budget">工厂预算 {remainingFactoryBudget}</span>
       </div>
 
       {hasConstructionOptions && (

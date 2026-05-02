@@ -1,5 +1,6 @@
 import type { DecisionPlayerPhaseWorkspace, IdeologyKey } from "../../../types";
 import type { PhaseDraftByPhase } from "../../../features/game/forms";
+import { DecisionStatStrip } from "./shared/DecisionStatStrip";
 import "./GovernmentPanel.css";
 
 const REFORM_PATH_LABELS: Record<"freedom" | "equality" | "national", string> = {
@@ -195,28 +196,14 @@ export function GovernmentPanel({
         <span className="government-panel__budget">政府财政 {remainingGovernmentBudget}</span>
       </div>
 
-      <div className="government-stats">
-        <div className="government-stat">
-          <span className="government-stat__icon">📜</span>
-          <span className="government-stat__value">{reforms.administrationCapacity}</span>
-          <span className="government-stat__label">行政力</span>
-        </div>
-        <div className="government-stat">
-          <span className="government-stat__icon">🧮</span>
-          <span className="government-stat__value">{projectedAdmin}</span>
-          <span className="government-stat__label">本轮剩余</span>
-        </div>
-        <div className="government-stat">
-          <span className="government-stat__icon">📚</span>
-          <span className="government-stat__value">{reforms.completedReforms.length}</span>
-          <span className="government-stat__label">已完成改革</span>
-        </div>
-        <div className="government-stat">
-          <span className="government-stat__icon">⚙️</span>
-          <span className="government-stat__value">{activePolicies.length}</span>
-          <span className="government-stat__label">现行政策</span>
-        </div>
-      </div>
+      <DecisionStatStrip
+        items={[
+          { icon: "📜", value: reforms.administrationCapacity, label: "行政力" },
+          { icon: "🧮", value: projectedAdmin, label: "本轮剩余" },
+          { icon: "📚", value: reforms.completedReforms.length, label: "已完成改革" },
+          { icon: "⚙️", value: activePolicies.length, label: "现行政策" },
+        ]}
+      />
 
       {/* ── 行政力购买 ── */}
       <h4 className="government-section-label">💰 提升行政力</h4>
