@@ -7,6 +7,7 @@ import { GovernmentPanel } from "./GovernmentPanel";
 import { DomesticPanel } from "./DomesticPanel";
 import { DecisionStepTabs } from "./DecisionStepTabs";
 import { FactoryPanel } from "./factory/FactoryPanel";
+import { ResearchPanel } from "./ResearchPanel";
 import type {
   DecisionFlowState,
   DecisionStepId,
@@ -256,6 +257,12 @@ export function DecisionWorkbench({
           onNavalDeploymentChange={(nodeId, count) => handleDraftChange("military", setNavalDeployment(draft, nodeId, count))}
           onConquestChange={(regionId, infantry, artillery) => handleDraftChange("military", setConquestAction(draft, regionId, infantry, artillery))}
           onLootingToggle={(regionId, resourceType) => handleDraftChange("military", toggleLootingAction(draft, regionId, resourceType))}
+        />
+      ) : activeStep === "research" ? (
+        <ResearchPanel
+          techTree={workspace.techTree}
+          selectedTechIds={new Set(draft.governmentPlan.techResearch.map((t) => t.techId))}
+          onToggleTech={(techId, checked) => handleDraftChange("research", toggleTechResearchSelection(draft, techId, checked))}
         />
       ) : (
         <TalentTreePanel

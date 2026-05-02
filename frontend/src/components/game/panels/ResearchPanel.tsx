@@ -1,4 +1,4 @@
-import { getTechnologyLabel } from "../../../features/game/panelGlossary";
+import { getTechnologyLabel as fallbackTechLabel } from "../../../features/game/panelGlossary";
 import type { TechTreeData, TechTreeChainTech } from "../../../types";
 import "./ResearchPanel.css";
 
@@ -14,6 +14,9 @@ export function ResearchPanel({
   onToggleTech,
 }: ResearchPanelProps) {
   const { chains, researchFacilities, facilityCost, progressPerFacility, activeResearch } = techTree;
+  const activeTechLabel = activeResearch
+    ? chains.flatMap((c) => c.techs).find((t) => t.techId === activeResearch)?.label
+    : undefined;
 
   return (
     <div className="research-panel">
@@ -27,7 +30,14 @@ export function ResearchPanel({
       {activeResearch && (
         <div className="research-panel__header">
           <span className="research-panel__header-label">⚡ 当前研究</span>
-          <span className="research-panel__header-value">{getTechnologyLabel(activeResearch)}</span>
+          <span className="research-panel__header-value">{activeTechLabel ?? fallbackTechLabel(activeResearch)}</span>
+        </div>
+      )}
+
+      {!activeResearch && (
+        <div className="research-panel__header">
+          <span className="research-panel__header-label">💡 提示</span>
+          <span className="research-panel__header-value">点击下方科技选择研究目标，提交决策后开始研究</span>
         </div>
       )}
 
@@ -93,11 +103,11 @@ function TechRow({
         role={tech.canResearch && !tech.isUnlocked ? "checkbox" : undefined}
         aria-checked={tech.canResearch && !tech.isUnlocked ? isSelected : undefined}
       >
-        {tech.isUnlocked ? "✓" : tech.isActive ? "⚡" : isSelected ? "◉" : ""}
+        {tech.isUnlocked ? "✓" : tech.isActive ? "⚡" : isSelected ? "◉" : "○"}
       </div>
 
       <div className="research-panel__tech-info">
-        <div className="research-panel__tech-label">{getTechnologyLabel(tech.techId)}</div>
+        <div className="research-panel__tech-label">{tech.label}</div>
 
         {!tech.isUnlocked && (
           <div className="research-panel__tech-progress">
@@ -120,8 +130,18 @@ function TechRow({
           </div>
         )}
 
-        {!tech.isDiscovered && !tech.isUnlocked && (
-          <div className="research-panel__tech-meta">🔍 尚未发现</div>
+        {tech.canResearch && !tech.isUnlocked && !tech.isActive && (
+          <div className="research-panel__tech-meta">
+            {isSelected ? "已选中，提交决策后开始研究" : "点击左侧 ○ 选择研究"}
+          </div>
+        )}
+
+        {tech.isActive && (
+          <div className="research-panel__tech-meta">⚡ 正在研究中</div>
+        )}
+
+        {!tech.canResearch && !tech.isUnlocked && (
+          <div className="research-panel__tech-meta">🔒 需先完成前置科技</div>
         )}
       </div>
     </div>

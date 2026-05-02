@@ -428,6 +428,7 @@ def _apply_phase3_research_progress(player_state, snapshot, balance) -> None:
         player_state.unlocked_techs.append(active)
         player_state.breakthrough_attempts.pop(active, None)
         player_state.tech_points = int(player_state.tech_points) + 1
+        player_state.active_research = None
         return
 
     roll = random.randint(1, int(balance.technology.breakthrough_die_sides))
@@ -436,6 +437,7 @@ def _apply_phase3_research_progress(player_state, snapshot, balance) -> None:
         player_state.research_progress[active] = 0
         player_state.breakthrough_attempts.pop(active, None)
         player_state.tech_points = int(player_state.tech_points) + 1
+        player_state.active_research = None
     else:
         player_state.breakthrough_attempts[active] = attempts + 1
 

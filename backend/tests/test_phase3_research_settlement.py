@@ -81,6 +81,7 @@ class Phase3ResearchSettlementTests(unittest.TestCase):
         self.assertIn("leyden_jar", britain.unlocked_techs)
         self.assertEqual(britain.research_progress.get("leyden_jar"), 0)
         self.assertNotIn("leyden_jar", britain.breakthrough_attempts)
+        self.assertIsNone(britain.active_research)
 
     def test_failed_breakthrough_keeps_progress_and_increments_attempts(self) -> None:
         snapshot = build_snapshot()
@@ -115,6 +116,7 @@ class Phase3ResearchSettlementTests(unittest.TestCase):
         self.assertIn("voltaic_pile", britain.unlocked_techs)
         self.assertEqual(britain.research_progress.get("voltaic_pile"), 0)
         self.assertNotIn("voltaic_pile", britain.breakthrough_attempts)
+        self.assertIsNone(britain.active_research)
 
     def test_direct_unlock_when_other_player_already_discovered(self) -> None:
         snapshot = build_snapshot()
@@ -136,6 +138,7 @@ class Phase3ResearchSettlementTests(unittest.TestCase):
         # Direct-unlock consumes 2*threshold=6 from 7, leaving 1.
         self.assertEqual(britain.research_progress.get("voltaic_pile"), 1)
         self.assertNotIn("voltaic_pile", britain.breakthrough_attempts)
+        self.assertIsNone(britain.active_research)
 
     def test_no_active_research_is_noop(self) -> None:
         snapshot = build_snapshot()
@@ -182,6 +185,7 @@ class Phase3ResearchSettlementTests(unittest.TestCase):
         self.assertIn("leyden_jar", britain.unlocked_techs)
         self.assertEqual(britain.research_progress.get("leyden_jar"), 0)
         self.assertNotIn("leyden_jar", britain.breakthrough_attempts)
+        self.assertIsNone(britain.active_research)
 
 
 if __name__ == "__main__":
