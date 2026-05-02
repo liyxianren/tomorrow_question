@@ -6,6 +6,39 @@
   gap: 16px;
 }
 
+/* ── Sub-tabs (科技研究 / 天赋树) ── */
+
+.research-sub-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.research-sub-tab {
+  padding: 6px 16px;
+  border-radius: 6px 6px 0 0;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--game-text-muted, rgba(255, 255, 255, 0.55));
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+
+.research-sub-tab:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--game-text-primary, #fff5e7);
+}
+
+.research-sub-tab--active {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--game-text-primary, #fff5e7);
+  border-color: var(--color-accent, #d4af37);
+  border-bottom: none;
+}
+
 /* ── Phase1 Binary Split Layout ── */
 
 .research-panel--v2 {

@@ -2,11 +2,13 @@ import type { PhaseDraftByPhase } from "../forms";
 
 export type DecisionStepId = "factory" | "domestic" | "government" | "military" | "research";
 export type DecisionStepReviewState = "unreviewed" | "checked" | "no_op" | "needs_recheck";
+export type DecisionResearchView = "tech" | "talent";
 
 export type DecisionFlowState = {
   activeStep: DecisionStepId;
   stepReviewStateByStep: Record<DecisionStepId, DecisionStepReviewState>;
   activeResearchBranch: string | null;
+  activeResearchView: DecisionResearchView;
 };
 
 export const DECISION_STEP_ORDER: DecisionStepId[] = ["factory", "domestic", "government", "military", "research"];
@@ -22,6 +24,7 @@ export function createInitialDecisionFlowState(): DecisionFlowState {
       research: "unreviewed",
     },
     activeResearchBranch: null,
+    activeResearchView: "tech",
   };
 }
 

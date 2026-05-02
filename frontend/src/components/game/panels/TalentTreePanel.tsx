@@ -4,10 +4,10 @@ import { buildEffectMetrics } from "../../../features/game/decisionShared";
 import "./TalentTreePanel.css";
 
 const BRANCH_META: Record<string, { icon: string; color: string }> = {
-  industry:   { icon: "\u2692\uFE0F", color: "#4a9eff" },
-  domestic:   { icon: "\uD83C\uDFD8\uFE0F", color: "#68d391" },
-  government: { icon: "\uD83C\uDFDB\uFE0F", color: "#d4af37" },
-  military:   { icon: "\u2694\uFE0F", color: "#fc8181" },
+  industry:   { icon: "⚒️", color: "#4a9eff" },
+  domestic:   { icon: "🏘️", color: "#68d391" },
+  government: { icon: "🏛️", color: "#d4af37" },
+  military:   { icon: "⚔️", color: "#fc8181" },
 };
 
 export interface TalentTreePanelProps {
@@ -25,78 +25,76 @@ export function TalentTreePanel({
   branches,
   projectedTechPoints,
   techCostPerPoint,
-  unlockedTalentCount,
   selectedNodeIds,
   activeBranchId,
   onSelectBranch,
   onToggleNode,
 }: TalentTreePanelProps) {
   const activeBranch = activeBranchId
-    ? branches.find((b) => b.branchId === activeBranchId) ?? null
-    : null;
+    ? branches.find((b) => b.branchId === activeBranchId) ?? branches[0] ?? null
+    : branches[0] ?? null;
+  const effectiveBranchId = activeBranch?.branchId ?? null;
 
   return (
-    <div className="talent-tree">
-      {/* Header */}
-      <div className="talent-tree__header">
-        <h3 className="talent-tree__title">
-          {activeBranch ? `${BRANCH_META[activeBranch.branchId]?.icon ?? ""} ${activeBranch.label}分支` : "天赋树"}
-        </h3>
-        <span className="talent-tree__budget">
-          {projectedTechPoints} 科技点
-        </span>
+    <div className="talent-tree talent-tree--v2">
+      <div className="talent-tree--v2__left">
+        <div className="talent-tree__header">
+          <h3 className="talent-tree__title">天赋分支</h3>
+          <span className="talent-tree__budget">{projectedTechPoints} 科技点</span>
+        </div>
+        <p className="talent-tree__hint">
+          科技点可在议会厅购买（{techCostPerPoint} 预算/点）。
+        </p>
+        <BranchList
+          branches={branches}
+          activeBranchId={effectiveBranchId}
+          onSelect={onSelectBranch}
+        />
       </div>
 
-      <p className="talent-tree__hint">
-        {activeBranch
-          ? "按顺序解锁天赋节点，每个节点提供永久增益。"
-          : `选择一条研究方向查看天赋详情。科技点可在议会厅购买（${techCostPerPoint}预算/点）。`}
-      </p>
-
-      {/* Branch selection or detail */}
-      {activeBranch ? (
-        <BranchDetail
-          branch={activeBranch}
-          projectedTechPoints={projectedTechPoints}
-          selectedNodeIds={selectedNodeIds}
-          onBack={() => onSelectBranch(null)}
-          onToggleNode={onToggleNode}
-        />
-      ) : (
-        <BranchGrid
-          branches={branches}
-          onSelect={(id) => onSelectBranch(id)}
-        />
-      )}
+      <div className="talent-tree--v2__right">
+        {activeBranch ? (
+          <BranchDetail
+            branch={activeBranch}
+            projectedTechPoints={projectedTechPoints}
+            selectedNodeIds={selectedNodeIds}
+            onToggleNode={onToggleNode}
+          />
+        ) : (
+          <p className="talent-tree__hint">暂无可用天赋分支。</p>
+        )}
+      </div>
     </div>
   );
 }
 
-/* ── Branch Selection Grid ── */
-
-function BranchGrid({
+function BranchList({
   branches,
+  activeBranchId,
   onSelect,
 }: {
   branches: TalentBranchOption[];
+  activeBranchId: string | null;
   onSelect: (branchId: string) => void;
 }) {
   return (
-    <div className="talent-branches">
+    <div className="talent-branches talent-branches--vertical">
       {branches.map((branch) => {
-        const meta = BRANCH_META[branch.branchId] ?? { icon: "\uD83D\uDD2C", color: "#888" };
+        const meta = BRANCH_META[branch.branchId] ?? { icon: "🔬", color: "#888" };
         const unlockedCount = branch.nodes.filter((n) => n.isUnlocked).length;
         const totalCost = branch.nodes.reduce((s, n) => s + n.techPointCost, 0);
         const capstone = branch.nodes[branch.nodes.length - 1];
         const progress = branch.nodes.length > 0 ? (unlockedCount / branch.nodes.length) * 100 : 0;
+        const isActive = branch.branchId === activeBranchId;
 
         return (
           <button
             key={branch.branchId}
-            className="talent-branch-card"
+            className={`talent-branch-card ${isActive ? "talent-branch-card--active" : ""}`}
             style={{ "--branch-color": meta.color } as React.CSSProperties}
             onClick={() => onSelect(branch.branchId)}
             type="button"
+            aria-pressed={isActive}
           >
             <span className="talent-branch-card__icon">{meta.icon}</span>
             <span className="talent-branch-card__name">{branch.label}</span>
@@ -121,29 +119,25 @@ function BranchGrid({
   );
 }
 
-/* ── Branch Detail: Node Chain ── */
-
 function BranchDetail({
   branch,
   projectedTechPoints,
   selectedNodeIds,
-  onBack,
   onToggleNode,
 }: {
   branch: TalentBranchOption;
   projectedTechPoints: number;
   selectedNodeIds: Set<string>;
-  onBack: () => void;
   onToggleNode: (nodeId: string, checked: boolean) => void;
 }) {
-  const meta = BRANCH_META[branch.branchId] ?? { icon: "\uD83D\uDD2C", color: "#888" };
+  const meta = BRANCH_META[branch.branchId] ?? { icon: "🔬", color: "#888" };
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null);
 
   return (
     <div className="talent-detail" style={{ "--branch-color": meta.color } as React.CSSProperties}>
-      <button className="talent-detail__back" onClick={onBack} type="button">
-        {"<"} 返回分支选择
-      </button>
+      <h4 className="talent-detail__branch-title">
+        {meta.icon} {branch.label}分支
+      </h4>
 
       {branch.nodes.map((node, index) => {
         const isSelected = selectedNodeIds.has(node.nodeId);
@@ -182,13 +176,12 @@ function BranchDetail({
             <div className="talent-node__body">
               <div className="talent-node__head">
                 <h4 className="talent-node__name">
-                  {node.isUnlocked ? "\u2705" : canUnlock ? "\uD83D\uDD13" : "\uD83D\uDD12"}{" "}
+                  {node.isUnlocked ? "✅" : canUnlock ? "🔓" : "🔒"}{" "}
                   {node.label}
                 </h4>
                 <span className="talent-node__cost">{node.techPointCost} 点</span>
               </div>
 
-              {/* Effect tags - always visible */}
               <div className="talent-node__effects">
                 {effectMetrics.map((em) => (
                   <span key={em.label} className="talent-node__effect-tag">
@@ -197,24 +190,21 @@ function BranchDetail({
                 ))}
               </div>
 
-              {/* Expanded detail */}
               {isExpanded && node.description ? (
                 <p className="talent-tree__hint" style={{ marginTop: 8 }}>
                   {node.description}
                 </p>
               ) : null}
 
-              {/* Lock reason */}
               {lockReason ? (
                 <p className="talent-node__lock-reason">{lockReason}</p>
               ) : null}
             </div>
 
-            {/* Action button */}
             <div className="talent-node__action">
               {node.isUnlocked ? (
                 <span className="talent-node__btn talent-node__btn--unlocked">
-                  {"\u2713"} 已解锁
+                  {"✓"} 已解锁
                 </span>
               ) : isSelected ? (
                 <button
@@ -222,7 +212,7 @@ function BranchDetail({
                   onClick={(e) => { e.stopPropagation(); onToggleNode(node.nodeId, false); }}
                   type="button"
                 >
-                  {"\u2713"} 已选择
+                  {"✓"} 已选择
                 </button>
               ) : (
                 <button

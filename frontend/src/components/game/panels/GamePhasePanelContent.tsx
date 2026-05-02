@@ -1,7 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 
 import { Phase1MarketPanel } from "./Phase1MarketPanel";
-import { TalentTreePanel } from "./TalentTreePanel";
 import { MilitaryPanel } from "./MilitaryPanel";
 import { GovernmentPanel } from "./GovernmentPanel";
 import { DomesticPanel } from "./DomesticPanel";
@@ -265,22 +264,21 @@ export function DecisionWorkbench({
           techTree={workspace.techTree}
           selectedTechIds={new Set(draft.governmentPlan.techResearch.map((t) => t.techId))}
           onToggleTech={(techId, checked) => handleDraftChange("research", toggleTechResearchSelection(draft, techId, checked))}
-        />
-      ) : (
-        <TalentTreePanel
-          branches={workspace.researchWorkspace?.talentBranches ?? []}
+          view={decisionFlowState.activeResearchView}
+          onViewChange={(view) => onDecisionFlowChange((prev) => ({ ...prev, activeResearchView: view }))}
+          talentBranches={workspace.researchWorkspace?.talentBranches ?? []}
           projectedTechPoints={governmentPointPreview.techPoints}
           techCostPerPoint={workspace.governmentActions?.pointPurchaseCosts?.tech ?? 10}
           unlockedTalentCount={workspace.researchWorkspace?.unlockedTalentCount ?? 0}
-          selectedNodeIds={new Set(draft.talentPlan?.talentUnlocks?.map((u) => u.nodeId) ?? [])}
+          selectedTalentNodeIds={new Set(draft.talentPlan?.talentUnlocks?.map((u) => u.nodeId) ?? [])}
           activeBranchId={decisionFlowState.activeResearchBranch}
           onSelectBranch={(id) => onDecisionFlowChange((prev) => ({ ...prev, activeResearchBranch: id }))}
-          onToggleNode={(nodeId, checked) => {
+          onToggleTalentNode={(nodeId, checked) => {
             onChange(toggleTalentUnlockSelection(draft, nodeId, checked));
             onDecisionFlowChange((prev) => markDecisionStepDirty(prev, "research"));
           }}
         />
-      )}
+      ) : null}
       <DecisionStepFooter
         activeStep={activeStep}
         activeStepReviewState={activeStepReviewState}

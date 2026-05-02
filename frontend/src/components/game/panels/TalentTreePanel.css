@@ -6,6 +6,33 @@
   gap: var(--game-gap-section, 22px);
 }
 
+/* ── Binary split layout (left: branch list, right: branch detail) ── */
+
+.talent-tree--v2 {
+  display: grid;
+  grid-template-columns: 35fr 65fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.talent-tree--v2__left,
+.talent-tree--v2__right {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .talent-tree--v2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.talent-branches--vertical {
+  grid-template-columns: 1fr;
+}
+
 .talent-tree__header {
   display: flex;
   align-items: baseline;
