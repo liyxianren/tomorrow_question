@@ -345,15 +345,17 @@ export function MilitaryPanel({
               const previewHasDiplomacy = previewEstablishedDiplomacy.has(option.regionId);
               const previewHasMilitary = mil.militaryPoints >= capability.militaryPointCost;
               const previewCanColonize = !option.isColonized && previewIsUnlocked && previewHasDiplomacy && previewHasMilitary;
+              const lockReasonParts: string[] = [];
+              if (!option.isColonized) {
+                if (!previewIsUnlocked) lockReasonParts.push("需先解锁殖民");
+                if (!previewHasDiplomacy) lockReasonParts.push("建立外交关系");
+                if (!previewHasMilitary) lockReasonParts.push(`${capability.militaryPointCost}军事点`);
+              }
               const previewLockedReason = option.isColonized
                 ? "已被殖民"
-                : !previewIsUnlocked
-                  ? "需先永久解锁殖民扩张"
-                  : !previewHasDiplomacy
-                    ? "需先建交"
-                    : !previewHasMilitary
-                      ? `需要${capability.militaryPointCost}军事点`
-                      : null;
+                : lockReasonParts.length > 0
+                  ? `🔒 ${lockReasonParts.join(" + ")}`
+                  : null;
               const statusText = option.isColonized
                 ? "👑 已殖民"
                 : isSelected
@@ -366,7 +368,10 @@ export function MilitaryPanel({
               const artillery = conquestEntry?.artillery ?? 0;
               const power = infantry + artillery * 2;
               const garrisonEntries = Object.entries(option.garrison ?? {}).filter(([, n]) => n > 0);
-              const defenderTotal = garrisonEntries.reduce((sum, [, n]) => sum + n, 0);
+              const garrisonInf = Number(option.garrison?.infantry ?? 0);
+              const garrisonArt = Number(option.garrison?.artillery ?? 0);
+              const defenderPower = garrisonInf + garrisonArt * 2;
+              const conquestThreshold = Math.max(1, defenderPower * 2);
               const resourceEntries = Object.entries(option.resourceLimit ?? {}).filter(([, n]) => n > 0);
               const lootedSet = new Set(
                 lootingActions.filter((a) => a.regionId === option.regionId).map((a) => a.resourceType),
@@ -457,6 +462,9 @@ export function MilitaryPanel({
                           );
                         })}
                       </div>
+                      <div style={{ fontSize: 11, color: "#d4a017" }}>
+                        ⚠️ 掠夺会增加殖民地独立倾向 (+2)
+                      </div>
                     </div>
                   )}
 
@@ -502,7 +510,9 @@ export function MilitaryPanel({
                       </div>
                       <div style={{ fontSize: 12 }}>
                         战力 = {power}（步兵 {infantry} + 炮兵×2 {artillery * 2}）
-                        {defenderTotal > 0 ? ` · 守军 = ${defenderTotal}` : ""}
+                        {defenderPower > 0
+                          ? ` · 守军战力 = ${defenderPower}（步兵 ${garrisonInf} + 炮兵×2 ${garrisonArt * 2}）· 需≥${conquestThreshold}`
+                          : ""}
                       </div>
                     </div>
                   )}

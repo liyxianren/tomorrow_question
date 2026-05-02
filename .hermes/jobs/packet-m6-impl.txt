@@ -1,0 +1,36 @@
+TASK ID:
+player-ux-audit-m6-impl
+
+OBJECTIVE:
+Fix 3 military panel bugs: (1) Conquest threshold display ignores artillery weight and 2× multiplier; (2) Looting doesn't show independence risk; (3) Colonization doesn't show diplomacy requirement hint.
+
+WHY:
+Analysis found: the conquest UI tells players the wrong number for "defender strength," so they commit troops based on false info. Looting silently increases independence risk. Colonization option appears without warning that diplomacy is needed first.
+
+DO:
+1. Fix conquest threshold display in MilitaryPanel.tsx:
+   - Find where `defenderTotal` or equivalent is calculated for display
+   - Include artillery weight (×2) and garrison ×2 multiplier in the displayed value
+   - Show the corrected number: 炮兵×2 + 步兵 = defender power, garrison needs ×2
+   - Verify the display matches the actual backend `_resolve_conquest` logic
+
+2. Add looting cost display:
+   - Near the looting section, add a note: "掠夺会增加殖民地独立倾向 (+2)"
+   - Surface the independence risk inline with the looting action
+
+3. Add colonization requirement hint:
+   - For locked colonization targets, show "🔒 需先解锁殖民 + 建立外交关系"
+   - Read the colonization unlock + diplomacy requirement from workspace data
+
+DO NOT:
+- Do not split MilitaryPanel into sub-tabs (separate task)
+- Do not add bot military AI (separate task)
+- Do not change backend rules
+
+FILES:
+- frontend/src/components/game/panels/MilitaryPanel.tsx
+- frontend/src/components/game/panels/MilitaryPanel.test.tsx (extend coverage)
+
+TIER: T1 / 10 min
+VERIFY: vitest MilitaryPanel.test.tsx, frontend build
+RETURN: standard

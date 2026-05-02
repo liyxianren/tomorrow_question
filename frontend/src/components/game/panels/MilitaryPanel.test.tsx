@@ -30,7 +30,9 @@ describe("MilitaryPanel", () => {
 
     expect(screen.getByText("殖民扩张")).toBeInTheDocument();
     expect(screen.getByText(/永久解锁殖民能力/)).toBeInTheDocument();
-    expect(screen.getAllByText("需先永久解锁殖民扩张")).toHaveLength(2);
+    // africa: needs unlock + diplomacy + military pts. middle_east: needs unlock + military pts (已建交).
+    expect(screen.getByText("🔒 需先解锁殖民 + 建立外交关系 + 3军事点")).toBeInTheDocument();
+    expect(screen.getByText("🔒 需先解锁殖民 + 3军事点")).toBeInTheDocument();
     expect(screen.queryByText("10+3军")).not.toBeInTheDocument();
   });
 
@@ -158,10 +160,97 @@ describe("MilitaryPanel", () => {
       />,
     );
 
-    expect(screen.getByText(/独立度 70%/)).toBeInTheDocument();
-    expect(screen.getByText(/⚠️/)).toBeInTheDocument();
+    expect(screen.getByText(/独立度 70% ⚠️/)).toBeInTheDocument();
     expect(screen.getByText(/驻军/)).toBeInTheDocument();
     expect(screen.getByText(/britain×3/)).toBeInTheDocument();
+  });
+
+  it("shows defender power with artillery×2 weighting and ×2 attack threshold for garrisoned conquest targets", () => {
+    const baseWorkspace = createDecisionPlayerWorkspace();
+    const workspace = createDecisionPlayerWorkspace({
+      militaryWorkspace: {
+        ...baseWorkspace.militaryWorkspace,
+        militaryPoints: 30,
+        colonizationOptions: [
+          {
+            regionId: "africa",
+            regionLabel: "非洲",
+            controller: null,
+            isColonized: false,
+            militaryPointCost: 3,
+            canColonize: false,
+            lockedReason: "需先永久解锁殖民扩张",
+            garrison: { infantry: 2, artillery: 1 },
+          },
+        ],
+      },
+    });
+    const draft = createInitialPhaseDraft("decision");
+
+    render(
+      <MilitaryPanel
+        workspace={workspace}
+        draft={draft}
+        remainingGovernmentBudget={100}
+        onAddMilitary={vi.fn()}
+        onRemoveMilitary={vi.fn()}
+        onToggleDiplomacy={vi.fn()}
+        onToggleColonizationUnlock={vi.fn()}
+        onColonize={vi.fn()}
+        onCancelColonize={vi.fn()}
+        onNavalDeploymentChange={vi.fn()}
+        onConquestChange={vi.fn()}
+        onLootingToggle={vi.fn()}
+      />,
+    );
+
+    const conquestSection = screen.getByTestId("conquest-africa");
+    // defender power = 2 + 1×2 = 4; required attack = 4×2 = 8
+    expect(within(conquestSection).getByText(/守军战力 = 4/)).toBeInTheDocument();
+    expect(within(conquestSection).getByText(/需≥8/)).toBeInTheDocument();
+  });
+
+  it("shows looting independence-risk hint near loot buttons", () => {
+    const baseWorkspace = createDecisionPlayerWorkspace();
+    const workspace = createDecisionPlayerWorkspace({
+      militaryWorkspace: {
+        ...baseWorkspace.militaryWorkspace,
+        colonizationOptions: [
+          {
+            regionId: "africa",
+            regionLabel: "非洲",
+            controller: "britain",
+            isColonized: true,
+            militaryPointCost: 3,
+            canColonize: false,
+            lockedReason: "已被殖民",
+            independence: 30,
+            garrison: { britain: 1 },
+            resourceLimit: { coal: 5 },
+          },
+        ],
+      },
+    });
+    const draft = createInitialPhaseDraft("decision");
+
+    render(
+      <MilitaryPanel
+        workspace={workspace}
+        draft={draft}
+        remainingGovernmentBudget={50}
+        onAddMilitary={vi.fn()}
+        onRemoveMilitary={vi.fn()}
+        onToggleDiplomacy={vi.fn()}
+        onToggleColonizationUnlock={vi.fn()}
+        onColonize={vi.fn()}
+        onCancelColonize={vi.fn()}
+        onNavalDeploymentChange={vi.fn()}
+        onConquestChange={vi.fn()}
+        onLootingToggle={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/掠夺会增加殖民地独立倾向 \(\+2\)/)).toBeInTheDocument();
   });
 
   it("calls onLootingToggle with the resource type when 掠夺 button is clicked", () => {

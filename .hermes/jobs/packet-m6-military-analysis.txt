@@ -1,0 +1,31 @@
+You are executing a read-only analysis task. Do NOT write or modify any files.
+
+TASK ID:
+player-ux-audit-m6-military
+
+OBJECTIVE:
+Analyze Military & Diplomacy module from PLAYER perspective: UI, 数值设计, 元素设计.
+
+This covers the military panel where players recruit/train troops, establish diplomacy, colonize, deploy navies, and plan conquests.
+
+DO:
+1. Frontend:
+   - frontend/src/components/game/panels/MilitaryPanel.tsx + .test.tsx
+2. Backend:
+   - backend/app/modules/rules/decision.py (military action processing)
+   - backend/app/modules/bot/orchestrator.py (bot military decisions)
+3. Key backend modules already tested:
+   - army_conquest, naval_blockade, looting, colonization_chain, independence
+
+DO NOT: modify files.
+
+FOCUS:
+- Military actions: are costs and effects clear before committing? 
+- Diplomacy: is it obvious which regions need diplomacy and why?
+- Colonization: does the player understand the unlock→diplomacy→colonize chain?
+- Naval: is deployment intuitive? Can the player see fleet positions?
+- Army conquest: are power requirements clear? Is the 2× garrison rule visible?
+- Is the military panel too dense? (Claude previously suggested sub-tabs)
+- Are there dead military options?
+
+RETURN FORMAT: summary, UI/数值/元素 issues with severity, UX score, top 3 fixes, files to change
