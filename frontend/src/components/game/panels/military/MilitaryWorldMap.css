@@ -1,0 +1,132 @@
+.mwm {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: var(--color-bg-dark, #0a1018);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--game-radius-sm, 12px);
+  overflow: hidden;
+  width: 100%;
+}
+
+.mwm__bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+  pointer-events: none;
+}
+
+.mwm-pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 80px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(8, 12, 18, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--game-text-primary, #fff5e7);
+  font-size: 12px;
+  font-family: inherit;
+  text-align: center;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s, background 0.15s;
+  z-index: 1;
+}
+
+.mwm-pin:hover,
+.mwm-pin:focus-visible {
+  outline: none;
+  background: rgba(20, 28, 40, 0.94);
+  border-color: rgba(212, 175, 55, 0.55);
+  transform: translate(-50%, -50%) scale(1.05);
+  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.5);
+  z-index: 2;
+}
+
+.mwm-pin--selected {
+  border-color: rgba(212, 175, 55, 0.85);
+  box-shadow: 0 0 18px -2px rgba(212, 175, 55, 0.55);
+  z-index: 3;
+}
+
+.mwm-pin--accessible {
+  border-color: rgba(104, 211, 145, 0.45);
+}
+
+.mwm-pin--locked {
+  border-color: rgba(255, 255, 255, 0.1);
+  opacity: 0.78;
+}
+
+.mwm-pin--ocean {
+  border-color: rgba(99, 179, 237, 0.45);
+}
+
+.mwm-pin__head {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mwm-pin__icon {
+  font-size: 14px;
+}
+
+.mwm-pin__label {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mwm-pin__sub {
+  font-size: 10.5px;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.7));
+  white-space: nowrap;
+}
+
+.mwm-pin__buttons {
+  display: inline-flex;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.mwm-pin__btn {
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 8px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.mwm-pin__btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.mwm-pin__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.mwm__legend {
+  position: absolute;
+  bottom: 8px;
+  left: 12px;
+  font-size: 11.5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(8, 12, 18, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.78));
+  z-index: 4;
+  pointer-events: none;
+}

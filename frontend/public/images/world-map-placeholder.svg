@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="none" role="img" aria-label="World map placeholder">
+  <defs>
+    <linearGradient id="oceanBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0c1922"/>
+      <stop offset="100%" stop-color="#0a1018"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#oceanBg)"/>
+  <g stroke="rgba(0,0,0,0.35)" stroke-width="2" opacity="0.85">
+    <rect x="100" y="200" width="280" height="500" fill="#3b6cb5" rx="22"/>
+    <rect x="640" y="100" width="220" height="220" fill="#7e57c2" rx="22"/>
+    <rect x="660" y="380" width="240" height="380" fill="#3a8a4f" rx="22"/>
+    <rect x="900" y="320" width="180" height="180" fill="#d97f3e" rx="22"/>
+    <rect x="1140" y="280" width="380" height="380" fill="#b8443e" rx="22"/>
+  </g>
+  <g font-family="Georgia, serif" fill="rgba(255,255,255,0.85)" font-size="32" font-weight="700" text-anchor="middle">
+    <text x="240" y="460">Americas</text>
+    <text x="750" y="220">Europe</text>
+    <text x="780" y="585">Africa</text>
+    <text x="990" y="420">Mid-East</text>
+    <text x="1330" y="475">Asia-Pacific</text>
+  </g>
+  <g font-family="Georgia, serif" fill="rgba(255,255,255,0.45)" font-size="20" font-style="italic" text-anchor="middle">
+    <text x="500" y="225">North Atlantic</text>
+    <text x="510" y="640">South Atlantic</text>
+    <text x="900" y="270">Mediterranean</text>
+    <text x="1050" y="640">Indian Ocean</text>
+    <text x="1450" y="540">Pacific</text>
+  </g>
+</svg>

@@ -1,17 +1,12 @@
+import { useState } from "react";
 import type { DecisionPlayerPhaseWorkspace } from "../../../types";
 import type { PhaseDraftByPhase } from "../../../features/game/forms";
 import { buildEffectMetrics } from "../../../features/game/decisionShared";
 import { DecisionStatStrip } from "./shared/DecisionStatStrip";
 import { DecisionActionCard } from "./shared/DecisionActionCard";
+import { MilitaryWorldMap, type MapSelection } from "./military/MilitaryWorldMap";
+import { MilitaryNodeDrawer } from "./military/MilitaryNodeDrawer";
 import "./MilitaryPanel.css";
-
-const REGION_ICONS: Record<string, string> = {
-  europe: "🏰",
-  americas: "🗽",
-  africa: "🦁",
-  middle_east: "🕌",
-  asia_pacific: "🏯",
-};
 
 const ACTION_ICONS: Record<string, string> = {
   recruit_infantry: "🛡️",
@@ -22,18 +17,6 @@ const ACTION_ICONS: Record<string, string> = {
   establish_middle_east: "🤝",
   establish_asia_pacific: "🤝",
 };
-
-const GOODS_LABELS: Record<string, string> = {
-  coal: "煤炭", steel: "钢铁", grain: "粮食", cotton: "棉花",
-  oil: "石油", rubber: "橡胶", minerals: "矿产", tea: "茶叶", silk: "丝绸",
-  iron: "铁矿",
-};
-
-function independenceColor(value: number): string {
-  if (value >= 60) return "#c0392b";
-  if (value >= 40) return "#d4a017";
-  return "#2e7d32";
-}
 
 export interface MilitaryPanelProps {
   workspace: DecisionPlayerPhaseWorkspace;
@@ -49,14 +32,6 @@ export interface MilitaryPanelProps {
   onConquestChange: (regionId: string, infantry: number, artillery: number) => void;
   onLootingToggle: (regionId: string, resourceType: string) => void;
 }
-
-const OCEAN_NODE_LABELS: Record<string, string> = {
-  north_atlantic: "北大西洋",
-  south_atlantic: "南大西洋",
-  indian_ocean: "印度洋",
-  pacific: "太平洋",
-  mediterranean: "地中海",
-};
 
 export function MilitaryPanel({
   workspace,
@@ -94,13 +69,17 @@ export function MilitaryPanel({
   }, 0);
   const remainingFleets = Math.max(0, totalFleets - totalDeployed);
 
-  const accessibleRegionIds = new Set(
-    mil.regionAccessStatus.filter((r) => r.isAccessible).map((r) => r.regionId),
-  );
   const conquestActions = draft.militaryPlan.conquestActions ?? [];
   const lootingActions = draft.militaryPlan.lootingActions ?? [];
+  const colonizationByRegion = new Map(mil.colonizationOptions.map((o) => [o.regionId, o]));
+  const diplomacyByRegion = new Map(
+    mil.availableDiplomacyActions.map((a) => [a.targetRegion, a]),
+  );
+  const conquestByRegion = new Map(conquestActions.map((a) => [a.regionId, a]));
   const maxInfantryByPoints = Math.floor(mil.militaryPoints / 10);
   const maxArtilleryByBudget = Math.floor(remainingGovernmentBudget / 16);
+
+  const [selectedNode, setSelectedNode] = useState<MapSelection>(null);
 
   return (
     <div className="military-panel" data-testid="military-panel">
@@ -118,75 +97,121 @@ export function MilitaryPanel({
         ]}
       />
 
-      {oceanNodes.length > 0 && (
-        <>
-          <h4 className="military-section-label">
-            🌊 海洋节点 <span style={{ fontSize: 12, color: "var(--game-text-muted, #b8a981)", marginLeft: 8 }}>
-              已部署 {totalDeployed}/{totalFleets}
-            </span>
-          </h4>
-          <div className="military-regions">
-            {oceanNodes.map((node) => {
-              const draftCount = navalDeployment[node.nodeId];
-              const myFleet = typeof draftCount === "number" ? draftCount : node.myFleet;
-              const canIncrement = remainingFleets > 0;
-              const canDecrement = myFleet > 0;
-              const label = OCEAN_NODE_LABELS[node.nodeId] ?? node.nodeId;
-              return (
-                <div
-                  key={node.nodeId}
-                  className="military-region military-region--accessible"
-                  data-testid={`ocean-node-${node.nodeId}`}
-                >
-                  <span className="military-region__icon">🌊</span>
-                  <span className="military-region__name">
-                    {label}
-                    {node.isBlockaded ? " 🚫" : ""}
-                  </span>
-                  <span className="military-region__goods-inline">
-                    舰队 {myFleet}
-                    {node.controller ? ` · 控制：${node.controller}` : ""}
-                  </span>
-                  <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
-                    <button
-                      aria-label={`减少在${label}的舰队部署`}
-                      className="military-action-card__btn"
-                      type="button"
-                      disabled={!canDecrement}
-                      onClick={() => onNavalDeploymentChange(node.nodeId, myFleet - 1)}
-                    >-</button>
-                    <button
-                      aria-label={`增加在${label}的舰队部署`}
-                      className="military-action-card__btn"
-                      type="button"
-                      disabled={!canIncrement}
-                      onClick={() => onNavalDeploymentChange(node.nodeId, myFleet + 1)}
-                    >+</button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
+      <h4 className="military-section-label">🌐 世界地图</h4>
+      <div className="mwm-stage">
+        <MilitaryWorldMap
+          oceanNodes={oceanNodes}
+          regionAccessStatus={mil.regionAccessStatus}
+          colonizationOptions={mil.colonizationOptions}
+          navalDeployment={navalDeployment}
+          myCountry={workspace.countryCode}
+          selectedNode={selectedNode}
+          totalFleets={totalFleets}
+          remainingFleets={remainingFleets}
+          onPinSelect={setSelectedNode}
+          onNavalDeploymentChange={onNavalDeploymentChange}
+        />
+        <div className="mnd-overlay" aria-label="区域详情">
+          {mil.regionAccessStatus.map((region) => {
+            const opt = colonizationByRegion.get(region.regionId) ?? null;
+            const diplomacyAction = diplomacyByRegion.get(region.regionId) ?? null;
+            const diplomacySelected = diplomacyAction
+              ? draft.militaryPlan.diplomacyActions.some((a) => a.actionId === diplomacyAction.actionId)
+              : false;
+            const colonizationSelected = draft.militaryPlan.colonizationActions.some(
+              (a) => a.targetRegionId === region.regionId,
+            );
+            const previewHasDiplomacy = previewEstablishedDiplomacy.has(region.regionId);
+            const conquestEntry = conquestByRegion.get(region.regionId) ?? null;
+            const lootedSet = new Set(
+              lootingActions.filter((a) => a.regionId === region.regionId).map((a) => a.resourceType),
+            );
+            const isOpen = selectedNode?.type === "region" && selectedNode?.id === region.regionId;
+            return (
+              <MilitaryNodeDrawer
+                key={`region-${region.regionId}`}
+                nodeType="region"
+                nodeId={region.regionId}
+                open={isOpen}
+                onClose={() => setSelectedNode(null)}
+                region={region}
+                diplomacyAction={diplomacyAction}
+                diplomacySelected={diplomacySelected}
+                colonizationOption={opt}
+                capability={capability}
+                previewIsUnlocked={previewIsUnlocked}
+                previewHasDiplomacy={previewHasDiplomacy}
+                militaryPoints={mil.militaryPoints}
+                remainingGovernmentBudget={remainingGovernmentBudget}
+                colonizationSelected={colonizationSelected}
+                conquestEntry={conquestEntry}
+                lootedSet={lootedSet}
+                maxInfantryByPoints={maxInfantryByPoints}
+                maxArtilleryByBudget={maxArtilleryByBudget}
+                onToggleDiplomacy={onToggleDiplomacy}
+                onColonize={onColonize}
+                onCancelColonize={onCancelColonize}
+                onConquestChange={onConquestChange}
+                onLootingToggle={onLootingToggle}
+              />
+            );
+          })}
+          {oceanNodes.map((node) => {
+            const draftCount = navalDeployment[node.nodeId];
+            const myFleet = typeof draftCount === "number" ? draftCount : node.myFleet;
+            const isOpen = selectedNode?.type === "ocean" && selectedNode?.id === node.nodeId;
+            return (
+              <MilitaryNodeDrawer
+                key={`ocean-${node.nodeId}`}
+                nodeType="ocean"
+                nodeId={node.nodeId}
+                open={isOpen}
+                onClose={() => setSelectedNode(null)}
+                oceanNode={node}
+                myFleet={myFleet}
+                remainingFleets={remainingFleets}
+                myCountry={workspace.countryCode}
+                onNavalDeploymentChange={onNavalDeploymentChange}
+              />
+            );
+          })}
+        </div>
+      </div>
 
-      <h4 className="military-section-label">🗺️ 海外区域</h4>
-      <div className="military-regions">
-        {mil.regionAccessStatus.map((region) => (
-          <div
-            key={region.regionId}
-            className={`military-region ${region.isAccessible ? "military-region--accessible" : "military-region--locked"}`}
-          >
-            <span className="military-region__icon">{REGION_ICONS[region.regionId] ?? "🌐"}</span>
-            <span className="military-region__name">
-              {region.label}
-              {region.isAccessible ? " ✅" : " 🔒"}
-            </span>
-            <span className="military-region__goods-inline">
-              {region.acceptedGoods.map((g) => GOODS_LABELS[g] ?? g).join("·")}
-            </span>
-          </div>
-        ))}
+      <h4 className="military-section-label">👑 殖民扩张</h4>
+      <div className="military-actions">
+        {(() => {
+          const unlockStatus = capability.isUnlocked
+            ? "done"
+            : previewIsUnlocked
+              ? "selected"
+              : remainingGovernmentBudget < capability.unlockCost
+                ? "disabled"
+                : "available";
+          const statusText = capability.isUnlocked
+            ? "✅ 已永久解锁"
+            : unlockSelected
+              ? "✓ 本轮解锁"
+              : "未解锁";
+          return (
+            <DecisionActionCard
+              icon="👑"
+              title="殖民扩张"
+              costLabel={String(capability.unlockCost)}
+              description={`支付 ${capability.unlockCost} 政府财政永久解锁殖民能力。解锁后，殖民执行只消耗 ${capability.militaryPointCost} 军事点。`}
+              status={unlockStatus}
+              statusText={statusText}
+              control={capability.isUnlocked ? undefined : {
+                kind: "toggle",
+                checked: unlockSelected,
+                onChange: (next) => onToggleColonizationUnlock(next),
+                label: unlockSelected ? "取消" : "解锁",
+                disabled: !unlockSelected && remainingGovernmentBudget < capability.unlockCost,
+              }}
+              doneBadge={capability.isUnlocked ? "已解锁" : undefined}
+            />
+          );
+        })()}
       </div>
 
       <h4 className="military-section-label">🛡️ 军事行动</h4>
@@ -227,280 +252,6 @@ export function MilitaryPanel({
           );
         })}
       </div>
-
-      {mil.availableDiplomacyActions.length > 0 && (
-        <>
-          <h4 className="military-section-label">🤝 外交行动</h4>
-          <div className="military-actions">
-            {mil.availableDiplomacyActions.map((action) => {
-              const selected = draft.militaryPlan.diplomacyActions.some((a) => a.actionId === action.actionId);
-              const canAfford = remainingGovernmentBudget >= action.cost;
-              const statusText = action.isEstablished
-                ? "✅ 已完成"
-                : selected
-                  ? "✓ 已选择"
-                  : "可发起";
-              const status = action.isEstablished
-                ? "done"
-                : selected
-                  ? "selected"
-                  : !canAfford
-                    ? "disabled"
-                    : "available";
-
-              return (
-                <DecisionActionCard
-                  key={action.actionId}
-                  icon={ACTION_ICONS[action.actionId] ?? "🤝"}
-                  title={action.label}
-                  costLabel={String(action.cost)}
-                  description={action.isEstablished ? `${action.targetRegionLabel} 已建交` : `与${action.targetRegionLabel}建立外交关系`}
-                  status={status}
-                  statusText={statusText}
-                  control={action.isEstablished ? undefined : {
-                    kind: "confirm-cancel",
-                    isSelected: selected,
-                    isDisabled: !canAfford,
-                    onConfirm: () => onToggleDiplomacy(action.actionId, true),
-                    onCancel: () => onToggleDiplomacy(action.actionId, false),
-                    confirmLabel: "建交",
-                    cancelLabel: "取消",
-                    confirmAriaLabel: action.label,
-                    hideCancelWhenNotSelected: true,
-                  }}
-                  doneBadge={action.isEstablished ? "已建交" : undefined}
-                />
-              );
-            })}
-          </div>
-        </>
-      )}
-
-      <h4 className="military-section-label">👑 殖民扩张</h4>
-      <div className="military-actions">
-        {(() => {
-          const unlockStatus = capability.isUnlocked
-            ? "done"
-            : previewIsUnlocked
-              ? "selected"
-              : remainingGovernmentBudget < capability.unlockCost
-                ? "disabled"
-                : "available";
-          const statusText = capability.isUnlocked
-            ? "✅ 已永久解锁"
-            : unlockSelected
-              ? "✓ 本轮解锁"
-              : "未解锁";
-          return (
-            <DecisionActionCard
-              icon="👑"
-              title="殖民扩张"
-              costLabel={String(capability.unlockCost)}
-              description={`支付 ${capability.unlockCost} 政府财政永久解锁殖民能力。解锁后，殖民执行只消耗 ${capability.militaryPointCost} 军事点。`}
-              status={unlockStatus}
-              statusText={statusText}
-              control={capability.isUnlocked ? undefined : {
-                kind: "toggle",
-                checked: unlockSelected,
-                onChange: (next) => onToggleColonizationUnlock(next),
-                label: unlockSelected ? "取消" : "解锁",
-                disabled: !unlockSelected && remainingGovernmentBudget < capability.unlockCost,
-              }}
-              doneBadge={capability.isUnlocked ? "已解锁" : undefined}
-            />
-          );
-        })()}
-      </div>
-
-      {mil.colonizationOptions.length > 0 && (
-        <>
-          <h4 className="military-section-label">🏴 殖民目标</h4>
-          <div className="military-actions">
-            {mil.colonizationOptions.map((option) => {
-              const isSelected = draft.militaryPlan.colonizationActions.some(
-                (a) => a.targetRegionId === option.regionId,
-              );
-              const previewHasDiplomacy = previewEstablishedDiplomacy.has(option.regionId);
-              const previewHasMilitary = mil.militaryPoints >= capability.militaryPointCost;
-              const previewCanColonize = !option.isColonized && previewIsUnlocked && previewHasDiplomacy && previewHasMilitary;
-              const lockReasonParts: string[] = [];
-              if (!option.isColonized) {
-                if (!previewIsUnlocked) lockReasonParts.push("需先解锁殖民");
-                if (!previewHasDiplomacy) lockReasonParts.push("建立外交关系");
-                if (!previewHasMilitary) lockReasonParts.push(`${capability.militaryPointCost}军事点`);
-              }
-              const previewLockedReason = option.isColonized
-                ? "已被殖民"
-                : lockReasonParts.length > 0
-                  ? `🔒 ${lockReasonParts.join(" + ")}`
-                  : null;
-              const statusText = option.isColonized
-                ? "👑 已殖民"
-                : isSelected
-                  ? "✓ 已选择"
-                  : previewLockedReason ?? "可殖民";
-
-              const isAccessible = accessibleRegionIds.has(option.regionId);
-              const conquestEntry = conquestActions.find((a) => a.regionId === option.regionId);
-              const infantry = conquestEntry?.infantry ?? 0;
-              const artillery = conquestEntry?.artillery ?? 0;
-              const power = infantry + artillery * 2;
-              const garrisonEntries = Object.entries(option.garrison ?? {}).filter(([, n]) => n > 0);
-              const garrisonInf = Number(option.garrison?.infantry ?? 0);
-              const garrisonArt = Number(option.garrison?.artillery ?? 0);
-              const defenderPower = garrisonInf + garrisonArt * 2;
-              const conquestThreshold = Math.max(1, defenderPower * 2);
-              const resourceEntries = Object.entries(option.resourceLimit ?? {}).filter(([, n]) => n > 0);
-              const lootedSet = new Set(
-                lootingActions.filter((a) => a.regionId === option.regionId).map((a) => a.resourceType),
-              );
-
-              const colStatus = option.isColonized
-                ? "done"
-                : isSelected
-                  ? "selected"
-                  : !previewCanColonize
-                    ? "disabled"
-                    : "available";
-              return (
-                <DecisionActionCard
-                  key={option.regionId}
-                  icon={REGION_ICONS[option.regionId] ?? "👑"}
-                  title={option.regionLabel}
-                  description={
-                    option.isColonized
-                      ? `${option.regionLabel}已被殖民`
-                      : `殖民成功后，每回合获得 ${capability.incomePerColonyPerRound} 点国家收入，并按当前比例分配。`
-                  }
-                  status={colStatus}
-                  statusText={statusText}
-                  control={option.isColonized ? undefined : {
-                    kind: "confirm-cancel",
-                    isSelected,
-                    isDisabled: !previewCanColonize,
-                    onConfirm: () => onColonize(option.regionId),
-                    onCancel: () => onCancelColonize(option.regionId),
-                    confirmLabel: "殖民",
-                    cancelLabel: "取消",
-                    confirmAriaLabel: `殖民${option.regionLabel}`,
-                    hideCancelWhenNotSelected: true,
-                  }}
-                  doneBadge={option.isColonized ? "已殖民" : undefined}
-                >
-                  {option.isColonized && typeof option.independence === "number" && (
-                    <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
-                      <div style={{ fontSize: 12 }}>
-                        独立度 {option.independence}%
-                        {option.independence >= 60 ? " ⚠️" : ""}
-                      </div>
-                      <div
-                        style={{
-                          width: "100%",
-                          height: 6,
-                          background: "rgba(255,255,255,0.1)",
-                          borderRadius: 3,
-                          overflow: "hidden",
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: `${Math.max(0, Math.min(100, option.independence))}%`,
-                            height: "100%",
-                            background: independenceColor(option.independence),
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {option.isColonized && garrisonEntries.length > 0 && (
-                    <div style={{ marginTop: 6, fontSize: 12 }}>
-                      驻军: {garrisonEntries.map(([country, n]) => `${country}×${n}`).join(" ")}
-                    </div>
-                  )}
-
-                  {option.isColonized && resourceEntries.length > 0 && (
-                    <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 4 }}>
-                      <div style={{ fontSize: 12 }}>
-                        资源: {resourceEntries.map(([res, n]) => `${GOODS_LABELS[res] ?? res}×${n}`).join(" ")}
-                      </div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                        {resourceEntries.map(([res]) => {
-                          const resLabel = GOODS_LABELS[res] ?? res;
-                          const isLooted = lootedSet.has(res);
-                          return (
-                            <button
-                              key={res}
-                              aria-label={`掠夺${option.regionLabel}${resLabel}`}
-                              className={`military-action-card__btn ${isLooted ? "military-action-card__btn--active" : ""}`}
-                              type="button"
-                              onClick={() => onLootingToggle(option.regionId, res)}
-                            >
-                              掠夺{resLabel}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <div style={{ fontSize: 11, color: "#d4a017" }}>
-                        ⚠️ 掠夺会增加殖民地独立倾向 (+2)
-                      </div>
-                    </div>
-                  )}
-
-                  {!option.isColonized && isAccessible && (
-                    <div
-                      data-testid={`conquest-${option.regionId}`}
-                      style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}
-                    >
-                      <div style={{ fontSize: 12, fontWeight: 600 }}>⚔️ 征服</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
-                        <span style={{ minWidth: 96 }}>步兵: {infantry} (消耗 {infantry * 10} 军事点)</span>
-                        <button
-                          aria-label={`减少${option.regionLabel}步兵`}
-                          className="military-action-card__btn"
-                          type="button"
-                          disabled={infantry <= 0}
-                          onClick={() => onConquestChange(option.regionId, infantry - 1, artillery)}
-                        >-</button>
-                        <button
-                          aria-label={`增加${option.regionLabel}步兵`}
-                          className="military-action-card__btn"
-                          type="button"
-                          disabled={infantry >= maxInfantryByPoints}
-                          onClick={() => onConquestChange(option.regionId, infantry + 1, artillery)}
-                        >+</button>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
-                        <span style={{ minWidth: 96 }}>炮兵: {artillery} (消耗 {artillery * 16} 金币)</span>
-                        <button
-                          aria-label={`减少${option.regionLabel}炮兵`}
-                          className="military-action-card__btn"
-                          type="button"
-                          disabled={artillery <= 0}
-                          onClick={() => onConquestChange(option.regionId, infantry, artillery - 1)}
-                        >-</button>
-                        <button
-                          aria-label={`增加${option.regionLabel}炮兵`}
-                          className="military-action-card__btn"
-                          type="button"
-                          disabled={artillery >= maxArtilleryByBudget}
-                          onClick={() => onConquestChange(option.regionId, infantry, artillery + 1)}
-                        >+</button>
-                      </div>
-                      <div style={{ fontSize: 12 }}>
-                        战力 = {power}（步兵 {infantry} + 炮兵×2 {artillery * 2}）
-                        {defenderPower > 0
-                          ? ` · 守军战力 = ${defenderPower}（步兵 ${garrisonInf} + 炮兵×2 ${garrisonArt * 2}）· 需≥${conquestThreshold}`
-                          : ""}
-                      </div>
-                    </div>
-                  )}
-                </DecisionActionCard>
-              );
-            })}
-          </div>
-        </>
-      )}
     </div>
   );
 }
