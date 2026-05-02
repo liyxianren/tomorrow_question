@@ -415,11 +415,16 @@ export interface DiplomacyActionOption {
   isEstablished: boolean;
 }
 
+export type RegionLockReason =
+  | "diplomacy_not_established"
+  | "route_blocked";
+
 export interface RegionAccessStatus {
   regionId: string;
   label: string;
   accessLevel: RegionAccessLevel;
   isAccessible: boolean;
+  lockReason: RegionLockReason | null;
   isDiplomacyEstablished: boolean;
   isColonized: boolean;
   controller: string | null;

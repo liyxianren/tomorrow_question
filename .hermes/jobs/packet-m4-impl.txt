@@ -1,0 +1,42 @@
+TASK ID:
+player-ux-audit-m4-impl
+
+OBJECTIVE:
+Make overseas market region locks transparent to players: tell them WHY a region can't be traded with (diplomacy missing, route blocked, tech not unlocked), not just silently hide it.
+
+WHY / CONTEXT:
+The backend's `market_access.py` currently returns a boolean `is_region_accessible`. The frontend gets no lock reason. Players see regions grayed out with no explanation — frustrating for new players who don't know they need diplomacy or tech unlocks.
+
+DO:
+1. **Backend**: `backend/app/modules/game_state/market_access.py`
+   - Change `is_region_accessible` to return a `lockReason` string/enum instead of just bool
+   - Possible reasons: "diplomacy_not_established", "route_blocked", "insufficient_tech", "capacity_full"
+   - Update the workspace builder to include per-region lock reasons
+
+2. **Frontend**: `frontend/src/components/game/panels/Phase1MarketPanel.tsx`
+   - Display lock reason next to locked regions
+   - Use the workspace data from backend (no more guessing)
+   - Subtle gray text: "需要建立外交关系" / "航线被封锁" etc.
+
+3. **Backend**: `backend/app/modules/game_state/market_access.py` workspace builder
+   - Ensure overseas market capacity is included in workspace data so frontend can show it
+
+DO NOT:
+- Do not change price calculation logic
+- Do not change game balance
+- Do not refactor the entire market system
+
+FILES IN SCOPE:
+- backend/app/modules/game_state/market_access.py
+- backend/app/modules/game_state/workspaces.py (if workspace builder needs update)
+- frontend/src/components/game/panels/Phase1MarketPanel.tsx
+- Tests: backend tests related to market access
+
+VERIFICATION TIER / BUDGET:
+- Tier: T1
+- Time cap: 10 min
+- Do run: backend tests for market + frontend build
+- Do not run: full E2E
+
+STOP: if lockReason requires changing the workspace contract in a breaking way
+RETURN: standard

@@ -1,0 +1,39 @@
+You are executing a read-only analysis task. Do NOT write or modify any files.
+
+TASK ID:
+player-ux-audit-m4-domestic-market
+
+OBJECTIVE:
+Analyze the Domestic Market module from a PLAYER perspective: UI, 数值设计, 元素设计.
+
+This is where players sell goods domestically and trade overseas — the core economic interaction.
+
+DO:
+1. Frontend:
+   - frontend/src/components/game/panels/DomesticPanel.tsx
+   - frontend/src/components/game/panels/Phase1MarketPanel.tsx
+   - frontend/src/constants/priceCurves.ts (just created in module 2)
+2. Backend:
+   - backend/app/modules/rules/market.py (market logic)
+3. Related:
+   - frontend/src/features/game/forms.ts (market form validation)
+
+DO NOT:
+- Do not analyze settlement or government panels
+- Do not modify files
+
+FOCUS:
+- Is the domestic vs overseas tradeoff clear? Does the player understand where their goods go?
+- Are prices transparent before selling? Does the player see the price curve?
+- Overseas trade: do region restrictions make sense? Is it clear WHY a trade is blocked?
+- Is there feedback after a trade?
+- Are there meaningless options (e.g., selling to a region at a loss with no strategic reason)?
+
+RETURN FORMAT:
+1. Summary
+2. UI issues [severity]
+3. 数值设计 issues [severity]
+4. 元素设计 issues [severity]
+5. UX score [1-10]
+6. Top 3 fixes
+7. Files to change

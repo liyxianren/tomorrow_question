@@ -7,9 +7,11 @@ from app.contracts.enums import CountryCode, GamePhase, PlayerSubmissionStatus
 from app.modules.balance_config import get_balance_config
 from app.modules.game_state.market_access import (
     is_region_accessible,
+    region_lock_reason,
     resolve_domestic_market_capacity,
     resolve_overseas_market_capacity,
 )
+from app.modules.rules.route_utils import check_route_accessible
 from app.modules.rules.phase1_economy import (
     PRODUCTION_MODE_DEMAND_COEFFICIENTS,
     PRODUCTION_MODE_OUTPUT_RATIOS,
@@ -576,27 +578,34 @@ def _build_research_workspace(snapshot: GameSnapshot, player: PlayerState) -> di
 
 def _build_region_access_status(snapshot: GameSnapshot, player: PlayerState) -> list[dict[str, Any]]:
     balance = get_balance_config()
-    return [
-        {
-            "regionId": region.region_id,
-            "label": region_label(region.region_id),
-            "accessLevel": region.access_level,
-            "isAccessible": is_region_accessible(
-                region.access_level,
-                player.military_points,
-                region_id=region.region_id,
-                established_diplomacy=player.established_diplomacy,
-            ),
-            "isDiplomacyEstablished": region.region_id in player.established_diplomacy,
-            "acceptedGoods": list(region.resource_limit),
-            "isColonized": region.controller is not None,
-            "controller": region.controller,
-            "priceMultiplier": float(
-                balance.regions.region_blueprints[region.region_id].price_multiplier
-            ) if region.region_id in balance.regions.region_blueprints else 1.0,
-        }
-        for region in snapshot.region_states
-    ]
+    statuses: list[dict[str, Any]] = []
+    for region in snapshot.region_states:
+        route_blocked = not check_route_accessible(
+            player.country.value, region.region_id, snapshot, balance
+        )
+        lock_reason = region_lock_reason(
+            region.access_level,
+            region_id=region.region_id,
+            established_diplomacy=player.established_diplomacy,
+            route_blocked=route_blocked,
+        )
+        statuses.append(
+            {
+                "regionId": region.region_id,
+                "label": region_label(region.region_id),
+                "accessLevel": region.access_level,
+                "isAccessible": lock_reason is None,
+                "lockReason": lock_reason,
+                "isDiplomacyEstablished": region.region_id in player.established_diplomacy,
+                "acceptedGoods": list(region.resource_limit),
+                "isColonized": region.controller is not None,
+                "controller": region.controller,
+                "priceMultiplier": float(
+                    balance.regions.region_blueprints[region.region_id].price_multiplier
+                ) if region.region_id in balance.regions.region_blueprints else 1.0,
+            }
+        )
+    return statuses
 
 
 def _build_colonization_options(snapshot: GameSnapshot, player: PlayerState) -> list[dict[str, Any]]:

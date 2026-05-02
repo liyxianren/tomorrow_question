@@ -23,6 +23,27 @@ def resolve_overseas_market_capacity(player_state) -> int:
     )
 
 
+def region_lock_reason(
+    access_level: RegionAccessLevel,
+    *,
+    region_id: str = "",
+    established_diplomacy: list[str] | None = None,
+    route_blocked: bool = False,
+) -> str | None:
+    """Return a machine-readable lock reason for a region, or None if accessible.
+
+    Possible reasons (vocabulary mirrored on the frontend):
+      - "diplomacy_not_established": region requires diplomacy and the player has none
+      - "route_blocked": route to the region is naval-blockaded by another player
+    """
+    if access_level != RegionAccessLevel.OPEN:
+        if not established_diplomacy or region_id not in established_diplomacy:
+            return "diplomacy_not_established"
+    if route_blocked:
+        return "route_blocked"
+    return None
+
+
 def is_region_accessible(
     access_level: RegionAccessLevel,
     military_points: int,
@@ -30,9 +51,8 @@ def is_region_accessible(
     region_id: str = "",
     established_diplomacy: list[str] | None = None,
 ) -> bool:
-    if access_level == RegionAccessLevel.OPEN:
-        return True
-    if established_diplomacy and region_id in established_diplomacy:
-        return True
-    # CONCESSION 和 COLONY 区域必须先建交才能进入
-    return False
+    return region_lock_reason(
+        access_level,
+        region_id=region_id,
+        established_diplomacy=established_diplomacy,
+    ) is None

@@ -5,8 +5,21 @@ import type {
   Phase1EconomyWorkspace,
   Phase1ExternalAllocation,
   RegionAccessStatus,
+  RegionLockReason,
 } from "../../../types";
 import { getRegionAccessLevelLabel } from "../../../features/game/decisionShared";
+
+const LOCK_REASON_LABELS: Record<RegionLockReason, string> = {
+  diplomacy_not_established: "需要建立外交关系",
+  route_blocked: "航线被封锁",
+};
+
+function lockReasonLabel(reason: RegionLockReason | null | undefined): string {
+  if (reason && reason in LOCK_REASON_LABELS) {
+    return LOCK_REASON_LABELS[reason];
+  }
+  return "暂不可进入";
+}
 import {
   MIN_SURPLUS_PRICE_RATIO,
   SHORTAGE_PRICE_DAMPING,
@@ -189,6 +202,8 @@ export function Phase1MarketPanel({
               .filter(Boolean)
               .join(" ");
 
+            const lockHint = !accessible ? lockReasonLabel(region.lockReason) : null;
+
             return (
               <article key={region.regionId} className={cardClass}>
                 <header className="phase1-market__card-header">
@@ -196,7 +211,7 @@ export function Phase1MarketPanel({
                   {accessible ? (
                     <span className="phase1-market__card-badge">{getRegionAccessLevelLabel(region.accessLevel)}</span>
                   ) : (
-                    <span className="phase1-market__card-lock" title={region.isColonized ? "已被殖民" : "未开放"}>
+                    <span className="phase1-market__card-lock" title={lockHint ?? "未开放"}>
                       <svg className="phase1-market__card-lock-icon" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5">
                         <rect x="3" y="7" width="10" height="7" rx="1.5" />
                         <path d="M5 7V5a3 3 0 0 1 6 0v2" />
@@ -205,6 +220,10 @@ export function Phase1MarketPanel({
                     </span>
                   )}
                 </header>
+
+                {!accessible && lockHint ? (
+                  <p className="phase1-market__card-lock-hint">{lockHint}</p>
+                ) : null}
 
                 {accessible ? (
                   <>
