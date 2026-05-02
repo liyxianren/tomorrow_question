@@ -9,6 +9,7 @@ import {
   flattenTechTree,
 } from "../../../../features/game/decisionShared";
 import { Phase1ProductionPanel } from "./Phase1ProductionPanel";
+import { DecisionActionCard } from "../shared/DecisionActionCard";
 import "./FactoryPanel.css";
 
 export function FactoryPanel({
@@ -101,63 +102,32 @@ export function FactoryPanel({
     const canRemove = quantity > 0;
     const title = getConstructionTitle(option, kind);
 
+    const status = quantity > 0
+      ? "selected"
+      : isLocked
+        ? "disabled"
+        : "available";
+    const description = isLocked
+      ? `🔒 ${option.lockedReason}`
+      : `产能 +${option.capacityDelta}${option.maxQuantity < 999 ? ` · 最多 ${option.maxQuantity} 次` : ""}`;
     return (
-      <div
+      <DecisionActionCard
         key={`${kind}-${option.routeId}`}
-        className={
-          "factory-action-card" +
-          (quantity > 0 ? " factory-action-card--selected" : "") +
-          (isLocked ? " factory-action-card--disabled" : "")
-        }
-      >
-        <div className="factory-action-card__head">
-          <span className="factory-action-card__name">{title}</span>
-          <span className="factory-action-card__cost">
-            💰{option.unitBudgetCost} 预算
-          </span>
-        </div>
-        <p className="factory-action-card__desc">
-          {isLocked ? (
-            <span className="factory-action-card__locked">🔒 {option.lockedReason}</span>
-          ) : (
-            <>
-              产能 +{option.capacityDelta}
-              {option.maxQuantity < 999 ? ` · 最多 ${option.maxQuantity} 次` : ""}
-            </>
-          )}
-        </p>
-        <div className="factory-action-card__footer">
-          <span className="factory-action-card__status">
-            {quantity > 0 ? `已选 ${quantity} 次` : noBudget ? "预算不足" : "可选"}
-          </span>
-          <div className="factory-action-card__stepper">
-            <button
-              className="factory-action-card__btn"
-              disabled={!canRemove}
-              onClick={() =>
-                onConstructionQuantityChange(option.routeId, kind, quantity - 1)
-              }
-              aria-label="减少"
-            >
-              −
-            </button>
-            <span className="factory-action-card__count">{quantity}</span>
-            <button
-              className={
-                "factory-action-card__btn" +
-                (quantity > 0 ? " factory-action-card__btn--active" : "")
-              }
-              disabled={!canAdd}
-              onClick={() =>
-                onConstructionQuantityChange(option.routeId, kind, quantity + 1)
-              }
-              aria-label="增加"
-            >
-              +
-            </button>
-          </div>
-        </div>
-      </div>
+        title={title}
+        costLabel={`💰${option.unitBudgetCost} 预算`}
+        description={description}
+        status={status}
+        statusText={quantity > 0 ? `已选 ${quantity} 次` : noBudget ? "预算不足" : "可选"}
+        control={{
+          kind: "stepper",
+          value: quantity,
+          min: 0,
+          max: option.maxQuantity,
+          onChange: (next) => onConstructionQuantityChange(option.routeId, kind, next),
+          incrementDisabled: !canAdd,
+          decrementDisabled: !canRemove,
+        }}
+      />
     );
   }
 }

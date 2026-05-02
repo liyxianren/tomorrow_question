@@ -1,6 +1,7 @@
 import type { DecisionPlayerPhaseWorkspace, IdeologyKey } from "../../../types";
 import type { PhaseDraftByPhase } from "../../../features/game/forms";
 import { DecisionStatStrip } from "./shared/DecisionStatStrip";
+import { DecisionActionCard } from "./shared/DecisionActionCard";
 import "./GovernmentPanel.css";
 
 const REFORM_PATH_LABELS: Record<"freedom" | "equality" | "national", string> = {
@@ -277,26 +278,21 @@ export function GovernmentPanel({
                   productionCapacityDelta?.all !== undefined && productionCapacityDelta.all < 0
                     ? productionCapacityDelta.all
                     : null;
-                return (
-                  <div
-                    key={reform.reformId}
-                    className={`government-action-card ${queued ? "government-action-card--selected" : ""} ${!queued && lockedReason ? "government-action-card--disabled" : ""} ${wouldTriggerRevolution ? "government-action-card--danger" : ""}`}
-                  >
-                    <div className="government-action-card__head">
-                      <span className="government-action-card__icon">
-                        {wouldTriggerRevolution ? "⚠️" : REFORM_PATH_ICONS[path]}
-                      </span>
-                      <span className="government-action-card__name">{reform.label}</span>
-                      <span className="government-action-card__cost">{reform.adminCost} 行政</span>
-                    </div>
-                    <p className="government-action-card__desc">
-                      {REFORM_PATH_LABELS[path]} · 实施后永久改变国家结构。
-                    </p>
+                const effectTags = formatReformEffects(
+                  reformEffects,
+                  reform.unlocksPolicies ?? [],
+                );
+                const status = wouldTriggerRevolution
+                  ? "danger"
+                  : queued
+                    ? "selected"
+                    : lockedReason
+                      ? "disabled"
+                      : "available";
+                const warningNode = wouldTriggerRevolution || globalProductionPenalty !== null ? (
+                  <>
                     {wouldTriggerRevolution && (
-                      <p
-                        className="government-action-card__warning"
-                        data-testid={`reform-revolution-warning-${reform.reformId}`}
-                      >
+                      <span data-testid={`reform-revolution-warning-${reform.reformId}`}>
                         ⚠️ 实施将触发革命：
                         {triggeringIdeologies
                           .map(
@@ -304,44 +300,35 @@ export function GovernmentPanel({
                               `${IDEOLOGY_LABELS[key]} ${reforms.ideologyLevels[key] ?? 0}→${projectedIdeology[key]} ≥ ${reforms.revolutionThreshold}`,
                           )
                           .join("，")}
-                      </p>
+                      </span>
                     )}
                     {globalProductionPenalty !== null && (
-                      <p className="government-action-card__warning government-action-card__warning--soft">
+                      <span style={{ display: "block", marginTop: wouldTriggerRevolution ? 4 : 0 }}>
                         ⚠️ 全局产能 {globalProductionPenalty}
-                      </p>
-                    )}
-                    {(() => {
-                      const effectTags = formatReformEffects(
-                        reformEffects,
-                        reform.unlocksPolicies ?? [],
-                      );
-                      if (effectTags.length === 0) return null;
-                      return (
-                        <div className="government-action-card__effects">
-                          {effectTags.map((tag) => (
-                            <span key={tag} className="government-action-card__effect-tag">
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                    <div className="government-action-card__footer">
-                      <span className="government-action-card__status">
-                        {queued ? "✓ 已排队" : lockedReason ?? "可实施"}
                       </span>
-                      <button
-                        aria-label={`实施改革：${reform.label}`}
-                        className={`government-action-card__btn ${queued ? "government-action-card__btn--active" : ""}`}
-                        type="button"
-                        disabled={isDisabled || (!queued && lockedReason !== null)}
-                        onClick={() => onEnactReform(reform.reformId, !queued)}
-                      >
-                        {reform.isCompleted ? "已实施" : queued ? "撤回" : "实施"}
-                      </button>
-                    </div>
-                  </div>
+                    )}
+                  </>
+                ) : null;
+                return (
+                  <DecisionActionCard
+                    key={reform.reformId}
+                    icon={wouldTriggerRevolution ? "⚠️" : REFORM_PATH_ICONS[path]}
+                    title={reform.label}
+                    costLabel={`${reform.adminCost} 行政`}
+                    description={`${REFORM_PATH_LABELS[path]} · 实施后永久改变国家结构。`}
+                    warning={warningNode}
+                    effects={effectTags.map((tag) => ({ label: tag, value: "" }))}
+                    status={status}
+                    statusText={queued ? "✓ 已排队" : lockedReason ?? "可实施"}
+                    control={{
+                      kind: "toggle",
+                      checked: queued,
+                      onChange: (next) => onEnactReform(reform.reformId, next),
+                      label: reform.isCompleted ? "已实施" : queued ? "撤回" : "实施",
+                      ariaLabel: `实施改革：${reform.label}`,
+                      disabled: isDisabled || (!queued && lockedReason !== null),
+                    }}
+                  />
                 );
               })}
               </div>
@@ -361,35 +348,23 @@ export function GovernmentPanel({
                 {activePolicies.map((policy) => {
                   const active = isPolicyActiveAfter(policy.policyId, policy.isActive);
                   return (
-                    <div
+                    <DecisionActionCard
                       key={policy.policyId}
-                      className={`government-action-card ${active ? "government-action-card--selected" : ""}`}
-                    >
-                      <div className="government-action-card__head">
-                        <span className="government-action-card__icon">📋</span>
-                        <span className="government-action-card__name">{policy.label}</span>
-                        <span className="government-action-card__cost">{policy.adminCostPerTurn}/回合</span>
-                      </div>
-                      <p className="government-action-card__desc">{policy.description}</p>
-                      <div className="government-action-card__effects">
-                        <span className="government-action-card__effect-tag">
-                          {active ? "持续生效" : "本轮停用"}
-                        </span>
-                      </div>
-                      <div className="government-action-card__footer">
-                        <span className="government-action-card__status">
-                          每回合行政 {policy.adminCostPerTurn}
-                        </span>
-                        <button
-                          aria-label={`${active ? "停用政策" : "恢复政策"}：${policy.label}`}
-                          className={`government-action-card__btn ${!active ? "government-action-card__btn--active" : ""}`}
-                          type="button"
-                          onClick={() => onTogglePolicy(policy.policyId, !active)}
-                        >
-                          {active ? "停用" : "恢复"}
-                        </button>
-                      </div>
-                    </div>
+                      icon="📋"
+                      title={policy.label}
+                      costLabel={`${policy.adminCostPerTurn}/回合`}
+                      description={policy.description}
+                      effects={[{ label: active ? "持续生效" : "本轮停用", value: "" }]}
+                      status={active ? "selected" : "available"}
+                      statusText={`每回合行政 ${policy.adminCostPerTurn}`}
+                      control={{
+                        kind: "toggle",
+                        checked: active,
+                        onChange: (next) => onTogglePolicy(policy.policyId, next),
+                        label: active ? "停用" : "恢复",
+                        ariaLabel: `${active ? "停用政策" : "恢复政策"}：${policy.label}`,
+                      }}
+                    />
                   );
                 })}
               </div>
@@ -406,54 +381,40 @@ export function GovernmentPanel({
           {/* 行政力购买 */}
           <h4 className="government-section-label">💰 提升行政力</h4>
           <div className="government-actions">
-            <div
-              className={`government-action-card ${queuedAdminPurchases > 0 ? "government-action-card--selected" : ""} ${!canBuyAdmin && queuedAdminPurchases === 0 ? "government-action-card--disabled" : ""}`}
-            >
-              <div className="government-action-card__head">
-                <span className="government-action-card__icon">📜</span>
-                <span className="government-action-card__name">购买行政力</span>
-                <span className="government-action-card__cost">{adminCost}/点</span>
-              </div>
-              <p className="government-action-card__desc">
-                动用政府财政扩张文官系统，立刻获得行政力以推进改革或维系政策。
-              </p>
-              <div className="government-action-card__effects">
-                <span className="government-action-card__effect-tag">已购 {queuedAdminPurchases} 点</span>
-                <span className="government-action-card__effect-tag">
-                  本轮花费 {queuedAdminPurchases * adminCost} 财政
-                </span>
-              </div>
-              <div className="government-action-card__footer">
-                <span className="government-action-card__status">
-                  {queuedAdminPurchases > 0
-                    ? `✓ 本轮 -${queuedAdminPurchases * adminCost} 财政 / +${queuedAdminPurchases} 行政力`
-                    : !canBuyAdmin
-                      ? "财政不足"
-                      : "可购买"}
-                </span>
-                <div className="government-action-card__stepper">
-                  {queuedAdminPurchases > 0 && (
-                    <button
-                      aria-label="减少行政力购买"
-                      className="government-action-card__btn"
-                      type="button"
-                      onClick={() => onAdminPurchase(queuedAdminPurchases - 1)}
-                    >
-                      −
-                    </button>
-                  )}
-                  <button
-                    aria-label="增加行政力购买"
-                    className={`government-action-card__btn ${queuedAdminPurchases > 0 ? "government-action-card__btn--active" : ""}`}
-                    type="button"
-                    disabled={!canBuyAdmin}
-                    onClick={() => onAdminPurchase(queuedAdminPurchases + 1)}
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            </div>
+            <DecisionActionCard
+              icon="📜"
+              title="购买行政力"
+              costLabel={`${adminCost}/点`}
+              description="动用政府财政扩张文官系统，立刻获得行政力以推进改革或维系政策。"
+              effects={[
+                { label: "已购", value: `${queuedAdminPurchases} 点` },
+                { label: "本轮花费", value: `${queuedAdminPurchases * adminCost} 财政` },
+              ]}
+              status={
+                queuedAdminPurchases > 0
+                  ? "selected"
+                  : !canBuyAdmin
+                    ? "disabled"
+                    : "available"
+              }
+              statusText={
+                queuedAdminPurchases > 0
+                  ? `✓ 本轮 -${queuedAdminPurchases * adminCost} 财政 / +${queuedAdminPurchases} 行政力`
+                  : !canBuyAdmin
+                    ? "财政不足"
+                    : "可购买"
+              }
+              control={{
+                kind: "stepper",
+                value: queuedAdminPurchases,
+                min: 0,
+                max: adminCost > 0 ? Math.floor((remainingGovernmentBudget + queuedAdminPurchases * adminCost) / adminCost) : 0,
+                onChange: onAdminPurchase,
+                incrementAriaLabel: "增加行政力购买",
+                decrementAriaLabel: "减少行政力购买",
+                incrementDisabled: !canBuyAdmin,
+              }}
+            />
           </div>
 
           {/* 政策（可激活） */}
@@ -469,40 +430,32 @@ export function GovernmentPanel({
                       : "未解锁"
                     : null;
                   const isDisabled = lockedReason !== null && !active;
+                  const status = active ? "selected" : lockedReason ? "disabled" : "available";
+                  const effects: { label: string; value: string }[] = [
+                    { label: `行政 ${policy.adminCostPerTurn} · 预算 ${policy.budgetCost}`, value: "" },
+                  ];
+                  if (lockedReason) {
+                    effects.push({ label: lockedReason, value: "" });
+                  }
                   return (
-                    <div
+                    <DecisionActionCard
                       key={policy.policyId}
-                      className={`government-action-card ${active ? "government-action-card--selected" : ""} ${!active && lockedReason ? "government-action-card--disabled" : ""}`}
-                    >
-                      <div className="government-action-card__head">
-                        <span className="government-action-card__icon">🆕</span>
-                        <span className="government-action-card__name">{policy.label}</span>
-                        <span className="government-action-card__cost">{policy.adminCostPerTurn}/回合</span>
-                      </div>
-                      <p className="government-action-card__desc">{policy.description}</p>
-                      <div className="government-action-card__effects">
-                        <span className="government-action-card__effect-tag">
-                          行政 {policy.adminCostPerTurn} · 预算 {policy.budgetCost}
-                        </span>
-                        {lockedReason ? (
-                          <span className="government-action-card__effect-tag">{lockedReason}</span>
-                        ) : null}
-                      </div>
-                      <div className="government-action-card__footer">
-                        <span className="government-action-card__status">
-                          {active ? "✓ 本轮激活" : lockedReason ?? "可激活"}
-                        </span>
-                        <button
-                          aria-label={`激活政策：${policy.label}`}
-                          className={`government-action-card__btn ${active ? "government-action-card__btn--active" : ""}`}
-                          type="button"
-                          disabled={isDisabled}
-                          onClick={() => onTogglePolicy(policy.policyId, !active)}
-                        >
-                          {active ? "撤回" : "激活"}
-                        </button>
-                      </div>
-                    </div>
+                      icon="🆕"
+                      title={policy.label}
+                      costLabel={`${policy.adminCostPerTurn}/回合`}
+                      description={policy.description}
+                      effects={effects}
+                      status={status}
+                      statusText={active ? "✓ 本轮激活" : lockedReason ?? "可激活"}
+                      control={{
+                        kind: "toggle",
+                        checked: active,
+                        onChange: (next) => onTogglePolicy(policy.policyId, next),
+                        label: active ? "撤回" : "激活",
+                        ariaLabel: `激活政策：${policy.label}`,
+                        disabled: isDisabled,
+                      }}
+                    />
                   );
                 })}
               </div>
@@ -519,34 +472,25 @@ export function GovernmentPanel({
                   const overBudget = !queued && remainingGovernmentBudget < strategy.cost;
                   const lockedReason = strategy.lockedReason ?? (overBudget ? "财政不足" : null);
                   const isDisabled = !queued && lockedReason !== null;
+                  const status = queued ? "selected" : lockedReason ? "disabled" : "available";
                   return (
-                    <div
+                    <DecisionActionCard
                       key={strategy.actionId}
-                      className={`government-action-card ${queued ? "government-action-card--selected" : ""} ${!queued && lockedReason ? "government-action-card--disabled" : ""}`}
-                    >
-                      <div className="government-action-card__head">
-                        <span className="government-action-card__icon">🎯</span>
-                        <span className="government-action-card__name">{strategy.label}</span>
-                        <span className="government-action-card__cost">{strategy.cost} 财政</span>
-                      </div>
-                      {strategy.description && (
-                        <p className="government-action-card__desc">{strategy.description}</p>
-                      )}
-                      <div className="government-action-card__footer">
-                        <span className="government-action-card__status">
-                          {queued ? "✓ 本轮执行" : lockedReason ?? "可选"}
-                        </span>
-                        <button
-                          aria-label={`选择策略：${strategy.label}`}
-                          className={`government-action-card__btn ${queued ? "government-action-card__btn--active" : ""}`}
-                          type="button"
-                          disabled={isDisabled}
-                          onClick={() => onToggleStrategy(strategy.actionId, !queued)}
-                        >
-                          {queued ? "撤回" : "选择"}
-                        </button>
-                      </div>
-                    </div>
+                      icon="🎯"
+                      title={strategy.label}
+                      costLabel={`${strategy.cost} 财政`}
+                      description={strategy.description ?? undefined}
+                      status={status}
+                      statusText={queued ? "✓ 本轮执行" : lockedReason ?? "可选"}
+                      control={{
+                        kind: "toggle",
+                        checked: queued,
+                        onChange: (next) => onToggleStrategy(strategy.actionId, next),
+                        label: queued ? "撤回" : "选择",
+                        ariaLabel: `选择策略：${strategy.label}`,
+                        disabled: isDisabled,
+                      }}
+                    />
                   );
                 })}
               </div>

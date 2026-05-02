@@ -4,6 +4,7 @@ import {
   buildEffectMetrics,
 } from "../../../features/game/decisionShared";
 import { DecisionStatStrip } from "./shared/DecisionStatStrip";
+import { DecisionActionCard } from "./shared/DecisionActionCard";
 import "./DomesticPanel.css";
 
 const ACTION_ICONS: Record<string, string> = {
@@ -113,44 +114,31 @@ export function DomesticPanel({
               const lockedReason = action.lockedReason
                 ?? (!selected && !canAfford ? "国内预算不足" : null);
               const effectMetrics = buildEffectMetrics(action.effects);
+              const status = selected
+                ? "selected"
+                : lockedReason
+                  ? "disabled"
+                  : "available";
 
               return (
-                <div
+                <DecisionActionCard
                   key={action.actionId}
-                  className={`domestic-action-card ${selected ? "domestic-action-card--selected" : ""} ${!selected && lockedReason ? "domestic-action-card--disabled" : ""}`}
-                >
-                  <div className="domestic-action-card__head">
-                    <span className="domestic-action-card__icon">{ACTION_ICONS[action.actionId] ?? "⚙️"}</span>
-                    <span className="domestic-action-card__name">{action.label}</span>
-                    <span className="domestic-action-card__cost">{action.cost}</span>
-                  </div>
-                  {action.description ? (
-                    <p className="domestic-action-card__desc">{action.description}</p>
-                  ) : null}
-                  {effectMetrics.length > 0 ? (
-                    <div className="domestic-action-card__effects">
-                      {effectMetrics.map((em) => (
-                        <span key={em.label} className="domestic-action-card__effect-tag">
-                          {em.label} {em.value}{em.temporary ? " 本回合" : ""}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                  <div className="domestic-action-card__footer">
-                    <span className="domestic-action-card__status">
-                      {selected ? "✓ 已部署" : lockedReason ?? "可部署"}
-                    </span>
-                    <button
-                      aria-label={`${selected ? "取消" : "选择"} ${action.label}`}
-                      className={`domestic-action-card__btn ${selected ? "domestic-action-card__btn--active" : ""}`}
-                      type="button"
-                      disabled={!selected && lockedReason !== null}
-                      onClick={() => onActionToggle(action.actionId, !selected)}
-                    >
-                      {selected ? "取消" : "选择"}
-                    </button>
-                  </div>
-                </div>
+                  icon={ACTION_ICONS[action.actionId] ?? "⚙️"}
+                  title={action.label}
+                  costLabel={String(action.cost)}
+                  description={action.description}
+                  effects={effectMetrics}
+                  status={status}
+                  statusText={selected ? "✓ 已部署" : lockedReason ?? "可部署"}
+                  control={{
+                    kind: "toggle",
+                    checked: selected,
+                    onChange: (next) => onActionToggle(action.actionId, next),
+                    label: selected ? "取消" : "选择",
+                    ariaLabel: `${selected ? "取消" : "选择"} ${action.label}`,
+                    disabled: !selected && lockedReason !== null,
+                  }}
+                />
               );
             })}
           </div>
