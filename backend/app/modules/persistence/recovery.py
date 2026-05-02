@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from typing import NotRequired, TypedDict
 
@@ -50,6 +51,7 @@ class ActiveStatePayload(TypedDict):
 
 class RecoveryRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
+        self.connection = connection
         self.rooms = RoomRepository(connection)
         self.sessions = SessionRepository(connection)
         self.games = GameRepository(connection)
@@ -180,3 +182,29 @@ class RecoveryRepository:
             "gameLogs": game_logs,
             "roomContexts": room_contexts,
         }
+
+    def load_games_with_active_deadlines(self) -> list[tuple[GamePayload, GameSnapshotPayload]]:
+        """Load only (game, snapshot) pairs where snapshot has a phase_deadline_at set.
+
+        Much cheaper than load_active_state — avoids loading all rooms,
+        sessions, turn inputs, and game logs.
+        """
+        results: list[tuple[GamePayload, GameSnapshotPayload]] = []
+        rows = self.connection.execute(
+            """
+            SELECT g.payload_json, s.payload_json
+            FROM games g
+            JOIN snapshots s ON g.active_snapshot_id = s.snapshot_id
+            WHERE g.is_finished = 0
+              AND g.current_phase != 'decision'
+              AND s.phase_deadline_at IS NOT NULL
+            """
+        ).fetchall()
+        for game_json, snapshot_json in rows:
+            try:
+                game = json.loads(game_json)
+                snapshot = json.loads(snapshot_json)
+                results.append((game, snapshot))
+            except (ValueError, TypeError):
+                continue
+        return results

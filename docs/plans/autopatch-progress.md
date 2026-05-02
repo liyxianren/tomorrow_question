@@ -2,9 +2,10 @@
 
 ## 当前状态
 - Branch: feature/game-balance-rebalance
-- **407 passed** (unit), **49 passed** (API E2E incl. frontend integration), 12 skipped
+- **375 passed** (pytest unit+E2E), **5 standalone scripts** (require live server), 12 skipped
 - 后端运行中 (port 5001)
-- ⚠️ PhaseTimer `run_forever` 导致 Flask 进程 99% CPU (pre-existing, 非 autopatch 回归)
+- ✅ PhaseTimer `run_forever` CPU 100% 已修复 (connection reuse + poll 1s→5s)
+- ✅ `recovery.py` bugs 已修复 (`_json.loads` → `json.loads`, 缺少 `self.connection`)
 
 ## 已完成
 - [x] P0-1 需求系数 (mechanized 2→1.5)
@@ -84,6 +85,18 @@
   - 所有字段 (lootingActions/navalDeployment/conquestActions/talentPlan/abilitySelection/strategySelections/upgradeOrders/researchTarget) 全部正常通过 normalizer
   - 5回合多轮游戏模拟 (decision→market→settlement→next round)
   - 全特性组合单次提交验证
+- [x] **PhaseTimer CPU 100% 修复** ✅
+  - `run_forever` 每次循环创建新 DB 连接 → 改为复用单一连接
+  - poll 间隔从 1s 增加到 5s (settlement 不需要亚秒级精度)
+  - 连接错误时自动重建连接
+  - 修复 `recovery.py` 两个 bug: `_json.loads` → `json.loads`, 缺少 `self.connection` 属性
+- [x] **性能测试E2E验证** ✅ (test_performance_e2e.py)
+  - 单次游戏创建: 0.65s
+  - 单次决策提交: 35ms
+  - 市场提交: 8ms
+  - settlement→下一轮: 15.9s (=phase_duration 15s + 5s poll)
+  - 并发5游戏创建: 0.80s
+  - 并发5游戏提交: 165ms
 
 ## 已知API格式
 - productionOrders: `[{"goodsId": "phase1_goods", "quantity": N}]`
@@ -104,5 +117,7 @@
 
 ## 下一步
 1. ~~前端集成验证~~ ✅ 完成 (17个测试全部通过, payload shape完全对齐)
-2. 性能测试 (多玩家并发提交)
-3. 修复 PhaseTimer `run_forever` CPU 100% 问题 (可能需要改用 `time.sleep` 或增大 poll 间隔)
+2. ~~性能测试~~ ✅ 完成 (并发创建+提交, PhaseTimer CPU修复)
+3. ~~PhaseTimer CPU修复~~ ✅ 完成 (connection reuse + poll 5s)
+4. 可选: 多回合完整性测试 (5+回合连续游戏无错误)
+5. 可选: 前端集成到完整游戏流程中进行浏览器级E2E测试

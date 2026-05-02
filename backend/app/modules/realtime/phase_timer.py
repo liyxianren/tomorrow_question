@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from traceback import print_exc
@@ -15,7 +16,7 @@ from app.modules.persistence import RecoveryRepository, connect_database, initia
 from app.modules.settlement.submission_application import SubmissionApplicationService
 
 
-PHASE_TIMEOUT_POLL_INTERVAL_SECONDS = 1
+PHASE_TIMEOUT_POLL_INTERVAL_SECONDS = 5
 _started_phase_timeout_runner_keys: set[int] = set()
 
 
@@ -51,21 +52,18 @@ class PhaseTimeoutOrchestrator:
     socketio: SocketIO
     phase_duration_seconds: int
 
-    def run_once(self, *, now: datetime | None = None) -> int:
+    def run_once(self, *, now: datetime | None = None, connection: sqlite3.Connection | None = None) -> int:
         triggered_at = now or datetime.now(UTC)
-        connection = connect_database(self.database_path)
-        initialize_database(connection)
+        own_connection = connection is None
+        if own_connection:
+            connection = connect_database(self.database_path)
+            initialize_database(connection)
         try:
             recovery_repository = RecoveryRepository(connection)
             submission_application = SubmissionApplicationService(connection)
             processed = 0
 
-            for context in recovery_repository.load_active_state()["roomContexts"]:
-                game_payload = context.get("activeGame")
-                snapshot_payload = context.get("activeSnapshot")
-                if game_payload is None or snapshot_payload is None:
-                    continue
-
+            for game_payload, snapshot_payload in recovery_repository.load_games_with_active_deadlines():
                 snapshot = GameSnapshot.from_payload(snapshot_payload)
                 if not deadline_has_passed(deadline_at=snapshot.phase_deadline_at, now=triggered_at):
                     continue
@@ -82,20 +80,36 @@ class PhaseTimeoutOrchestrator:
 
             return processed
         finally:
-            connection.close()
+            if own_connection:
+                connection.close()
 
     def run_forever(self) -> None:
         import sys
-        print("[PhaseTimer] run_forever started, polling every 1s", flush=True)
-        while True:
+        print("[PhaseTimer] run_forever started, polling every %ds" % PHASE_TIMEOUT_POLL_INTERVAL_SECONDS, flush=True)
+        connection = connect_database(self.database_path)
+        initialize_database(connection)
+        try:
+            while True:
+                try:
+                    processed = self.run_once(connection=connection)
+                    if processed > 0:
+                        print(f"[PhaseTimer] Processed {processed} phase timeout(s)", file=sys.stderr, flush=True)
+                except Exception:
+                    print("[PhaseTimer] ERROR in run_once:", file=sys.stderr, flush=True)
+                    print_exc(file=sys.stderr)
+                    # Reconnect on error in case connection is stale
+                    try:
+                        connection.close()
+                    except Exception:
+                        pass
+                    connection = connect_database(self.database_path)
+                    initialize_database(connection)
+                self.socketio.sleep(PHASE_TIMEOUT_POLL_INTERVAL_SECONDS)
+        finally:
             try:
-                processed = self.run_once()
-                if processed > 0:
-                    print(f"[PhaseTimer] Processed {processed} phase timeout(s)", file=sys.stderr, flush=True)
+                connection.close()
             except Exception:
-                print("[PhaseTimer] ERROR in run_once:", file=sys.stderr, flush=True)
-                print_exc(file=sys.stderr)
-            self.socketio.sleep(PHASE_TIMEOUT_POLL_INTERVAL_SECONDS)
+                pass
 
 
 def start_phase_timeout_runner(*, socketio: SocketIO, database_path: str, phase_duration_seconds: int) -> PhaseTimeoutOrchestrator:
