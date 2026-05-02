@@ -11,8 +11,16 @@ sys.path.insert(0, str(ROOT))
 
 from app.contracts.enums import GamePhase, SocketEventName
 from app.modules.game_state.factory import create_game, create_initial_snapshot
-from app.modules.game_state.phase_deadline import assign_phase_deadline
-from app.modules.realtime.phase_timer import build_phase_timer_broadcast, build_phase_timer_payload
+from app.modules.game_state.phase_deadline import (
+    assign_phase_deadline,
+    register_phase_deadline_change_listener,
+    unregister_phase_deadline_change_listener,
+)
+from app.modules.realtime.phase_timer import (
+    build_phase_timer_broadcast,
+    build_phase_timer_payload,
+    compute_next_wait_seconds,
+)
 
 
 class PhaseTimerTests(unittest.TestCase):
@@ -100,6 +108,113 @@ class PhaseTimerTests(unittest.TestCase):
         self.assertEqual(envelope["roomCode"], "ROOM01")
         self.assertEqual(envelope["gameId"], "game-1")
         self.assertEqual(envelope["payload"]["phase"], GamePhase.DECISION)
+
+
+class ComputeNextWaitSecondsTests(unittest.TestCase):
+    def test_returns_seconds_until_soonest_deadline(self) -> None:
+        result = compute_next_wait_seconds(
+            deadlines=[datetime(2026, 3, 29, 12, 0, 10, tzinfo=UTC)],
+            now=datetime(2026, 3, 29, 12, 0, 0, tzinfo=UTC),
+            fallback_seconds=30,
+        )
+        self.assertAlmostEqual(result, 10.0)
+
+    def test_caps_at_fallback_when_deadline_far(self) -> None:
+        result = compute_next_wait_seconds(
+            deadlines=[datetime(2026, 3, 29, 12, 5, 0, tzinfo=UTC)],
+            now=datetime(2026, 3, 29, 12, 0, 0, tzinfo=UTC),
+            fallback_seconds=30,
+        )
+        self.assertEqual(result, 30.0)
+
+    def test_returns_zero_for_passed_deadline(self) -> None:
+        result = compute_next_wait_seconds(
+            deadlines=[datetime(2026, 3, 29, 11, 59, 0, tzinfo=UTC)],
+            now=datetime(2026, 3, 29, 12, 0, 0, tzinfo=UTC),
+            fallback_seconds=30,
+        )
+        self.assertEqual(result, 0.0)
+
+    def test_returns_fallback_when_no_deadlines(self) -> None:
+        result = compute_next_wait_seconds(
+            deadlines=[],
+            now=datetime(2026, 3, 29, 12, 0, 0, tzinfo=UTC),
+            fallback_seconds=30,
+        )
+        self.assertEqual(result, 30.0)
+
+    def test_picks_soonest_among_multiple_deadlines(self) -> None:
+        result = compute_next_wait_seconds(
+            deadlines=[
+                datetime(2026, 3, 29, 12, 0, 25, tzinfo=UTC),
+                datetime(2026, 3, 29, 12, 0, 5, tzinfo=UTC),
+                datetime(2026, 3, 29, 12, 0, 15, tzinfo=UTC),
+            ],
+            now=datetime(2026, 3, 29, 12, 0, 0, tzinfo=UTC),
+            fallback_seconds=30,
+        )
+        self.assertAlmostEqual(result, 5.0)
+
+
+class AssignPhaseDeadlineNotifiesListenersTests(unittest.TestCase):
+    def test_listener_invoked_when_deadline_assigned(self) -> None:
+        calls: list[None] = []
+
+        def listener() -> None:
+            calls.append(None)
+
+        register_phase_deadline_change_listener(listener)
+        try:
+            game = create_game(room_code="ROOM01", game_id="game-1")
+            snapshot = create_initial_snapshot(
+                game=game,
+                snapshot_id="snapshot-1",
+                player_assignments={
+                    "player-1": "britain",
+                    "player-2": "france",
+                    "player-3": "prussia",
+                    "player-4": "austria",
+                    "player-5": "russia",
+                },
+            )
+            assign_phase_deadline(
+                snapshot,
+                started_at=datetime(2026, 3, 29, 12, 0, tzinfo=UTC),
+                duration=timedelta(minutes=2),
+            )
+        finally:
+            unregister_phase_deadline_change_listener(listener)
+
+        self.assertEqual(len(calls), 1)
+
+    def test_unregister_stops_notifications(self) -> None:
+        calls: list[None] = []
+
+        def listener() -> None:
+            calls.append(None)
+
+        register_phase_deadline_change_listener(listener)
+        unregister_phase_deadline_change_listener(listener)
+
+        game = create_game(room_code="ROOM01", game_id="game-1")
+        snapshot = create_initial_snapshot(
+            game=game,
+            snapshot_id="snapshot-1",
+            player_assignments={
+                "player-1": "britain",
+                "player-2": "france",
+                "player-3": "prussia",
+                "player-4": "austria",
+                "player-5": "russia",
+            },
+        )
+        assign_phase_deadline(
+            snapshot,
+            started_at=datetime(2026, 3, 29, 12, 0, tzinfo=UTC),
+            duration=timedelta(minutes=2),
+        )
+
+        self.assertEqual(calls, [])
 
 
 if __name__ == "__main__":

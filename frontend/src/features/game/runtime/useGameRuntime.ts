@@ -68,6 +68,7 @@ export function useGameRuntime({
   const navigate = useNavigate();
   const deadlineRecoveryKeyRef = useRef<string | null>(null);
   const submissionRecoveryKeyRef = useRef<string | null>(null);
+  const reconcileRuntimeRef = useRef<() => Promise<void>>(async () => {});
   const [runtimeState, setRuntimeState] = useState<GameRuntimeState>(() =>
     bootstrap ? createRecoveredGameRuntimeState(bootstrap) : createEmptyGameRuntimeState(),
   );
@@ -150,9 +151,13 @@ export function useGameRuntime({
 
     const socket = connectSocket();
     setRuntimeState((previous) => applySocketState(previous, socket.connected ? "connected" : "connecting"));
+    if (socket.connected) {
+      void reconcileRuntimeRef.current?.();
+    }
 
     const handleConnect = () => {
       setRuntimeState((previous) => applySocketState(previous, "connected"));
+      void reconcileRuntimeRef.current?.();
     };
     const handleDisconnect = () => {
       setRuntimeState((previous) => applySocketState(previous, "disconnected"));
@@ -235,24 +240,23 @@ export function useGameRuntime({
   }, [runtimeState.finalResult, runtimeState.snapshot?.phaseDeadlineAt]);
 
   useEffect(() => {
-    if (
-      !runtimeState.hasRecoveredFromServer ||
-      !runtimeState.session?.playerId ||
-      !runtimeState.game?.gameId ||
-      !runtimeState.snapshot ||
-      runtimeState.finalResult
-    ) {
-      return;
-    }
+    reconcileRuntimeRef.current = async () => {
+      if (
+        !runtimeState.hasRecoveredFromServer ||
+        !runtimeState.session?.playerId ||
+        !runtimeState.game?.gameId ||
+        !runtimeState.snapshot ||
+        runtimeState.finalResult
+      ) {
+        return;
+      }
 
-    const activeGame = runtimeState.game;
-    const activeSnapshot = runtimeState.snapshot;
-    let disposed = false;
+      const activeGame = runtimeState.game;
+      const activeSnapshot = runtimeState.snapshot;
 
-    async function reconcileRuntime(): Promise<void> {
       try {
         const restored = await restoreSessionContext();
-        if (disposed || !restored?.activeGame || !restored.activeSnapshot) {
+        if (!restored?.activeGame || !restored.activeSnapshot) {
           return;
         }
 
@@ -262,10 +266,6 @@ export function useGameRuntime({
 
         if (restored.activeGame.isFinished) {
           const finalResult = await fetchFinalResult(restored.activeGame.gameId);
-          if (disposed) {
-            return;
-          }
-
           setRuntimeState((previous) => applyGameFinished(previous, finalResult));
           return;
         }
@@ -296,23 +296,11 @@ export function useGameRuntime({
       } catch {
         // Socket remains the primary path; reconciliation is best-effort.
       }
-    }
-
-    void reconcileRuntime();
-
-    const timerId = window.setInterval(() => {
-      void reconcileRuntime();
-    }, 1500);
-
-    return () => {
-      disposed = true;
-      window.clearInterval(timerId);
     };
   }, [
     routeGameId,
     runtimeState.finalResult,
-    runtimeState.game?.gameId,
-    runtimeState.game?.isFinished,
+    runtimeState.game,
     runtimeState.hasRecoveredFromServer,
     runtimeState.session?.playerId,
     runtimeState.snapshot,
