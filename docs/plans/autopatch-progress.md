@@ -161,7 +161,30 @@
 
 **结论:** 所有计划修复项 (P0-1~P0-3, 军事殖民, 天赋系统, 五国差异化, 策略选择, 政策系统, 战争系统, 独立运动, PhaseTimer, 性能) 均已验证通过，系统稳定运行。剩余2个可选项 (浏览器E2E、慢速测试优化) 非必需。
 
-## 模拟经济+治理修复 (2026-05-02)
+## 研究完成状态修复 (2026-05-02)
+
+### ✅ Bug Fix: activeResearch 未在科技解锁后清除
+
+**问题:** `_apply_phase3_research_progress` 中，科技研究完成后 `active_research` 不会被清除为 `None`。导致：
+- 前端将已完成的科技显示为"正在研究中"
+- 玩家无法直观看到需要选择新研究目标
+- snapshot 中 `activeResearch` 指向已解锁的科技
+
+**修复:** 在 breakthrough unlock 和 direct-unlock 两条路径中均增加 `player_state.active_research = None`
+
+**文件:** `backend/app/modules/rules/settlement.py` (2行新增)
+
+**验证:**
+- 374 passed, 12 skipped (单元测试无回归)
+- 4个新断言验证 activeResearch 在解锁后为 None
+- API级E2E验证: leyden_jar 解锁后 activeResearch=None，可立即选择 voltaic_pile
+
+## 前端ResearchPanel集成 (2026-05-02)
+
+**改进:**
+- GamePhasePanelContent: 集成 ResearchPanel 到 "research" 步骤
+- ResearchPanel: 增加提示文字、○ 选择标记、状态消息（已选中/正在研究/需要前置科技）
+- 与 decision.py 的 researchTarget 正确映射
 
 ### ✅ 已验证通过
 
