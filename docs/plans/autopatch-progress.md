@@ -115,9 +115,18 @@
 - newFactoryOrders: `[{"routeId": "handicraft", "quantity": N}]` (build factories)
 - researchTarget: `"spinning_jenny"` (set active research)
 
+- [x] **多回合完整性验证** ✅ (手动5回合API级完整游戏)
+  - Britain 5回合完整流程: 决策→市场→结算→推进
+  - 全链路覆盖: 生产→研究→军事征兵→殖民解锁→外交→殖民→掠夺
+  - 独立性增长正常 (loot +2 per turn)
+  - 预算/军力/科技/产能/物资 全部正常结算
+  - 410 passed, 12 skipped (快速单元测试, 无regression)
+  - 6个慢速API E2E测试通过但因PhaseTimer等待耗时较长
+
 ## 下一步
 1. ~~前端集成验证~~ ✅ 完成 (17个测试全部通过, payload shape完全对齐)
 2. ~~性能测试~~ ✅ 完成 (并发创建+提交, PhaseTimer CPU修复)
 3. ~~PhaseTimer CPU修复~~ ✅ 完成 (connection reuse + poll 5s)
-4. 可选: 多回合完整性测试 (5+回合连续游戏无错误)
+4. ~~多回合完整性测试~~ ✅ 完成 (5回合手动+410单元测试无regression)
 5. 可选: 前端集成到完整游戏流程中进行浏览器级E2E测试
+6. 可选: 慢速API E2E测试优化 (独立性/战争系统测试因PhaseTimer各耗时4min+)
