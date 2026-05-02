@@ -752,6 +752,10 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
         selected_diplomacy_regions.add(action.target_region)
         military_plan_spend += int(action.budget_pool_cost)
 
+    # Validate unlockColonization budget cost
+    if payload.get("militaryPlan", {}).get("unlockColonization", False) and not player_state.colonization_unlocked:
+        military_plan_spend += int(balance.military.colonization_unlock_cost)
+
     if government_spend + military_plan_spend > government_budget:
         raise PhaseSubmissionError(
             ErrorCode.INVALID_SUBMISSION,
