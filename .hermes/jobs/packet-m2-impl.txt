@@ -1,0 +1,45 @@
+TASK ID:
+player-ux-audit-m2-impl
+
+OBJECTIVE:
+Fix 4 UX issues from the game panel analysis: (1) GovernmentPanel projectedAdmin doesn't subtract active policy upkeep; (2) MarketPanel duplicates backend price-curve constants; (3) FactoryPanel has an unused orphan export `resolveProductionLockedReason`; (4) MilitaryPanel shows confusing `$` currency notation.
+
+WHY / CONTEXT:
+Analysis found the main game screen has several misleading numbers and duplicated logic that degrade player trust and decision quality.
+
+DO:
+1. **GovernmentPanel.tsx** (line ~134-138): Fix `projectedAdmin` calculation to also subtract active policy upkeep costs. Read `reforms.activePolicies` or equivalent to get ongoing policy costs, and include them in the subtraction. Verify the projected admin number is now accurate.
+
+2. **Phase1MarketPanel.tsx** (line ~286-338): Instead of duplicating price-curve constants, import them from a shared source. If there's a backend config endpoint exposing these, fetch from there. Otherwise, at minimum extract the duplicated constants to a shared `constants/priceCurves.ts` file that both panels can import. The goal is single source of truth.
+
+3. **FactoryPanel.tsx** (line 68-82): Delete the unused `resolveProductionLockedReason` function. Search first to confirm it's never imported (same file's `resolveRouteLockedReason` IS used by FactoryConstructionPanel.tsx — do NOT delete that one).
+
+4. **MilitaryPanel.tsx** (line 487): Change `消耗 ${artillery * 16}` to `消耗 ${artillery * 16} 金币` (add currency unit). Similarly fix any other place that shows bare `$` to include the unit. Search the file for `$` patterns.
+
+DO NOT:
+- Do not refactor MilitaryPanel into sub-tabs (separate task)
+- Do not change backend
+- Do not change game balance numbers
+
+FILES IN SCOPE:
+- frontend/src/components/game/panels/GovernmentPanel.tsx
+- frontend/src/components/game/panels/Phase1MarketPanel.tsx
+- frontend/src/components/game/panels/factory/FactoryPanel.tsx
+- frontend/src/components/game/panels/MilitaryPanel.tsx
+
+VERIFICATION TIER / BUDGET:
+- Tier: T1
+- Time cap: 10 min
+- Do run: grep to verify orphan function removed; visual check of modified files
+- Do not run: full E2E, browser dogfood, backend tests
+
+STOP CONDITIONS:
+- Stop if policy upkeep data isn't available in the GovernmentPanel props/context
+- Stop if removing resolveProductionLockedReason breaks FactoryConstructionPanel
+
+RETURN FORMAT:
+1. Summary
+2. Files changed
+3. Verification run
+4. Open issues
+5. Suggested next step

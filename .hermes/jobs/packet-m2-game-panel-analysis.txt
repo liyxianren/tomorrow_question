@@ -1,0 +1,66 @@
+You are executing a read-only analysis task. Do NOT write or modify any files.
+
+TASK ID:
+player-ux-audit-m2-game-panel
+
+OBJECTIVE:
+Analyze the Game Main Panel module from a PLAYER perspective across 3 dimensions: UI, 数值设计, 元素设计.
+
+This is the screen players spend 90% of their time on — the main decision phase UI.
+
+DO:
+1. Read the main game panel and its sub-panels:
+   - frontend/src/components/game/panels/GamePhasePanelContent.tsx (the orchestrator)
+   - frontend/src/components/game/panels/Phase1MarketPanel.tsx (market phase)
+   - frontend/src/components/game/panels/DomesticPanel.tsx (domestic actions)
+   - frontend/src/components/game/panels/GovernmentPanel.tsx (government)
+   - frontend/src/components/game/panels/ResearchPanel.tsx (research)
+   - frontend/src/components/game/panels/MilitaryPanel.tsx (military)
+   - frontend/src/components/game/panels/factory/FactoryPanel.tsx (factory)
+   - frontend/src/components/game/panels/factory/Phase1ProductionPanel.tsx (production)
+2. Read the game state and snapshot:
+   - backend/app/modules/game_state/models.py (snapshot shapes)
+   - backend/app/modules/game_state/phase_state.py (phase transitions)
+3. Read the decision flow:
+   - frontend/src/features/game/flow/decisionFlow.ts
+   - frontend/src/features/game/decisionShared.ts
+   - frontend/src/features/game/forms.ts
+
+DO NOT:
+- Do not analyze room/lobby (already done)
+- Do not modify any files
+- Do not analyze settlement page (module 7)
+- Do not deep-dive into backend rule logic (that's for module 8)
+
+ANALYSIS FRAMEWORK:
+
+### 1. UI (界面)
+- Is information hierarchy clear? Does the player know what to look at first?
+- Are the panels appropriately sized? Is there too much scrolling?
+- Is the current phase clearly indicated? Does the player know WHAT to do right now?
+- Is feedback clear? (submitting a decision → visual confirmation)
+- Color coding: are numbers that change (costs, gains) visually distinct?
+- Are error messages clear when the player does something wrong?
+
+### 2. 数值设计 (Number Design)
+- Are resource numbers (govFiscal, militaryPoints, rawMaterials) clearly displayed?
+- Are costs visible before the player commits to an action?
+- Is the budget pool clear? Does the player understand what they're spending from?
+- Are there misleading numbers? (e.g., showing a number that doesn't update until next turn)
+- Turn/Round indicator: clear?
+
+### 3. 元素设计 (Element Design)
+- Are all sub-panels necessary? Any that could be merged?
+- Is the player overwhelmed with choices? Does the UI guide them to what's important?
+- Are there dead/never-used controls?
+- Does the game theme (19th century geopolitics) come through in the UI?
+- Is the transition between phases smooth?
+
+RETURN FORMAT:
+1. Summary: [overall player experience of the game screen]
+2. UI issues: [bullet list with severity]
+3. 数值设计 issues: [bullet list with severity]
+4. 元素设计 issues: [bullet list with severity]
+5. UX score: [1-10]
+6. Top 3 most impactful fixes
+7. Files you'd recommend changing

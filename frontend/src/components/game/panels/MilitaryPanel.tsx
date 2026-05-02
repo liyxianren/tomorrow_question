@@ -484,7 +484,7 @@ export function MilitaryPanel({
                         >+</button>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
-                        <span style={{ minWidth: 96 }}>炮兵: {artillery} (消耗 ${artillery * 16})</span>
+                        <span style={{ minWidth: 96 }}>炮兵: {artillery} (消耗 {artillery * 16} 金币)</span>
                         <button
                           aria-label={`减少${option.regionLabel}炮兵`}
                           className="military-action-card__btn"

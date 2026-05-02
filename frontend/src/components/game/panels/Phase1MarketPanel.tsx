@@ -7,6 +7,11 @@ import type {
   RegionAccessStatus,
 } from "../../../types";
 import { getRegionAccessLevelLabel } from "../../../features/game/decisionShared";
+import {
+  MIN_SURPLUS_PRICE_RATIO,
+  SHORTAGE_PRICE_DAMPING,
+  SURPLUS_PRICE_DAMPING,
+} from "../../../constants/priceCurves";
 import "./Phase1MarketPanel.css";
 
 type Phase1MarketPanelProps = {
@@ -317,12 +322,12 @@ function calculatePreview(
   let tone: PreviewResult["tone"] = "balanced";
 
   if (ratio < 1) {
-    const scale = 1 + (1 - ratio) * 0.5;
+    const scale = 1 + (1 - ratio) * SHORTAGE_PRICE_DAMPING;
     price = Math.round(equilibriumPrice * scale);
     balanceLabel = "供不应求";
     tone = "shortage";
   } else if (ratio > 1) {
-    const scale = Math.max(0.5, 1 - (ratio - 1) * 0.3);
+    const scale = Math.max(MIN_SURPLUS_PRICE_RATIO, 1 - (ratio - 1) * SURPLUS_PRICE_DAMPING);
     price = Math.round(equilibriumPrice * scale);
     balanceLabel = "供过于求";
     tone = "surplus";

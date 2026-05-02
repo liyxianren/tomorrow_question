@@ -1,4 +1,4 @@
-import type { DecisionPlayerPhaseWorkspace, FactoryExpansionOption, FactoryNewFactoryOption, FactoryProductionOption, FactoryUpgradeOption, TechTreeNode } from "../../../../types";
+import type { DecisionPlayerPhaseWorkspace, FactoryExpansionOption, FactoryNewFactoryOption, FactoryUpgradeOption, TechTreeNode } from "../../../../types";
 import type { PhaseDraftByPhase } from "../../../../features/game/forms";
 import {
   getAllocatedProductionBatchesForRoute,
@@ -64,22 +64,6 @@ export function FactoryPanel({
 }
 
 /* ── Helpers (kept for external use) ── */
-
-export function resolveProductionLockedReason(
-  option: FactoryProductionOption,
-  workspace: DecisionPlayerPhaseWorkspace,
-  unlockedTechIds: Set<string>,
-): string | null {
-  if (!option.lockedReason) {
-    return null;
-  }
-  const unlockedByResearch = flattenTechTree(workspace.techTree).some(
-    (tech) =>
-      unlockedTechIds.has(tech.techId)
-      && (tech.unlocksGoods.includes(option.goodsId) || tech.unlocksRoutes.includes(option.routeId)),
-  );
-  return unlockedByResearch ? null : option.lockedReason;
-}
 
 export function resolveRouteLockedReason(
   routeId: string,

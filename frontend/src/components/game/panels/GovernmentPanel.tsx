@@ -134,8 +134,18 @@ export function GovernmentPanel({
   const queuedReformAdminCost = reforms.availableReforms
     .filter((reform) => queuedReformIds.has(reform.reformId))
     .reduce((sum, reform) => sum + reform.adminCost, 0);
+  const projectedActivePolicyUpkeep = reforms.availablePolicies
+    .filter((policy) => {
+      if (queuedActivateIds.has(policy.policyId)) return true;
+      if (queuedDeactivateIds.has(policy.policyId)) return false;
+      return policy.isActive;
+    })
+    .reduce((sum, policy) => sum + policy.adminCostPerTurn, 0);
   const projectedAdmin =
-    reforms.administrationCapacity + queuedAdminPurchases - queuedReformAdminCost;
+    reforms.administrationCapacity
+    + queuedAdminPurchases
+    - queuedReformAdminCost
+    - projectedActivePolicyUpkeep;
 
   const isPolicyActiveAfter = (policyId: string, currentlyActive: boolean): boolean => {
     if (queuedActivateIds.has(policyId)) return true;
