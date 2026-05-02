@@ -90,6 +90,18 @@ export function RoomPage() {
             />
           </div>
         </div>
+
+        <p
+          data-testid="room-expiry-notice"
+          style={{
+            margin: "8px 0 0",
+            textAlign: "center",
+            fontSize: 12,
+            color: "rgba(255, 255, 255, 0.45)",
+          }}
+        >
+          房间长时间无活动将自动关闭。
+        </p>
       </div>
     </div>
   );

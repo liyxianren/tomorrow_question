@@ -123,9 +123,9 @@ export function LobbyWaitingRoomsSection({
       data-testid="lobby-waiting-rooms-panel"
       style={sectionCardStyle}
     >
-      <p className="panel__eyebrow" style={eyebrowStyle}>公开阵线 / Public Fronts</p>
+      <p className="panel__eyebrow" style={eyebrowStyle}>等待加入的房间</p>
       <h2 style={sectionTitleStyle}>等待中的房间</h2>
-      <p style={bodyTextStyle}>这里仅显示最高统帅部收到的活跃作战房间电报。你可以检阅目前的前线响应状态，或者直接加入一场已开始筹备的对局。</p>
+      <p style={bodyTextStyle}>以下是当前等待中的活跃房间。你可以加入已有房间，或创建新房间邀请朋友。</p>
       {content}
     </section>
   );

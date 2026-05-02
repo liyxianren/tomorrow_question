@@ -1,0 +1,56 @@
+TASK ID:
+player-ux-audit-m1-impl-frontend
+
+OBJECTIVE:
+Fix frontend issues from the room/lobby UX audit: simplify inconsistent military-tone text in the lobby, add room expiry indicator to RoomPage, and remove 3 unused dead components.
+
+WHY / CONTEXT:
+Analysis found: (1) LobbyWaitingRoomsSection uses military tone "公开阵线 / Public Fronts" and "最高统帅部" inconsistently with the rest of the UI's plain Chinese; (2) RoomPage has no indication that rooms auto-expire after 900s — players may lose their room without warning; (3) LobbyFlowStatusCard, LobbyRecentRoomsCard, RoomFlowPanel are defined but never imported anywhere — dead code.
+
+DO:
+1. Edit `frontend/src/components/lobby/LobbyWaitingRoomsSection.tsx`:
+   - Change "公开阵线 / Public Fronts" to "等待加入的房间" (or simpler Chinese)
+   - Change "这里仅显示最高统帅部收到的活跃作战房间电报。你可以检阅目前的前线响应状态，或者直接加入一场已开始筹备的对局。" to simpler text like "以下是当前等待中的活跃房间。你可以加入已有房间，或创建新房间邀请朋友。"
+2. Edit `frontend/src/pages/RoomPage.tsx`:
+   - Add a subtle timer/countdown showing "房间将在 N 分钟后过期" based on the backend's 900s room lifetime
+   - Hint: the backend doesn't expose remaining time directly. Use the room creation timestamp from context to calculate, OR add a simple note "房间长时间无活动将自动关闭"
+3. Delete these 3 dead component files (safe: search confirmed they are never imported):
+   - `frontend/src/components/lobby/LobbyFlowStatusCard.tsx`
+   - `frontend/src/components/lobby/LobbyRecentRoomsCard.tsx`
+   - `frontend/src/components/room/RoomFlowPanel.tsx`
+4. Run frontend tests to verify nothing breaks
+
+DO NOT:
+- Do NOT delete LobbyRecoveryCard.tsx (it IS used by IdentityPage)
+- Do NOT redesign the lobby layout
+- Do NOT add a "Start Now" button (separate task)
+- Do NOT modify backend code
+
+FILES IN SCOPE:
+- frontend/src/components/lobby/LobbyWaitingRoomsSection.tsx (edit)
+- frontend/src/pages/RoomPage.tsx (edit)
+- frontend/src/components/lobby/LobbyFlowStatusCard.tsx (delete)
+- frontend/src/components/lobby/LobbyRecentRoomsCard.tsx (delete)
+- frontend/src/components/room/RoomFlowPanel.tsx (delete)
+
+VERIFICATION TIER / BUDGET:
+- Tier: T1
+- Time cap before checkpoint: 10 minutes
+- Do run: npm run build (frontend compile check) + targeted lint
+- Do not run: full E2E, browser dogfood, backend tests
+
+VERIFICATION:
+- cd frontend && npm run build 2>&1 | tail -5 (verify zero errors)
+- grep -r "LobbyFlowStatusCard\|LobbyRecentRoomsCard\|RoomFlowPanel" frontend/src/ --include="*.tsx" --include="*.ts" | grep -v "\.test\." (verify only the component file itself remains, no imports elsewhere)
+
+STOP CONDITIONS:
+- Stop if the room expiry timer requires backend API changes (out of scope — just add a static notice)
+- Stop if deleting components breaks any import (check before deleting)
+
+RETURN FORMAT:
+1. Summary
+2. Files changed
+3. Verification run
+4. Verification budget
+5. Open issues / assumptions
+6. Suggested next step
