@@ -1,0 +1,35 @@
+TASK ID:
+player-ux-audit-m7-impl
+
+OBJECTIVE:
+Fix the most impactful settlement UX issues from analysis: make game logs readable, clarify resource changes, and smooth the phase transition back to decision.
+
+WHY:
+Analysis found the settlement page is the player's "report card" after each round, but game logs are hard to parse, resource deltas aren't obvious, and the transition back to the next decision phase feels abrupt.
+
+DO:
+1. **Game log readability** (SettlementPage.tsx):
+   - Group logs by category (economy, military, diplomacy, events)
+   - Add emoji/icon prefix for each log type
+   - Truncate long logs with expand/collapse
+
+2. **Resource change visibility** (SettlementPage.tsx):
+   - Show △ arrows for resource changes (↑ income, ↓ expense)
+   - Color-code gains (green) vs losses (red)
+
+3. **Phase transition smoothing**:
+   - After settlement renders, auto-advance to next decision phase after a brief delay (3-5s)
+   - Show a countdown or "进入下一回合..." indicator
+
+DO NOT:
+- Do not change backend settlement logic
+- Do not redesign the entire settlement page
+
+FILES:
+- frontend/src/pages/SettlementPage.tsx
+- frontend/src/pages/SettlementPage.test.tsx
+- frontend/src/components/game/panels/GamePhasePanelContent.tsx (transition)
+
+TIER: T1 / 10 min
+VERIFY: vitest SettlementPage.test.tsx, tsc --noEmit
+RETURN: standard

@@ -7,6 +7,33 @@ import { PhaseHeaderBar } from "../components/game/layout/PhaseHeaderBar";
 import { createSettlementPageState } from "../features/game/flow/settlementFlow";
 import type { GameFinishedPayload } from "../features/game/runtime/types";
 import { fetchFinalResult } from "../services/game";
+import type { GameLog } from "../types/domain";
+
+const LOG_CATEGORY_ORDER = ["final", "events", "economy", "military", "diplomacy", "decision", "other"] as const;
+type LogCategory = (typeof LOG_CATEGORY_ORDER)[number];
+
+const LOG_CATEGORY_META: Record<LogCategory, { label: string; emoji: string }> = {
+  final: { label: "终局裁定", emoji: "🏆" },
+  events: { label: "事件与异常", emoji: "⚠️" },
+  economy: { label: "经济与财政", emoji: "💰" },
+  military: { label: "军事与征服", emoji: "⚔️" },
+  diplomacy: { label: "外交关系", emoji: "🤝" },
+  decision: { label: "国家决策", emoji: "🏛" },
+  other: { label: "其他记录", emoji: "📋" },
+};
+
+const LOG_TRUNCATE_LENGTH = 80;
+
+function categorizeLogKind(kind: string): LogCategory {
+  const k = (kind ?? "").toLowerCase();
+  if (k.includes("revolt") || k.includes("rebel") || k.includes("crisis")) return "events";
+  if (k.includes("final")) return "final";
+  if (k.includes("military") || k.includes("conquest") || k.includes("war") || k.includes("colon") || k.includes("naval") || k.includes("loot")) return "military";
+  if (k.includes("diplomacy") || k.includes("peace") || k.includes("treaty")) return "diplomacy";
+  if (k.startsWith("market") || k.startsWith("settlement") || k.includes("budget") || k.includes("income")) return "economy";
+  if (k.startsWith("decision") || k.includes("reform") || k.includes("policy")) return "decision";
+  return "other";
+}
 
 type SettlementRouteState = {
   result?: GameFinishedPayload | null;
@@ -79,6 +106,10 @@ export function SettlementPage({ result, roomCode }: SettlementPageProps) {
     routeState,
   });
   const finalLogs = useMemo(() => resolvedResult?.finalLogs ?? [], [resolvedResult]);
+
+  const groupedLogs = useMemo(() => groupLogsByCategory(finalLogs), [finalLogs]);
+  const leaderIncome = pageState.rankingRows[0]?.cumulativeNationalIncome ?? null;
+  const runnerUpIncome = pageState.rankingRows[1]?.cumulativeNationalIncome ?? null;
 
   if (isLoadingResult && !pageState.finalResult) {
     return (
@@ -174,17 +205,27 @@ export function SettlementPage({ result, roomCode }: SettlementPageProps) {
                   <p>当前结算结果未附带最终排名。</p>
                 ) : (
                   <ol className="settlement-dossier__ranking-list">
-                    {pageState.rankingRows.map((row) => (
-                      <li key={`${row.rank}-${row.playerId}`} className="settlement-dossier__ranking-row">
-                        <div className="settlement-dossier__ranking-header">
-                          <strong>第 {row.rank} 名</strong>
-                          <span>{row.countryLabel}</span>
-                          <span className="settlement-dossier__ranking-player">{row.nickname}</span>
-                        </div>
-                        <p className="settlement-dossier__ranking-income">累计国家收入：{row.cumulativeNationalIncome}</p>
-                        <p className="settlement-dossier__ranking-tiebreak">同分比较：{row.tieBreakSummary}</p>
-                      </li>
-                    ))}
+                    {pageState.rankingRows.map((row) => {
+                      const delta = row.rank === 1
+                        ? (runnerUpIncome != null ? row.cumulativeNationalIncome - runnerUpIncome : null)
+                        : (leaderIncome != null ? row.cumulativeNationalIncome - leaderIncome : null);
+                      return (
+                        <li key={`${row.rank}-${row.playerId}`} className="settlement-dossier__ranking-row">
+                          <div className="settlement-dossier__ranking-header">
+                            <strong>第 {row.rank} 名</strong>
+                            <span>{row.countryLabel}</span>
+                            <span className="settlement-dossier__ranking-player">{row.nickname}</span>
+                          </div>
+                          <p className="settlement-dossier__ranking-income">
+                            累计国家收入：{row.cumulativeNationalIncome}
+                            {delta != null ? (
+                              <RankingDelta delta={delta} isLeader={row.rank === 1} />
+                            ) : null}
+                          </p>
+                          <p className="settlement-dossier__ranking-tiebreak">同分比较：{row.tieBreakSummary}</p>
+                        </li>
+                      );
+                    })}
                   </ol>
                 )}
               </section>
@@ -195,17 +236,35 @@ export function SettlementPage({ result, roomCode }: SettlementPageProps) {
                 {finalLogs.length === 0 ? (
                   <p>当前结果未附带最终日志。</p>
                 ) : (
-                  <ol className="settlement-dossier__timeline">
-                    {pageState.timelineEntries.map((entry) => (
-                      <li key={entry.key} className="settlement-dossier__timeline-item">
-                        <div className="settlement-dossier__timeline-meta">
-                          <strong>{entry.label}</strong>
-                          <span>{entry.meta}</span>
-                        </div>
-                        <p className="settlement-dossier__timeline-message">{entry.message}</p>
-                      </li>
+                  <div className="settlement-dossier__timeline-groups">
+                    {groupedLogs.map((group) => (
+                      <section
+                        key={group.category}
+                        className="settlement-dossier__timeline-group"
+                        data-testid={`settlement-log-group-${group.category}`}
+                      >
+                        <header className="settlement-dossier__timeline-group-header">
+                          <span aria-hidden="true">{LOG_CATEGORY_META[group.category].emoji}</span>
+                          <strong>{LOG_CATEGORY_META[group.category].label}</strong>
+                          <span className="settlement-dossier__timeline-group-count">{group.entries.length} 条</span>
+                        </header>
+                        <ol className="settlement-dossier__timeline">
+                          {group.entries.map((entry, index) => (
+                            <li key={`${group.category}-${entry.key}-${index}`} className="settlement-dossier__timeline-item">
+                              <div className="settlement-dossier__timeline-meta">
+                                <strong>
+                                  <span aria-hidden="true" style={{ marginRight: 4 }}>{LOG_CATEGORY_META[group.category].emoji}</span>
+                                  {entry.label}
+                                </strong>
+                                <span>{entry.meta}</span>
+                              </div>
+                              <LogMessage message={entry.message} />
+                            </li>
+                          ))}
+                        </ol>
+                      </section>
                     ))}
-                  </ol>
+                  </div>
                 )}
               </section>
             </div>
@@ -231,5 +290,106 @@ export function SettlementPage({ result, roomCode }: SettlementPageProps) {
         </div>
       }
     />
+  );
+}
+
+type GroupedLogEntry = {
+  key: string;
+  label: string;
+  message: string;
+  meta: string;
+};
+
+type GroupedLogSection = {
+  category: LogCategory;
+  entries: GroupedLogEntry[];
+};
+
+function groupLogsByCategory(logs: GameLog[]): GroupedLogSection[] {
+  const buckets = new Map<LogCategory, GroupedLogEntry[]>();
+  logs.forEach((log, index) => {
+    const category = categorizeLogKind(log.kind);
+    const entry: GroupedLogEntry = {
+      key: `${log.kind}-${log.createdAt ?? index}`,
+      label: log.phase ? formatPhaseLabel(log.phase) : LOG_CATEGORY_META[category].label,
+      message: log.message,
+      meta: formatLogMeta(log.roundNo, log.createdAt),
+    };
+    const list = buckets.get(category) ?? [];
+    list.push(entry);
+    buckets.set(category, list);
+  });
+
+  return LOG_CATEGORY_ORDER
+    .filter((cat) => buckets.has(cat))
+    .map((category) => ({ category, entries: buckets.get(category) ?? [] }));
+}
+
+function formatPhaseLabel(phase: string): string {
+  switch (phase) {
+    case "decision":
+      return "国家决策";
+    case "settlement":
+      return "财政结算";
+    case "market":
+      return "市场出售";
+    default:
+      return phase;
+  }
+}
+
+function formatLogMeta(roundNo: number, createdAt: string | null): string {
+  const roundLabel = Number.isFinite(roundNo) ? `第 ${roundNo} 回合` : "未知回合";
+  const timeLabel = createdAt ? createdAt.replace("T", " ").replace("Z", "") : "时间未记录";
+  return `${roundLabel} · ${timeLabel}`;
+}
+
+function LogMessage({ message }: { message: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = message.length > LOG_TRUNCATE_LENGTH;
+
+  if (!isLong) {
+    return <p className="settlement-dossier__timeline-message">{message}</p>;
+  }
+
+  return (
+    <div className="settlement-dossier__timeline-message">
+      <p style={{ margin: 0 }}>
+        {expanded ? message : `${message.slice(0, LOG_TRUNCATE_LENGTH)}…`}
+      </p>
+      <button
+        aria-expanded={expanded}
+        className="gp-btn"
+        onClick={() => setExpanded((value) => !value)}
+        style={{ marginTop: 6, padding: "2px 10px", fontSize: 12 }}
+        type="button"
+      >
+        {expanded ? "收起" : "展开"}
+      </button>
+    </div>
+  );
+}
+
+function RankingDelta({ delta, isLeader }: { delta: number; isLeader: boolean }) {
+  if (delta === 0) {
+    return (
+      <span className="settlement-dossier__ranking-delta" style={{ marginLeft: 8, color: "var(--game-text-secondary)" }}>
+        持平
+      </span>
+    );
+  }
+
+  const arrow = delta > 0 ? "▲" : "▼";
+  const color = delta > 0 ? "#3fb27f" : "#e76161";
+  const label = isLeader ? `领先 ${Math.abs(delta)}` : `落后 ${Math.abs(delta)}`;
+
+  return (
+    <span
+      className="settlement-dossier__ranking-delta"
+      data-testid="ranking-delta"
+      style={{ marginLeft: 8, color, fontWeight: 600 }}
+    >
+      {arrow} {label}
+    </span>
   );
 }

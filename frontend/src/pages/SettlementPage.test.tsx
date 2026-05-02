@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -182,5 +182,120 @@ describe("SettlementPage", () => {
     expect(await screen.findByText("终局已归档")).toBeInTheDocument();
     expect(screen.getByText("英国 以 42 累计国家收入位列第一。")).toBeInTheDocument();
     expect(screen.getByText("为什么停在这里")).toBeInTheDocument();
+  });
+
+  it("shows ranking deltas with arrows and labels", () => {
+    render(
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: "/settlement/game-15",
+            state: { result: createFinalResult(), roomCode: "ROOM15" },
+          },
+        ]}
+      >
+        <Routes>
+          <Route element={<SettlementPage />} path="/settlement/:gameId" />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const deltas = screen.getAllByTestId("ranking-delta");
+    expect(deltas).toHaveLength(2);
+    expect(deltas[0]).toHaveTextContent("▲ 领先 3");
+    expect(deltas[1]).toHaveTextContent("▼ 落后 3");
+  });
+
+  it("groups final logs by category and renders an emoji label", () => {
+    const finalResult = createFinalResult();
+    finalResult.finalLogs = [
+      {
+        gameId: "game-15",
+        roundNo: 12,
+        phase: "market",
+        kind: "market.resolved",
+        message: "市场结算：英国海外销售额 18。",
+        details: {},
+        createdAt: "2026-03-30T13:30:00Z",
+      },
+      {
+        gameId: "game-15",
+        roundNo: 13,
+        phase: "settlement",
+        kind: "settlement.region_revolt",
+        message: "苏格兰发生暴动，损失行政点 3。",
+        details: {},
+        createdAt: "2026-03-30T13:45:00Z",
+      },
+      {
+        gameId: "game-15",
+        roundNo: 15,
+        phase: null,
+        kind: "final_result",
+        message: "大英帝国取得最终胜利。",
+        details: {},
+        createdAt: "2026-03-30T14:00:00Z",
+      },
+    ];
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: "/settlement/game-15",
+            state: { result: finalResult, roomCode: "ROOM15" },
+          },
+        ]}
+      >
+        <Routes>
+          <Route element={<SettlementPage />} path="/settlement/:gameId" />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("settlement-log-group-final")).toHaveTextContent("终局裁定");
+    expect(screen.getByTestId("settlement-log-group-events")).toHaveTextContent("事件与异常");
+    expect(screen.getByTestId("settlement-log-group-economy")).toHaveTextContent("经济与财政");
+  });
+
+  it("collapses long log messages by default and toggles on click", () => {
+    const finalResult = createFinalResult();
+    const longMessage = "这是一段非常详尽的复盘信息，".repeat(8);
+    finalResult.finalLogs = [
+      {
+        gameId: "game-15",
+        roundNo: 15,
+        phase: null,
+        kind: "final_result",
+        message: longMessage,
+        details: {},
+        createdAt: "2026-03-30T14:00:00Z",
+      },
+    ];
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: "/settlement/game-15",
+            state: { result: finalResult, roomCode: "ROOM15" },
+          },
+        ]}
+      >
+        <Routes>
+          <Route element={<SettlementPage />} path="/settlement/:gameId" />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const timeline = screen.getByTestId("settlement-final-logs");
+    const expandButton = screen.getByRole("button", { name: "展开" });
+    expect(expandButton).toHaveAttribute("aria-expanded", "false");
+    expect(timeline.textContent ?? "").toMatch(/…/);
+    expect(timeline).not.toHaveTextContent(longMessage);
+
+    fireEvent.click(expandButton);
+    expect(screen.getByRole("button", { name: "收起" })).toHaveAttribute("aria-expanded", "true");
+    expect(timeline).toHaveTextContent(longMessage);
   });
 });

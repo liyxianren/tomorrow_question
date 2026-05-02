@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 
 import { Phase1MarketPanel } from "./Phase1MarketPanel";
@@ -599,6 +600,7 @@ export function SettlementWorkbench({
 }) {
   return (
     <section data-testid="settlement-workbench" className="gp-section">
+      <SettlementCountdownBanner />
       <article className="gp-card gp-card--primary">
         <div>
           <p className="gp-step-eyebrow">财政结算台</p>
@@ -637,6 +639,39 @@ export function SettlementWorkbench({
         </article>
       )}
     </section>
+  );
+}
+
+const SETTLEMENT_COUNTDOWN_SECONDS = 5;
+
+function SettlementCountdownBanner() {
+  const [secondsLeft, setSecondsLeft] = useState(SETTLEMENT_COUNTDOWN_SECONDS);
+
+  useEffect(() => {
+    if (secondsLeft <= 0) {
+      return;
+    }
+    const handle = setTimeout(() => {
+      setSecondsLeft((value) => Math.max(0, value - 1));
+    }, 1000);
+    return () => clearTimeout(handle);
+  }, [secondsLeft]);
+
+  const message = secondsLeft > 0
+    ? `${secondsLeft} 秒后进入下一回合…`
+    : "进入下一回合…";
+
+  return (
+    <article
+      className="gp-card"
+      data-testid="settlement-countdown-banner"
+      style={{ borderLeft: "3px solid var(--game-accent, #f0a020)", padding: "10px 14px" }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span aria-hidden="true" style={{ fontSize: 18 }}>⏳</span>
+        <strong>{message}</strong>
+      </div>
+    </article>
   );
 }
 

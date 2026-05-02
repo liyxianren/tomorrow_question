@@ -1,0 +1,29 @@
+You are executing a read-only analysis task. Do NOT modify or write any files.
+
+TASK ID:
+player-ux-audit-m7-settlement
+
+OBJECTIVE:
+Analyze Settlement & Results module from PLAYER perspective: UI, 数值设计, 元素设计.
+
+This is the post-round settlement where players see what happened, resource changes, and game logs.
+
+DO:
+1. Frontend:
+   - frontend/src/pages/SettlementPage.tsx + .test.tsx
+2. Backend:
+   - backend/app/modules/settlement/ (all .py files)
+   - backend/app/modules/rules/settlement.py (settlement computation)
+3. Game logs:
+   - How are game logs generated and displayed?
+
+DO NOT: modify files.
+
+FOCUS:
+- Is the settlement clear? Does the player understand what happened each round?
+- Resource changes: are gains/losses obvious?
+- Game logs: readable? Well-organized?
+- Phase transition: is the flow from decision→market→settlement→next round smooth?
+- Are there any confusing numbers or unexplained events?
+
+RETURN: summary, issues with severity, UX score, top 3 fixes, files
