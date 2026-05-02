@@ -24,6 +24,7 @@ from app.modules.rules.common import default_decision_submission_payload, defaul
 class PhaseSubmissionError(Exception):
     error_code: ErrorCode
     message: str
+    details: dict[str, Any] | None = None
 
     def __str__(self) -> str:
         return self.message
@@ -659,6 +660,7 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
         raise PhaseSubmissionError(
             ErrorCode.INVALID_SUBMISSION,
             "Factory budget exceeded for the submitted plan.",
+            details={"reason": f"工厂预算超支：计划 {factory_spend} > 可用 {factory_budget}"},
         )
 
     domestic_spend = 0
@@ -677,6 +679,7 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
         raise PhaseSubmissionError(
             ErrorCode.INVALID_SUBMISSION,
             "Domestic market budget exceeded for the submitted plan.",
+            details={"reason": f"国民消费预算超支：计划 {domestic_spend} > 可用 {domestic_budget}"},
         )
 
     government_spend = 0
@@ -714,17 +717,32 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
         action_id = str(selection.get("actionId") or "")
         action = balance.military_actions.military_actions.get(action_id)
         if action is None:
-            raise PhaseSubmissionError(ErrorCode.INVALID_SUBMISSION, f"Unknown military action: {action_id}")
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Unknown military action: {action_id}",
+                details={"rejectedActions": [{"actionId": action_id, "reason": "未知军事动作"}]},
+            )
         if action_locked_reason(player_state, action_id) is not None:
             raise PhaseSubmissionError(
                 ErrorCode.INVALID_SUBMISSION,
                 f"Military action {action_id} requires required technology.",
+                details={"rejectedActions": [{"actionId": action_id, "reason": "缺少前置科技"}]},
             )
         military_action_counts[action_id] = military_action_counts.get(action_id, 0) + 1
         if military_action_counts[action_id] > int(action.max_per_round):
             raise PhaseSubmissionError(
                 ErrorCode.INVALID_SUBMISSION,
                 f"Military action {action_id} exceeds maxPerRound.",
+                details={
+                    "rejectedActions": [
+                        {
+                            "actionId": action_id,
+                            "reason": f"超过本轮上限 {int(action.max_per_round)}",
+                            "count": military_action_counts[action_id],
+                            "maxPerRound": int(action.max_per_round),
+                        }
+                    ]
+                },
             )
         military_plan_spend += int(action.budget_pool_cost)
 
@@ -760,4 +778,10 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
         raise PhaseSubmissionError(
             ErrorCode.INVALID_SUBMISSION,
             "Government fiscal budget exceeded for the submitted plan.",
+            details={
+                "reason": (
+                    f"政府财政预算超支：计划 {government_spend + military_plan_spend} > "
+                    f"可用 {government_budget}"
+                ),
+            },
         )

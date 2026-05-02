@@ -23,12 +23,19 @@ let backendAvailabilityGate: {
 export class ApiRequestError extends Error {
   code?: string;
   status: number;
+  details?: Record<string, unknown>;
 
-  constructor(message: string, status: number, code?: string) {
+  constructor(
+    message: string,
+    status: number,
+    code?: string,
+    details?: Record<string, unknown>,
+  ) {
     super(message);
     this.name = "ApiRequestError";
     this.code = code;
     this.status = status;
+    this.details = details;
   }
 }
 
@@ -139,6 +146,7 @@ async function runApiRequest<T>(
       errorPayload.error?.message ?? `Request failed with status ${response.status}`,
       response.status,
       errorPayload.error?.code,
+      errorPayload.error?.details,
     );
   }
 
@@ -198,7 +206,12 @@ function rejectBackendAvailabilityGate(error: ApiRequestError): void {
 
 export function unwrapApiResponse<T>(payload: ApiResponse<T>): T {
   if (!payload.ok) {
-    throw new ApiRequestError(payload.error.message, 400, payload.error.code);
+    throw new ApiRequestError(
+      payload.error.message,
+      400,
+      payload.error.code,
+      payload.error.details,
+    );
   }
 
   return payload.data;

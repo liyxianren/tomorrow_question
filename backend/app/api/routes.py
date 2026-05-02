@@ -251,7 +251,12 @@ def _handle_session_error(error: SessionError):
 
 
 def _handle_submission_error(error: PhaseSubmissionError):
-    return error_response(error.error_code, error.message, _error_status(error.error_code))
+    return error_response(
+        error.error_code,
+        error.message,
+        _error_status(error.error_code),
+        details=error.details,
+    )
 
 
 def _handle_submission_application_error(error: SubmissionApplicationError):

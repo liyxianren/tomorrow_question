@@ -1,0 +1,37 @@
+TASK ID:
+player-ux-audit-m8-impl
+
+OBJECTIVE:
+Fix 3 decision flow UX issues: (1) Translate opaque backend error codes to Chinese messages; (2) Show which specific actions were rejected in submission; (3) Fix the settlement countdown to use real backend timer instead of fake 5-second constant (regression from module 7).
+
+WHY:
+Players see "提交失败" with no clue what's wrong. The settlement countdown shows "5秒..." but actual wait is 30+ seconds — worse than no countdown.
+
+DO:
+1. **Fix countdown (PRIORITY)** — GamePhasePanelContent.tsx:
+   - Remove hardcoded `SETTLEMENT_COUNTDOWN_SECONDS = 5`
+   - Read real `remainingSeconds` from socket `GAME_PHASE_TIMER` event or snapshot's `phase_deadline_at`
+   - Show accurate countdown or remove the fake one entirely
+
+2. **Error message translation** — forms.ts + phase_submission.py:
+   - Map backend error codes (NOT_READYABLE, INVALID_PAYLOAD, MAX_PER_ROUND, etc.) to Chinese messages
+   - Show in UnifiedSubmitPanel or submission feedback area
+   - At minimum: show `resp.error.message` directly if available
+
+3. **Rejection details** — submission_application.py response + frontend:
+   - Backend: include `rejectedActions` field in error response listing which specific actions failed
+   - Frontend: display "以下操作被拒绝：征召步兵×4（超过上限3）"
+
+DO NOT:
+- Do not change validation logic
+- Do not change phase timing backend
+
+FILES:
+- frontend/src/components/game/panels/GamePhasePanelContent.tsx (countdown fix)
+- frontend/src/features/game/forms.ts (error mapping)
+- frontend/src/components/game/feedback/UnifiedSubmitPanel.tsx (error display)
+- backend/app/modules/settlement/phase_submission.py (rejectedActions if feasible)
+
+TIER: T1 / 10 min
+VERIFY: pytest backend -k "submit" -v, tsc --noEmit
+RETURN: standard

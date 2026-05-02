@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 
 import { Phase1MarketPanel } from "./Phase1MarketPanel";
@@ -135,6 +134,7 @@ export function GamePhasePanelContent({
         <SettlementWorkbench
           playerState={currentPlayerState}
           workspace={currentPlayerWorkspace as SettlementPlayerPhaseWorkspace}
+          secondsRemaining={null}
         />
       );
     default:
@@ -594,13 +594,15 @@ export function MarketWorkbench({
 export function SettlementWorkbench({
   workspace,
   playerState,
+  secondsRemaining,
 }: {
   workspace: SettlementPlayerPhaseWorkspace;
   playerState: PlayerState | null;
+  secondsRemaining: number | null;
 }) {
   return (
     <section data-testid="settlement-workbench" className="gp-section">
-      <SettlementCountdownBanner />
+      <SettlementCountdownBanner secondsRemaining={secondsRemaining} />
       <article className="gp-card gp-card--primary">
         <div>
           <p className="gp-step-eyebrow">财政结算台</p>
@@ -642,23 +644,13 @@ export function SettlementWorkbench({
   );
 }
 
-const SETTLEMENT_COUNTDOWN_SECONDS = 5;
+function SettlementCountdownBanner({ secondsRemaining }: { secondsRemaining: number | null }) {
+  if (secondsRemaining === null) {
+    return null;
+  }
 
-function SettlementCountdownBanner() {
-  const [secondsLeft, setSecondsLeft] = useState(SETTLEMENT_COUNTDOWN_SECONDS);
-
-  useEffect(() => {
-    if (secondsLeft <= 0) {
-      return;
-    }
-    const handle = setTimeout(() => {
-      setSecondsLeft((value) => Math.max(0, value - 1));
-    }, 1000);
-    return () => clearTimeout(handle);
-  }, [secondsLeft]);
-
-  const message = secondsLeft > 0
-    ? `${secondsLeft} 秒后进入下一回合…`
+  const message = secondsRemaining > 0
+    ? `${secondsRemaining} 秒后进入下一回合…`
     : "进入下一回合…";
 
   return (

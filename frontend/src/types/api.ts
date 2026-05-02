@@ -34,6 +34,7 @@ export interface ApiFailure {
   error: {
     code: ApiErrorCode;
     message: string;
+    details?: Record<string, unknown>;
   };
 }
 

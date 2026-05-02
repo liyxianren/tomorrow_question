@@ -3,7 +3,13 @@ import { useEffect, useMemo, useState } from "react";
 import type { SubmitPhaseResponse } from "../../../services/game";
 import { submitPhase } from "../../../services/game";
 import { ApiRequestError } from "../../../services/http";
-import type { ApiErrorCode, GamePhase, PlayerSubmissionStatus } from "../../../types";
+import {
+  extractDetailReason,
+  extractRejectedActions,
+  translateSubmitErrorMessage,
+  type SubmitErrorRejection,
+} from "../../../features/game/forms";
+import type { GamePhase, PlayerSubmissionStatus } from "../../../types";
 
 
 type UnifiedSubmitPanelProps = {
@@ -20,27 +26,28 @@ type UnifiedSubmitPanelProps = {
 type SubmitErrorState = {
   code: string | null;
   message: string;
+  detailReason: string | null;
+  rejectedActions: SubmitErrorRejection[];
 };
 
 function formatSubmitError(error: unknown): SubmitErrorState {
   if (error instanceof ApiRequestError) {
-    const code = (error.code ?? null) as ApiErrorCode | null;
-
-    switch (code) {
-      case "ALREADY_SUBMITTED":
-        return { code, message: "你已提交过本阶段，等待结算即可。" };
-      case "DEADLINE_PASSED":
-        return { code, message: "提交截止时间已过。" };
-      case "PHASE_MISMATCH":
-        return { code, message: "当前阶段已切换，请刷新页面。" };
-      case "GAME_NOT_FOUND":
-        return { code, message: "对局不存在或已结束。" };
-      default:
-        return { code, message: error.message || "提交失败，请稍后再试。" };
-    }
+    const code = error.code ?? null;
+    const message = translateSubmitErrorMessage(code, error.message);
+    return {
+      code,
+      message,
+      detailReason: extractDetailReason(error.details),
+      rejectedActions: extractRejectedActions(error.details),
+    };
   }
 
-  return { code: null, message: error instanceof Error ? error.message : "提交失败。" };
+  return {
+    code: null,
+    message: error instanceof Error ? error.message : "提交失败。",
+    detailReason: null,
+    rejectedActions: [],
+  };
 }
 
 function resolveButtonLabel({
@@ -131,7 +138,28 @@ export function UnifiedSubmitPanel({
       ) : null}
 
       {submitError ? (
-        <p className="gp-submit__status gp-submit__status--error">{submitError.message}</p>
+        <div className="gp-submit__status gp-submit__status--error" data-testid="submit-error">
+          <p style={{ margin: 0 }}>{submitError.message}</p>
+          {submitError.detailReason ? (
+            <p style={{ margin: "4px 0 0", fontSize: 13, opacity: 0.85 }}>{submitError.detailReason}</p>
+          ) : null}
+          {submitError.rejectedActions.length > 0 ? (
+            <div style={{ marginTop: 6, fontSize: 13 }}>
+              <span>以下操作被拒绝：</span>
+              <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+                {submitError.rejectedActions.map((rejection, index) => (
+                  <li key={`${rejection.actionId ?? "rejected"}-${index}`}>
+                    {rejection.actionId ? `${rejection.actionId} · ` : ""}
+                    {rejection.reason}
+                    {rejection.count != null && rejection.maxPerRound != null
+                      ? `（${rejection.count}/${rejection.maxPerRound}）`
+                      : ""}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
       ) : null}
     </section>
   );

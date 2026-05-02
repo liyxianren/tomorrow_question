@@ -12,9 +12,10 @@ class ApiSuccessPayload(TypedDict):
     data: Any
 
 
-class ApiErrorBody(TypedDict):
+class ApiErrorBody(TypedDict, total=False):
     code: str
     message: str
+    details: dict[str, Any]
 
 
 class ApiErrorPayload(TypedDict):
@@ -27,12 +28,21 @@ def ok_response(data: Any, status: int = 200):
     return jsonify(payload), status
 
 
-def error_response(code: ErrorCode, message: str, status: int):
+def error_response(
+    code: ErrorCode,
+    message: str,
+    status: int,
+    *,
+    details: dict[str, Any] | None = None,
+):
+    error_body: ApiErrorBody = {
+        "code": code.value,
+        "message": message,
+    }
+    if details:
+        error_body["details"] = details
     payload: ApiErrorPayload = {
         "ok": False,
-        "error": {
-            "code": code.value,
-            "message": message,
-        },
+        "error": error_body,
     }
     return jsonify(payload), status

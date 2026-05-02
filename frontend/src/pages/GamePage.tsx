@@ -154,6 +154,7 @@ export function GamePage() {
       <SettlementWorkbench
         playerState={currentPlayerState}
         workspace={currentWorkspace as SettlementPlayerPhaseWorkspace}
+        secondsRemaining={runtimeState.secondsRemaining}
       />
     ) : null;
 

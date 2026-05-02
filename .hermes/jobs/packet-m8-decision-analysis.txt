@@ -1,0 +1,32 @@
+You are executing a read-only analysis task. Do NOT write any files.
+
+TASK ID: player-ux-audit-m8-decision-flow
+
+OBJECTIVE:
+Analyze the Decision Flow module from PLAYER perspective across 3 dimensions.
+
+This is the orchestration layer — how decisions are drafted, validated, submitted, and how the game advances through phases.
+
+DO:
+1. Frontend flow:
+   - frontend/src/features/game/flow/decisionFlow.ts
+   - frontend/src/features/game/decisionShared.ts
+   - frontend/src/features/game/decisionDrafts.ts
+   - frontend/src/features/game/forms.ts + .test.ts
+2. Backend submission:
+   - backend/app/modules/settlement/submission_application.py
+   - backend/app/modules/settlement/phase_submission.py
+3. Phase transition:
+   - backend/app/modules/game_state/phase_state.py
+   - backend/app/modules/realtime/phase_timer.py
+
+DO NOT: modify files.
+
+FOCUS:
+- Is the submit flow clear? Does the player know their decision was received?
+- Validation: are error messages helpful when submission fails?
+- Draft saving: can the player save progress and come back?
+- Phase timing: is the countdown visible and anxiety-inducing or helpful?
+- Multi-phase flow: is decision→market→settlement sequence obvious?
+
+RETURN: summary, issues with severity, UX score, top 3 fixes, files
