@@ -121,6 +121,44 @@ export function calculateDecisionSpendSummary(
   };
 }
 
+export type GovernmentSpendBreakdown = {
+  total: number;
+  government: number;
+  military: number;
+};
+
+export function calculateGovernmentSpendBreakdown(
+  workspace: DecisionPlayerPhaseWorkspace,
+  draft: PhaseDraftByPhase["decision"],
+): GovernmentSpendBreakdown {
+  const governmentPurchaseSpend = draft.governmentPlan.pointPurchases.reduce((sum, purchase) => {
+    return sum + purchase.quantity * workspace.governmentActions.pointPurchaseCosts[purchase.pointType];
+  }, 0);
+  const governmentStrategySpend = draft.governmentPlan.strategySelections.reduce((sum, selection) => {
+    const action = workspace.governmentActions.strategies.find((item) => item.actionId === selection.actionId);
+    return sum + (action?.cost ?? 0);
+  }, 0);
+  const militaryActionSpend = draft.militaryPlan.militaryActions.reduce((sum, selection) => {
+    const action = workspace.militaryWorkspace.availableMilitaryActions.find((item) => item.actionId === selection.actionId);
+    return sum + (action?.cost ?? 0);
+  }, 0);
+  const diplomacySpend = draft.militaryPlan.diplomacyActions.reduce((sum, selection) => {
+    const action = workspace.militaryWorkspace.availableDiplomacyActions.find((item) => item.actionId === selection.actionId);
+    return sum + (action?.cost ?? 0);
+  }, 0);
+  const colonizationSpend = draft.militaryPlan.unlockColonization && !workspace.militaryWorkspace.colonizationCapability.isUnlocked
+    ? (workspace.militaryWorkspace.colonizationCapability.unlockCost ?? 0)
+    : 0;
+
+  const government = governmentPurchaseSpend + governmentStrategySpend;
+  const military = militaryActionSpend + diplomacySpend + colonizationSpend;
+  return {
+    total: government + military,
+    government,
+    military,
+  };
+}
+
 export function calculateRatioPreview(
   workspace: DecisionPlayerPhaseWorkspace,
   draft: PhaseDraftByPhase["decision"],

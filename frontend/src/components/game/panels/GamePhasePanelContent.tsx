@@ -6,6 +6,7 @@ import { MilitaryPanel } from "./MilitaryPanel";
 import { GovernmentPanel } from "./GovernmentPanel";
 import { DomesticPanel } from "./DomesticPanel";
 import { DecisionStepTabs } from "./DecisionStepTabs";
+import { DecisionResourceBar } from "./DecisionResourceBar";
 import { FactoryPanel } from "./factory/FactoryPanel";
 import { ResearchPanel } from "./ResearchPanel";
 import type {
@@ -189,6 +190,7 @@ export function DecisionWorkbench({
   return (
     <section data-testid="decision-workbench" className="gp-section">
       <DecisionStepTabs activeStep={activeStep} onStepSelect={handleStepSwitch} />
+      <DecisionResourceBar workspace={workspace} draft={draft} activeStep={activeStep} />
       {activeStep === "factory" ? (
         <FactoryPanel
           workspace={workspace}

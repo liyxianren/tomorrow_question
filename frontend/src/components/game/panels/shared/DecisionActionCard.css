@@ -1,0 +1,165 @@
+/* ── Decision Action Card (unified shared) ── */
+
+.dac {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: var(--game-radius-sm, 12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(160deg, rgba(14, 18, 26, 0.84) 0%, rgba(8, 11, 16, 0.96) 100%);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.dac--selected {
+  border-color: rgba(212, 175, 55, 0.4);
+  box-shadow: 0 0 12px -4px rgba(212, 175, 55, 0.25);
+}
+
+.dac--disabled {
+  opacity: 0.45;
+}
+
+.dac--danger {
+  border-color: rgba(239, 102, 102, 0.55);
+  box-shadow: 0 0 12px -4px rgba(239, 102, 102, 0.35);
+}
+
+.dac--done {
+  border-color: rgba(104, 211, 145, 0.4);
+  box-shadow: 0 0 12px -4px rgba(104, 211, 145, 0.25);
+}
+
+.dac__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dac__icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.dac__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--game-text-primary, #fff5e7);
+  flex: 1;
+}
+
+.dac__cost {
+  font-size: 12px;
+  color: var(--game-text-value, #fceb9c);
+  white-space: nowrap;
+}
+
+.dac__desc {
+  font-size: 12px;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
+  line-height: 1.4;
+  margin: 0;
+}
+
+.dac__effects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.dac__effect-tag {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
+}
+
+.dac__effect-tag--temporary {
+  background: rgba(132, 184, 255, 0.1);
+  color: #a8c8ff;
+}
+
+.dac__warning {
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(239, 102, 102, 0.12);
+  color: #ff8a8a;
+  border: 1px solid rgba(239, 102, 102, 0.35);
+}
+
+.dac__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.dac__status {
+  font-size: 12px;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
+}
+
+.dac__btn {
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--game-text-primary, #fff5e7);
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: inherit;
+}
+
+.dac__btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dac__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.dac__btn--primary {
+  background: rgba(212, 175, 55, 0.2);
+  border-color: rgba(212, 175, 55, 0.4);
+  color: #ffd700;
+}
+
+.dac__stepper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dac__stepper-value {
+  min-width: 24px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--game-text-primary, #fff5e7);
+  font-weight: 600;
+}
+
+.dac__toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
+  cursor: pointer;
+}
+
+.dac__toggle input {
+  accent-color: var(--color-accent, #d4af37);
+}
+
+.dac__confirm-row {
+  display: flex;
+  gap: 8px;
+}

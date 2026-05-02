@@ -1,0 +1,52 @@
+/* ── Decision Stat Strip (shared) ── */
+
+.dss {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dss__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 13px;
+  min-height: 36px;
+}
+
+.dss__icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.dss__value {
+  color: var(--game-text-value, #fceb9c);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.dss__label {
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
+}
+
+.dss__item--critical {
+  border-color: rgba(239, 102, 102, 0.55);
+  background: rgba(239, 102, 102, 0.08);
+}
+
+.dss__item--critical .dss__value {
+  color: #ff8a8a;
+}
+
+.dss__item--warning {
+  border-color: rgba(255, 196, 87, 0.45);
+  background: rgba(255, 196, 87, 0.08);
+}
+
+.dss__item--warning .dss__value {
+  color: #ffc457;
+}
