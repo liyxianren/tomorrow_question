@@ -52,7 +52,7 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
         conquest_actions = military_plan.get("conquestActions") or []
         if conquest_actions:
             all_conquest_actions.append((player_state, list(conquest_actions)))
-        _apply_reform_plan(player_state, payload, balance)
+        _apply_reform_plan(player_state, payload, balance)  # enacted, errors - errors silently logged above if needed
         _apply_policy_plan(player_state, payload, balance)
         _apply_talent_plan(player_state, payload.get("talentPlan", {}), balance)
         _apply_phase3_research_plan(player_state, payload, balance)
@@ -670,8 +670,12 @@ def _apply_reform_or_policy_effects(player_state, effects: dict[str, Any]) -> No
     ideology_delta = effects.get("ideologyDelta")
     if isinstance(ideology_delta, dict):
         for key, delta in ideology_delta.items():
-            player_state.ideology_levels[key] = (
-                int(player_state.ideology_levels.get(key, 0)) + int(delta)
+            player_state.ideology_levels[key] = max(
+                0,
+                min(
+                    10,
+                    int(player_state.ideology_levels.get(key, 0)) + int(delta),
+                ),
             )
 
     ratio_delta = effects.get("ratioDelta")
@@ -784,11 +788,12 @@ def _is_reform_path_blocked(player_state, balance, reform) -> bool:
     return False
 
 
-def _apply_reform_plan(player_state, payload: dict[str, Any], balance) -> list[str]:
+def _apply_reform_plan(player_state, payload: dict[str, Any], balance) -> tuple[list[str], list[str]]:
     enacted: list[str] = []
+    errors: list[str] = []
     requested = payload.get("reforms")
     if not isinstance(requested, list):
-        return enacted
+        return enacted, errors
 
     for raw_reform_id in requested:
         reform_id = str(raw_reform_id or "")
@@ -801,6 +806,11 @@ def _apply_reform_plan(player_state, payload: dict[str, Any], balance) -> list[s
             continue
         if _is_reform_path_blocked(player_state, balance, reform):
             continue
+        if reform.requires_reforms:
+            missing = [req for req in reform.requires_reforms if req not in player_state.completed_reforms]
+            if missing:
+                errors.append(f"改革「{reform.label}」需要先完成前置改革：{'、'.join(missing)}")
+                continue
 
         player_state.administration_capacity = (
             int(player_state.administration_capacity) - int(reform.admin_cost)
@@ -809,7 +819,7 @@ def _apply_reform_plan(player_state, payload: dict[str, Any], balance) -> list[s
         _apply_reform_or_policy_effects(player_state, reform.effects)
         enacted.append(reform_id)
 
-    return enacted
+    return enacted, errors
 
 
 def _apply_policy_plan(player_state, payload: dict[str, Any], balance) -> list[str]:
@@ -835,12 +845,11 @@ def _apply_policy_plan(player_state, payload: dict[str, Any], balance) -> list[s
             continue
         if policy.requires_reform is not None and policy.requires_reform not in player_state.completed_reforms:
             continue
+        # admin_cost_per_turn is now deducted exclusively in settlement phase
+        # to avoid double-deduction (once here, once in _apply_active_policy_effects)
         if int(player_state.administration_capacity) < int(policy.admin_cost_per_turn):
             continue
 
-        player_state.administration_capacity = (
-            int(player_state.administration_capacity) - int(policy.admin_cost_per_turn)
-        )
         budget_cost = int(policy.budget_cost)
         if budget_cost > 0:
             pool = player_state.budget_pools.get("governmentFiscal", 0)

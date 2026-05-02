@@ -58,7 +58,7 @@ class ReformEnactmentTests(unittest.TestCase):
         player = _get_player(snapshot, "player-1")
         player.administration_capacity = 2
 
-        enacted = _apply_reform_plan(player, {"reforms": ["constitution"]}, balance)
+        enacted, _ = _apply_reform_plan(player, {"reforms": ["constitution"]}, balance)
 
         self.assertEqual(enacted, ["constitution"])
         self.assertEqual(player.administration_capacity, 0)
@@ -73,7 +73,7 @@ class ReformEnactmentTests(unittest.TestCase):
         _apply_reform_plan(player, {"reforms": ["soviet_state"]}, balance)
         self.assertIn("soviet_state", player.completed_reforms)
 
-        enacted = _apply_reform_plan(player, {"reforms": ["constitution"]}, balance)
+        enacted, _ = _apply_reform_plan(player, {"reforms": ["constitution"]}, balance)
 
         self.assertEqual(enacted, [])
         self.assertNotIn("constitution", player.completed_reforms)
@@ -86,7 +86,7 @@ class ReformEnactmentTests(unittest.TestCase):
         _apply_reform_plan(player, {"reforms": ["fascist_state"]}, balance)
         self.assertIn("fascist_state", player.completed_reforms)
 
-        enacted = _apply_reform_plan(player, {"reforms": ["social_relief"]}, balance)
+        enacted, _ = _apply_reform_plan(player, {"reforms": ["social_relief"]}, balance)
 
         self.assertEqual(enacted, [])
         self.assertNotIn("social_relief", player.completed_reforms)
@@ -132,7 +132,8 @@ class PolicyActivationTests(unittest.TestCase):
         )
 
         self.assertEqual(activated, ["raise_consumption_tax"])
-        self.assertEqual(player.administration_capacity, 4)
+        # admin_cost_per_turn is now deducted exclusively at settlement, not activation
+        self.assertEqual(player.administration_capacity, 5)
         self.assertIn("raise_consumption_tax", player.active_policies)
 
     def test_policy_requires_reform(self) -> None:
@@ -185,8 +186,8 @@ class SettlementEffectsTests(unittest.TestCase):
         self.assertEqual(updated.income_allocation_ratio["domesticMarket"], 2.0)
         self.assertEqual(updated.income_allocation_ratio["governmentFiscal"], 5.0)
         self.assertEqual(updated.income_allocation_ratio["factory"], 3.0)
-        # Admin upkeep deducts another 1 in settlement (5→4 at activation, 4→3 in settlement).
-        self.assertEqual(updated.administration_capacity, 3)
+        # Admin upkeep deducts 1 only in settlement (no longer at activation).
+        self.assertEqual(updated.administration_capacity, 4)
 
     def test_permanent_reform_tech_points(self) -> None:
         balance = get_balance_config()

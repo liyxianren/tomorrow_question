@@ -20,6 +20,7 @@ export interface DomesticPanelProps {
   draft: PhaseDraftByPhase["decision"];
   remainingDomesticBudget: number;
   onActionToggle: (actionId: string, checked: boolean) => void;
+  onResearchToggle?: (techId: string, checked: boolean) => void;
 }
 
 export function DomesticPanel({

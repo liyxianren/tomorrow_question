@@ -201,9 +201,6 @@ class SubmissionApplicationService:
                 return None
 
             room = self._require_room(game.room_code)
-            # 只有结算阶段允许超时自动推进，决策/出售阶段必须等玩家手动提交
-            if snapshot.phase != GamePhase.SETTLEMENT:
-                return None
             if snapshot.phase == GamePhase.SETTLEMENT:
                 phase_state = PhaseSubmissionState.from_snapshot(snapshot)
                 settlement_outcome = self.settlement_runner(

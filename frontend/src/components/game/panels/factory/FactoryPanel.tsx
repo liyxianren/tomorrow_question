@@ -36,12 +36,37 @@ export function FactoryPanel({
   const phase1Economy = workspace.phase1Economy;
   const phase1Assignments = draft.phase1Production?.rawMaterialAssignments ?? {};
 
+  const hasConstructionOptions =
+    workspace.expansionOptions.length > 0 ||
+    workspace.upgradeOptions.length > 0 ||
+    workspace.newFactoryOptions.length > 0;
+
   return (
     <section className="factory-panel" data-testid="factory-panel">
       <div className="factory-panel__header">
         <h3 className="factory-panel__title">🏭 工业区</h3>
         <span className="factory-panel__budget">工厂预算 {remainingFactoryBudget}</span>
       </div>
+
+      {hasConstructionOptions && (
+        <div className="factory-panel__section">
+          <h4 className="factory-section-label">
+            <span className="factory-section-label__icon">🏗️</span>
+            建设与升级
+          </h4>
+          <div className="factory-actions">
+            {workspace.expansionOptions.map((option) =>
+              renderConstructionCard(option, "expansion"),
+            )}
+            {workspace.upgradeOptions.map((option) =>
+              renderConstructionCard(option, "upgrade"),
+            )}
+            {workspace.newFactoryOptions.map((option) =>
+              renderConstructionCard(option, "newFactory"),
+            )}
+          </div>
+        </div>
+      )}
 
       {phase1Economy && phase1Economy.productionModes && phase1Economy.productionModes.length > 0 ? (
         <Phase1ProductionPanel
@@ -58,6 +83,78 @@ export function FactoryPanel({
       ) : null}
     </section>
   );
+
+  function renderConstructionCard(
+    option: FactoryExpansionOption | FactoryUpgradeOption | FactoryNewFactoryOption,
+    kind: "expansion" | "upgrade" | "newFactory",
+  ) {
+    const quantity = getConstructionQuantity(draft, option.routeId, kind);
+    const isLocked = option.lockedReason !== null;
+    const atMax = quantity >= option.maxQuantity;
+    const noBudget = remainingFactoryBudget < option.unitBudgetCost;
+    const canAdd = !isLocked && !atMax && !noBudget;
+    const canRemove = quantity > 0;
+    const title = getConstructionTitle(option, kind);
+
+    return (
+      <div
+        key={`${kind}-${option.routeId}`}
+        className={
+          "factory-action-card" +
+          (quantity > 0 ? " factory-action-card--selected" : "") +
+          (isLocked ? " factory-action-card--disabled" : "")
+        }
+      >
+        <div className="factory-action-card__head">
+          <span className="factory-action-card__name">{title}</span>
+          <span className="factory-action-card__cost">
+            💰{option.unitBudgetCost} 预算
+          </span>
+        </div>
+        <p className="factory-action-card__desc">
+          {isLocked ? (
+            <span className="factory-action-card__locked">🔒 {option.lockedReason}</span>
+          ) : (
+            <>
+              产能 +{option.capacityDelta}
+              {option.maxQuantity < 999 ? ` · 最多 ${option.maxQuantity} 次` : ""}
+            </>
+          )}
+        </p>
+        <div className="factory-action-card__footer">
+          <span className="factory-action-card__status">
+            {quantity > 0 ? `已选 ${quantity} 次` : noBudget ? "预算不足" : "可选"}
+          </span>
+          <div className="factory-action-card__stepper">
+            <button
+              className="factory-action-card__btn"
+              disabled={!canRemove}
+              onClick={() =>
+                onConstructionQuantityChange(option.routeId, kind, quantity - 1)
+              }
+              aria-label="减少"
+            >
+              −
+            </button>
+            <span className="factory-action-card__count">{quantity}</span>
+            <button
+              className={
+                "factory-action-card__btn" +
+                (quantity > 0 ? " factory-action-card__btn--active" : "")
+              }
+              disabled={!canAdd}
+              onClick={() =>
+                onConstructionQuantityChange(option.routeId, kind, quantity + 1)
+              }
+              aria-label="增加"
+            >
+              +
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 }
 
 /* ── Helpers (kept for external use) ── */

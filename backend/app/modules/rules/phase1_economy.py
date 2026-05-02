@@ -45,6 +45,13 @@ DEFAULT_MINIMUM_DOMESTIC_PRICE: Decimal = Decimal("1")
 # 价格上限：避免消费池膨胀时均衡价失真。
 DEFAULT_MAXIMUM_DOMESTIC_PRICE: Decimal = Decimal("8")
 
+# 供需价格阻尼系数（与前端 priceCurves.ts 一致）。
+# 短缺时：price = equilibrium × (1 + shortage_rate × damping)
+# 过剩时：price = equilibrium × max(surplus_floor, 1 - surplus_rate × damping)
+SHORTAGE_PRICE_DAMPING: Decimal = Decimal("0.5")
+SURPLUS_PRICE_DAMPING: Decimal = Decimal("0.3")
+MIN_SURPLUS_PRICE_RATIO: Decimal = Decimal("0.5")
+
 # 销售收入分配比例 5:3:2。
 DEFAULT_INCOME_ALLOCATION_RATIO: Mapping[str, Decimal] = {
     "consumption": Decimal("0.5"),
@@ -119,10 +126,11 @@ def calculate_domestic_price(
         raw_price = equilibrium_d
     elif supply_d < demand_d:
         shortage_rate = (demand_d - supply_d) / demand_d
-        raw_price = equilibrium_d * (Decimal("1") + shortage_rate)
+        raw_price = equilibrium_d * (Decimal("1") + shortage_rate * SHORTAGE_PRICE_DAMPING)
     else:
         surplus_rate = (supply_d - demand_d) / demand_d
-        raw_price = equilibrium_d * (Decimal("1") - surplus_rate)
+        scale = max(MIN_SURPLUS_PRICE_RATIO, Decimal("1") - surplus_rate * SURPLUS_PRICE_DAMPING)
+        raw_price = equilibrium_d * scale
 
     if raw_price < minimum_d:
         return minimum_d

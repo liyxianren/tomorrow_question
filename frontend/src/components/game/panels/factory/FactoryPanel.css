@@ -24,75 +24,6 @@
   color: var(--game-text-value, #fceb9c);
 }
 
-/* ── Stats Bar ── */
-
-.factory-stats {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.factory-stat {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  font-size: 13px;
-}
-
-.factory-stat__icon {
-  font-size: 16px;
-}
-
-.factory-stat__value {
-  color: var(--game-text-value, #fceb9c);
-  font-weight: 600;
-}
-
-.factory-stat__label {
-  color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
-}
-
-/* ── Route Pills ── */
-
-.factory-route-pills {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.factory-route-pill {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  flex: 1;
-  min-width: 140px;
-}
-
-.factory-route-pill__name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--game-text-primary, #fff5e7);
-}
-
-.factory-route-pill__batches {
-  font-size: 14px;
-  color: var(--game-text-value, #fceb9c);
-  font-weight: 600;
-}
-
-.factory-route-pill__meta {
-  font-size: 11px;
-  color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
-}
-
 /* ── Section Label ── */
 
 .factory-section-label {
@@ -142,10 +73,6 @@
   gap: 8px;
 }
 
-.factory-action-card__icon {
-  font-size: 20px;
-}
-
 .factory-action-card__name {
   font-size: 14px;
   font-weight: 600;
@@ -164,20 +91,6 @@
   color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
   line-height: 1.4;
   margin: 0;
-}
-
-.factory-action-card__effects {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.factory-action-card__effect-tag {
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
 }
 
 .factory-action-card__footer {
@@ -225,19 +138,13 @@
   color: #ffd700;
 }
 
-.factory-action-card__btn--done {
-  background: rgba(104, 211, 145, 0.15);
-  border-color: rgba(104, 211, 145, 0.3);
-  color: #68d391;
-  cursor: default;
+.factory-action-card__locked {
+  color: #e57373;
+  font-size: 12px;
 }
 
-.factory-panel__empty {
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px dashed rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
-  font-size: 12px;
-  margin: 0;
+.factory-action-card__stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }

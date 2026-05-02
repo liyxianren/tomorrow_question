@@ -5,7 +5,7 @@ import {
   createInitialDecisionFlowState,
   type DecisionFlowState,
 } from "./decisionFlow";
-import { createInitialPhaseDraft, type PhaseDraftByPhase } from "../forms";
+import { createInitialPhaseDraft, buildDecisionSubmission, type PhaseDraftByPhase } from "../forms";
 import type { GameRuntimeState } from "../runtime/types";
 
 import { createGameFlowState, createPhaseActionStatusViewModel, type PhaseActionStatusViewModel } from "./gameFlow";
@@ -77,7 +77,11 @@ export function useGamePageController({
         ? flowState.currentSnapshot.phaseWorkspace?.players?.[flowState.currentPlayerId] ?? null
         : null,
     currentPlayerState: flowState.currentPlayerState,
-    draftPayload: currentPhase ? (drafts[currentPhase] as unknown as Record<string, unknown>) : {},
+    draftPayload: currentPhase === "decision"
+      ? buildDecisionSubmission(drafts.decision)
+      : currentPhase
+        ? (drafts[currentPhase] as unknown as Record<string, unknown>)
+        : {},
     drafts,
     decisionFlowState,
     flowState,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createInitialPhaseDraft } from "./forms";
+import { buildDecisionSubmission, createInitialPhaseDraft } from "./forms";
 
 describe("createInitialPhaseDraft", () => {
   it("creates the decision draft shape required by the 2.0 contract", () => {
@@ -59,5 +59,42 @@ describe("createInitialPhaseDraft", () => {
     expect(firstDraft).not.toBe(secondDraft);
     expect(firstDraft.factoryPlan).not.toBe(secondDraft.factoryPlan);
     expect(firstDraft.governmentPlan).not.toBe(secondDraft.governmentPlan);
+  });
+});
+
+describe("buildDecisionSubmission", () => {
+  it("maps governmentPlan.techResearch[0].techId to top-level researchTarget", () => {
+    const draft = createInitialPhaseDraft("decision");
+    draft.governmentPlan.techResearch = [{ techId: "spinning_jenny" }];
+
+    const result = buildDecisionSubmission(draft);
+
+    expect(result.researchTarget).toBe("spinning_jenny");
+    // All existing fields are preserved
+    expect(result.factoryPlan).toBe(draft.factoryPlan);
+    expect(result.governmentPlan).toBe(draft.governmentPlan);
+    expect(result.militaryPlan).toBe(draft.militaryPlan);
+  });
+
+  it("omits researchTarget when techResearch is empty", () => {
+    const draft = createInitialPhaseDraft("decision");
+    draft.governmentPlan.techResearch = [];
+
+    const result = buildDecisionSubmission(draft);
+
+    expect(result).not.toHaveProperty("researchTarget");
+    expect(result.factoryPlan).toBe(draft.factoryPlan);
+  });
+
+  it("uses the first techResearch entry when multiple are queued", () => {
+    const draft = createInitialPhaseDraft("decision");
+    draft.governmentPlan.techResearch = [
+      { techId: "steam_engine" },
+      { techId: "spinning_jenny" },
+    ];
+
+    const result = buildDecisionSubmission(draft);
+
+    expect(result.researchTarget).toBe("steam_engine");
   });
 });

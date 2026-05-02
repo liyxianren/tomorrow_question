@@ -315,8 +315,8 @@ class ExpandResearchE2ETest(unittest.TestCase):
         snapshot = self._load_snapshot()
         britain = self._player(snapshot, "player-1")
 
-        # expand_research has adminCostPerTurn=1
-        self.assertEqual(britain.administration_capacity, 4)
+        # admin_cost_per_turn is now deducted exclusively at settlement, not at activation
+        self.assertEqual(britain.administration_capacity, 5)
         self.assertIn("expand_research", britain.active_policies)
 
     def test_expand_research_multi_turn_accumulation(self):

@@ -30,11 +30,11 @@ export function DecisionStepTabs({
 function getDecisionTabLabel(step: DecisionStepId): string {
   switch (step) {
     case "factory":
-      return "工业区";
+      return "工厂决策";
     case "domestic":
-      return "市民广场";
+      return "国民消费";
     case "government":
-      return "议会厅";
+      return "政府政策";
     case "military":
       return "军事要塞";
     case "research":

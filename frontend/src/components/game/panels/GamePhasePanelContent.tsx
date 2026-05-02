@@ -75,6 +75,7 @@ type GamePhasePanelContentProps = {
   onDecisionFlowChange: Dispatch<SetStateAction<DecisionFlowState>>;
   onDraftsChange: Dispatch<SetStateAction<PhaseDraftState>>;
   onComplete?: () => void;
+  secondsRemaining?: number | null;
 };
 
 // All game phase panel styles are in CSS classes (gp-*) defined in styles.css
@@ -88,6 +89,7 @@ export function GamePhasePanelContent({
   onDecisionFlowChange,
   onDraftsChange,
   onComplete,
+  secondsRemaining,
 }: GamePhasePanelContentProps) {
   if (!currentPhase || !currentPlayerWorkspace) {
     return (
@@ -134,7 +136,7 @@ export function GamePhasePanelContent({
         <SettlementWorkbench
           playerState={currentPlayerState}
           workspace={currentPlayerWorkspace as SettlementPlayerPhaseWorkspace}
-          secondsRemaining={null}
+          secondsRemaining={secondsRemaining ?? null}
         />
       );
     default:

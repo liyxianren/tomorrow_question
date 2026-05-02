@@ -165,3 +165,11 @@ export function createInitialPhaseDraft(phase: GamePhase): PhaseDraft {
       return {};
   }
 }
+
+export function buildDecisionSubmission(draft: DecisionPhaseDraft): Record<string, unknown> {
+  const techId = draft.governmentPlan.techResearch[0]?.techId;
+  return {
+    ...draft,
+    ...(techId ? { researchTarget: techId } : {}),
+  };
+}

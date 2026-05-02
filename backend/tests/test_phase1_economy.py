@@ -147,27 +147,31 @@ class CalculateDomesticPriceTests(unittest.TestCase):
         self.assertEqual(price, Decimal("8"))
 
     def test_surplus_decreases_price(self):
-        # supply 90, demand 70 -> 过剩率 20/70, 价格 10 * (1 - 2/7) = 50/7 ≈ 7.142857143
+        # supply 90, demand 70 -> 过剩率 20/70, 阻尼后 scale = max(0.5, 1 - 20/70 * 0.3) = 32/35 ≈ 0.914286
+        # 价格 10 * 32/35 = 64/7 ≈ 9.142857，被 DEFAULT_MAXIMUM_DOMESTIC_PRICE (8) 限制为 8。
         price = calculate_domestic_price(
             equilibrium_price=Decimal("10"), supply=90, demand=70
         )
-        self.assertAlmostEqual(float(price), 7.142857143, places=6)
+        self.assertEqual(price, Decimal("8"))
 
     def test_extreme_surplus_clamped_to_minimum(self):
-        # 默认最低价格为 1。供给远大于需求时不可低于 1。
+        # 供给远大于需求时，阻尼后 scale 最低为 MIN_SURPLUS_PRICE_RATIO (0.5)。
+        # supply 140, demand 70 -> 过剩率=1, scale=max(0.5, 1-0.3)=0.7, 价格=10*0.7=7。
+        # 7 > DEFAULT_MINIMUM_DOMESTIC_PRICE (1)，未被最低价截断。
         price = calculate_domestic_price(
             equilibrium_price=Decimal("10"), supply=140, demand=70
         )
-        self.assertEqual(price, DEFAULT_MINIMUM_DOMESTIC_PRICE)
+        self.assertEqual(price, Decimal("7"))
 
     def test_minimum_price_can_be_overridden_to_zero(self):
+        # 最低价可被覆盖为 0，但阻尼后价格仍为 7（而非 0）。
         price = calculate_domestic_price(
             equilibrium_price=Decimal("10"),
             supply=140,
             demand=70,
             minimum_price=Decimal("0"),
         )
-        self.assertEqual(price, Decimal("0"))
+        self.assertEqual(price, Decimal("7"))
 
     def test_zero_demand_returns_minimum_price(self):
         # demand=0 时无需求，不应崩溃；价格回退到最低价格。
@@ -197,13 +201,14 @@ class ResolveDomesticMarketTests(unittest.TestCase):
 
     def test_doc_example_supply_90(self):
         # supply 90, demand 70, pool 700: equilibrium 10 capped to 8。
-        # 过剩降价 8*(1-2/7)=40/7≈5.714；revenue = 70*40/7 = 400。
+        # 过剩阻尼: scale=max(0.5, 1-2/7*0.3)=32/35, price=8*32/35=256/35≈7.314；
+        # revenue = 70 * 256/35 = 512。
         outcome = resolve_domestic_market(
             supply=90, demand=70, consumption_pool=700
         )
-        self.assertAlmostEqual(float(outcome.final_price), 5.714285714, places=6)
+        self.assertAlmostEqual(float(outcome.final_price), 7.314285714, places=6)
         self.assertEqual(outcome.sold_quantity, Decimal("70"))
-        self.assertAlmostEqual(float(outcome.revenue), 400.0, places=4)
+        self.assertAlmostEqual(float(outcome.revenue), 512.0, places=4)
         # 过剩商品 90-70=20 进入未成交。
         self.assertEqual(outcome.unsold_quantity, Decimal("20"))
 

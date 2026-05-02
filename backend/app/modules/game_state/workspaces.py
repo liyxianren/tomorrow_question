@@ -529,6 +529,7 @@ def _build_military_workspace(snapshot: GameSnapshot, player: PlayerState) -> di
                 "isEstablished": action.target_region in player.established_diplomacy,
             }
             for action in balance.military_actions.diplomacy_actions.values()
+            if check_route_accessible(player.country.value, action.target_region, snapshot, balance)
         ],
         "colonizationCapability": {
             "isUnlocked": bool(player.colonization_unlocked),
@@ -644,6 +645,7 @@ def _build_colonization_options(snapshot: GameSnapshot, player: PlayerState) -> 
             "canColonize": not already_colonized and is_unlocked and has_diplomacy and has_military,
             "independence": int(region.independence),
             "garrison": dict(region.garrison),
+            "resourceLimit": dict(blueprint.resource_limit),
             "lockedReason": (
                 "已被殖民" if already_colonized
                 else "需先永久解锁殖民扩张" if not is_unlocked

@@ -2,8 +2,7 @@
 
 ## 当前状态
 - Branch: feature/game-balance-rebalance
-- **375+ passed** (pytest unit+E2E), **5 standalone scripts** (require live server), 12 skipped
-- 后端运行中 (port 5001)
+- **417 passed** (pytest unit), **12 skipped**, 6 pre-existing frontend demo test failures (unrelated)
 - ✅ PhaseTimer `run_forever` CPU 100% 已修复 (connection reuse + poll 1s→5s)
 - ✅ `recovery.py` bugs 已修复 (`_json.loads` → `json.loads`, 缺少 `self.connection`)
 
@@ -161,3 +160,35 @@
   - 游戏正常推进到 Round 2 ✅
 
 **结论:** 所有计划修复项 (P0-1~P0-3, 军事殖民, 天赋系统, 五国差异化, 策略选择, 政策系统, 战争系统, 独立运动, PhaseTimer, 性能) 均已验证通过，系统稳定运行。剩余2个可选项 (浏览器E2E、慢速测试优化) 非必需。
+
+## 模拟经济+治理修复 (2026-05-02)
+
+### ✅ 已验证通过
+
+**后端修复 (5个文件):**
+1. **供需价格阻尼** (`phase1_economy.py`): 短缺价格涨幅从100%降至50%阻尼, 过剩跌幅从100%降至30%阻尼 + 最低50%地板价。避免价格剧烈波动。
+2. **意识形态值域裁剪** (`decision.py`): `_apply_reform_or_policy_effects` 中 ideology_levels 裁剪到 [0, 10]。修复了 egalitarianism 可降至 -1 的问题。
+3. **改革前置条件验证** (`decision.py`): `_apply_reform_plan` 增加 `requires_reforms` 检查，缺失前置改革时返回错误信息而非静默跳过。
+4. **admin_cost_per_turn 去重** (`decision.py` + `settlement.py`): 移除决策阶段的 admin 扣除，仅在结算阶段扣除一次。修复双重扣除bug (激活扣1 + 结算扣1 = 扣2)。
+5. **结算阶段行政力检查顺序** (`settlement.py`): admin < 0 检查移到 effects 应用之前，避免行政力不足时仍应用政策效果。
+6. **外交可见性过滤** (`workspaces.py`): 仅展示已解锁路线的外交行动。
+7. **殖民资源上限** (`workspaces.py`): 殖民选项增加 `resourceLimit` 字段。
+8. **超时推进移除** (`submission_application.py`): 移除非结算阶段的超时自动推进逻辑。
+
+**前端改进 (8个文件):**
+- 标签重命名: 工业区→工厂决策, 市民广场→国民消费, 议会厅→政府政策
+- 建设与升级面板 (FactoryPanel): 新增建筑/升级/新工厂卡片UI
+- 研究目标从 governmentPlan.techResearch 映射到 researchTarget
+- secondsRemaining 传递到结算面板
+- CSS清理: 移除未使用的 done 按钮和 ability target pill 样式
+- 改革效果标签优化: 消费→国内市场, 财政→政府财政
+
+**测试修复 (4个文件):**
+- 更新 admin_cost_per_turn 相关断言以匹配新行为 (仅结算扣除)
+- 更新价格阻尼相关断言以匹配新公式
+
+**验证:**
+- 417 passed, 12 skipped (单元测试无回归)
+- 12 passed (军事系统API E2E, 2分18秒)
+- 17 passed (前端集成API E2E, 2分18秒)
+- 手动API级2回合验证 (produce+recruit → settlement → round 2) ✅

@@ -368,13 +368,14 @@ def _apply_active_policy_effects(player_state, balance) -> None:
         player_state.administration_capacity = (
             int(player_state.administration_capacity) - int(policy.admin_cost_per_turn)
         )
+        if int(player_state.administration_capacity) < 0:
+            if policy_id in player_state.active_policies:
+                player_state.active_policies.remove(policy_id)
+            continue  # 行政力不足，移除政策且不应用效果
         _apply_reform_or_policy_effects(player_state, policy.effects)
         permanent = policy.effects.get("permanent") if isinstance(policy.effects, dict) else None
         if isinstance(permanent, dict):
             _apply_permanent_effects(player_state, permanent)
-        if int(player_state.administration_capacity) < 0:
-            if policy_id in player_state.active_policies:
-                player_state.active_policies.remove(policy_id)
 
 
 def _apply_permanent_reform_effects(player_state, balance) -> None:

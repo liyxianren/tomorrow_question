@@ -214,8 +214,8 @@ class ExpandAdministrationE2ETest(unittest.TestCase):
         britain = self._player(snapshot, "player-1")
 
         self.assertIn("expand_administration", britain.active_policies)
-        # Admin deducted by 1 (adminCostPerTurn)
-        self.assertEqual(britain.administration_capacity, 4)
+        # admin_cost_per_turn is now deducted exclusively at settlement, not at activation
+        self.assertEqual(britain.administration_capacity, 5)
 
     def test_settlement_net_admin_zero(self):
         """expand_administration: −1 cost + 1 delta = net 0 per settlement."""
@@ -232,12 +232,11 @@ class ExpandAdministrationE2ETest(unittest.TestCase):
         snapshot = self._full_round(payload, snapshot)
         britain = self._player(snapshot, "player-1")
 
-        # After settlement: admin should be same as initial (−1 activation, −1 settlement cost, +1 delta)
-        # Activation: admin goes from 5 → 4
-        # Settlement: admin goes from 4 → 3 (cost) → 4 (delta) = 4
-        # Round 2 starts with admin = 4
+        # After settlement: admin should be same as initial (−1 settlement cost, +1 delta, no activation deduction)
+        # Settlement: admin goes from 5 → 4 (cost) → 5 (delta) = 5
+        # Round 2 starts with admin = 5
         self.assertIn("expand_administration", britain.active_policies)
-        self.assertEqual(britain.administration_capacity, initial_admin - 1)
+        self.assertEqual(britain.administration_capacity, initial_admin)
 
     def test_policy_stays_active_across_turns(self):
         """Policy remains active when admin capacity is sufficient."""

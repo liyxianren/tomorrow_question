@@ -131,6 +131,7 @@ export function GamePage() {
           onComplete={mapState.closeModal}
           onDecisionFlowChange={controller.onDecisionFlowChange}
           onDraftsChange={controller.onDraftsChange}
+          secondsRemaining={runtimeState.secondsRemaining}
         />
       );
     }

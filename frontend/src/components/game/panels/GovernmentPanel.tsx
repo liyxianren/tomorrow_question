@@ -60,8 +60,8 @@ function formatReformEffects(
   if (ratioDelta) {
     const names: Record<string, string> = {
       factory: "工厂",
-      consumption: "消费",
-      fiscal: "财政",
+      consumption: "国内市场",
+      fiscal: "政府财政",
       domesticMarket: "国内",
       governmentFiscal: "政府",
     };
@@ -75,8 +75,8 @@ function formatReformEffects(
   if (ratioOverride) {
     const names: Record<string, string> = {
       factory: "工厂",
-      consumption: "消费",
-      fiscal: "财政",
+      consumption: "国内市场",
+      fiscal: "政府财政",
     };
     const parts = Object.entries(ratioOverride).map(
       ([k, v]) => `${names[k] ?? k}:${v}`,

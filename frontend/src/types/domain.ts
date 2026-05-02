@@ -304,6 +304,7 @@ export interface DecisionSubmission {
   militaryPlan: MilitaryPlan;
   talentPlan: TalentPlan;
   abilitySelection?: AbilitySelection;
+  researchTarget?: string;
 }
 
 export interface SaleOrder {

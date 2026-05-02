@@ -217,57 +217,10 @@
   color: #ffd700;
 }
 
-.government-action-card__btn--done {
-  background: rgba(104, 211, 145, 0.15);
-  border-color: rgba(104, 211, 145, 0.3);
-  color: #68d391;
-  cursor: default;
-}
-
 /* ── Stepper (for point purchase) ── */
 
 .government-action-card__stepper {
   display: flex;
   align-items: center;
   gap: 4px;
-}
-
-/* ── Ability Target Pills ── */
-
-.government-action-card__targets {
-  display: grid;
-  gap: 8px;
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.government-action-card__targets legend {
-  padding: 0 4px;
-  font-size: 11px;
-  color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
-}
-
-.government-action-card__target-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.government-action-card__target-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: var(--game-text-primary, #fff5e7);
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.government-action-card__target-pill input {
-  margin: 0;
 }
