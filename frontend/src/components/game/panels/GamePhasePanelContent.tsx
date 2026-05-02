@@ -34,6 +34,7 @@ import {
   setRouteDecisionOrderQuantity,
   toggleDiplomacyActionSelection,
   toggleDomesticMarketActionSelection,
+  toggleGovernmentStrategySelection,
   toggleLootingAction,
   togglePolicyQueue,
   toggleReformQueue,
@@ -233,6 +234,9 @@ export function DecisionWorkbench({
           }}
           onTogglePolicy={(policyId, active) => {
             handleDraftChange("government", togglePolicyQueue(draft, policyId, active));
+          }}
+          onToggleStrategy={(actionId, checked) => {
+            handleDraftChange("government", toggleGovernmentStrategySelection(draft, actionId, checked));
           }}
         />
       ) : activeStep === "military" ? (

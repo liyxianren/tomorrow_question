@@ -1,0 +1,36 @@
+You are executing a read-only analysis task. Do NOT write or modify any files.
+
+TASK ID:
+player-ux-audit-m5-government
+
+OBJECTIVE:
+Analyze Government & Reform module from PLAYER perspective: UI, 数值设计, 元素设计.
+
+This covers the government panel where players manage budget, reforms, strategies, tech research, and administration points.
+
+DO:
+1. Frontend:
+   - frontend/src/components/game/panels/GovernmentPanel.tsx
+   - frontend/src/components/game/panels/ResearchPanel.tsx + .css
+2. Backend:
+   - backend/app/modules/rules/decision.py (government actions, reforms)
+   - backend/app/modules/balance_config/models.py + loader.py (balance data)
+   - backend/app/modules/game_state/workspaces.py (government workspace section)
+
+DO NOT: modify files.
+
+FOCUS:
+- Reform system: can the player understand what each reform does before committing?
+- Strategy selection: is it clear what strategies do and why to pick one over another?
+- Tech research: is the tech tree intuitive? Are prerequisites clear?
+- Administration points: is the budget allocation clear? Does the player know admin's role?
+- Are there dead reforms/strategies/techs that are never useful?
+
+RETURN FORMAT:
+1. Summary
+2. UI issues [severity]  
+3. 数值设计 issues [severity]
+4. 元素设计 issues [severity]
+5. UX score [1-10]
+6. Top 3 fixes
+7. Files to change

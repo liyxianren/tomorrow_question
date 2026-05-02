@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from app.contracts.enums import CountryCode
+from app.modules.balance_config.loader import get_balance_config
 from app.modules.game_state.factory import create_game, create_initial_snapshot
 from app.modules.game_state.workspaces import build_decision_player_workspace, build_market_player_workspace
 
@@ -134,6 +135,44 @@ class GameStateWorkspaceTests(unittest.TestCase):
         self.assertEqual(capability["maxColonizationsPerRound"], 1)
         self.assertNotIn("budgetCost", americas)
         self.assertEqual(americas["lockedReason"], "需先永久解锁殖民扩张")
+
+    def test_tech_tree_marks_unlocked_techs_as_discovered(self) -> None:
+        snapshot = build_snapshot()
+        britain = next(p for p in snapshot.player_states if p.player_id == "player-1")
+        balance = get_balance_config()
+        first_chain = next(iter(balance.technology.chains.values()))
+        first_tech_id = first_chain.techs[0].tech_id
+        britain.unlocked_techs = [first_tech_id]
+
+        workspace = build_decision_player_workspace(snapshot, britain)
+        techs = [t for chain in workspace["techTree"]["chains"] for t in chain["techs"]]
+        unlocked_tech = next(t for t in techs if t["techId"] == first_tech_id)
+        other_tech = next(t for t in techs if t["techId"] != first_tech_id)
+
+        self.assertTrue(unlocked_tech["isUnlocked"])
+        self.assertTrue(unlocked_tech["isDiscovered"], "Unlocked techs should be discovered")
+        self.assertFalse(other_tech["isUnlocked"])
+        self.assertFalse(other_tech["isDiscovered"], "Locked techs should not be discovered")
+
+    def test_decision_workspace_exposes_government_strategies(self) -> None:
+        snapshot = build_snapshot()
+        britain = next(p for p in snapshot.player_states if p.player_id == "player-1")
+
+        workspace = build_decision_player_workspace(snapshot, britain)
+        gov = workspace["governmentActions"]
+
+        self.assertIn("strategies", gov)
+        self.assertIn("pointPurchaseCosts", gov)
+        self.assertGreater(len(gov["strategies"]), 0, "should expose at least one strategy")
+
+        trade_agreement = next((s for s in gov["strategies"] if s["actionId"] == "trade_agreement"), None)
+        self.assertIsNotNone(trade_agreement, "trade_agreement should be exposed")
+        self.assertEqual(trade_agreement["label"], "贸易协定")
+        self.assertEqual(trade_agreement["cost"], 6)
+        self.assertIn("description", trade_agreement)
+        self.assertIn("效果", trade_agreement["description"], "description should include effect summary")
+
+        self.assertEqual(gov["pointPurchaseCosts"], {"tech": 2, "military": 10})
 
     def test_decision_workspace_marks_region_colonizable_after_unlock_and_diplomacy(self) -> None:
         snapshot = build_snapshot()

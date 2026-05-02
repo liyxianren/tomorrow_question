@@ -173,6 +173,18 @@ def build_decision_player_workspace(snapshot: GameSnapshot, player: PlayerState)
         }
         for action in balance.decision_actions.domestic_market_actions.values()
     ]
+    government_strategies = [
+        {
+            "actionId": action.action_id,
+            "label": action.label,
+            "cost": action.budget_pool_cost,
+            "description": _build_action_description(action.description, action.effects),
+            "lockedReason": action_locked_reason(player, action.action_id),
+            "effects": deepcopy(action.effects),
+            "ratioDelta": deepcopy(action.ratio_delta),
+        }
+        for action in balance.decision_actions.government_actions.values()
+    ]
     return {
         "countryCode": player.country.value,
         "countryLabel": COUNTRY_LABELS.get(player.country.value, player.country.value),
@@ -189,7 +201,10 @@ def build_decision_player_workspace(snapshot: GameSnapshot, player: PlayerState)
         "nationalAbility": _build_national_ability(player),
         "techTree": _build_tech_tree(player),
         "domesticMarketActions": domestic_actions,
-        "governmentActions": {},
+        "governmentActions": {
+            "pointPurchaseCosts": {"tech": 2, "military": 10},
+            "strategies": government_strategies,
+        },
         "militaryWorkspace": _build_military_workspace(snapshot, player),
         "researchWorkspace": _build_research_workspace(snapshot, player),
         "governmentReforms": {
@@ -689,7 +704,7 @@ def _build_tech_tree(player: PlayerState) -> dict[str, Any]:
                     "isUnlocked": is_unlocked,
                     "isActive": is_active,
                     "canResearch": (not is_unlocked) and prereq_met,
-                    "isDiscovered": False,
+                    "isDiscovered": is_unlocked,
                     "breakthroughAttempts": attempts,
                 }
             )

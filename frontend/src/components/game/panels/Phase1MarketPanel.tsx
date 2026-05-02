@@ -8,6 +8,12 @@ import type {
   RegionLockReason,
 } from "../../../types";
 import { getRegionAccessLevelLabel } from "../../../features/game/decisionShared";
+import {
+  MIN_SURPLUS_PRICE_RATIO,
+  SHORTAGE_PRICE_DAMPING,
+  SURPLUS_PRICE_DAMPING,
+} from "../../../constants/priceCurves";
+import "./Phase1MarketPanel.css";
 
 const LOCK_REASON_LABELS: Record<RegionLockReason, string> = {
   diplomacy_not_established: "需要建立外交关系",
@@ -20,12 +26,6 @@ function lockReasonLabel(reason: RegionLockReason | null | undefined): string {
   }
   return "暂不可进入";
 }
-import {
-  MIN_SURPLUS_PRICE_RATIO,
-  SHORTAGE_PRICE_DAMPING,
-  SURPLUS_PRICE_DAMPING,
-} from "../../../constants/priceCurves";
-import "./Phase1MarketPanel.css";
 
 type Phase1MarketPanelProps = {
   phase1Economy: Phase1EconomyWorkspace;

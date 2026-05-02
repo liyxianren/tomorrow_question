@@ -1,0 +1,41 @@
+TASK ID:
+player-ux-audit-m5-impl
+
+OBJECTIVE:
+Fix 3 high-impact government/reform UX bugs: (1) `isDiscovered` always False prevents tech tree from showing unlocked techs; (2) Reform effects lack in-game descriptions; (3) Available strategies not shown in workspace.
+
+WHY / CONTEXT:
+Analysis found: every tech shows isDiscovered=False (line 692 of workspaces.py), meaning the frontend can't distinguish researched techs from unknowns. Reforms lack effect descriptions so players commit blind. Strategies (ideology: liberalism, conservatism, etc.) aren't exposed to the frontend at all.
+
+DO:
+1. **Fix isDiscovered**: in `backend/app/modules/game_state/workspaces.py` line 692, change `"isDiscovered": False` to `"isDiscovered": is_unlocked` (a tech is discovered once researched). If the frontend uses isDiscovered for something different, check the uses first.
+
+2. **Add reform effect descriptions**: 
+   - Read `backend/config/balance/reforms.json` to see current reform data
+   - Add effect descriptions to the workspace so the frontend can show what each reform does
+   - In `GovernmentPanel.tsx`, display these descriptions next to each reform option
+   - Minimum: show the effect as text (e.g., "工厂产出 +10%, 工人满意度 -5%")
+
+3. **Expose strategies in workspace**:
+   - In the government workspace section of workspaces.py, add `availableStrategies` field
+   - Include strategy name, description, and effect summary
+   - Update frontend types and GovernmentPanel to show strategies
+
+DO NOT:
+- Do not change balance values
+- Do not redesign the entire reform system
+- Do not create new reforms
+
+FILES:
+- backend/app/modules/game_state/workspaces.py
+- backend/config/balance/reforms.json (read only, for reference)
+- frontend/src/components/game/panels/GovernmentPanel.tsx
+- frontend/src/types/domain.ts (if new types needed)
+- backend/tests (add test for isDiscovered fix)
+
+TIER: T1 / 10 min
+
+VERIFY:
+- pytest backend/tests/ -k "workspace or government" -v
+- frontend build check
+RETURN: standard

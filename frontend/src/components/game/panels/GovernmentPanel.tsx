@@ -102,6 +102,7 @@ export interface GovernmentPanelProps {
   onAdminPurchase: (quantity: number) => void;
   onEnactReform: (reformId: string, queued: boolean) => void;
   onTogglePolicy: (policyId: string, active: boolean) => void;
+  onToggleStrategy: (actionId: string, checked: boolean) => void;
 }
 
 export function GovernmentPanel({
@@ -111,6 +112,7 @@ export function GovernmentPanel({
   onAdminPurchase,
   onEnactReform,
   onTogglePolicy,
+  onToggleStrategy,
 }: GovernmentPanelProps) {
   const reforms = workspace.governmentReforms;
   if (!reforms) {
@@ -130,6 +132,11 @@ export function GovernmentPanel({
   const queuedReformIds = new Set(draft.reforms ?? []);
   const queuedActivateIds = new Set(draft.activatePolicies ?? []);
   const queuedDeactivateIds = new Set(draft.deactivatePolicies ?? []);
+
+  const strategies = workspace.governmentActions?.strategies ?? [];
+  const queuedStrategyIds = new Set(
+    (draft.governmentPlan.strategySelections ?? []).map((selection) => selection.actionId),
+  );
 
   const queuedReformAdminCost = reforms.availableReforms
     .filter((reform) => queuedReformIds.has(reform.reformId))
@@ -433,6 +440,50 @@ export function GovernmentPanel({
                       onClick={() => onTogglePolicy(policy.policyId, !active)}
                     >
                       {active ? "撤回" : "激活"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* ── 本回合策略（一次性） ── */}
+      {strategies.length > 0 && (
+        <>
+          <h4 className="government-section-label">🎯 本回合策略</h4>
+          <div className="government-actions">
+            {strategies.map((strategy) => {
+              const queued = queuedStrategyIds.has(strategy.actionId);
+              const overBudget = !queued && remainingGovernmentBudget < strategy.cost;
+              const lockedReason = strategy.lockedReason ?? (overBudget ? "财政不足" : null);
+              const isDisabled = !queued && lockedReason !== null;
+              return (
+                <div
+                  key={strategy.actionId}
+                  className={`government-action-card ${queued ? "government-action-card--selected" : ""} ${!queued && lockedReason ? "government-action-card--disabled" : ""}`}
+                >
+                  <div className="government-action-card__head">
+                    <span className="government-action-card__icon">🎯</span>
+                    <span className="government-action-card__name">{strategy.label}</span>
+                    <span className="government-action-card__cost">{strategy.cost} 财政</span>
+                  </div>
+                  {strategy.description && (
+                    <p className="government-action-card__desc">{strategy.description}</p>
+                  )}
+                  <div className="government-action-card__footer">
+                    <span className="government-action-card__status">
+                      {queued ? "✓ 本轮执行" : lockedReason ?? "可选"}
+                    </span>
+                    <button
+                      aria-label={`选择策略：${strategy.label}`}
+                      className={`government-action-card__btn ${queued ? "government-action-card__btn--active" : ""}`}
+                      type="button"
+                      disabled={isDisabled}
+                      onClick={() => onToggleStrategy(strategy.actionId, !queued)}
+                    >
+                      {queued ? "撤回" : "选择"}
                     </button>
                   </div>
                 </div>
