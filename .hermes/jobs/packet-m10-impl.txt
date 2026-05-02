@@ -1,0 +1,35 @@
+TASK ID:
+player-ux-audit-m10-impl
+
+OBJECTIVE:
+Fix 2 realtime performance issues: (1) Phase timer busy-poll wastes CPU and causes 0-5s countdown freeze; (2) Frontend reconciliation polls every 1.5s instead of using socket events.
+
+WHY:
+Players see "剩余 0 秒" stuck for up to 5 seconds before phase advances. Idle games make constant HTTP reconciliation requests wasting server resources.
+
+DO:
+1. **Fix phase timer** (phase_timer.py):
+   - Replace `socketio.sleep(5)` polling loop with `socketio.start_background_task` 
+   - Schedule wakeup at `phase_deadline_at - now()` instead of every 5s
+   - Keep a fallback 30s poll as safety net for missed schedules after restarts
+   - Hook into `assign_phase_deadline` to reset timer when deadline changes
+
+2. **Fix reconciliation polling** (useGameRuntime.ts):
+   - Replace 1.5s `setInterval` reconciliation with event-driven approach
+   - Trigger reconciliation on Socket.IO `connect`/`reconnect` events only
+   - Socket already pushes `gamePhaseStarted`/`gamePhaseSettled`/`gameSnapshotSync` — use those
+   - Keep `forceReconcile` for explicit manual recovery
+
+DO NOT:
+- Do not change phase timing logic (deadline calculation)
+- Do not change socket event structure
+- Do not modify recovery persistence
+
+FILES:
+- backend/app/modules/realtime/phase_timer.py
+- frontend/src/features/game/runtime/useGameRuntime.ts
+- Related: phase deadline assignment code path
+
+TIER: T1 / 10 min
+VERIFY: pytest backend -k "timer or recovery" -v, tsc --noEmit
+RETURN: standard

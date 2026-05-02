@@ -1,0 +1,26 @@
+You are executing a read-only analysis task. Do NOT write any files.
+
+TASK ID: player-ux-audit-m10-realtime
+
+OBJECTIVE:
+Audit the realtime/persistence module from PLAYER perspective. This is the invisible infrastructure — does the game feel responsive, stable, and recoverable?
+
+DO:
+1. Phase timer:
+   - backend/app/modules/realtime/phase_timer.py
+2. Persistence/recovery:
+   - backend/app/modules/persistence/recovery.py + repositories.py + db.py
+3. Frontend socket:
+   - frontend/src/services/socket.ts + .test.ts
+   - frontend/src/types/socket.ts
+
+DO NOT: modify files.
+
+FOCUS:
+- Phase timer: does the countdown feel fair? Any race conditions?
+- Recovery: if player disconnects mid-game, can they rejoin smoothly?
+- Socket: does the frontend handle reconnection gracefully?
+- Performance: any visible lag or polling inefficiency?
+- Error states: what happens if the timer crashes?
+
+RETURN: summary, issues with severity, top 2 fixes
