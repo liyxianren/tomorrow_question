@@ -1,0 +1,55 @@
+You are executing a read-only analysis task. Do NOT write or modify any files.
+
+TASK ID:
+player-ux-audit-m3-factory
+
+OBJECTIVE:
+Analyze the Factory & Production module from a PLAYER perspective across 3 dimensions: UI, 数值设计, 元素设计.
+
+This is the economy engine — players allocate raw materials, build factories, upgrade, produce goods.
+
+DO:
+1. Frontend panels:
+   - frontend/src/components/game/panels/factory/FactoryPanel.tsx
+   - frontend/src/components/game/panels/factory/Phase1ProductionPanel.tsx
+   - frontend/src/components/game/panels/factory/Phase1ProductionPanel.css
+   - Any other files in frontend/src/components/game/panels/factory/
+2. Backend economy rules:
+   - backend/app/modules/rules/phase1_economy.py (production/expansion logic)
+3. Factory-related game state:
+   - backend/app/modules/game_state/factory_economy.py
+   - backend/app/modules/game_state/workspaces.py (factory workspace section)
+
+DO NOT:
+- Do not analyze market/domestic panel (module 4)
+- Do not modify any files
+
+ANALYSIS FRAMEWORK:
+
+### 1. UI
+- Production allocation: is the handicraft/industry split intuitive?
+- Factory list: can the player quickly see what each factory produces?
+- Upgrade/expansion: is the cost vs benefit clear before committing?
+- Is the game theme (Industrial Revolution) reflected in the factory UI?
+- Error handling: what happens when a player tries to produce something they can't?
+
+### 2. 数值设计
+- Raw material allocation: is the handicraft vs industry tradeoff meaningful?
+- Factory upgrade costs: do they scale reasonably?
+- Production output: can the player predict how much they'll produce?
+- Are there "always optimal" choices that make other options irrelevant?
+
+### 3. 元素设计
+- Is every factory action meaningful? Any dead production options?
+- Does the factory system feel integrated with the rest of the game?
+- Is there enough feedback (visual/sound) when production completes?
+- Can a new player understand the factory in their first game?
+
+RETURN FORMAT:
+1. Summary
+2. UI issues [severity]
+3. 数值设计 issues [severity]
+4. 元素设计 issues [severity]
+5. UX score [1-10]
+6. Top 3 fixes
+7. Files to change

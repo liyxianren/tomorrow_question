@@ -1,0 +1,41 @@
+TASK ID:
+player-ux-audit-m3-impl
+
+OBJECTIVE:
+Clean up dead factory sub-panels and fix the most impactful FactoryPanel code hygiene issues.
+
+WHY / CONTEXT:
+4 factory sub-panels are defined but never imported anywhere in the frontend: FactoryConstructionPanel, FactoryRouteLane, FactoryTechPanel, FactoryIntelPanel. They clutter the codebase and confuse developers. In FactoryPanel.tsx itself, there are remaining orphan imports and helpers from module 2's cleanup.
+
+DO:
+1. Delete these 4 dead component files (verify with grep first — confirmed dead):
+   - frontend/src/components/game/panels/factory/FactoryConstructionPanel.tsx
+   - frontend/src/components/game/panels/factory/FactoryRouteLane.tsx
+   - frontend/src/components/game/panels/factory/FactoryTechPanel.tsx
+   - frontend/src/components/game/panels/factory/FactoryIntelPanel.tsx
+2. In FactoryPanel.tsx, clean up the remaining dead imports and helpers that Claude flagged in module 2:
+   - Unused imports: getAllocatedProductionBatchesForRoute, calculateDecisionSpendSummary, formatPriceTrendText, TechTreeNode
+   - Unused local helpers: calculateNextCapacityDelta, formatSignedValue
+3. Verify: run grep to confirm no other file imports the deleted components
+4. Verify: frontend compiles without errors (cd frontend && npx tsc --noEmit 2>&1 | head -20 or npm run build --dry-run)
+
+DO NOT:
+- Do not change backend production ratios (needs game design decision)
+- Do not modify the FactoryPanel.tsx rendering logic
+- Do not touch tests
+
+FILES IN SCOPE:
+- frontend/src/components/game/panels/factory/FactoryConstructionPanel.tsx (DELETE)
+- frontend/src/components/game/panels/factory/FactoryRouteLane.tsx (DELETE)
+- frontend/src/components/game/panels/factory/FactoryTechPanel.tsx (DELETE)
+- frontend/src/components/game/panels/factory/FactoryIntelPanel.tsx (DELETE)
+- frontend/src/components/game/panels/factory/FactoryPanel.tsx (EDIT — clean imports/helpers)
+
+VERIFICATION TIER / BUDGET:
+- Tier: T1
+- Time cap: 5 min (this is a delete-only task)
+- Do run: grep verification + npm run build check
+- Do not run: tests, E2E, browser
+
+STOP: if npm build fails due to these deletions
+RETURN: summary, files changed, verification, next step

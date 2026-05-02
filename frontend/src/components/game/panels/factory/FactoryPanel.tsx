@@ -1,15 +1,12 @@
-import type { DecisionPlayerPhaseWorkspace, FactoryExpansionOption, FactoryNewFactoryOption, FactoryUpgradeOption, TechTreeNode } from "../../../../types";
+import type { DecisionPlayerPhaseWorkspace, FactoryExpansionOption, FactoryNewFactoryOption, FactoryUpgradeOption } from "../../../../types";
 import type { PhaseDraftByPhase } from "../../../../features/game/forms";
 import {
-  getAllocatedProductionBatchesForRoute,
   getProductionOrderQuantity,
   getRouteOrderQuantity,
 } from "../../../../features/game/decisionDrafts";
 import {
-  calculateDecisionSpendSummary,
   calculateTechResearchPreview,
   flattenTechTree,
-  formatPriceTrendText,
 } from "../../../../features/game/decisionShared";
 import { Phase1ProductionPanel } from "./Phase1ProductionPanel";
 import "./FactoryPanel.css";
@@ -116,25 +113,3 @@ export function getConstructionKindLabel(kind: "expansion" | "upgrade" | "newFac
   }
 }
 
-function calculateNextCapacityDelta(
-  workspace: DecisionPlayerPhaseWorkspace,
-  draft: PhaseDraftByPhase["decision"],
-): number {
-  const expansionDelta = draft.factoryPlan.expansionOrders.reduce((sum, item) => {
-    const option = workspace.expansionOptions.find((c) => c.routeId === item.routeId);
-    return sum + item.quantity * (option?.capacityDelta ?? 0);
-  }, 0);
-  const upgradeDelta = draft.factoryPlan.upgradeOrders.reduce((sum, item) => {
-    const option = workspace.upgradeOptions.find((c) => c.routeId === item.routeId);
-    return sum + item.quantity * (option?.capacityDelta ?? 0);
-  }, 0);
-  const newFactoryDelta = draft.factoryPlan.newFactoryOrders.reduce((sum, item) => {
-    const option = workspace.newFactoryOptions.find((c) => c.routeId === item.routeId);
-    return sum + item.quantity * (option?.capacityDelta ?? 0);
-  }, 0);
-  return expansionDelta + upgradeDelta + newFactoryDelta;
-}
-
-function formatSignedValue(value: number): string {
-  return value > 0 ? `+${value}` : `${value}`;
-}
