@@ -16,12 +16,18 @@ export type DecisionActionCardControl =
       min?: number;
       max: number;
       onChange: (next: number) => void;
+      incrementAriaLabel?: string;
+      decrementAriaLabel?: string;
+      incrementDisabled?: boolean;
+      decrementDisabled?: boolean;
     }
   | {
       kind: "toggle";
       checked: boolean;
       onChange: (next: boolean) => void;
       label: string;
+      ariaLabel?: string;
+      disabled?: boolean;
     }
   | {
       kind: "confirm-cancel";
@@ -30,18 +36,23 @@ export type DecisionActionCardControl =
       onConfirm: () => void;
       onCancel: () => void;
       confirmLabel?: string;
+      cancelLabel?: string;
+      confirmAriaLabel?: string;
+      cancelAriaLabel?: string;
+      hideCancelWhenNotSelected?: boolean;
     };
 
 export type DecisionActionCardProps = {
   icon?: string;
   title: string;
   costLabel?: string;
-  description?: string;
+  description?: ReactNode;
   effects?: DecisionActionCardEffect[];
-  warning?: string;
+  warning?: ReactNode;
   status: DecisionActionCardStatus;
   statusText?: string;
-  control: DecisionActionCardControl;
+  control?: DecisionActionCardControl;
+  doneBadge?: string;
   children?: ReactNode;
   testId?: string;
 };
@@ -56,6 +67,7 @@ export function DecisionActionCard({
   status,
   statusText,
   control,
+  doneBadge,
   children,
   testId,
 }: DecisionActionCardProps) {
@@ -85,7 +97,7 @@ export function DecisionActionCard({
               key={`${effect.label}-${index}`}
               className={`dac__effect-tag${effect.temporary ? " dac__effect-tag--temporary" : ""}`}
             >
-              {effect.label} {effect.value}
+              {effect.label} {effect.value}{effect.temporary ? " 本回合" : ""}
             </span>
           ))}
         </div>
@@ -94,7 +106,11 @@ export function DecisionActionCard({
       {children}
       <div className="dac__footer">
         {statusText ? <span className="dac__status">{statusText}</span> : <span />}
-        <DecisionActionCardControl control={control} />
+        {control ? (
+          <DecisionActionCardControl control={control} />
+        ) : doneBadge ? (
+          <span className="dac__btn dac__btn--done">{doneBadge}</span>
+        ) : null}
       </div>
     </article>
   );
@@ -103,14 +119,14 @@ export function DecisionActionCard({
 function DecisionActionCardControl({ control }: { control: DecisionActionCardControl }) {
   if (control.kind === "stepper") {
     const min = control.min ?? 0;
-    const decrementDisabled = control.value <= min;
-    const incrementDisabled = control.value >= control.max;
+    const decrementDisabled = control.decrementDisabled ?? control.value <= min;
+    const incrementDisabled = control.incrementDisabled ?? control.value >= control.max;
     return (
       <div className="dac__stepper">
         <button
           type="button"
           className="dac__btn"
-          aria-label="减少"
+          aria-label={control.decrementAriaLabel ?? "减少"}
           disabled={decrementDisabled}
           onClick={() => control.onChange(Math.max(min, control.value - 1))}
         >
@@ -120,7 +136,7 @@ function DecisionActionCardControl({ control }: { control: DecisionActionCardCon
         <button
           type="button"
           className="dac__btn"
-          aria-label="增加"
+          aria-label={control.incrementAriaLabel ?? "增加"}
           disabled={incrementDisabled}
           onClick={() => control.onChange(Math.min(control.max, control.value + 1))}
         >
@@ -132,35 +148,42 @@ function DecisionActionCardControl({ control }: { control: DecisionActionCardCon
 
   if (control.kind === "toggle") {
     return (
-      <label className="dac__toggle">
-        <input
-          type="checkbox"
-          checked={control.checked}
-          onChange={(event) => control.onChange(event.target.checked)}
-        />
+      <button
+        type="button"
+        className={`dac__btn${control.checked ? " dac__btn--primary" : ""}`}
+        aria-label={control.ariaLabel}
+        disabled={control.disabled}
+        onClick={() => control.onChange(!control.checked)}
+      >
         {control.label}
-      </label>
+      </button>
     );
   }
 
   const confirmLabel = control.confirmLabel ?? "确认";
+  const cancelLabel = control.cancelLabel ?? "撤回";
+  const showCancel = !(control.hideCancelWhenNotSelected && !control.isSelected);
   return (
     <div className="dac__confirm-row">
+      {showCancel ? (
+        <button
+          type="button"
+          className="dac__btn"
+          aria-label={control.cancelAriaLabel}
+          disabled={!control.isSelected}
+          onClick={control.onCancel}
+        >
+          {cancelLabel}
+        </button>
+      ) : null}
       <button
         type="button"
         className={control.isSelected ? "dac__btn dac__btn--primary" : "dac__btn"}
+        aria-label={control.confirmAriaLabel}
         disabled={control.isDisabled}
         onClick={control.onConfirm}
       >
         {confirmLabel}
-      </button>
-      <button
-        type="button"
-        className="dac__btn"
-        disabled={!control.isSelected}
-        onClick={control.onCancel}
-      >
-        撤回
       </button>
     </div>
   );
