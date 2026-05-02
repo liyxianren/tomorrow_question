@@ -47,39 +47,45 @@ export function FactoryPanel({
         <h3 className="factory-panel__title">🏭 工业区</h3>
       </div>
 
-      {hasConstructionOptions && (
-        <div className="factory-panel__section">
-          <h4 className="factory-section-label">
-            <span className="factory-section-label__icon">🏗️</span>
-            建设与升级
-          </h4>
-          <div className="factory-actions">
-            {workspace.expansionOptions.map((option) =>
-              renderConstructionCard(option, "expansion"),
-            )}
-            {workspace.upgradeOptions.map((option) =>
-              renderConstructionCard(option, "upgrade"),
-            )}
-            {workspace.newFactoryOptions.map((option) =>
-              renderConstructionCard(option, "newFactory"),
-            )}
-          </div>
+      <div className="factory-panel--v2">
+        <div className="factory-panel--v2__left">
+          {phase1Economy && phase1Economy.productionModes && phase1Economy.productionModes.length > 0 ? (
+            <Phase1ProductionPanel
+              modes={phase1Economy.productionModes}
+              rawMaterials={phase1Economy.rawMaterials}
+              investmentPool={phase1Economy.investmentPool}
+              domesticDemand={phase1Economy.domesticDemand}
+              equilibriumPrice={phase1Economy.equilibriumPrice}
+              domesticPricePreview={phase1Economy.domesticPricePreview}
+              goodsInventory={phase1Economy.goodsInventory}
+              assignments={phase1Assignments}
+              onAssignmentChange={onPhase1RawMaterialAssignmentChange}
+            />
+          ) : null}
         </div>
-      )}
 
-      {phase1Economy && phase1Economy.productionModes && phase1Economy.productionModes.length > 0 ? (
-        <Phase1ProductionPanel
-          modes={phase1Economy.productionModes}
-          rawMaterials={phase1Economy.rawMaterials}
-          investmentPool={phase1Economy.investmentPool}
-          domesticDemand={phase1Economy.domesticDemand}
-          equilibriumPrice={phase1Economy.equilibriumPrice}
-          domesticPricePreview={phase1Economy.domesticPricePreview}
-          goodsInventory={phase1Economy.goodsInventory}
-          assignments={phase1Assignments}
-          onAssignmentChange={onPhase1RawMaterialAssignmentChange}
-        />
-      ) : null}
+        <div className="factory-panel--v2__right">
+          {hasConstructionOptions && (
+            <div className="factory-panel__section">
+              <h4 className="factory-section-label">
+                <span className="factory-section-label__icon">🏗️</span>
+                建设与升级
+              </h4>
+              <div className="factory-actions">
+                {workspace.expansionOptions.map((option) =>
+                  renderConstructionCard(option, "expansion"),
+                )}
+                {workspace.upgradeOptions.map((option) =>
+                  renderConstructionCard(option, "upgrade"),
+                )}
+                {workspace.newFactoryOptions.map((option) =>
+                  renderConstructionCard(option, "newFactory"),
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </section>
   );
 

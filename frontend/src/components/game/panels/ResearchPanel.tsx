@@ -1,6 +1,5 @@
 import { getTechnologyLabel as fallbackTechLabel } from "../../../features/game/panelGlossary";
 import type { TechTreeData, TechTreeChainTech } from "../../../types";
-import { DecisionStatStrip } from "./shared/DecisionStatStrip";
 import "./ResearchPanel.css";
 
 interface ResearchPanelProps {
@@ -15,45 +14,104 @@ export function ResearchPanel({
   onToggleTech,
 }: ResearchPanelProps) {
   const { chains, researchFacilities, facilityCost, progressPerFacility, activeResearch } = techTree;
-  const activeTechLabel = activeResearch
-    ? chains.flatMap((c) => c.techs).find((t) => t.techId === activeResearch)?.label
+  const activeTech = activeResearch
+    ? chains.flatMap((c) => c.techs).find((t) => t.techId === activeResearch)
     : undefined;
+  const activeTechLabel = activeTech?.label ?? (activeResearch ? fallbackTechLabel(activeResearch) : null);
+  const activeProgressPercent = activeTech && activeTech.effectiveThreshold > 0
+    ? Math.min(100, Math.round((activeTech.progress / activeTech.effectiveThreshold) * 100))
+    : 0;
+  const perTurnProgress = researchFacilities * progressPerFacility;
+  const activeEtaTurns = activeTech && perTurnProgress > 0
+    ? Math.max(0, Math.ceil((activeTech.effectiveThreshold - activeTech.progress) / perTurnProgress))
+    : null;
+  const totalMaintenance = researchFacilities * facilityCost;
 
   return (
     <div className="research-panel">
-      <DecisionStatStrip
-        items={[
-          {
-            icon: "🔬",
-            value: `${researchFacilities} 所 · 每所 ${progressPerFacility} 进度/回合 · 维护 ${facilityCost} 财政/所`,
-            label: "研究设施",
-          },
-          {
-            icon: "⚡",
-            value: activeResearch
-              ? (activeTechLabel ?? fallbackTechLabel(activeResearch))
-              : "点击下方科技选择研究目标，提交决策后开始研究",
-            label: "当前研究",
-          },
-        ]}
-      />
+      <div className="research-panel--v2">
+        <div className="research-panel--v2__left">
+          <div className="research-status-card">
+            <h4 className="research-status-card__heading">⚡ 当前研究</h4>
+            {activeResearch ? (
+              <>
+                <div className="research-status-card__title">{activeTechLabel}</div>
+                {activeTech ? (
+                  <>
+                    <div className="research-status-card__progress">
+                      <div className="research-status-card__bar">
+                        <div
+                          className="research-status-card__bar-fill"
+                          style={{ width: `${activeProgressPercent}%` }}
+                        />
+                      </div>
+                      <span className="research-status-card__progress-text">
+                        {activeTech.progress}/{activeTech.effectiveThreshold}
+                      </span>
+                    </div>
+                    {activeEtaTurns !== null ? (
+                      <div className="research-status-card__meta">
+                        预计 {activeEtaTurns} 回合后完成
+                      </div>
+                    ) : null}
+                  </>
+                ) : null}
+              </>
+            ) : (
+              <div className="research-status-card__hint">
+                点击右侧科技选择研究目标，提交决策后开始研究
+              </div>
+            )}
+          </div>
 
-      <div className="research-panel__chains">
-        {chains.map((chain) => (
-          <div key={chain.chainId} className="research-panel__chain">
-            <div className="research-panel__chain-header">{chain.label}</div>
-            <div className="research-panel__techs">
-              {chain.techs.map((tech) => (
-                <TechRow
-                  key={tech.techId}
-                  tech={tech}
-                  isSelected={selectedTechIds.has(tech.techId)}
-                  onToggle={(checked) => onToggleTech(tech.techId, checked)}
-                />
-              ))}
+          <div className="research-status-card">
+            <h4 className="research-status-card__heading">🔬 研究设施</h4>
+            <div className="research-status-card__metrics">
+              <div className="research-status-card__metric">
+                <span className="research-status-card__metric-label">设施数</span>
+                <span className="research-status-card__metric-value">{researchFacilities} 所</span>
+              </div>
+              <div className="research-status-card__metric">
+                <span className="research-status-card__metric-label">单所产出</span>
+                <span className="research-status-card__metric-value">
+                  {progressPerFacility} 进度/回合
+                </span>
+              </div>
+              <div className="research-status-card__metric">
+                <span className="research-status-card__metric-label">本轮总进度</span>
+                <span className="research-status-card__metric-value">
+                  {perTurnProgress}
+                </span>
+              </div>
+              <div className="research-status-card__metric">
+                <span className="research-status-card__metric-label">维护成本</span>
+                <span className="research-status-card__metric-value">
+                  {totalMaintenance} 财政（{facilityCost}/所）
+                </span>
+              </div>
             </div>
           </div>
-        ))}
+        </div>
+
+        <div className="research-panel--v2__right">
+          <div className="research-panel__chains">
+            {chains.map((chain) => (
+              <div key={chain.chainId} className="research-panel__chain">
+                <div className="research-panel__chain-header">{chain.label}</div>
+                <div className="research-panel__techs">
+                  {chain.techs.map((tech) => (
+                    <TechRow
+                      key={tech.techId}
+                      tech={tech}
+                      isSelected={selectedTechIds.has(tech.techId)}
+                      onToggle={(checked) => onToggleTech(tech.techId, checked)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

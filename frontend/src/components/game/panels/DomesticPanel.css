@@ -6,6 +6,35 @@
   gap: var(--game-gap-section, 22px);
 }
 
+/* ── Phase1 Binary Split Layout ── */
+
+.domestic-panel--v2 {
+  display: grid;
+  grid-template-columns: 38fr 62fr;
+  gap: 22px;
+  align-items: start;
+}
+
+.domestic-panel--v2__left,
+.domestic-panel--v2__right {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.domestic-panel--v2__metrics {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .domestic-panel--v2 {
+    grid-template-columns: 1fr;
+  }
+}
+
 .domestic-panel__header {
   display: flex;
   align-items: baseline;

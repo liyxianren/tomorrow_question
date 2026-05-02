@@ -6,6 +6,29 @@
   gap: var(--game-gap-section, 22px);
 }
 
+/* ── Phase1 Binary Split Layout ── */
+
+.factory-panel--v2 {
+  display: grid;
+  grid-template-columns: 38fr 62fr;
+  gap: 22px;
+  align-items: start;
+}
+
+.factory-panel--v2__left,
+.factory-panel--v2__right {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .factory-panel--v2 {
+    grid-template-columns: 1fr;
+  }
+}
+
 .factory-panel__header {
   display: flex;
   align-items: baseline;

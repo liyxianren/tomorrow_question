@@ -6,6 +6,116 @@
   gap: 16px;
 }
 
+/* ── Phase1 Binary Split Layout ── */
+
+.research-panel--v2 {
+  display: grid;
+  grid-template-columns: 35fr 65fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.research-panel--v2__left,
+.research-panel--v2__right {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .research-panel--v2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Status Card (Active Research / Facilities) ── */
+
+.research-status-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.research-status-card__heading {
+  font-family: var(--font-serif, Georgia, serif);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--game-text-primary, #fff5e7);
+  margin: 0;
+}
+
+.research-status-card__title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--game-text-value, #fceb9c);
+}
+
+.research-status-card__progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.research-status-card__bar {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.research-status-card__bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(212, 175, 55, 0.6), rgba(212, 175, 55, 0.95));
+  transition: width 0.3s ease;
+}
+
+.research-status-card__progress-text {
+  font-size: 12px;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
+  white-space: nowrap;
+}
+
+.research-status-card__meta {
+  font-size: 12px;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
+}
+
+.research-status-card__hint {
+  font-size: 13px;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.5));
+  line-height: 1.5;
+}
+
+.research-status-card__metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 14px;
+}
+
+.research-status-card__metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.research-status-card__metric-label {
+  font-size: 11px;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.55));
+}
+
+.research-status-card__metric-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--game-text-primary, #fff5e7);
+}
+
 .research-panel__header {
   display: flex;
   align-items: baseline;
