@@ -98,6 +98,40 @@
   opacity: 0.45;
 }
 
+.government-action-card--danger {
+  border-color: rgba(239, 102, 102, 0.55);
+  box-shadow: 0 0 12px -4px rgba(239, 102, 102, 0.35);
+}
+
+.government-action-card__warning {
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(239, 102, 102, 0.12);
+  color: #ff8a8a;
+  border: 1px solid rgba(239, 102, 102, 0.35);
+}
+
+.government-action-card__warning--soft {
+  background: rgba(255, 196, 87, 0.12);
+  color: #ffc457;
+  border-color: rgba(255, 196, 87, 0.35);
+}
+
+.government-stat--critical {
+  border-color: rgba(239, 102, 102, 0.6);
+  background: rgba(239, 102, 102, 0.08);
+}
+
+.government-section-hint {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: normal;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
+}
+
 .government-action-card__head {
   display: flex;
   align-items: center;

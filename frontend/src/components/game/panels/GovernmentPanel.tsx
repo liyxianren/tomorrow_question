@@ -28,6 +28,20 @@ const IDEOLOGY_LABELS: Record<IdeologyKey, string> = {
   nationalism: "民族主义",
 };
 
+function projectIdeologyAfterReform(
+  current: Record<string, number>,
+  effects: Record<string, unknown>,
+): Record<string, number> {
+  const projected: Record<string, number> = { ...current };
+  const delta = effects.ideologyDelta as Record<string, number> | undefined;
+  if (delta) {
+    for (const [key, val] of Object.entries(delta)) {
+      projected[key] = (projected[key] ?? 0) + val;
+    }
+  }
+  return projected;
+}
+
 function formatReformEffects(
   effects: Record<string, unknown>,
   unlocksPolicies: string[],
@@ -258,7 +272,15 @@ export function GovernmentPanel({
       </div>
 
       {/* ── 思潮信号 ── */}
-      <h4 className="government-section-label">🧭 思潮信号</h4>
+      <h4 className="government-section-label">
+        🧭 思潮信号
+        <span
+          className="government-section-hint"
+          title={`任一意识形态达到 ${reforms.revolutionThreshold} 将触发革命`}
+        >
+          （达到 {reforms.revolutionThreshold} 触发革命）
+        </span>
+      </h4>
       <div className="government-stats">
         {IDEOLOGY_KEYS.map((key) => {
           const meta = IDEOLOGY_META[key];
@@ -267,13 +289,12 @@ export function GovernmentPanel({
           return (
             <div
               key={key}
-              className="government-stat"
+              className={`government-stat ${isCritical ? "government-stat--critical" : ""}`}
               data-testid={`ideology-${key}`}
-              style={isCritical ? { borderColor: "rgba(239, 102, 102, 0.6)" } : undefined}
             >
               <span className="government-stat__icon">{meta.icon}</span>
               <span className="government-stat__value">
-                {level} / {reforms.ideologyMax}
+                {level} / {reforms.revolutionThreshold}
               </span>
               <span className="government-stat__label">{meta.label}</span>
             </div>
@@ -302,22 +323,61 @@ export function GovernmentPanel({
                       ? "行政力不足"
                       : null;
                 const isDisabled = reform.isCompleted || reform.isBlocked;
+                const reformEffects = (reform.effects ?? {}) as Record<string, unknown>;
+                const projectedIdeology = projectIdeologyAfterReform(
+                  reforms.ideologyLevels,
+                  reformEffects,
+                );
+                const triggeringIdeologies = reform.isCompleted
+                  ? []
+                  : IDEOLOGY_KEYS.filter(
+                      (key) => (projectedIdeology[key] ?? 0) >= reforms.revolutionThreshold,
+                    );
+                const wouldTriggerRevolution = triggeringIdeologies.length > 0;
+                const productionCapacityDelta = reformEffects.productionCapacityDelta as
+                  | Record<string, number>
+                  | undefined;
+                const globalProductionPenalty =
+                  productionCapacityDelta?.all !== undefined && productionCapacityDelta.all < 0
+                    ? productionCapacityDelta.all
+                    : null;
                 return (
                   <div
                     key={reform.reformId}
-                    className={`government-action-card ${queued ? "government-action-card--selected" : ""} ${!queued && lockedReason ? "government-action-card--disabled" : ""}`}
+                    className={`government-action-card ${queued ? "government-action-card--selected" : ""} ${!queued && lockedReason ? "government-action-card--disabled" : ""} ${wouldTriggerRevolution ? "government-action-card--danger" : ""}`}
                   >
                     <div className="government-action-card__head">
-                      <span className="government-action-card__icon">{REFORM_PATH_ICONS[path]}</span>
+                      <span className="government-action-card__icon">
+                        {wouldTriggerRevolution ? "⚠️" : REFORM_PATH_ICONS[path]}
+                      </span>
                       <span className="government-action-card__name">{reform.label}</span>
                       <span className="government-action-card__cost">{reform.adminCost} 行政</span>
                     </div>
                     <p className="government-action-card__desc">
                       {REFORM_PATH_LABELS[path]} · 实施后永久改变国家结构。
                     </p>
+                    {wouldTriggerRevolution && (
+                      <p
+                        className="government-action-card__warning"
+                        data-testid={`reform-revolution-warning-${reform.reformId}`}
+                      >
+                        ⚠️ 实施将触发革命：
+                        {triggeringIdeologies
+                          .map(
+                            (key) =>
+                              `${IDEOLOGY_LABELS[key]} ${reforms.ideologyLevels[key] ?? 0}→${projectedIdeology[key]} ≥ ${reforms.revolutionThreshold}`,
+                          )
+                          .join("，")}
+                      </p>
+                    )}
+                    {globalProductionPenalty !== null && (
+                      <p className="government-action-card__warning government-action-card__warning--soft">
+                        ⚠️ 全局产能 {globalProductionPenalty}
+                      </p>
+                    )}
                     {(() => {
                       const effectTags = formatReformEffects(
-                        reform.effects ?? {},
+                        reformEffects,
                         reform.unlocksPolicies ?? [],
                       );
                       if (effectTags.length === 0) return null;

@@ -1,0 +1,36 @@
+TASK ID:
+player-ux-audit-m9-impl
+
+OBJECTIVE:
+Surface ideology/revolution risk in the reform UI before the player commits. Don't change balance numbers — just warn.
+
+WHY:
+Reforms push ideology by +5/+8 but revolutionThreshold is 10. A player starting at ideology 0-2 can trigger revolution with ONE reform pick, with zero warning. This is the worst kind of trap choice.
+
+DO:
+1. In GovernmentPanel.tsx reform section:
+   - Show ideology delta next to each reform: "平等主义 +5" / "自由主义 +8"
+   - Show current ideology level and revolution threshold: "当前意识形态：平等主义 2/10"
+   - Highlight reforms that would reach or exceed threshold in RED with ⚠️ icon
+   - Add tooltip/hint: "意识形态达到10将触发革命"
+
+2. In the workspace builder (workspaces.py) or reform config loader:
+   - Ensure ideology deltas are exposed in the reform data the frontend receives
+   - If `ideologyEffects` or equivalent field exists, make sure workspace includes it
+
+3. Edge case: `eight_hour_day` reform with `productionCapacityDelta.all=-2`
+   - Add a note in the description: "⚠️ 全局产能 -2"
+
+DO NOT:
+- Do not change balance values
+- Do not change revolution mechanics
+- Do not redesign the reform system
+
+FILES:
+- frontend/src/components/game/panels/GovernmentPanel.tsx
+- backend/app/modules/game_state/workspaces.py (if ideology data missing)
+- backend/config/balance/reforms.json (read only)
+
+TIER: T1 / 10 min
+VERIFY: tsc --noEmit, vitest GovernmentPanel
+RETURN: standard

@@ -1,0 +1,31 @@
+You are executing a read-only analysis task. Do NOT write any files.
+
+TASK ID: player-ux-audit-m9-balance
+
+OBJECTIVE:
+Audit the balance/numbers configuration from PLAYER perspective. Is the game fair, fun, and strategic? Are there trap choices or dominant strategies?
+
+DO:
+1. Balance configs:
+   - backend/config/balance/ (all JSON files)
+   - backend/app/modules/balance_config/models.py + loader.py
+2. Key numbers:
+   - Production ratios (PRODUCTION_MODE_OUTPUT_RATIOS)
+   - Military costs (recruit/train/build)
+   - Research thresholds
+   - Reform costs and effects
+   - Market price curves
+3. Previously flagged issues:
+   - Module 3: low-tier production modes strictly dominated by high-tier
+   - Module 6: bot doesn't use military (gameplay imbalance)
+
+DO NOT: modify files.
+
+FOCUS:
+- Cost/benefit ratios: are there actions that are NEVER worth taking?
+- Dominant strategies: is there one optimal build order?
+- Scaling: do late-game numbers make sense?
+- New player trap: are there choices that look good but hurt you?
+- Bot balance: do AI opponents feel fair?
+
+RETURN: summary, issues by severity, top 3 fixes, files
