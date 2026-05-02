@@ -123,10 +123,23 @@
   - 410 passed, 12 skipped (快速单元测试, 无regression)
   - 6个慢速API E2E测试通过但因PhaseTimer等待耗时较长
 
+- [x] **全系统API级综合验证** ✅ (France/Britain 完整游戏, 多场景覆盖)
+  - 殖民完整链路: unlock→recruit(mp积累)→colonize→loot→independence→uprising ✅
+  - 军事点数机制: recruit消耗mp→需积累足够mp(≥3)才能colonize ✅
+  - 掠夺资源转移: coal 2→1→0, silk 3→2, raw_materials持续增长 ✅
+  - 独立性双重增长: looting(+2) + supply/demand imbalance(缺供时+2) ✅
+  - 起义阈值验证: indep 2→4→6→8→10触发revolt, colony lost ✅
+  - 预算约束: expand_research(12)在gov=8时被拒(400) ✅
+  - 外交去重: 重复establish同region返回400 ✅
+  - 殖民静默跳过: 未解锁/unlocked但mp不足时200但无效果(设计行为) ✅
+  - goodsStock为0验证: 生产出的goods被domestic market消费, 库存归零(正常) ✅
+  - 373 passed, 12 skipped (快速单元测试, 无regression)
+
 ## 下一步
 1. ~~前端集成验证~~ ✅ 完成 (17个测试全部通过, payload shape完全对齐)
 2. ~~性能测试~~ ✅ 完成 (并发创建+提交, PhaseTimer CPU修复)
 3. ~~PhaseTimer CPU修复~~ ✅ 完成 (connection reuse + poll 5s)
 4. ~~多回合完整性测试~~ ✅ 完成 (5回合手动+410单元测试无regression)
-5. 可选: 前端集成到完整游戏流程中进行浏览器级E2E测试
-6. 可选: 慢速API E2E测试优化 (独立性/战争系统测试因PhaseTimer各耗时4min+)
+5. ~~全系统综合验证~~ ✅ 完成 (殖民/掠夺/独立/预算/外交/生产 全链路API级验证)
+6. 可选: 前端集成到完整游戏流程中进行浏览器级E2E测试
+7. 可选: 慢速API E2E测试优化 (独立性/战争系统测试因PhaseTimer各耗时4min+)
