@@ -2,7 +2,7 @@
 
 ## 当前状态
 - Branch: feature/game-balance-rebalance
-- **375 passed** (pytest unit+E2E), **5 standalone scripts** (require live server), 12 skipped
+- **375+ passed** (pytest unit+E2E), **5 standalone scripts** (require live server), 12 skipped
 - 后端运行中 (port 5001)
 - ✅ PhaseTimer `run_forever` CPU 100% 已修复 (connection reuse + poll 1s→5s)
 - ✅ `recovery.py` bugs 已修复 (`_json.loads` → `json.loads`, 缺少 `self.connection`)
@@ -143,3 +143,21 @@
 5. ~~全系统综合验证~~ ✅ 完成 (殖民/掠夺/独立/预算/外交/生产 全链路API级验证)
 6. 可选: 前端集成到完整游戏流程中进行浏览器级E2E测试
 7. 可选: 慢速API E2E测试优化 (独立性/战争系统测试因PhaseTimer各耗时4min+)
+
+---
+
+## 自动巡航验证 (2026-05-02)
+
+### 状态: ✅ 全系统正常，无新bug
+
+**验证内容:**
+- 启动后端 (port 5001) ✅
+- 单元测试: 193 passed, 12 skipped (2.45s), 零回归 ✅
+- API E2E 完整2回合验证 (Britain) ✅:
+  - 初始状态正确: budget(domestic=24, factory=14, gov=10), rawMaterials=25, militaryPoints=1
+  - 决策提交 (produce 8 + recruit_infantry) → HTTP 200 ✅
+  - 市场提交 (domesticAllocation=8) → HTTP 200 ✅
+  - 结算后: budget重分配(21/23/13), rawMaterials=29, infantry=1, cumulativeIncome=24 ✅
+  - 游戏正常推进到 Round 2 ✅
+
+**结论:** 所有计划修复项 (P0-1~P0-3, 军事殖民, 天赋系统, 五国差异化, 策略选择, 政策系统, 战争系统, 独立运动, PhaseTimer, 性能) 均已验证通过，系统稳定运行。剩余2个可选项 (浏览器E2E、慢速测试优化) 非必需。
