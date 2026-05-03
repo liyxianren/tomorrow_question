@@ -1,0 +1,91 @@
+TASK ID:
+e6-military-map-overlay
+
+OBJECTIVE:
+Create MilitaryWorldMap + MilitaryNodeDrawer components. Migrate geographic content (ocean nodes, regions, colonies) from MilitaryPanel card-grid to map overlay. Keep military action cards at bottom.
+
+## CONTEXT
+MilitaryPanel currently renders ocean nodes, overseas regions, and colonization targets as card grids (military-ocean-nodes, military-regions, military-actions). The plan requires these geographic elements to be rendered as a map overlay — clicking pins opens a drawer/popover with deployment/colonization actions.
+
+## WHAT TO CREATE
+
+### 1. World Map Placeholder Asset
+Create `/public/images/world-map-placeholder.svg` — a simple SVG map with 5 colored region blocks + ocean labels. Keep it under 5KB. This is a placeholder until a real map is available. Regions: Europe (purple), Americas (blue), Africa (green), Middle East (orange), Asia-Pacific (red). Ocean nodes: North Atlantic, South Atlantic, Indian Ocean, Pacific, Mediterranean — label them on the SVG.
+
+### 2. MilitaryWorldMap (panels/military/MilitaryWorldMap.tsx + .css)
+Props: `{ oceanNodes, regionAccessStatus, colonizationOptions, navalDeployment, myCountry, onNavalDeploymentChange, onConquestChange, onColonize, onCancelColonize, onLootingToggle }`
+
+Renders:
+- Background: the SVG world map (or CSS background-image)
+- Ocean node pins (absolute positioned on map) — each shows: label, my fleet count, blockade status, +/- buttons for deployment
+- Region pins (absolute positioned) — each shows: label, access status (✅/🔒), accepted goods
+- Clicking a pin → opens MilitaryNodeDrawer
+
+CSS: `.mwm { position:relative; aspect-ratio:16/9; background: var(--color-bg-dark); border-radius:8px; overflow:hidden; }` with pins positioned using `position:absolute` with percentage coordinates mapping to the SVG's geographic layout.
+
+Ocean node positions (approximate, % from top-left):
+- north_atlantic: left 25%, top 25%
+- south_atlantic: left 28%, top 55%
+- mediterranean: left 48%, top 30%
+- indian_ocean: left 60%, top 55%
+- pacific: left 75%, top 45%
+
+Region positions:
+- europe: left 45%, top 20%
+- americas: left 15%, top 50%
+- africa: left 48%, top 60%
+- middle_east: left 58%, top 42%
+- asia_pacific: left 75%, top 50%
+
+### 3. MilitaryNodeDrawer (panels/military/MilitaryNodeDrawer.tsx + .css)
+A slide-out panel or popover that appears when a pin is clicked.
+
+Props: `{ nodeType: "ocean"|"region"|"colony"; nodeId: string; onClose: () => void; ...all relevant data + callbacks }`
+
+For ocean nodes: shows deployment controls (existing +/- buttons), blockade status, country fleet breakdown, control preview text.
+For regions: shows access status, goods, diplomacy action, colonization option, conquest controls, looting toggles.
+Keep ALL existing test assertion text: "🔒 需先解锁殖民 + 建立外交关系 + 3军事点", "中东 已建交", "橡胶·棉花·矿产"
+
+### 4. Modify MilitaryPanel (panels/MilitaryPanel.tsx)
+Replace the ocean-nodes grid, regions grid, and colonization grid sections with:
+```tsx
+<MilitaryWorldMap ... />
+<MilitaryNodeDrawer ... />
+```
+
+Keep the military actions section (recruit infantry, train artillery, naval drill) at the bottom as before — these are NOT geographic.
+
+The stat strip at top (already migrated to DecisionStatStrip) stays.
+
+## RULES
+- Keep ALL existing data-testid: military-panel, ocean-node-${nodeId}, conquest-${regionId}
+- Keep ALL existing test assertion text strings exactly as-is
+- Import new components from "./military/MilitaryWorldMap" and "./military/MilitaryNodeDrawer"
+- The drawer should use a CSS transition (slide from right or fade-in popover)
+- Existing military action cards already migrated to DecisionActionCard — keep as-is
+- World map SVG: use simple rect + text elements, no external images
+
+## DO NOT
+- Do not change military action card structure (already migrated in E.5)
+- Do not remove data-testid attributes
+- Do not change backend
+
+## VERIFICATION TIER
+- Tier: T1
+- Do run: npm test (focus on MilitaryPanel.test.tsx)
+- Do not run: browser dogfood
+
+## VERIFICATION
+- npm test -- --run MilitaryPanel
+- npm test (full, check no new failures beyond pre-existing 13)
+
+## STOP CONDITIONS
+- Stop if map pin positioning is way off (need to adjust coordinates)
+- Stop if test assertions break due to removed DOM structure
+
+## RETURN FORMAT
+1. Summary
+2. Files created + modified
+3. Verification run
+4. Budget: T1
+5. Next step

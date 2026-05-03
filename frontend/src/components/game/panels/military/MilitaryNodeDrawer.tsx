@@ -278,6 +278,9 @@ function RegionDrawer({
                 <span className="mnd__hint">
                   {diplomacyAction.description ?? `与${diplomacyAction.targetRegionLabel}建立外交关系`} · 花费 {diplomacyAction.cost}
                 </span>
+                <span className="mnd__hint mnd__hint--benefit">
+                  建交后解锁该区域海外市场，可向其出售商品。
+                </span>
                 <div className="mnd__diplo-controls">
                   {diplomacySelected ? (
                     <button
@@ -411,7 +414,7 @@ function RegionDrawer({
               >+</button>
             </div>
             <div className="mnd__conquest-row">
-              <span className="mnd__conquest-label">炮兵: {artillery} (消耗 {artillery * 16} 金币)</span>
+              <span className="mnd__conquest-label">炮兵: {artillery} (消耗 {artillery * 16} 政府财政)</span>
               <button
                 aria-label={`减少${opt.regionLabel}炮兵`}
                 className="mnd__btn"
@@ -432,6 +435,9 @@ function RegionDrawer({
               {defenderPower > 0
                 ? ` · 守军战力 = ${defenderPower}（步兵 ${garrisonInf} + 炮兵×2 ${garrisonArt * 2}）· 需≥${conquestThreshold}`
                 : ""}
+            </div>
+            <div className="mnd__conquest-benefit">
+              征服后可获得该区域控制权（每回合国家收入），并可掠夺该区域资源。
             </div>
           </div>
         )}

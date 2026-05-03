@@ -28,6 +28,7 @@ import {
   removeColonizationAction,
   removeMilitaryActionSelection,
   setAdminPurchases,
+  setPointPurchase,
   setColonizationUnlockSelection,
   setConquestAction,
   setNavalDeployment,
@@ -39,14 +40,12 @@ import {
   toggleLootingAction,
   togglePolicyQueue,
   toggleReformQueue,
-  toggleTalentUnlockSelection,
   toggleTechResearchSelection,
 } from "../../../features/game/decisionDrafts";
 import {
   buildMilitaryActionDescription,
   buildRegionAccessDescription,
   calculateDecisionSpendSummary,
-  calculateGovernmentPointPreview,
   formatRatio,
   getRegionAccessLevelLabel,
 } from "../../../features/game/decisionShared";
@@ -184,7 +183,6 @@ export function DecisionWorkbench({
   const previousStep = getPreviousDecisionStep(activeStep);
   const nextStep = getNextDecisionStep(activeStep);
 
-  const governmentPointPreview = calculateGovernmentPointPreview(workspace, draft);
   const spendSummary = calculateDecisionSpendSummary(workspace, draft);
   return (
     <section data-testid="decision-workbench" className="gp-section">
@@ -234,6 +232,12 @@ export function DecisionWorkbench({
           onAdminPurchase={(quantity) => {
             handleDraftChange("government", setAdminPurchases(draft, quantity));
           }}
+          onTechPurchase={(quantity) => {
+            handleDraftChange("government", setPointPurchase(draft, "tech", quantity));
+          }}
+          onMilitaryPurchase={(quantity) => {
+            handleDraftChange("government", setPointPurchase(draft, "military", quantity));
+          }}
           onEnactReform={(reformId, queued) => {
             handleDraftChange("government", toggleReformQueue(draft, reformId, queued));
           }}
@@ -264,19 +268,9 @@ export function DecisionWorkbench({
           techTree={workspace.techTree}
           selectedTechIds={new Set(draft.governmentPlan.techResearch.map((t) => t.techId))}
           onToggleTech={(techId, checked) => handleDraftChange("research", toggleTechResearchSelection(draft, techId, checked))}
-          view={decisionFlowState.activeResearchView}
-          onViewChange={(view) => onDecisionFlowChange((prev) => ({ ...prev, activeResearchView: view }))}
-          talentBranches={workspace.researchWorkspace?.talentBranches ?? []}
-          projectedTechPoints={governmentPointPreview.techPoints}
-          techCostPerPoint={workspace.governmentActions?.pointPurchaseCosts?.tech ?? 10}
-          unlockedTalentCount={workspace.researchWorkspace?.unlockedTalentCount ?? 0}
-          selectedTalentNodeIds={new Set(draft.talentPlan?.talentUnlocks?.map((u) => u.nodeId) ?? [])}
-          activeBranchId={decisionFlowState.activeResearchBranch}
-          onSelectBranch={(id) => onDecisionFlowChange((prev) => ({ ...prev, activeResearchBranch: id }))}
-          onToggleTalentNode={(nodeId, checked) => {
-            onChange(toggleTalentUnlockSelection(draft, nodeId, checked));
-            onDecisionFlowChange((prev) => markDecisionStepDirty(prev, "research"));
-          }}
+          onBuildResearchFacility={() => handleDraftChange("research", toggleGovernmentStrategySelection(draft, "expand_research", true))}
+          canAffordResearchFacility={workspace.budgetPools.governmentFiscal - spendSummary.governmentSpend >= 12}
+          isResearchFacilitySelected={draft.governmentPlan.strategySelections.some((s) => s.actionId === "expand_research")}
         />
       ) : null}
       <DecisionStepFooter
@@ -619,33 +613,33 @@ export function SettlementWorkbench({
           <p className="gp-step-desc">本阶段为只读结算，展示本回合收入与三池分配。</p>
         </div>
         <div className="gp-grid">
-          <MetricCard hint="当回合国内市场形成的销售额。" label="本回合国内销售额" value={workspace.domesticSalesRevenue} />
-          <MetricCard hint="当回合海外市场形成的销售额。" label="本回合海外销售额" value={workspace.overseasSalesRevenue} />
-          <MetricCard hint="财政结算前的国家收入总额。" label="本回合国家收入" value={workspace.nationalIncome} />
+          <MetricCard hint="当回合国内市场形成的销售额。" label="本回合国内销售额" value={`${workspace.domesticSalesRevenue} 财政`} />
+          <MetricCard hint="当回合海外市场形成的销售额。" label="本回合海外销售额" value={`${workspace.overseasSalesRevenue} 财政`} />
+          <MetricCard hint="财政结算前的国家收入总额。" label="本回合国家收入" value={`${workspace.nationalIncome} 财政`} />
           <MetricCard hint="国内 / 工厂 / 政府财政。" label="下一轮收入分配比例" value={formatRatio(workspace.nextRatio)} />
-          <MetricCard hint="终局主指标。" label="累计国家收入" value={playerState?.cumulativeNationalIncome ?? 0} />
+          <MetricCard hint="终局主指标。" label="累计国家收入" value={`${playerState?.cumulativeNationalIncome ?? 0} 财政`} />
           <MetricCard hint="结算完成后会进入下一轮国家决策。" label="当前国家" value={getCountryLabel(workspace.countryCode)} />
         </div>
       </article>
       <article className="gp-card">
         <h3 style={{ margin: 0 }}>三池重新分配结果</h3>
         <div className="gp-grid">
-          <MetricCard hint="结算后回到国内消费市场预算池。" label="国内消费市场" value={workspace.budgetAllocation.domesticMarket} />
-          <MetricCard hint="结算后回到工厂预算池。" label="工厂" value={workspace.budgetAllocation.factory} />
-          <MetricCard hint="结算后回到政府财政预算池。" label="政府财政" value={workspace.budgetAllocation.governmentFiscal} />
+          <MetricCard hint="结算后回到国内消费市场预算池。" label="国内消费市场" value={`${workspace.budgetAllocation.domesticMarket} 财政`} />
+          <MetricCard hint="结算后回到工厂预算池。" label="工厂" value={`${workspace.budgetAllocation.factory} 财政`} />
+          <MetricCard hint="结算后回到政府财政预算池。" label="政府财政" value={`${workspace.budgetAllocation.governmentFiscal} 财政`} />
         </div>
       </article>
       {workspace.phase1Economy?.consumptionPool != null && workspace.phase1Economy?.poolDeltaPreview && (
         <article className="gp-card">
           <h3 style={{ margin: 0 }}>💰 消费池变化</h3>
           <p className="gp-step-desc" style={{ marginTop: 4 }}>
-            上期余额 {workspace.phase1Economy.consumptionPool} + 新增 {Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)} = {workspace.phase1Economy.consumptionPool + Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)}
-            ，经过 30% 自然消费后结余 {Math.round((workspace.phase1Economy.consumptionPool + workspace.phase1Economy.poolDeltaPreview.consumption) * 0.7)}
+            上期余额 {workspace.phase1Economy.consumptionPool} 财政 + 新增 {Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)} 财政 = {workspace.phase1Economy.consumptionPool + Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)} 财政
+            ，经过 30% 自然消费后结余 {Math.round((workspace.phase1Economy.consumptionPool + workspace.phase1Economy.poolDeltaPreview.consumption) * 0.7)} 财政
           </p>
           <div className="gp-grid">
-            <MetricCard hint="上一轮消费池余额。" label="上期余额" value={workspace.phase1Economy.consumptionPool} />
-            <MetricCard hint="本回合收入按 5:3:2 分配到消费池的部分。" label="新增分配" value={Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)} />
-            <MetricCard hint="经过自然消费后的最终消费池。" label="结余" value={Math.round((workspace.phase1Economy.consumptionPool + workspace.phase1Economy.poolDeltaPreview.consumption) * 0.7)} />
+            <MetricCard hint="上一轮消费池余额。" label="上期余额" value={`${workspace.phase1Economy.consumptionPool} 财政`} />
+            <MetricCard hint="本回合收入按 5:3:2 分配到消费池的部分。" label="新增分配" value={`${Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)} 财政`} />
+            <MetricCard hint="经过自然消费后的最终消费池。" label="结余" value={`${Math.round((workspace.phase1Economy.consumptionPool + workspace.phase1Economy.poolDeltaPreview.consumption) * 0.7)} 财政`} />
           </div>
         </article>
       )}

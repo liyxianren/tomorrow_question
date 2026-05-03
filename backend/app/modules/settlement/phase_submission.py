@@ -254,6 +254,25 @@ def _validate_market_payload(*, snapshot: GameSnapshot, player_state, payload: d
                 f"Overseas market region {region_id} is not accessible.",
             )
 
+    phase1_market = payload.get("phase1Market") or {}
+    domestic_allocation_raw = phase1_market.get("domesticAllocation")
+    if isinstance(domestic_allocation_raw, (int, float)) and not isinstance(domestic_allocation_raw, bool):
+        domestic_allocation = max(0, int(domestic_allocation_raw))
+        if domestic_allocation > 0:
+            total_goods = max(0, int(player_state.phase1_economy.goods_inventory))
+            if domestic_allocation > total_goods:
+                raise PhaseSubmissionError(
+                    ErrorCode.INVALID_SUBMISSION,
+                    f"Domestic market allocation ({domestic_allocation}) exceeds available goods inventory ({total_goods}).",
+                )
+            from app.modules.rules.phase1_economy import calculate_domestic_demand
+            domestic_demand = int(calculate_domestic_demand(player_state.phase1_economy.capacity_by_mode))
+            if domestic_allocation > domestic_demand:
+                raise PhaseSubmissionError(
+                    ErrorCode.INVALID_SUBMISSION,
+                    f"Domestic market allocation ({domestic_allocation}) exceeds domestic demand ({domestic_demand}).",
+                )
+
 
 def _normalize_decision_submission(payload: dict[str, object]) -> dict[str, Any]:
     normalized = default_decision_submission_payload()

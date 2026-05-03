@@ -1,0 +1,172 @@
+TASK ID:
+e4-binary-split-layout
+
+OBJECTIVE:
+Introduce Binary Split (left info / right actions) container layout to 4 panels: FactoryPanel, DomesticPanel, GovernmentPanel (reform section), ResearchPanel.
+
+## PANELS
+
+### 1. FactoryPanel (factory/FactoryPanel.tsx)
+Current: vertical stack of ProductionPanel + construction cards.
+New: Two-column grid.
+
+```tsx
+<div className="factory-panel--v2">
+  <div className="factory-panel--v2__left">
+    {/* Phase1ProductionPanel goes here */}
+  </div>
+  <div className="factory-panel--v2__right">
+    {/* Construction cards (expansion/upgrade/newFactory) go here */}
+  </div>
+</div>
+```
+
+CSS (add to FactoryPanel.css):
+```css
+.factory-panel--v2 {
+  display: grid;
+  grid-template-columns: 38fr 62fr;
+  gap: 22px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .factory-panel--v2 { grid-template-columns: 1fr; }
+}
+```
+
+Keep existing testids: `factory-panel`, `phase1-production-panel`. Keep "🏭 工业区" text.
+
+### 2. DomesticPanel (DomesticPanel.tsx)
+Current: single-column action card stack.
+New: Binary split — left = economic dashboard, right = action cards.
+
+```tsx
+<div className="domestic-panel--v2">
+  <div className="domestic-panel--v2__left">
+    {/* Economic summary: demand, supply, price preview */}
+    {/* Keep a gp-card container */}
+  </div>
+  <div className="domestic-panel--v2__right">
+    {/* Existing domesticMarketActions card grid */}
+  </div>
+</div>
+```
+
+Left column: show equilibriumPrice, domesticDemand, consumptionPool values from workspace.phase1Economy (these fields exist already just not displayed). Use gp-metric cards.
+
+CSS (add to DomesticPanel.css):
+```css
+.domestic-panel--v2 {
+  display: grid;
+  grid-template-columns: 38fr 62fr;
+  gap: 22px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .domestic-panel--v2 { grid-template-columns: 1fr; }
+}
+```
+
+### 3. GovernmentPanel — Three-Column Reform Tracks
+Add a three-column comparison layout for the three reform paths.
+
+Wrap the reform path loops (freedom/equality/national) in:
+```tsx
+<div className="gov-reform-tracks">
+  {/* Each path as a column: freedom, equality, national */}
+</div>
+```
+
+CSS (add to GovernmentPanel.css):
+```css
+.gov-reform-tracks {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.gov-reform-track {
+  /* column for one reform path */
+}
+@media (max-width: 900px) {
+  .gov-reform-tracks { grid-template-columns: 1fr; }
+}
+```
+
+Each track column gets a header showing path icon + name, then the reforms stacked vertically.
+
+Then add binary split for policies:
+```tsx
+<div className="gov-policy-split">
+  <div className="gov-policy-split__left">
+    {/* Active policies summary */}
+  </div>
+  <div className="gov-policy-split__right">
+    {/* Inactive policies + admin purchases + strategies */}
+  </div>
+</div>
+```
+
+CSS:
+```css
+.gov-policy-split {
+  display: grid;
+  grid-template-columns: 35fr 65fr;
+  gap: 20px;
+}
+@media (max-width: 900px) {
+  .gov-policy-split { grid-template-columns: 1fr; }
+}
+```
+
+### 4. ResearchPanel (ResearchPanel.tsx)
+New: Binary split — left = current research status, right = three chain tabs.
+
+```tsx
+<div className="research-panel--v2">
+  <div className="research-panel--v2__left">
+    {/* Active research status card */}
+    {/* Progress bar, current tech, ETA */}
+  </div>
+  <div className="research-panel--v2__right">
+    {/* Existing research-panel__chains with chain tabs */}
+  </div>
+</div>
+```
+
+CSS (add to ResearchPanel.css):
+```css
+.research-panel--v2 {
+  display: grid;
+  grid-template-columns: 35fr 65fr;
+  gap: 20px;
+}
+@media (max-width: 900px) {
+  .research-panel--v2 { grid-template-columns: 1fr; }
+}
+```
+
+Left column content: show current activeResearch info (which tech, progress, ETA), research facilities count, maintenance cost.
+
+## RULES
+- Keep ALL existing data-testid on panel roots
+- Keep ALL existing text content that tests assert on
+- Do not change component props or logic
+- CSS: use @media (max-width: 900px) for responsive collapse to single column
+- All new CSS classes follow panel naming convention (e.g. factory-panel--v2__left)
+
+## DO NOT
+- Do not modify panel logic
+- Do not change spending calculations
+- Do not touch MilitaryPanel (it gets map overlay in E.6)
+
+## VERIFICATION TIER
+- Tier: T1
+- Do run: npm test
+- Do not run: browser dogfood
+
+## RETURN FORMAT
+1. Summary per panel
+2. Files changed
+3. Verification run
+4. Budget: T1
+5. Next step

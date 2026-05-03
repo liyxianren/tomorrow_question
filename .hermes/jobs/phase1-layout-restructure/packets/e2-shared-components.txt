@@ -1,0 +1,142 @@
+TASK ID:
+e2-shared-components
+
+OBJECTIVE:
+Create three new shared components (DecisionStatStrip, DecisionActionCard, DecisionResourceBar) and the calculateGovernmentSpendBreakdown helper. Insert ResourceBar into DecisionWorkbench.
+
+WHY / CONTEXT:
+Phase 1 layout restructure plan (docs/plans/phase1-layout-restructure-plan.md) Section E.2. These are the foundational components that all subsequent panel refactors depend on.
+
+## WHAT TO BUILD
+
+### 1. Shared: DecisionStatStrip (panels/shared/DecisionStatStrip.tsx + .css)
+- Props: `{ items: {icon?, value, label, tone?}[]; testId? }`
+- Renders horizontal flex row of stat cards using existing `gp-metric` CSS classes
+- Each item: icon (optional emoji) + bold value number + label text
+- tone="critical" → red highlight; tone="warning" → yellow
+- CSS: `.dss { display:flex; gap:12px; flex-wrap:wrap; }` — rest reuse gp-metric
+
+### 2. Shared: DecisionActionCard (panels/shared/DecisionActionCard.tsx + .css)
+Unified card to replace four near-identical action-card styles across panels.
+
+Props:
+```ts
+type DecisionActionCardProps = {
+  icon?: string;
+  title: string;
+  costLabel?: string;
+  description?: string;
+  effects?: { label: string; value: string | number; temporary?: boolean }[];
+  warning?: string;
+  status: "available" | "selected" | "disabled" | "danger" | "done";
+  statusText?: string;
+  control:
+    | { kind: "stepper"; value: number; min?: number; max: number; onChange: (n: number) => void }
+    | { kind: "toggle"; checked: boolean; onChange: (v: boolean) => void; label: string }
+    | { kind: "confirm-cancel"; isSelected: boolean; isDisabled: boolean; onConfirm: () => void; onCancel: () => void; confirmLabel?: string };
+  children?: ReactNode;
+  testId?: string;
+};
+```
+
+States (CSS classes):
+- `.dac` (base — dark card with border)
+- `.dac--selected` (golden border)
+- `.dac--disabled` (muted, reduced opacity)
+- `.dac--danger` (red border)
+- `.dac--done` (green accent)
+- Interior: `.dac__head` (icon + title + costLabel, flex row), `.dac__desc`, `.dac__effects` (wrap flex tags), `.dac__effect-tag`, `.dac__warning`, `.dac__footer` (statusText + control)
+
+Look at existing GovernmentPanel.css .government-action-card and MilitaryPanel.css .military-action-card for the visual reference — dark background, subtle border, hover state. But use the unified `.dac-*` naming.
+
+### 3. Helper: calculateGovernmentSpendBreakdown (decisionShared.ts)
+Add a new exported function after calculateDecisionSpendSummary:
+
+```ts
+export type GovernmentSpendBreakdown = {
+  total: number;
+  government: number;  // pointPurchases + strategySelections
+  military: number;    // militaryActions + diplomacyActions + colonization
+};
+
+export function calculateGovernmentSpendBreakdown(
+  workspace: DecisionPlayerPhaseWorkspace,
+  draft: PhaseDraftByPhase["decision"],
+): GovernmentSpendBreakdown
+```
+
+Reuse the same arithmetic already in calculateNonResearchSpendByPool (lines 84-105 of decisionShared.ts). Do NOT modify calculateNonResearchSpendByPool or calculateDecisionSpendSummary — add the new function after them.
+
+### 4. DecisionResourceBar (panels/DecisionResourceBar.tsx + .css)
+Shows 3-4 resource "chips" horizontally in a bar. Always visible above DecisionStepTabs.
+
+Props:
+```ts
+{ workspace: DecisionPlayerPhaseWorkspace; draft: PhaseDraftByPhase["decision"]; activeStep: DecisionStepId }
+```
+
+Chips to display:
+- "国内消费" — label + total budgetPools.domesticMarket + spent domesticMarket + progress bar
+- "工厂预算" — budgetPools.factory + factorySpend + progress bar
+- "政府财政" — budgetPools.governmentFiscal + BREAKDOWN showing "政府 X · 军事 Y" + progress bar (use calculateGovernmentSpendBreakdown)
+- (bonus if easy) "科技点预览" — use calculateGovernmentPointPreview
+
+Active chip (matches activeStep → factory/domestic/government/military) gets golden highlight.
+
+CSS: `.drb { display:flex; gap:10px; }`  `.drb__chip { flex:1; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px 14px; }`  `.drb__chip--active { border-color: var(--color-accent, #d4a017); }`
+
+Progress bar: CSS `background: linear-gradient` with remaining/total ratio.
+
+### 5. Insert ResourceBar into GamePhasePanelContent.tsx
+In the DecisionWorkbench function, insert `<DecisionResourceBar workspace={workspace} draft={draft} activeStep={activeStep} />` right after `<DecisionStepTabs ... />` (line 191).
+
+Import it at the top.
+
+## DO NOT
+- Do NOT modify any existing panel components in this task
+- Do NOT change spending calculation behavior
+- Do NOT add new test files (this is just creating shared components)
+- Do NOT touch MilitaryPanel, GovernmentPanel, or any other panel
+- Keep all existing data-testid props unchanged
+
+## FILES TO CREATE
+- frontend/src/components/game/panels/shared/DecisionStatStrip.tsx
+- frontend/src/components/game/panels/shared/DecisionStatStrip.css
+- frontend/src/components/game/panels/shared/DecisionActionCard.tsx
+- frontend/src/components/game/panels/shared/DecisionActionCard.css
+- frontend/src/components/game/panels/DecisionResourceBar.tsx
+- frontend/src/components/game/panels/DecisionResourceBar.css
+
+## FILES TO MODIFY
+- frontend/src/features/game/decisionShared.ts (add function + type export after line 122)
+- frontend/src/components/game/panels/GamePhasePanelContent.tsx (insert ResourceBar import + component)
+
+## IMPLEMENTATION RULES
+- Match existing code style (TypeScript, React functional components, CSS variables from styles.css)
+- DecisionStatStrip should be ~30 lines, DecisionActionCard ~100 lines, DecisionResourceBar ~80 lines
+- Use the existing `gp-*` CSS variables from styles.css (--game-text-primary, --game-text-muted, --color-accent, etc.)
+- For calculateGovernmentSpendBreakdown: copy the relevant logic from calculateNonResearchSpendByPool (lines 84-105) but split into government vs military subtotals
+
+## VERIFICATION TIER / BUDGET
+- Tier: T1
+- Time cap: 15 min
+- Do run: pnpm test (or npm test) — confirm no new failures
+- Do not run: browser dogfood, full regression, deploy
+
+## VERIFICATION
+- grep for "DecisionStatStrip" in new files
+- grep for "DecisionActionCard" in new files
+- grep for "DecisionResourceBar" in GamePhasePanelContent.tsx
+- grep for "calculateGovernmentSpendBreakdown" in decisionShared.ts
+- npm test
+
+## STOP CONDITIONS
+- Stop if adding the function to decisionShared.ts changes existing import behavior
+- Stop if new test failures are caused by this task (not pre-existing)
+
+## RETURN FORMAT
+1. Summary
+2. Files created + modified (list with line counts)
+3. Verification run
+4. Verification budget: T1
+5. Suggested next step

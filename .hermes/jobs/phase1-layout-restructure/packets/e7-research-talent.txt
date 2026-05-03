@@ -1,0 +1,69 @@
+TASK ID:
+e7-research-subtab-talent
+
+OBJECTIVE:
+Add sub-tab to ResearchPanel (科技研究 / 天赋树). Integrate TalentTreePanel as second view. Remove dead code in GamePhasePanelContent.
+
+## STEPS
+
+### 1. Extend DecisionFlowState (features/game/flow/decisionFlow.ts)
+Add `activeResearchView: "tech" | "talent"` to DecisionFlowState type.
+Set default to `"tech"` in the state initializer.
+
+### 2. Update ResearchPanel (panels/ResearchPanel.tsx)
+Add sub-tab bar at top:
+```tsx
+<div className="research-sub-tabs">
+  <button className={`research-sub-tab ${view === "tech" ? "research-sub-tab--active" : ""}`}
+    onClick={() => setView("tech")}>🔬 科技研究</button>
+  <button className={`research-sub-tab ${view === "talent" ? "research-sub-tab--active" : ""}"}
+    onClick={() => setView("talent")}>🌳 天赋树</button>
+</div>
+```
+
+When `view === "tech"`: render current research chain content.
+When `view === "talent"`: render `<TalentTreePanel>`.
+
+ResearchPanel already has binary split — the sub-tab bar goes above the binary split grid.
+
+### 3. Update GamePhasePanelContent.tsx
+Remove the `else` branch at line ~267 that renders `<TalentTreePanel>` as a fallback. This code is unreachable dead code. Instead, ResearchPanel now handles talent internally.
+
+### 4. Update TalentTreePanel (panels/TalentTreePanel.tsx)
+Convert from two-stage (BranchGrid → BranchDetail) to binary split:
+- Left: 4 branch cards (always visible)
+- Right: current branch node chain
+Remove the BranchGrid/BranchDetail navigation logic — just show both sides simultaneously.
+
+Add CSS:
+```css
+.talent-tree--v2 {
+  display: grid;
+  grid-template-columns: 35fr 65fr;
+  gap: 20px;
+}
+```
+
+### 5. CSS for sub-tabs (add to ResearchPanel.css)
+```css
+.research-sub-tabs { display:flex; gap:4px; margin-bottom:12px; }
+.research-sub-tab { padding:6px 16px; border-radius:6px 6px 0 0; border:1px solid transparent; background:rgba(255,255,255,0.04); color:var(--game-text-muted); cursor:pointer; font-size:13px; }
+.research-sub-tab--active { background:rgba(255,255,255,0.08); color:var(--game-text-primary); border-color:var(--color-accent); border-bottom:none; }
+```
+
+## DO NOT
+- Do not modify DecisionStepOrder (keep 5 steps)
+- Do not add a 6th map building pin
+- Do not change TalentTreePanel props interface
+
+## VERIFICATION TIER
+- Tier: T1
+- Do run: npm test
+- Do not run: browser dogfood
+
+## RETURN FORMAT
+1. Summary
+2. Files changed
+3. Verification run
+4. Budget: T1
+5. Next step

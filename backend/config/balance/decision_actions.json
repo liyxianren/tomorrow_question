@@ -203,18 +203,6 @@
       "description": "裁减军队规模，回笼财政资金。",
       "maxPerRound": 1
     },
-    "expand_research": {
-      "label": "扩张科研机构",
-      "adminCostPerTurn": 1,
-      "budgetCost": 12,
-      "effects": {
-        "researchFacilityDelta": {
-          "academy": 1
-        }
-      },
-      "description": "新建科研机构，永久增加研究能力。",
-      "maxPerRound": 1
-    },
     "expand_administration": {
       "label": "扩张行政机构",
       "adminCostPerTurn": 1,
@@ -224,70 +212,6 @@
       },
       "description": "扩建行政机构，永久增加行政能力。",
       "maxPerRound": 1
-    },
-    "public_offering": {
-      "label": "公开募股",
-      "adminCostPerTurn": 1,
-      "budgetCost": 1,
-      "effects": {
-        "ratioDelta": {
-          "consumption": -2.0,
-          "factory": 2.0
-        }
-      },
-      "description": "[自由之路] 本回合将20%消费转为投资。",
-      "maxPerRound": 1,
-      "requiresReform": "stock_market"
-    },
-    "social_welfare": {
-      "label": "社会福利",
-      "adminCostPerTurn": 1,
-      "budgetCost": 0,
-      "effects": {
-        "permanent": {
-          "welfareTransfer": {
-            "from": "fiscal",
-            "to": "consumption",
-            "ratio": 0.1
-          }
-        }
-      },
-      "description": "[平等之路] 每回合财政池10%自动转入消费池。",
-      "maxPerRound": 1,
-      "requiresReform": "social_relief"
-    },
-    "strike_negotiation": {
-      "label": "罢工谈判",
-      "adminCostPerTurn": 1,
-      "budgetCost": 0,
-      "effects": {
-        "productionCapacityMultiplier": 0.5
-      },
-      "description": "[平等之路] 本回合所有产能减半，降低平等主义激进度。",
-      "maxPerRound": 1,
-      "requiresReform": "labor_union"
-    },
-    "general_mobilization": {
-      "label": "总动员令",
-      "adminCostPerTurn": 1,
-      "budgetCost": 0,
-      "effects": {
-        "mobilizeCapacityToMilitary": { "ratio": 0.5, "militaryPerUnit": 1 }
-      },
-      "description": "[民族之路] 将一半产能转化为军事点数。",
-      "maxPerRound": 1,
-      "requiresReform": "total_mobilization"
-    },
-    "violent_suppression": {
-      "label": "暴力镇压",
-      "adminCostPerTurn": 1,
-      "budgetCost": 0,
-      "effects": {
-        "suppressIdeology": { "militaryCost": 5, "delta": -5, "targetIdeology": "all" }
-      },
-      "description": "[民族之路] 消耗5军事点数，压制所有思潮激进度。",
-      "maxPerRound": 1,
-      "requiresReform": "secret_police"
     }
   }
 }

@@ -22,7 +22,7 @@
         "label": "股票市场",
         "adminCost": 2,
         "effects": {},
-        "unlocksPolicies": ["public_offering"],
+        "unlocksPolicies": [],
         "blocksOtherPaths": []
       },
       {
@@ -98,7 +98,7 @@
         "label": "社会救济",
         "adminCost": 2,
         "effects": {},
-        "unlocksPolicies": ["social_welfare"],
+        "unlocksPolicies": [],
         "blocksOtherPaths": []
       },
       {
@@ -132,7 +132,7 @@
         "label": "工会组织",
         "adminCost": 4,
         "effects": {},
-        "unlocksPolicies": ["strike_negotiation"],
+        "unlocksPolicies": [],
         "blocksOtherPaths": []
       },
       {
@@ -237,7 +237,7 @@
         "label": "全民动员",
         "adminCost": 6,
         "effects": {},
-        "unlocksPolicies": ["general_mobilization"],
+        "unlocksPolicies": [],
         "blocksOtherPaths": []
       },
       {
@@ -246,7 +246,7 @@
         "label": "特务机关",
         "adminCost": 6,
         "effects": {},
-        "unlocksPolicies": ["violent_suppression"],
+        "unlocksPolicies": [],
         "blocksOtherPaths": []
       }
     ]

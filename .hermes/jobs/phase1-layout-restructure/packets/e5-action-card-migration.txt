@@ -1,0 +1,82 @@
+TASK ID:
+e5-action-card-migration
+
+OBJECTIVE:
+Replace custom action-card markup in DomesticPanel, GovernmentPanel, and MilitaryPanel with the unified `<DecisionActionCard />` component. This is a markup-only migration — zero logic changes.
+
+## CONTEXT
+We created `<DecisionActionCard />` in E.2.share/DecisionActionCard.tsx (167 lines, 3 control types: stepper/toggle/confirm-cancel). Now replace the per-panel card markup.
+
+## MIGRATION ORDER (each panel maps differently)
+
+### 1. DomesticPanel — simplest, 6 action cards
+Current: Each `domesticMarketAction` rendered as `<div className="domestic-action-card">`.
+Replace with:
+```tsx
+<DecisionActionCard
+  icon="📋"
+  title={action.label}
+  costLabel={`${action.cost} 预算`}
+  description={action.description}
+  effects={buildEffectMetrics(action.effects)}
+  status={selected ? "selected" : remainingBudget < action.cost ? "disabled" : "available"}
+  statusText={selected ? "✓ 已选择" : remainingBudget < action.cost ? "预算不足" : "可执行"}
+  control={{ kind: "toggle", checked: selected, onChange: (v) => onActionToggle(action.actionId, v), label: selected ? "取消" : "执行" }}
+  testId={`domestic-action-${action.actionId}`}
+/>
+```
+
+### 2. GovernmentPanel policies — toggle cards
+Active policies → status "selected" or "available". Inactive policies → "available" or "disabled" (if locked).
+Replace policy card markup with `<DecisionActionCard>` using `control.kind = "toggle"`.
+
+GovernmentPanel admin purchase card:
+```tsx
+<DecisionActionCard
+  icon="📜"
+  title="购买行政力"
+  costLabel={`${adminCost}/点`}
+  description="动用政府财政扩张文官系统..."
+  effects={[{ label: "已购", value: `${queuedAdminPurchases} 点` }, { label: "本轮花费", value: `${queuedAdminPurchases * adminCost} 财政` }]}
+  status={queuedAdminPurchases > 0 ? "selected" : !canBuyAdmin ? "disabled" : "available"}
+  statusText={queuedAdminPurchases > 0 ? `✓ -${queuedAdminPurchases * adminCost} 财政` : !canBuyAdmin ? "财政不足" : "可购买"}
+  control={{ kind: "stepper", value: queuedAdminPurchases, min: 0, max: Math.floor(remainingBudget / adminCost), onChange: onAdminPurchase }}
+/>
+```
+
+GovernmentPanel reform cards: use `control.kind = "confirm-cancel"` or `"toggle"`. 
+For danger state (wouldTriggerRevolution), pass `status="danger"` + `warning="⚠️ 实施将触发革命: ..."`.
+
+### 3. MilitaryPanel action cards
+Military actions: use `control.kind = "confirm-cancel"` (add/remove paradigm).
+Colonization cards: use `control.kind = "confirm-cancel"`.
+Diplomacy cards: use `control.kind = "confirm-cancel"`.
+Colonization unlock: use `control.kind = "toggle"`.
+
+### 4. FactoryPanel construction cards
+FactoryPanel's expansion/upgrade/newFactory cards: use `control.kind = "stepper"` (quantity control).
+
+## RULES
+- Keep ALL existing data-testid strings on the outer panel or specific elements mentioned in tests
+- Match all existing text exactly (Japanese/Chinese text from current code)
+- Import DecisionActionCard from `"./shared/DecisionActionCard"` or `"../shared/DecisionActionCard"` as appropriate
+- Import buildEffectMetrics where needed
+- Do NOT change card behavior or event handlers
+- Do NOT remove the old CSS classes yet (E.8 handles cleanup)
+
+## DO NOT
+- Do not modify card logic
+- Do not change onToggle/onConfirm/onCancel callback signatures
+- Do not touch MilitaryWorldMap (E.6 territory)
+
+## VERIFICATION TIER
+- Tier: T1
+- Do run: npm test
+- Do not run: browser dogfood
+
+## RETURN FORMAT
+1. Summary
+2. Files changed
+3. Verification run
+4. Budget: T1
+5. Next step

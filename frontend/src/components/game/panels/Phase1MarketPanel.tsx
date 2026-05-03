@@ -59,7 +59,7 @@ export function Phase1MarketPanel({
     0,
   );
 
-  const clampedDomestic = clamp(draftAllocation, 0, totalGoods);
+  const clampedDomestic = clamp(draftAllocation, 0, Math.min(totalGoods, phase1Economy?.domesticDemand ?? totalGoods));
 
   const preview = useMemo(
     () => calculatePreview(clampedDomestic, domesticDemand, equilibriumPrice, domesticPricePreview),
@@ -157,7 +157,7 @@ export function Phase1MarketPanel({
         <div className="phase1-market__preview-grid">
           <div className="phase1-market__preview-block">
             <span className="phase1-market__preview-label">价格</span>
-            <strong className="phase1-market__preview-value">{preview.price}</strong>
+            <strong className="phase1-market__preview-value">{preview.price} 财政/件</strong>
           </div>
           <div className="phase1-market__preview-block">
             <span className="phase1-market__preview-label">可售出</span>
@@ -269,7 +269,7 @@ export function Phase1MarketPanel({
 
                     <div className="phase1-market__overseas-price">
                       <span className="phase1-market__overseas-price-label">海外价格</span>
-                      <strong className="phase1-market__overseas-price-value">{overseasPrice}</strong>
+                      <strong className="phase1-market__overseas-price-value">{overseasPrice} 财政/件</strong>
                     </div>
                   </>
                 ) : null}
@@ -287,7 +287,7 @@ export function Phase1MarketPanel({
         </span>
         <span className="phase1-market__footer-row">
           <span className="phase1-market__footer-label">预计总收入</span>
-          <span className="phase1-market__footer-value phase1-market__footer-value--highlight">{Math.round(preview.revenue + overseasRevenue)}</span>
+          <span className="phase1-market__footer-value phase1-market__footer-value--highlight">{Math.round(preview.revenue + overseasRevenue)} 财政</span>
         </span>
       </div>
     </section>

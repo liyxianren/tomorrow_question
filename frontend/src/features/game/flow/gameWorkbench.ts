@@ -718,9 +718,6 @@ function normalizeDecisionDraft(draftPayload: Record<string, unknown>) {
       diplomacyActions?: Array<{ actionId: string }>;
       colonizationActions?: Array<{ targetRegionId: string }>;
     };
-    talentPlan?: {
-      talentUnlocks?: Array<{ nodeId: string }>;
-    };
     abilitySelection?: {
       abilityId?: string;
       targetIdeology?: string;
@@ -765,9 +762,6 @@ function normalizeDecisionDraft(draftPayload: Record<string, unknown>) {
       conquestActions: draft.militaryPlan?.conquestActions ?? [],
       lootingActions: draft.militaryPlan?.lootingActions ?? [],
     },
-    talentPlan: {
-      talentUnlocks: draft.talentPlan?.talentUnlocks ?? [],
-    },
     abilitySelection,
     phase1Production: {
       rawMaterialAssignments: draft.phase1Production?.rawMaterialAssignments ?? {},
@@ -802,7 +796,7 @@ function hasDecisionStepContent(
     );
   }
   if (step === "research") {
-    return draft.talentPlan.talentUnlocks.length > 0;
+    return draft.governmentPlan.techResearch.length > 0;
   }
   return (
     draft.governmentPlan.pointPurchases.length > 0

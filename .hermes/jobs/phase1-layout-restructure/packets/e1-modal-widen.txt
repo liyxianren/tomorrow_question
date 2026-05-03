@@ -1,0 +1,37 @@
+TASK ID:
+e1-modal-widen
+
+OBJECTIVE:
+Widen the game map modal from 860px to 1280px for Phase 1 layout restructuring.
+
+DO:
+- In frontend/src/components/game/map/GameMap.css, change width from min(90%, 860px) to min(96%, 1280px)
+- Keep max-height: 80vh as-is
+- Run pnpm test to confirm no regressions
+
+DO NOT:
+- Do not change any other CSS rules
+- Do not modify any TSX files
+- Do not change the modal behavior/logic
+
+FILES IN SCOPE:
+- frontend/src/components/game/map/GameMap.css
+
+VERIFICATION TIER / BUDGET:
+- Tier: T0
+- Do run: pnpm test
+- Do not run: full regression, browser dogfood, live API
+
+VERIFICATION:
+- grep for "860px" in GameMap.css to confirm old value was replaced
+- pnpm test
+
+STOP CONDITIONS:
+- Stop if test failures are NOT caused by this width change
+
+RETURN FORMAT:
+1. Summary
+2. Files changed
+3. Verification run (commands + results)
+4. Verification budget: T0
+5. Suggested next step

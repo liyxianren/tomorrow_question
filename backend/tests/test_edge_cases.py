@@ -273,7 +273,7 @@ class TestColonyResourceDepletion(EdgeCaseTestBase):
                 colonization_actions=[{"targetRegionId": "americas"}],
                 phase1_production={"rawMaterialAssignments": {"handicraft": 4}},
             ),
-        }, {"session-1": 8})
+        }, {"session-1": 4})
 
         americas = self._region(snapshot, "americas")
         self.assertEqual(americas.controller, "britain", "R1: Americas colonized")
@@ -293,7 +293,7 @@ class TestColonyResourceDepletion(EdgeCaseTestBase):
             self.assertEqual(americas.resource_limit.get("cotton", 0), expected_cotton,
                              f"R{round_num}: Cotton = {expected_cotton}")
 
-            snapshot = self._submit_markets_for_all({"session-1": 8})
+            snapshot = self._submit_markets_for_all({"session-1": 4})
             snapshot = self._resolve_settlement(snapshot)
 
         # After R5 settlement, cotton should be 0
@@ -359,7 +359,7 @@ class TestTalentTreeFullBranch(EdgeCaseTestBase):
             self.assertIn(node_id, britain.unlocked_talents,
                           f"R{i+1}: {node_id} unlocked")
 
-            snapshot = self._submit_markets_for_all({"session-1": 8})
+            snapshot = self._submit_markets_for_all({"session-1": 4})
             snapshot = self._resolve_settlement(snapshot)
 
         # Final verification: all 5 nodes unlocked
@@ -422,7 +422,7 @@ class TestMultiRegionColonization(EdgeCaseTestBase):
                 colonization_actions=[{"targetRegionId": "americas"}],
                 phase1_production={"rawMaterialAssignments": {"handicraft": 4}},
             ),
-        }, {"session-1": 8})
+        }, {"session-1": 4})
 
         americas = self._region(snapshot, "americas")
         self.assertEqual(americas.controller, "britain", "R1: Americas colonized")
@@ -514,7 +514,7 @@ class TestColonyRevoltAndRecolonize(EdgeCaseTestBase):
                 looting_actions=[{"regionId": "americas", "resourceType": "cotton"}],
                 phase1_production={"rawMaterialAssignments": {"handicraft": 4}},
             ),
-        }, {"session-1": 8})
+        }, {"session-1": 4})
 
         americas = self._region(snapshot, "americas")
         # Colony should have revolted (independence 8 + 2 loot + 2 imbalance = 12 ≥ 10)
@@ -565,7 +565,7 @@ class TestIndependenceWithGarrison(EdgeCaseTestBase):
                 looting_actions=[{"regionId": "americas", "resourceType": "cotton"}],
                 phase1_production={"rawMaterialAssignments": {"handicraft": 4}},
             ),
-        }, {"session-1": 8})
+        }, {"session-1": 4})
 
         americas = self._region(snapshot, "americas")
         self.assertEqual(americas.controller, "britain", "R1: Colony held (garrison protected)")
@@ -593,7 +593,7 @@ class TestTalentCrossBranchIndependence(EdgeCaseTestBase):
                 talent_unlocks=["ind_basic_metallurgy"],
                 phase1_production={"rawMaterialAssignments": {"handicraft": 4}},
             ),
-        }, {"session-1": 8})
+        }, {"session-1": 4})
 
         britain = self._player(snapshot, "player-1")
         self.assertIn("ind_basic_metallurgy", britain.unlocked_talents)
@@ -605,7 +605,7 @@ class TestTalentCrossBranchIndependence(EdgeCaseTestBase):
                 talent_unlocks=["mil_military_theory"],
                 phase1_production={"rawMaterialAssignments": {"handicraft": 4}},
             ),
-        }, {"session-1": 8})
+        }, {"session-1": 4})
 
         britain = self._player(snapshot, "player-1")
         self.assertIn("ind_basic_metallurgy", britain.unlocked_talents, "Industry still unlocked")
@@ -627,7 +627,7 @@ class TestTalentCrossBranchIndependence(EdgeCaseTestBase):
                 talent_unlocks=["ind_basic_metallurgy"],
                 phase1_production={"rawMaterialAssignments": {"handicraft": 4}},
             ),
-        }, {"session-1": 8})
+        }, {"session-1": 4})
 
         britain = self._player(snapshot, "player-1")
         handicraft_after_r1 = britain.phase1_economy.capacity_by_mode.get("handicraft", 0)
@@ -638,7 +638,7 @@ class TestTalentCrossBranchIndependence(EdgeCaseTestBase):
                 talent_unlocks=["ind_basic_metallurgy"],
                 phase1_production={"rawMaterialAssignments": {"handicraft": 4}},
             ),
-        }, {"session-1": 8})
+        }, {"session-1": 4})
 
         britain = self._player(snapshot, "player-1")
         handicraft_after_r2 = britain.phase1_economy.capacity_by_mode.get("handicraft", 0)

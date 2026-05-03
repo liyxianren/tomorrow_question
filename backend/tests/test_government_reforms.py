@@ -136,21 +136,6 @@ class PolicyActivationTests(unittest.TestCase):
         self.assertEqual(player.administration_capacity, 5)
         self.assertIn("raise_consumption_tax", player.active_policies)
 
-    def test_policy_requires_reform(self) -> None:
-        balance = get_balance_config()
-        snapshot = _build_snapshot()
-        player = _get_player(snapshot, "player-1")
-        player.administration_capacity = 5
-        # No stock_market reform → public_offering should be blocked.
-
-        activated = _apply_policy_plan(
-            player, {"activatePolicies": ["public_offering"]}, balance
-        )
-
-        self.assertEqual(activated, [])
-        self.assertNotIn("public_offering", player.active_policies)
-        self.assertEqual(player.administration_capacity, 5)
-
     def test_deactivate_policy(self) -> None:
         balance = get_balance_config()
         snapshot = _build_snapshot()
@@ -202,31 +187,6 @@ class SettlementEffectsTests(unittest.TestCase):
         updated = _get_player(resolution.updated_snapshot, "player-1")
 
         self.assertEqual(updated.tech_points, 6)
-
-    def test_social_welfare_transfer(self) -> None:
-        balance = get_balance_config()
-        snapshot = _build_snapshot()
-        player = _get_player(snapshot, "player-1")
-        player.administration_capacity = 5
-        player.budget_pools = {"domesticMarket": 0, "factory": 0, "governmentFiscal": 100}
-        # No base_income floor and national_income=0 → no allocation delta this turn.
-        player.income_allocation_ratio = {
-            "domesticMarket": 3.0,
-            "factory": 3.0,
-            "governmentFiscal": 4.0,
-        }
-        _apply_reform_plan(player, {"reforms": ["social_relief"]}, balance)
-        _apply_policy_plan(player, {"activatePolicies": ["social_welfare"]}, balance)
-        self.assertIn("social_welfare", player.active_policies)
-
-        resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
-        updated = _get_player(resolution.updated_snapshot, "player-1")
-
-        # national_income=0 → no pool delta from allocation.
-        # fiscal pre-transfer = 100; transfer = int(100 * 0.1) = 10.
-        self.assertEqual(updated.budget_pools["governmentFiscal"], 90)
-        self.assertEqual(updated.budget_pools["domesticMarket"], 10)
-        self.assertEqual(updated.budget_pools["factory"], 0)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,94 @@
+TASK ID:
+e3-replace-stat-rows
+
+OBJECTIVE:
+Replace each panel's custom stat row with the new `<DecisionStatStrip />` shared component. Mechanical change — no logic alteration.
+
+## PANELS TO MODIFY (in order)
+
+### 1. DomesticPanel (panels/DomesticPanel.tsx)
+Current: `<div className="domestic-stats">` with 4 child `<div className="domestic-stat">` blocks.
+Replace with:
+```tsx
+<DecisionStatStrip items={[
+  { icon: "💰", value: workspace.budgetPools.domesticMarket, label: "国内预算" },
+  { icon: "📊", value: workspace.domesticStats?.demand ?? "—", label: "国内需求" },
+  { icon: "📦", value: workspace.domesticStats?.supply ?? "—", label: "国内供给" },
+  { icon: "✅", value: draft.domesticMarketPlan.domesticMarketActions.length, label: "已选动作" },
+]} />
+```
+Import: `import { DecisionStatStrip } from "./shared/DecisionStatStrip";`
+(Note: remove the first stat that redundantly shows budget — the ResourceBar already shows it)
+
+### 2. GovernmentPanel (panels/GovernmentPanel.tsx)
+Current: `<div className="government-stats">` with 4 `<div className="government-stat">` blocks.
+Replace with:
+```tsx
+<DecisionStatStrip items={[
+  { icon: "📜", value: reforms.administrationCapacity, label: "行政力" },
+  { icon: "🧮", value: projectedAdmin, label: "本轮剩余" },
+  { icon: "📚", value: reforms.completedReforms.length, label: "已完成改革" },
+  { icon: "⚙️", value: activePolicies.length, label: "现行政策" },
+]} />
+```
+Import `DecisionStatStrip`. Remove the old `government-stats` div block completely.
+
+### 3. MilitaryPanel (panels/MilitaryPanel.tsx)
+Current: `<div className="military-stats">` with 4 `<div className="military-stat">` blocks.
+Replace with:
+```tsx
+<DecisionStatStrip items={[
+  { icon: "⚔️", value: mil.militaryPoints, label: "军事点" },
+  { icon: "⛵", value: mil.navy.fleets ?? 0, label: "舰队" },
+  { icon: "🌍", value: mil.overseasCapacity, label: "海外承接" },
+  { icon: "🏳️", value: mil.establishedDiplomacy.length, label: "已建交" },
+]} />
+```
+Import `DecisionStatStrip`. Remove `military-stats` div.
+
+### 4. Phase1ProductionPanel (panels/factory/Phase1ProductionPanel.tsx)
+Current: `<div className="phase1-panel__summary">` with stat items.
+Replace with `<DecisionStatStrip items={[...]} />` extracting rawMaterials, goodsInventory, investmentPool, and capacity from phase1Economy.
+Import `DecisionStatStrip` from `"../shared/DecisionStatStrip"`.
+
+### 5. FactoryPanel (panels/factory/FactoryPanel.tsx)
+Currently: `factory-panel__header` shows "工厂预算 {budget}". 
+Remove the budget badge from the header. Keep "🏭 工业区" title.
+(FactoryPanel's main stats are in Phase1ProductionPanel which was covered above)
+
+### 6. ResearchPanel (panels/ResearchPanel.tsx)
+Current: 3 separate `research-panel__header` blocks.
+Replace with single `<DecisionStatStrip items={[ ... ]} />` showing:
+- researchFacilities / facilityCost / progressPerFacility as "研究设施"
+- activeResearch / activeTechLabel as "当前研究"
+Import `DecisionStatStrip` from `"./shared/DecisionStatStrip"`.
+
+## RULES
+- Each panel must import `DecisionStatStrip` from the correct relative path
+- Remove the old custom stat CSS blocks (but keep the CSS classes in the .css files for now — CSS cleanup is E.8)
+- Keep all existing `data-testid` attributes on the panels themselves
+- Do NOT change any logic, props, or behavior
+- Match existing text and icon choices
+
+## DO NOT
+- Do not modify panel logic
+- Do not create new test files
+- Do not touch backend
+
+## VERIFICATION TIER
+- Tier: T1
+- Do run: npm test
+- Do not run: browser dogfood
+
+## VERIFICATION
+- npm test (confirm no new failures beyond pre-existing 13)
+
+## STOP CONDITIONS
+- Stop if any test assertion breaks due to text changes (we keep all text identical)
+
+## RETURN FORMAT
+1. Summary with panel-by-panel checklist
+2. Files changed
+3. Verification run
+4. Budget: T1
+5. Next step

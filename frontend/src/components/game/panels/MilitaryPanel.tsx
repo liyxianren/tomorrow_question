@@ -197,7 +197,7 @@ export function MilitaryPanel({
             <DecisionActionCard
               icon="👑"
               title="殖民扩张"
-              costLabel={String(capability.unlockCost)}
+              costLabel={`${capability.unlockCost} 政府财政`}
               description={`支付 ${capability.unlockCost} 政府财政永久解锁殖民能力。解锁后，殖民执行只消耗 ${capability.militaryPointCost} 军事点。`}
               status={unlockStatus}
               statusText={statusText}
@@ -231,7 +231,7 @@ export function MilitaryPanel({
               key={action.actionId}
               icon={ACTION_ICONS[action.actionId] ?? "⚙️"}
               title={action.label}
-              costLabel={String(action.cost)}
+              costLabel={`${action.cost} 军事点`}
               description={action.description}
               effects={effectMetrics}
               status={status}

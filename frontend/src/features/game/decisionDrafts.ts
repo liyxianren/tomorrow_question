@@ -441,6 +441,26 @@ export function setAdminPurchases(
   };
 }
 
+export function setPointPurchase(
+  draft: PhaseDraftByPhase["decision"],
+  pointType: "tech" | "military",
+  quantity: number,
+): PhaseDraftByPhase["decision"] {
+  const nextQuantity = normalizeQuantity(quantity);
+  const remaining = draft.governmentPlan.pointPurchases.filter((p) => p.pointType !== pointType);
+  const nextPurchases = nextQuantity > 0
+    ? [...remaining, { pointType, quantity: nextQuantity }]
+    : remaining;
+
+  return {
+    ...draft,
+    governmentPlan: {
+      ...draft.governmentPlan,
+      pointPurchases: nextPurchases,
+    },
+  };
+}
+
 export function toggleReformQueue(
   draft: PhaseDraftByPhase["decision"],
   reformId: string,

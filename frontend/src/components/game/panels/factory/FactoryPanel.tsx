@@ -109,15 +109,21 @@ export function FactoryPanel({
         : "available";
     const description = isLocked
       ? `🔒 ${option.lockedReason}`
-      : `产能 +${option.capacityDelta}${option.maxQuantity < 999 ? ` · 最多 ${option.maxQuantity} 次` : ""}`;
+      : option.maxQuantity < 999
+        ? `最多 ${option.maxQuantity} 次`
+        : undefined;
+    const effects = isLocked
+      ? undefined
+      : [{ label: `产能 +${option.capacityDelta}`, value: "" }];
     return (
       <DecisionActionCard
         key={`${kind}-${option.routeId}`}
         title={title}
-        costLabel={`💰${option.unitBudgetCost} 预算`}
+        costLabel={`💰${option.unitBudgetCost} 财政`}
         description={description}
+        effects={effects}
         status={status}
-        statusText={quantity > 0 ? `已选 ${quantity} 次` : noBudget ? "预算不足" : "可选"}
+        statusText={quantity > 0 ? `已选 ${quantity} 次` : noBudget ? "财政不足" : "可选"}
         control={{
           kind: "stepper",
           value: quantity,

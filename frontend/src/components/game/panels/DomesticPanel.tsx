@@ -75,24 +75,24 @@ export function DomesticPanel({
               <div className="gp-metric">
                 <span className="gp-metric__label">均衡价格</span>
                 <span className="gp-metric__value">
-                  {phase1Economy ? phase1Economy.equilibriumPrice : "—"}
+                  {phase1Economy?.equilibriumPrice != null ? `${Math.round(phase1Economy.equilibriumPrice * 100) / 100} 财政/件` : "—"}
                 </span>
                 {phase1Economy ? (
                   <span className="gp-metric__hint">
-                    本轮预测 {phase1Economy.domesticPricePreview}
+                    本轮预测 {phase1Economy.domesticPricePreview != null ? Math.round(phase1Economy.domesticPricePreview * 100) / 100 : "—"}
                   </span>
                 ) : null}
               </div>
               <div className="gp-metric">
                 <span className="gp-metric__label">国内需求</span>
                 <span className="gp-metric__value">
-                  {phase1Economy ? phase1Economy.domesticDemand : "—"}
+                  {phase1Economy?.domesticDemand != null ? `${Math.round(phase1Economy.domesticDemand * 100) / 100} 件` : "—"}
                 </span>
               </div>
               <div className="gp-metric">
                 <span className="gp-metric__label">消费池</span>
                 <span className="gp-metric__value">
-                  {phase1Economy?.consumptionPool ?? "—"}
+                  {phase1Economy?.consumptionPool != null ? `${Math.round(phase1Economy.consumptionPool * 100) / 100} 财政` : "—"}
                 </span>
                 {phase1Economy?.poolDeltaPreview ? (
                   <span className="gp-metric__hint">
@@ -125,7 +125,7 @@ export function DomesticPanel({
                   key={action.actionId}
                   icon={ACTION_ICONS[action.actionId] ?? "⚙️"}
                   title={action.label}
-                  costLabel={String(action.cost)}
+                  costLabel={`${action.cost} 财政`}
                   description={action.description}
                   effects={effectMetrics}
                   status={status}

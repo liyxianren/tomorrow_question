@@ -418,7 +418,7 @@ class Comprehensive5RoundE2E(unittest.TestCase):
 
         # ── R2 Market + Settlement ──
         snapshot = self._submit_markets_for_all({
-            "session-1": 8,
+            "session-1": 4,
             "session-2": 4,
             "session-3": 6,
         })
@@ -465,7 +465,7 @@ class Comprehensive5RoundE2E(unittest.TestCase):
 
         # ── R3 Market + Settlement ──
         snapshot = self._submit_markets_for_all({
-            "session-1": 11,
+            "session-1": 5,
             "session-2": 4,
             "session-3": 5,
         })
@@ -525,7 +525,7 @@ class Comprehensive5RoundE2E(unittest.TestCase):
 
         # ── R5 Market + Settlement ──
         snapshot = self._submit_markets_for_all({
-            "session-1": 11,
+            "session-1": 8,
             "session-2": 4,
             "session-3": 5,
         })

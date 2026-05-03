@@ -1,0 +1,32 @@
+TASK ID:
+e8-css-cleanup
+
+OBJECTIVE:
+Delete dead CSS classes that were replaced by shared components. Grep-first, delete-only.
+
+## STEPS
+
+1. Search ALL .tsx .ts .jsx files for usage of these CSS class patterns. For each, if ZERO matches found, delete the CSS block:
+   - `domestic-action-card` (in DomesticPanel.css)
+   - `government-action-card` (in GovernmentPanel.css)
+   - `military-action-card` (in MilitaryPanel.css)
+   - `factory-action-card` (in FactoryPanel.css)
+   - `domestic-stats` (in DomesticPanel.css)
+   - `government-stats` (in GovernmentPanel.css)
+   - `military-stats` (in MilitaryPanel.css)
+   - `domestic-panel__budget` / `factory-panel__budget` / `government-panel__budget` / `military-panel__budget` (budget badges removed)
+
+2. For classes still referenced in .tsx (e.g. military action card children styles for colony progress bars), KEEP them.
+
+3. After deletion, run npm test to confirm no regressions.
+
+4. Also delete any remaining `xxx-panel__header` styles that are now unused.
+
+## VERIFICATION
+- npm test
+- Confirm CSS file sizes reduced
+
+## RETURN FORMAT
+1. Summary of deleted classes
+2. Files changed
+3. Test result

@@ -3,8 +3,8 @@ E2E tests for remaining regularPolicies:
 - expand_army (budgetCost=8, militaryPointsDelta=1)
 - reduce_army (fiscalRefund=5)
 - raise_consumption_tax (ratioDelta + ideologyDelta) — already unit-tested, API-level here
-- public_offering (requiresReform=stock_market, ratioDelta)
-- social_welfare (requiresReform=social_relief, welfareTransfer)
+- lower_consumption_tax (ratioDelta + ideologyDelta)
+- expand_administration (budgetCost=15, administrationCapacityDelta=1)
 """
 
 import tempfile
@@ -268,81 +268,6 @@ class RegularPoliciesE2ETest(unittest.TestCase):
         britain = self._player(snapshot, "player-1")
 
         self.assertIn("raise_consumption_tax", britain.active_policies)
-
-    # ── public_offering (requiresReform) ──
-
-    def test_public_offering_requires_stock_market_reform(self):
-        """public_offering requires stock_market reform — rejected without it."""
-        self.seed_active_game()
-        snapshot = self._load_snapshot()
-        britain = self._player(snapshot, "player-1")
-        britain.administration_capacity = 10
-        britain.budget_pools["governmentFiscal"] = 100
-        self._save_snapshot(snapshot)
-
-        payload = _decision_payload(activate_policies=["public_offering"])
-        self._submit_decisions_for_all({"session-1": payload})
-        snapshot = self._load_snapshot()
-        britain = self._player(snapshot, "player-1")
-
-        # Should NOT be activated without the reform
-        self.assertNotIn("public_offering", britain.active_policies)
-
-    def test_public_offering_with_reform(self):
-        """public_offering activates when stock_market reform is completed."""
-        self.seed_active_game()
-        snapshot = self._load_snapshot()
-        britain = self._player(snapshot, "player-1")
-        britain.administration_capacity = 10
-        britain.budget_pools["governmentFiscal"] = 100
-        britain.completed_reforms.append("stock_market")
-        self._save_snapshot(snapshot)
-
-        payload = _decision_payload(activate_policies=["public_offering"])
-        self._submit_decisions_for_all({"session-1": payload})
-        snapshot = self._load_snapshot()
-        britain = self._player(snapshot, "player-1")
-
-        self.assertIn("public_offering", britain.active_policies)
-        # budgetCost = 1
-        self.assertEqual(britain.budget_pools["governmentFiscal"], 99)
-
-    # ── social_welfare (requiresReform) ──
-
-    def test_social_welfare_requires_social_relief_reform(self):
-        self.seed_active_game()
-        snapshot = self._load_snapshot()
-        britain = self._player(snapshot, "player-1")
-        britain.administration_capacity = 10
-        britain.budget_pools["governmentFiscal"] = 100
-        self._save_snapshot(snapshot)
-
-        payload = _decision_payload(activate_policies=["social_welfare"])
-        self._submit_decisions_for_all({"session-1": payload})
-        snapshot = self._load_snapshot()
-        britain = self._player(snapshot, "player-1")
-
-        self.assertNotIn("social_welfare", britain.active_policies)
-
-    def test_social_welfare_welfare_transfer(self):
-        """social_welfare: 10% fiscal→consumption (domesticMarket) transfer each settlement."""
-        self.seed_active_game()
-        snapshot = self._load_snapshot()
-        britain = self._player(snapshot, "player-1")
-        britain.administration_capacity = 10
-        britain.budget_pools["governmentFiscal"] = 100
-        britain.budget_pools["domesticMarket"] = 0
-        britain.completed_reforms.append("social_relief")
-        self._save_snapshot(snapshot)
-
-        payload = _decision_payload(activate_policies=["social_welfare"])
-        snapshot = self._full_round(payload, snapshot)
-        britain = self._player(snapshot, "player-1")
-
-        self.assertIn("social_welfare", britain.active_policies)
-        # After settlement: domesticMarket should have received 10% of fiscal (welfareTransfer)
-        # domesticMarket aliased from "consumption" pool
-        self.assertGreater(britain.budget_pools.get("domesticMarket", 0), 0)
 
 
 if __name__ == "__main__":

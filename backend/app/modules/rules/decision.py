@@ -44,7 +44,12 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
             or phase1_production.get("upgradeOrders", [])
             or []
         )
-        factory_spent = _apply_phase1_production_plan(player_state, phase1_production, balance, upgrade_orders)
+        expansion_orders = (
+            payload.get("factoryPlan", {}).get("expansionOrders", [])
+            or phase1_production.get("expansionOrders", [])
+            or []
+        )
+        factory_spent = _apply_phase1_production_plan(player_state, phase1_production, balance, upgrade_orders, expansion_orders)
         domestic_spent = _apply_domestic_market_plan(player_state, payload.get("domesticMarketPlan") or {}, balance)
         government_spent = _apply_government_plan(player_state, payload.get("governmentPlan") or {}, balance)
         military_plan = payload.get("militaryPlan") or {}
@@ -99,7 +104,7 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
     )
 
 
-def _apply_phase1_production_plan(player_state, phase1_production: dict[str, Any], balance, upgrade_orders=None) -> int:
+def _apply_phase1_production_plan(player_state, phase1_production: dict[str, Any], balance, upgrade_orders=None, expansion_orders=None) -> int:
     """Phase-1 unified production: build/upgrade capacity_by_mode, then turn raw materials into goods."""
     spent = 0
     remaining_budget = int(player_state.budget_pools.get("factory", 0))
@@ -162,6 +167,15 @@ def _apply_phase1_production_plan(player_state, phase1_production: dict[str, Any
         total_cost = affordable * unit_cost
         spent += total_cost
         remaining_budget -= total_cost
+
+    for order in (expansion_orders or []):
+        route = str(order.get("routeId") or order.get("route") or "")
+        quantity = max(0, int(order.get("quantity", 0)))
+        if not route or quantity <= 0:
+            continue
+        player_state.pending_production_capacity[route] = (
+            int(player_state.pending_production_capacity.get(route, 0)) + quantity
+        )
 
     raw_assignments_in = phase1_production.get("rawMaterialAssignments") or {}
     available_raw = max(0, int(player_state.phase1_economy.raw_materials))

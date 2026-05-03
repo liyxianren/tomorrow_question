@@ -1,7 +1,9 @@
 import type { DecisionPlayerPhaseWorkspace, IdeologyKey } from "../../../types";
 import type { PhaseDraftByPhase } from "../../../features/game/forms";
+import type { DecisionActionCardEffect } from "./shared/DecisionActionCard";
 import { DecisionStatStrip } from "./shared/DecisionStatStrip";
 import { DecisionActionCard } from "./shared/DecisionActionCard";
+import { buildEffectMetrics } from "../../../features/game/decisionShared";
 import "./GovernmentPanel.css";
 
 const REFORM_PATH_LABELS: Record<"freedom" | "equality" | "national", string> = {
@@ -111,11 +113,91 @@ function formatReformEffects(
   return tags;
 }
 
+const RATIO_NAME_MAP: Record<string, string> = {
+  domesticMarket: "国内",
+  governmentFiscal: "政府",
+  factory: "工厂",
+  consumption: "消费",
+  fiscal: "财政",
+};
+
+function formatStrategyEffects(
+  strategy: { effects?: Record<string, number | Record<string, number>>; ratioDelta?: Record<string, number> },
+): DecisionActionCardEffect[] {
+  const effects: DecisionActionCardEffect[] = [];
+
+  if (strategy.effects) {
+    effects.push(...buildEffectMetrics(strategy.effects));
+  }
+
+  if (strategy.ratioDelta) {
+    const parts = Object.entries(strategy.ratioDelta).map(([key, delta]) => {
+      const label = RATIO_NAME_MAP[key] ?? key;
+      const sign = delta > 0 ? "+" : "";
+      return `${label} ${sign}${delta}`;
+    });
+    if (parts.length > 0) {
+      effects.push({ label: `分配偏移：${parts.join(", ")}`, value: "", temporary: true });
+    }
+  }
+
+  return effects;
+}
+
+function formatPolicyEffects(
+  policy: { effects?: Record<string, unknown>; adminCostPerTurn: number; budgetCost: number },
+): DecisionActionCardEffect[] {
+  const effects: DecisionActionCardEffect[] = [];
+
+  if (!policy.effects) return effects;
+
+  const e = policy.effects;
+  const ratioDelta = e.ratioDelta as Record<string, number> | undefined;
+  if (ratioDelta) {
+    const names: Record<string, string> = { consumption: "消费池", fiscal: "财政池", factory: "工厂池", domesticMarket: "国内", governmentFiscal: "政府" };
+    for (const [key, delta] of Object.entries(ratioDelta)) {
+      effects.push({ label: `${names[key] ?? key}分配 ${delta > 0 ? "+" : ""}${delta}`, value: "" });
+    }
+  }
+
+  const ideologyDelta = e.ideologyDelta as Record<string, number> | undefined;
+  if (ideologyDelta) {
+    for (const [key, delta] of Object.entries(ideologyDelta)) {
+      effects.push({ label: `${IDEOLOGY_LABELS[key as IdeologyKey] ?? key}思潮 ${delta > 0 ? "+" : ""}${delta}`, value: "" });
+    }
+  }
+
+  if (e.militaryPointsDelta !== undefined) {
+    const delta = e.militaryPointsDelta as number;
+    effects.push({ label: `军事点数 ${delta > 0 ? "+" : ""}${delta}`, value: "" });
+  }
+
+  if (e.fiscalRefund !== undefined) {
+    effects.push({ label: `返还政府财政 ${e.fiscalRefund}`, value: "" });
+  }
+
+  if (e.administrationCapacityDelta !== undefined) {
+    const delta = e.administrationCapacityDelta as number;
+    effects.push({ label: `行政力上限 ${delta > 0 ? "+" : ""}${delta}`, value: "" });
+  }
+
+  const permanent = e.permanent as Record<string, unknown> | undefined;
+  if (permanent) {
+    if (permanent.techPointsPerTurn !== undefined) {
+      effects.push({ label: `每回合 +${permanent.techPointsPerTurn} 科技点`, value: "" });
+    }
+  }
+
+  return effects;
+}
+
 export interface GovernmentPanelProps {
   workspace: DecisionPlayerPhaseWorkspace;
   draft: PhaseDraftByPhase["decision"];
   remainingGovernmentBudget: number;
   onAdminPurchase: (quantity: number) => void;
+  onTechPurchase: (quantity: number) => void;
+  onMilitaryPurchase: (quantity: number) => void;
   onEnactReform: (reformId: string, queued: boolean) => void;
   onTogglePolicy: (policyId: string, active: boolean) => void;
   onToggleStrategy: (actionId: string, checked: boolean) => void;
@@ -126,6 +208,8 @@ export function GovernmentPanel({
   draft,
   remainingGovernmentBudget,
   onAdminPurchase,
+  onTechPurchase,
+  onMilitaryPurchase,
   onEnactReform,
   onTogglePolicy,
   onToggleStrategy,
@@ -190,6 +274,16 @@ export function GovernmentPanel({
 
   const canBuyAdmin = remainingGovernmentBudget >= adminCost;
 
+  const pointPurchaseCosts = workspace.governmentActions?.pointPurchaseCosts ?? { tech: 0, military: 0 };
+  const techCost = pointPurchaseCosts.tech;
+  const militaryCost = pointPurchaseCosts.military;
+  const queuedTechPurchases = draft.governmentPlan.pointPurchases.find((p) => p.pointType === "tech")?.quantity ?? 0;
+  const queuedMilitaryPurchases = draft.governmentPlan.pointPurchases.find((p) => p.pointType === "military")?.quantity ?? 0;
+  const pointSpend = queuedTechPurchases * techCost + queuedMilitaryPurchases * militaryCost;
+  const budgetAfterPointSpend = remainingGovernmentBudget - pointSpend;
+  const canBuyTech = remainingGovernmentBudget >= techCost;
+  const canBuyMilitary = remainingGovernmentBudget >= militaryCost;
+
   return (
     <section className="government-panel" data-testid="government-panel">
       <div className="government-panel__header">
@@ -200,7 +294,7 @@ export function GovernmentPanel({
       <DecisionStatStrip
         items={[
           { icon: "📜", value: reforms.administrationCapacity, label: "行政力" },
-          { icon: "🧮", value: projectedAdmin, label: "本轮剩余" },
+          { icon: "🧮", value: projectedAdmin, label: "剩余行政力" },
           { icon: "📚", value: reforms.completedReforms.length, label: "已完成改革" },
           { icon: "⚙️", value: activePolicies.length, label: "现行政策" },
         ]}
@@ -314,7 +408,7 @@ export function GovernmentPanel({
                     key={reform.reformId}
                     icon={wouldTriggerRevolution ? "⚠️" : REFORM_PATH_ICONS[path]}
                     title={reform.label}
-                    costLabel={`${reform.adminCost} 行政`}
+                    costLabel={`消耗 ${reform.adminCost} 行政力`}
                     description={`${REFORM_PATH_LABELS[path]} · 实施后永久改变国家结构。`}
                     warning={warningNode}
                     effects={effectTags.map((tag) => ({ label: tag, value: "" }))}
@@ -352,11 +446,11 @@ export function GovernmentPanel({
                       key={policy.policyId}
                       icon="📋"
                       title={policy.label}
-                      costLabel={`${policy.adminCostPerTurn}/回合`}
+                      costLabel={`消耗 ${policy.adminCostPerTurn} 行政力/回合`}
                       description={policy.description}
-                      effects={[{ label: active ? "持续生效" : "本轮停用", value: "" }]}
+                      effects={formatPolicyEffects(policy)}
                       status={active ? "selected" : "available"}
-                      statusText={`每回合行政 ${policy.adminCostPerTurn}`}
+                      statusText={`每回合消耗 ${policy.adminCostPerTurn} 行政力`}
                       control={{
                         kind: "toggle",
                         checked: active,
@@ -417,6 +511,87 @@ export function GovernmentPanel({
             />
           </div>
 
+          {/* 点数购买 */}
+          {(techCost > 0 || militaryCost > 0) && (
+            <>
+              <h4 className="government-section-label">🎫 点数购买</h4>
+              <div className="government-actions">
+                {techCost > 0 && (
+                  <DecisionActionCard
+                    icon="🔬"
+                    title="购买科技点"
+                    costLabel={`${techCost}/点`}
+                    description="使用政府财政购买科技点数，用于研究和天赋解锁。"
+                    effects={[
+                      { label: "已购", value: `${queuedTechPurchases} 点` },
+                      { label: "本轮花费", value: `${queuedTechPurchases * techCost} 财政` },
+                    ]}
+                    status={
+                      queuedTechPurchases > 0
+                        ? "selected"
+                        : !canBuyTech
+                          ? "disabled"
+                          : "available"
+                    }
+                    statusText={
+                      queuedTechPurchases > 0
+                        ? `✓ 本轮 -${queuedTechPurchases * techCost} 财政 / +${queuedTechPurchases} 科技点`
+                        : !canBuyTech
+                          ? "财政不足"
+                          : "可购买"
+                    }
+                    control={{
+                      kind: "stepper",
+                      value: queuedTechPurchases,
+                      min: 0,
+                      max: techCost > 0 ? Math.floor((remainingGovernmentBudget + queuedTechPurchases * techCost) / techCost) : 0,
+                      onChange: onTechPurchase,
+                      incrementAriaLabel: "增加科技点购买",
+                      decrementAriaLabel: "减少科技点购买",
+                      incrementDisabled: !canBuyTech,
+                    }}
+                  />
+                )}
+                {militaryCost > 0 && (
+                  <DecisionActionCard
+                    icon="⚔️"
+                    title="购买军事点"
+                    costLabel={`${militaryCost}/点`}
+                    description="使用政府财政购买军事点数，用于军事行动。"
+                    effects={[
+                      { label: "已购", value: `${queuedMilitaryPurchases} 点` },
+                      { label: "本轮花费", value: `${queuedMilitaryPurchases * militaryCost} 财政` },
+                    ]}
+                    status={
+                      queuedMilitaryPurchases > 0
+                        ? "selected"
+                        : !canBuyMilitary
+                          ? "disabled"
+                          : "available"
+                    }
+                    statusText={
+                      queuedMilitaryPurchases > 0
+                        ? `✓ 本轮 -${queuedMilitaryPurchases * militaryCost} 财政 / +${queuedMilitaryPurchases} 军事点`
+                        : !canBuyMilitary
+                          ? "财政不足"
+                          : "可购买"
+                    }
+                    control={{
+                      kind: "stepper",
+                      value: queuedMilitaryPurchases,
+                      min: 0,
+                      max: militaryCost > 0 ? Math.floor((remainingGovernmentBudget + queuedMilitaryPurchases * militaryCost) / militaryCost) : 0,
+                      onChange: onMilitaryPurchase,
+                      incrementAriaLabel: "增加军事点购买",
+                      decrementAriaLabel: "减少军事点购买",
+                      incrementDisabled: !canBuyMilitary,
+                    }}
+                  />
+                )}
+              </div>
+            </>
+          )}
+
           {/* 政策（可激活） */}
           {inactivePolicies.length > 0 && (
             <>
@@ -431,9 +606,10 @@ export function GovernmentPanel({
                     : null;
                   const isDisabled = lockedReason !== null && !active;
                   const status = active ? "selected" : lockedReason ? "disabled" : "available";
-                  const effects: { label: string; value: string }[] = [
-                    { label: `行政 ${policy.adminCostPerTurn} · 预算 ${policy.budgetCost}`, value: "" },
-                  ];
+                  const effects = formatPolicyEffects(policy);
+                  if (policy.budgetCost > 0) {
+                    effects.unshift({ label: `花费 ${policy.budgetCost} 政府财政`, value: "" });
+                  }
                   if (lockedReason) {
                     effects.push({ label: lockedReason, value: "" });
                   }
@@ -442,7 +618,7 @@ export function GovernmentPanel({
                       key={policy.policyId}
                       icon="🆕"
                       title={policy.label}
-                      costLabel={`${policy.adminCostPerTurn}/回合`}
+                      costLabel={`消耗 ${policy.adminCostPerTurn} 行政力/回合`}
                       description={policy.description}
                       effects={effects}
                       status={status}
@@ -480,6 +656,7 @@ export function GovernmentPanel({
                       title={strategy.label}
                       costLabel={`${strategy.cost} 财政`}
                       description={strategy.description ?? undefined}
+                      effects={formatStrategyEffects(strategy)}
                       status={status}
                       statusText={queued ? "✓ 本轮执行" : lockedReason ?? "可选"}
                       control={{

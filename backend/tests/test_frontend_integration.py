@@ -326,17 +326,17 @@ def test_frontend_policy_activation_payload():
     state = get_state(ctx)
     gov = state["budgetPools"]["governmentFiscal"]
 
-    # expand_research costs 12 budget — skip if too expensive
-    if gov < 12:
+    # expand_administration costs 15 budget — skip if too expensive
+    if gov < 15:
         # Use a cheaper policy or just verify the payload shape is accepted
         # Try with no policy (empty activate) — tests the field passthrough
         payload = frontend_decision_payload(activate_policies=[], deactivate_policies=[])
         resp, code = submit_decision(ctx["game_id"], ctx["session_id"], payload)
         assert code == 200, f"Expected 200, got {code}: {resp}"
-        print(f"  ⚠️ Skipped expand_research (govFiscal={gov} < 12); verified payload shape")
+        print(f"  ⚠️ Skipped expand_administration (govFiscal={gov} < 15); verified payload shape")
         print("  ✅ PASS: Frontend policy activation payload shape accepted")
     else:
-        payload = frontend_decision_payload(activate_policies=["expand_research"])
+        payload = frontend_decision_payload(activate_policies=["expand_administration"])
         resp, code = submit_decision(ctx["game_id"], ctx["session_id"], payload)
         assert code == 200, f"Expected 200, got {code}: {resp}"
         print("  ✅ PASS: Frontend policy activation payload accepted")
