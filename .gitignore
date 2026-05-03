@@ -29,3 +29,4 @@ backend/data/
 frontend/test_output.txt
 frontend/test_game_output.txt
 
+.claude/worktrees/
