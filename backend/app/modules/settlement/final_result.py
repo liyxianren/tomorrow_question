@@ -115,11 +115,12 @@ def build_final_result_payload(
     viewer_player_id: str | None = None,
 ) -> dict[str, object]:
     final_ranking = build_final_ranking(snapshot=snapshot, room=room)
+    sanitized_final_logs = sanitize_final_logs(final_logs)
     return {
         "game": game.to_payload(),
         "snapshot": snapshot.to_payload(),
         "finalRanking": final_ranking,
-        "finalLogs": list(final_logs),
+        "finalLogs": sanitized_final_logs,
         "whyRankChanged": build_why_rank_changed(final_ranking=final_ranking, viewer_player_id=viewer_player_id),
         "turningPointCards": build_turning_point_cards(
             snapshot=snapshot,
@@ -202,11 +203,15 @@ def build_turning_point_cards(
 ) -> list[dict[str, str]]:
     cards: list[dict[str, str]] = []
     phase_label = PHASE_LABELS.get(snapshot.phase.value, snapshot.phase.value)
-    if final_logs:
+    leader = final_ranking[0] if final_ranking else None
+    if leader is not None:
         cards.append(
             {
                 "title": f"最后结算定格在{phase_label}",
-                "detail": str(final_logs[-1].get("message") or "终局结算已经完成。"),
+                "detail": (
+                    f"{_country_label(str(leader.get('country') or ''))}以 "
+                    f"{_safe_int(leader.get('cumulativeNationalIncome'))} 累计国家收入锁定榜首。"
+                ),
             }
         )
 
@@ -218,11 +223,19 @@ def build_turning_point_cards(
             {
                 "title": f"终局领先差被锁定在 {lead}",
                 "detail": (
-                    f"{str(leader.get('nickname') or leader.get('playerId'))} 以 "
+                    f"{_country_label(str(leader.get('country') or ''))} 以 "
                     f"{_safe_int(leader.get('cumulativeNationalIncome'))} 的累计国家收入领先 "
-                    f"{str(runner_up.get('nickname') or runner_up.get('playerId'))} 的 "
+                    f"{_country_label(str(runner_up.get('country') or ''))} 的 "
                     f"{_safe_int(runner_up.get('cumulativeNationalIncome'))}。"
                 ),
+            }
+        )
+    curated_log = _pick_curated_turning_log(final_logs)
+    if curated_log is not None:
+        cards.append(
+            {
+                "title": f"第 {_safe_int(curated_log.get('roundNo'))} 回合：{_log_card_title(curated_log)}",
+                "detail": _sanitize_log_message(curated_log),
             }
         )
     return cards
@@ -250,6 +263,10 @@ def build_replay_guidance(
     ]
 
 
+def sanitize_final_logs(final_logs: list[dict[str, object]]) -> list[dict[str, object]]:
+    return [_sanitize_final_log(log) for log in final_logs]
+
+
 def _find_ranking_entry(
     final_ranking: list[dict[str, object]],
     viewer_player_id: str | None,
@@ -272,6 +289,79 @@ def _as_mapping(value: object) -> dict[str, object]:
     return {str(key): item for key, item in value.items()}
 
 
+def _country_label(country: str) -> str:
+    return {
+        "britain": "英国",
+        "france": "法国",
+        "prussia": "普鲁士",
+        "austria": "奥地利",
+        "russia": "俄罗斯",
+    }.get(country, country or "领先国家")
+
+
+def _pick_curated_turning_log(final_logs: list[dict[str, object]]) -> dict[str, object] | None:
+    for log in reversed(final_logs):
+        kind = str(log.get("kind") or "")
+        message = str(log.get("message") or "")
+        if kind == "settlement.resolved" or "completed national income allocation" in message:
+            continue
+        if any(token in kind for token in ("colon", "naval", "conquest", "revolt", "policy", "reform", "market")):
+            return log
+    return None
+
+
+def _log_card_title(log: dict[str, object]) -> str:
+    kind = str(log.get("kind") or "")
+    if "revolt" in kind:
+        return "殖民地局势变化"
+    if "naval" in kind:
+        return "航线控制变化"
+    if "colon" in kind:
+        return "殖民扩张"
+    if "market" in kind:
+        return "市场兑现"
+    if "policy" in kind or "reform" in kind:
+        return "制度选择"
+    return "关键记录"
+
+
+def _sanitize_log_message(log: dict[str, object]) -> str:
+    message = str(log.get("message") or "").strip()
+    if not message or "completed national income allocation" in message:
+        return "系统已完成本回合终局结算。"
+    return message
+
+
+def _sanitize_final_log(log: dict[str, object]) -> dict[str, object]:
+    sanitized = dict(log)
+    message = str(log.get("message") or "").strip()
+    phase = str(log.get("phase") or "")
+    round_no = _safe_int(log.get("roundNo"))
+
+    if "completed national income allocation" in message:
+        country_key = message.split(" ", 1)[0].strip()
+        sanitized["message"] = f"{_country_label(country_key)}完成第 {round_no} 回合财政分配。"
+        return sanitized
+
+    if message == "settlement settled." or message == "settlement.phase_resolved":
+        sanitized["message"] = "终局财政结算已完成。"
+        return sanitized
+
+    if message == "market settled.":
+        sanitized["message"] = "市场出售阶段已完成。"
+        return sanitized
+
+    if message == "decision settled.":
+        sanitized["message"] = "国家决策阶段已完成。"
+        return sanitized
+
+    if phase in PHASE_LABELS and message.endswith(" settled."):
+        sanitized["message"] = f"{PHASE_LABELS[phase]}阶段已完成。"
+        return sanitized
+
+    return sanitized
+
+
 __all__ = [
     "FinalResultApplicationError",
     "FinalResultApplicationService",
@@ -280,4 +370,5 @@ __all__ = [
     "build_replay_guidance",
     "build_turning_point_cards",
     "build_why_rank_changed",
+    "sanitize_final_logs",
 ]

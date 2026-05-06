@@ -79,17 +79,9 @@ export function createSettlementPageState({
   const timelineEntries = finalResult?.finalLogs.map((log, index) => ({
     key: `${log.kind}-${log.createdAt ?? index}`,
     label: log.phase ? getPhaseLabel(log.phase) : "终局裁定",
-    message: log.message,
+    message: sanitizeFinalLogMessage(log.message, log.roundNo, log.phase),
     meta: createTimelineMeta(log.roundNo, log.createdAt),
   })) ?? [];
-  const highlights = finalResult
-    ? [
-        leadingIncome === null
-          ? `${leadingCountry} 位列最终第一。`
-          : `${leadingCountry} 以 ${leadingIncome} 累计国家收入位列第一。`,
-        timelineEntries[0]?.message ?? "本局已结束，你可以通过最终排名和日志回顾整局走向。",
-      ]
-    : [];
   const whyRankChanged = finalResult?.whyRankChanged?.length
     ? finalResult.whyRankChanged
     : buildFallbackWhyRankChanged(finalResult);
@@ -97,6 +89,16 @@ export function createSettlementPageState({
   const replayGuidance = finalResult?.replayGuidance?.length
     ? finalResult.replayGuidance
     : buildFallbackReplayGuidance(finalResult);
+  const highlights = finalResult
+    ? [
+        leadingIncome === null
+          ? `${leadingCountry} 位列最终第一。`
+          : `${leadingCountry} 以 ${leadingIncome} 累计国家收入位列第一。`,
+        turningPointCards[0]
+          ? turningPointCards[0].detail
+          : "本局已结束，你可以通过最终排名和日志回顾整局走向。",
+      ]
+    : [];
 
   return {
     archiveStats: finalResult
@@ -201,8 +203,29 @@ function buildFallbackTurningPoints(finalResult: GameFinishedPayload | null): Se
 
   return finalResult.finalLogs.slice(0, 2).map((log) => ({
     title: `${Number.isFinite(log.roundNo) ? `第 ${log.roundNo} 回合` : "未知回合"}：${log.phase ? getPhaseLabel(log.phase) : "终局裁定"}`,
-    detail: log.message,
+    detail: sanitizeFinalLogMessage(log.message, log.roundNo, log.phase),
   }));
+}
+
+function sanitizeFinalLogMessage(message: string, roundNo: number, phase: string | null): string {
+  const trimmed = message.trim();
+  if (trimmed.includes("completed national income allocation")) {
+    const countryKey = trimmed.split(" ", 1)[0];
+    return `${getCountryLabel(countryKey)}完成第 ${roundNo} 回合财政分配。`;
+  }
+  if (trimmed === "settlement settled.") {
+    return "终局财政结算已完成。";
+  }
+  if (trimmed === "market settled.") {
+    return "市场出售阶段已完成。";
+  }
+  if (trimmed === "decision settled.") {
+    return "国家决策阶段已完成。";
+  }
+  if (trimmed.endsWith(" settled.") && phase) {
+    return `${getPhaseLabel(phase)}阶段已完成。`;
+  }
+  return message;
 }
 
 function buildFallbackReplayGuidance(finalResult: GameFinishedPayload | null): string[] {

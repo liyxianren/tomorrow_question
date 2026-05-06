@@ -39,7 +39,6 @@ export interface DecisionCardDemoViewModel {
       governmentFiscal: number;
     };
     ratioPreview: IncomeAllocationRatio;
-    techPoints: number;
     militaryPoints: number;
   };
   variants: DecisionCardDemoVariantMeta[];

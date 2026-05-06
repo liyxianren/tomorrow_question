@@ -3,15 +3,15 @@
 .domestic-panel {
   display: flex;
   flex-direction: column;
-  gap: var(--game-gap-section, 22px);
+  gap: 16px;
 }
 
 /* ── Phase1 Binary Split Layout ── */
 
 .domestic-panel--v2 {
   display: grid;
-  grid-template-columns: 38fr 62fr;
-  gap: 22px;
+  grid-template-columns: minmax(230px, 0.58fr) minmax(0, 1.42fr);
+  gap: 16px;
   align-items: start;
 }
 
@@ -27,6 +27,13 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
+}
+
+.domestic-market-card {
+  padding: 14px;
+  border-radius: var(--game-radius-sm, 12px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.025);
 }
 
 @media (max-width: 900px) {
@@ -59,17 +66,52 @@
   font-family: var(--font-serif, Georgia, serif);
   font-size: 15px;
   color: var(--game-text-primary, #fff5e7);
-  margin: 0 0 10px;
+  margin: 0 0 8px;
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.domestic-section-note {
+  margin: 0 0 12px;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.58));
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.domestic-action-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.domestic-action-group {
+  min-width: 0;
+}
+
+.domestic-action-group__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.domestic-action-group__head span {
+  color: var(--game-text-primary, #fff5e7);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.domestic-action-group__head small {
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.58));
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 /* ── Action Card Grid ── */
 
 .domestic-actions {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 10px;
 }
-

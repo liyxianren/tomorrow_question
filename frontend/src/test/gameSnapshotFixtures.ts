@@ -40,6 +40,8 @@ export function createNationalState(overrides: Partial<NationalState> = {}): Nat
       factory: 15,
       governmentFiscal: 24,
     },
+    domesticMarketCapacity: 4,
+    overseasMarketCapacity: 5,
     techPoints: 5,
     militaryPoints: 1,
     productionCapacity: {
@@ -172,18 +174,7 @@ export function createDecisionPlayerWorkspace(
         lockedReason: null,
       },
     ],
-    upgradeOptions: [
-      {
-        routeId: "mechanized",
-        routeLabel: "机械化",
-        sourceRouteId: "handicraft",
-        sourceRouteLabel: "手工业",
-        unitBudgetCost: 10,
-        capacityDelta: 1,
-        maxQuantity: 0,
-        lockedReason: "需要研究「珍妮纺织机」",
-      },
-    ],
+    upgradeOptions: [],
     newFactoryOptions: [
       {
         routeId: "handicraft",
@@ -192,6 +183,24 @@ export function createDecisionPlayerWorkspace(
         capacityDelta: 1,
         maxQuantity: 1,
         lockedReason: null,
+      },
+    ],
+    factoryActions: [
+      {
+        actionId: "factory_tax_contracting",
+        label: "财政承包",
+        cost: 0,
+        description: "牺牲本回合投料上限，换取政府财政。",
+        lockedReason: null,
+        effects: { phase1ProductionRawCapacityDelta: -2, governmentFiscalBudgetDelta: 4 },
+      },
+      {
+        actionId: "factory_raw_procurement",
+        label: "原料统购",
+        cost: 3,
+        description: "立刻补充本回合原材料。",
+        lockedReason: null,
+        effects: { rawMaterialsDelta: 4 },
       },
     ],
     activeEvents: [],
@@ -254,7 +263,7 @@ export function createDecisionPlayerWorkspace(
     governmentActions: {
       pointPurchaseCosts: {
         tech: 2,
-        military: 4,
+        military: 6,
       },
       strategies: [
         {
@@ -382,18 +391,18 @@ export function createDecisionPlayerWorkspace(
         {
           actionId: "naval_drill",
           label: "海军演练",
-          cost: 6,
+          cost: 1,
           maxPerRound: 2,
-          description: "提升军事点并扩展海外市场承接力。",
-          effects: { militaryPointsDelta: 1, overseasMarketCapacityDelta: 1 },
+          description: "消耗军事点开展海军演练，扩展本轮海外市场承接力。",
+          effects: { overseasMarketCapacityDelta: 1 },
         },
         {
           actionId: "recruit_infantry",
           label: "征募步兵",
-          cost: 4,
+          cost: 1,
           maxPerRound: 3,
-          description: "征募步兵部队，增加军事影响力。",
-          effects: { militaryPointsDelta: 1 },
+          description: "消耗军事点征募步兵部队。",
+          effects: { armyDelta: { infantry: 1 } },
         },
       ],
       availableDiplomacyActions: [

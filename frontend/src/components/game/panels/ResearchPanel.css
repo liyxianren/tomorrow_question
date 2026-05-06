@@ -122,6 +122,24 @@
   color: var(--game-text-primary, #fff5e7);
 }
 
+.research-build-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
+}
+
+.research-build-summary span {
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.research-build-summary__warn {
+  color: var(--game-text-warn, #ffcfbd);
+}
+
 /* ── 建立研究院按钮 ── */
 
 .research-build-btn {
@@ -143,6 +161,13 @@
   transform: translateY(-2px);
   box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.5);
   border-color: rgba(212, 175, 55, 0.7);
+}
+
+.research-build-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+  box-shadow: none;
 }
 
 /* ── Branch Selection (horizontal tab pills) ── */
@@ -463,4 +488,67 @@
   color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
   margin: 0;
   line-height: 1.5;
+}
+
+.research-talent-panel {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.research-talent-panel__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.research-talent-panel__meta {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
+}
+
+.research-talent-panel__branches {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.research-talent-branch {
+  min-width: 0;
+}
+
+.research-talent-branch__title {
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--game-text-primary, #fff5e7);
+}
+
+.research-talent-branch .talent-detail__chain {
+  gap: 8px;
+}
+
+.research-talent-branch .talent-node {
+  padding: 10px;
+  min-height: 0;
+}
+
+.research-talent-branch .talent-node__body {
+  min-width: 0;
+}
+
+.research-talent-branch .talent-node__effects {
+  display: block;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
+}
+
+@media (max-width: 900px) {
+  .research-talent-panel__branches {
+    grid-template-columns: 1fr;
+  }
 }

@@ -33,6 +33,18 @@ def apply_effects(player_state, effects: dict[str, Any]) -> None:
         multiplier = max(1, int(effects["productionOutputMultiplier"]))
         player_state.temporary_effects["productionOutputMultiplier"] = max(1, current_value * multiplier)
 
+    if "phase1ProductionRawCapacityDelta" in effects:
+        current_value = int(player_state.temporary_effects.get("phase1ProductionRawCapacityDelta", 0))
+        player_state.temporary_effects["phase1ProductionRawCapacityDelta"] = (
+            current_value + int(effects["phase1ProductionRawCapacityDelta"])
+        )
+
+    if "rawMaterialsDelta" in effects:
+        player_state.phase1_economy.raw_materials = max(
+            0,
+            int(player_state.phase1_economy.raw_materials) + int(effects["rawMaterialsDelta"]),
+        )
+
     army_delta = effects.get("armyDelta")
     if isinstance(army_delta, dict):
         for key, value in army_delta.items():
@@ -74,10 +86,42 @@ def apply_effects(player_state, effects: dict[str, Any]) -> None:
     if "militaryPointsDelta" in effects:
         player_state.military_points = max(0, int(player_state.military_points) + int(effects["militaryPointsDelta"]))
 
+    research_facility_delta = effects.get("researchFacilityDelta")
+    if isinstance(research_facility_delta, dict):
+        for key, value in research_facility_delta.items():
+            player_state.research_facilities[str(key)] = max(
+                0,
+                int(player_state.research_facilities.get(str(key), 0)) + int(value),
+            )
+
     _apply_budget_delta(player_state, effects, "domesticMarketBudgetDelta", "domesticMarket")
     _apply_budget_delta(player_state, effects, "factoryBudgetDelta", "factory")
     _apply_budget_delta(player_state, effects, "governmentFiscalBudgetDelta", "governmentFiscal")
     _apply_budget_delta(player_state, effects, "governmentFiscalDelta", "governmentFiscal")
+
+
+def get_talent_effect_total(player_state, effect_key: str) -> int:
+    talent_tree = get_balance_config().research_actions.talent_tree
+    total = 0
+    for node_id in player_state.unlocked_talents:
+        node = talent_tree.nodes.get(node_id)
+        if node is None:
+            continue
+        value = node.permanent_effects.get(effect_key, 0)
+        if isinstance(value, (int, float)):
+            total += int(value)
+    return total
+
+
+def get_raw_materials_per_turn(player_state, balance=None) -> int:
+    balance_config = balance or get_balance_config()
+    country_config = balance_config.countries.get(player_state.country.value)
+    base = (
+        int(country_config.raw_materials_per_turn)
+        if country_config is not None
+        else int(balance_config.global_config.raw_materials_per_turn)
+    )
+    return max(0, base + get_talent_effect_total(player_state, "rawMaterialsPerTurnDelta"))
 
 
 def get_effect_bonus(player_state, temporary_key: str) -> int:

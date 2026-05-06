@@ -239,6 +239,25 @@ class PhaseSubmitApiTests(unittest.TestCase):
             {"abilityId": "workshop_of_the_world"},
         )
 
+    def test_submit_decision_rejects_military_point_overspend(self) -> None:
+        self.seed_active_game()
+
+        response = self.client.post(
+            "/api/v1/games/game-1/phases/decision/submit",
+            json={
+                "payload": build_decision_payload(
+                    military_action_ids=["recruit_infantry", "naval_drill"],
+                )
+            },
+            headers={"X-Session-Id": "session-1"},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.get_json()
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["error"]["code"], ErrorCode.INVALID_SUBMISSION.value)
+        self.assertIn("Military points exceeded", payload["error"]["message"])
+
     def test_last_decision_submit_advances_to_market(self) -> None:
         self.seed_active_game()
         self.persist_turn_inputs(
@@ -431,7 +450,7 @@ class PhaseSubmitApiTests(unittest.TestCase):
         self.assertEqual(payload["error"]["code"], ErrorCode.INVALID_SUBMISSION.value)
         self.assertIn("shared route capacity", payload["error"]["message"])
 
-    def test_submit_decision_rejects_new_factory_for_non_handicraft_route(self) -> None:
+    def test_submit_decision_rejects_new_factory_for_locked_route(self) -> None:
         self.seed_active_game()
 
         response = self.client.post(
@@ -448,7 +467,7 @@ class PhaseSubmitApiTests(unittest.TestCase):
         payload = response.get_json()
         self.assertFalse(payload["ok"])
         self.assertEqual(payload["error"]["code"], ErrorCode.INVALID_SUBMISSION.value)
-        self.assertIn("only handicraft", payload["error"]["message"])
+        self.assertIn("requires route technology", payload["error"]["message"])
 
 
 if __name__ == "__main__":

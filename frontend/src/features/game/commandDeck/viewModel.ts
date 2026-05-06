@@ -40,12 +40,10 @@ export function buildDecisionCommandDeckViewModel({
   workspace,
   draft,
   activeStep,
-  activeResearchBranch = null,
 }: {
   workspace: DecisionPlayerPhaseWorkspace;
   draft: PhaseDraftByPhase["decision"];
   activeStep: DecisionStepId;
-  activeResearchBranch?: string | null;
 }): DecisionCommandDeckViewModel {
   const spendSummary = calculateDecisionSpendSummary(workspace, draft);
   const ratioPreview = calculateRatioPreview(workspace, draft);
@@ -80,14 +78,14 @@ export function buildDecisionCommandDeckViewModel({
     }),
     military: buildMilitaryLocation({
       draft,
+      availableMilitaryPoints: governmentPointPreview.militaryPoints,
       remainingGovernmentBudget: remainingBudgets.governmentFiscal,
       workspace,
     }),
     research: buildResearchLocation({
       workspace,
       draft,
-      projectedTechPoints: governmentPointPreview.techPoints,
-      activeResearchBranch,
+      remainingGovernmentBudget: remainingBudgets.governmentFiscal,
     }),
   };
 
@@ -398,7 +396,6 @@ function buildGovernmentLocation({
         : ["收入结构不变"],
       metrics: [
         { label: "财政消耗", value: action.cost },
-        { label: "科技点变化", value: action.techPointDelta ?? 0 },
         { label: "军事点变化", value: action.militaryPointDelta ?? 0 },
         ...govExtraMetrics,
       ],
@@ -543,45 +540,6 @@ function buildGovernmentLocation({
     } satisfies DecisionCardViewModel;
   });
 
-  const techPurchaseCount = draft.governmentPlan.pointPurchases
-    .filter((p) => p.pointType === "tech")
-    .reduce((sum, p) => sum + p.quantity, 0);
-  const techCost = workspace.governmentActions.pointPurchaseCosts.tech;
-  const canBuyTech = remainingGovernmentBudget >= techCost;
-
-  const pointPurchaseCards: DecisionCardViewModel[] = [
-    {
-      id: "point-purchase-tech",
-      title: "购买科技点",
-      subtitle: `政府预算 ${techCost} / 点`,
-      description: `消耗政府预算购买科技点，用于在研究院解锁天赋。`,
-      badges: techPurchaseCount > 0 ? [`已购买 ${techPurchaseCount} 点`] : [],
-      metrics: [
-        { label: "单价", value: `${techCost} 预算` },
-        { label: "已购买", value: `${techPurchaseCount} 点` },
-        { label: "预计科技点", value: `${governmentPointPreview.techPoints}` },
-      ],
-      feedback: techPurchaseCount > 0
-        ? `本轮购买 ${techPurchaseCount} 科技点，消耗政府预算 ${techPurchaseCount * techCost}。`
-        : undefined,
-      lockedReason: !canBuyTech && techPurchaseCount === 0 ? "政府预算不足" : null,
-      tone: techPurchaseCount > 0 ? "accent" : canBuyTech ? "default" : "locked",
-      selected: techPurchaseCount > 0,
-      control: {
-        kind: "confirm",
-        mode: "count",
-        count: techPurchaseCount,
-        maxCount: Math.floor(remainingGovernmentBudget / Math.max(1, techCost)) + techPurchaseCount,
-        confirmLabel: "购买",
-        cancelLabel: "退回",
-        disabled: !canBuyTech,
-        confirmed: techPurchaseCount > 0,
-        revokeDisabled: techPurchaseCount <= 0,
-      },
-      interaction: { type: "pointPurchase", pointType: "tech" },
-    } satisfies DecisionCardViewModel,
-  ];
-
   return {
     id: "government",
     label: "议会厅",
@@ -593,21 +551,14 @@ function buildGovernmentLocation({
     summaryPills: [
       `政府预算 ${remainingGovernmentBudget}`,
       `比例预告 ${formatRatio(ratioPreview)}`,
-      `科技点 ${governmentPointPreview.techPoints}`,
       `军事点 ${governmentPointPreview.militaryPoints}`,
       `国家能力 ${selectedAbility ? "已启用" : "未启用"}`,
     ],
     sections: [
       {
-        id: "government-points",
-        title: "科技点购买",
-        description: "消耗政府预算购买科技点，在研究院解锁永久天赋。",
-        cards: pointPurchaseCards,
-      },
-      {
         id: "government-strategy",
         title: "政府策略",
-        description: "会影响收入结构、点数和后续发展方向。",
+        description: "会影响收入结构、军事储备和后续发展方向。",
         cards: strategyCards,
       },
       ...(governmentTechCards.length > 0
@@ -657,28 +608,40 @@ function buildGovernmentLocation({
 function buildMilitaryLocation({
   workspace,
   draft,
+  availableMilitaryPoints,
   remainingGovernmentBudget,
 }: {
   workspace: DecisionPlayerPhaseWorkspace;
   draft: PhaseDraftByPhase["decision"];
+  availableMilitaryPoints: number;
   remainingGovernmentBudget: number;
 }): DecisionLocationViewModel {
   const militaryWorkspace = workspace.militaryWorkspace;
   const colonizationCapability = militaryWorkspace.colonizationCapability;
   const getMilitarySelectionCount = (actionId: string) =>
     draft.militaryPlan.militaryActions.filter((item) => item.actionId === actionId).length;
+  const selectedMilitaryPointSpend = draft.militaryPlan.militaryActions.reduce((sum, selection) => {
+    const action = militaryWorkspace.availableMilitaryActions.find((item) => item.actionId === selection.actionId);
+    return sum + (action?.cost ?? 0);
+  }, 0);
+  const selectedColonizationPointSpend = draft.militaryPlan.colonizationActions.length
+    * colonizationCapability.militaryPointCost;
+  const remainingMilitaryPoints = Math.max(
+    0,
+    availableMilitaryPoints - selectedMilitaryPointSpend - selectedColonizationPointSpend,
+  );
 
   const navalCards = militaryWorkspace.availableMilitaryActions
     .filter((action) => action.actionId === "naval_drill")
-    .map((action) => buildMilitaryActionCard(action, getMilitarySelectionCount(action.actionId), remainingGovernmentBudget));
+    .map((action) => buildMilitaryActionCard(action, getMilitarySelectionCount(action.actionId), remainingMilitaryPoints));
 
   const armyCards = militaryWorkspace.availableMilitaryActions
     .filter((action) => action.actionId === "recruit_infantry" || action.actionId === "train_artillery")
-    .map((action) => buildMilitaryActionCard(action, getMilitarySelectionCount(action.actionId), remainingGovernmentBudget));
+    .map((action) => buildMilitaryActionCard(action, getMilitarySelectionCount(action.actionId), remainingMilitaryPoints));
 
   const supportCards = militaryWorkspace.availableMilitaryActions
     .filter((action) => action.actionId !== "naval_drill" && action.actionId !== "recruit_infantry" && action.actionId !== "train_artillery")
-    .map((action) => buildMilitaryActionCard(action, getMilitarySelectionCount(action.actionId), remainingGovernmentBudget));
+    .map((action) => buildMilitaryActionCard(action, getMilitarySelectionCount(action.actionId), remainingMilitaryPoints));
 
   const diplomacyCards = militaryWorkspace.availableDiplomacyActions.map((action) => {
     const selected = draft.militaryPlan.diplomacyActions.some((item) => item.actionId === action.actionId);
@@ -768,7 +731,7 @@ function buildMilitaryLocation({
   const colonizationCards = militaryWorkspace.colonizationOptions.map((option) => {
     const selected = draft.militaryPlan.colonizationActions.some((item) => item.targetRegionId === option.regionId);
     const previewHasDiplomacy = previewEstablishedDiplomacy.has(option.regionId);
-    const previewHasMilitary = militaryWorkspace.militaryPoints >= colonizationCapability.militaryPointCost;
+    const previewHasMilitary = selected || remainingMilitaryPoints >= colonizationCapability.militaryPointCost;
     const previewCanColonize = !option.isColonized && previewIsUnlocked && previewHasDiplomacy && previewHasMilitary;
     const previewLockedReason = option.isColonized
       ? "该区域已经被殖民"
@@ -829,11 +792,12 @@ function buildMilitaryLocation({
     eyebrow: "步骤 4 / 5",
     subtitle: "海军、陆军、外交与殖民执行",
     description: "殖民被拆成永久能力解锁与区域执行两层，外交是殖民前置，殖民收益在结算阶段并入国家收入。",
-    budgetLabel: "政府财政",
-    remainingBudget: remainingGovernmentBudget,
+    budgetLabel: "军事点",
+    remainingBudget: remainingMilitaryPoints,
     summaryPills: [
       `财政剩余 ${remainingGovernmentBudget}`,
-      `军事点 ${militaryWorkspace.militaryPoints}`,
+      `军事点可用 ${availableMilitaryPoints}`,
+      `军事点余量 ${remainingMilitaryPoints}`,
       `海外承接 ${militaryWorkspace.overseasCapacity}`,
       `已建交 ${militaryWorkspace.establishedDiplomacy.length} 区`,
       `控制区域 ${militaryWorkspace.controlledRegions}`,
@@ -899,160 +863,138 @@ function buildMilitaryLocation({
 function buildResearchLocation({
   workspace,
   draft,
-  projectedTechPoints,
-  activeResearchBranch,
+  remainingGovernmentBudget,
 }: {
   workspace: DecisionPlayerPhaseWorkspace;
   draft: PhaseDraftByPhase["decision"];
-  projectedTechPoints: number;
-  activeResearchBranch: string | null;
+  remainingGovernmentBudget: number;
 }): DecisionLocationViewModel {
-  const researchWorkspace = workspace.researchWorkspace;
-  const techCostHint = workspace.governmentActions?.pointPurchaseCosts?.tech ?? 10;
-  const baseReturn: Omit<DecisionLocationViewModel, "sections"> = {
-    id: "research",
-    label: "研究院",
-    eyebrow: "步骤 5 / 5",
-    subtitle: "天赋树",
-    description: `使用科技点解锁永久天赋增益。科技点可在议会厅购买（${techCostHint}预算/点）。`,
-    budgetLabel: "科技点",
-    remainingBudget: projectedTechPoints,
-    summaryPills: [
-      `科技点 ${projectedTechPoints}`,
-      `已解锁天赋 ${researchWorkspace?.unlockedTalentCount ?? 0}`,
+  const { chains, researchFacilities, facilityCost, progressPerFacility, activeResearch } = workspace.techTree;
+  const selectedTechIds = new Set(draft.governmentPlan.techResearch.map((item) => item.techId));
+  const facilitySelected = draft.governmentPlan.strategySelections.some((selection) => selection.actionId === "expand_research");
+  const activeTech = activeResearch
+    ? chains.flatMap((chain) => chain.techs).find((tech) => tech.techId === activeResearch)
+    : null;
+  const perTurnProgress = researchFacilities * progressPerFacility;
+  const plannedFacilities = researchFacilities + (facilitySelected ? 1 : 0);
+  const plannedPerTurnProgress = plannedFacilities * progressPerFacility;
+
+  const facilityCard: DecisionCardViewModel = {
+    id: "research-facility",
+    title: "建立研究院",
+    subtitle: `政府财政 ${facilityCost}`,
+    description: "消耗政府财政建设研究设施。设施越多，当前研究每回合推进越快。",
+    badges: facilitySelected ? ["本轮建设"] : ["长期投入"],
+    metrics: [
+      { label: "现有设施", value: `${researchFacilities} 所` },
+      { label: "当前进度", value: `${perTurnProgress}/回合` },
+      { label: "建成后", value: `${plannedPerTurnProgress}/回合` },
     ],
+    feedback: facilitySelected ? "已排入本轮政府财政计划。" : undefined,
+    lockedReason: !facilitySelected && remainingGovernmentBudget < facilityCost ? "政府财政不足" : null,
+    tone: facilitySelected ? "accent" : remainingGovernmentBudget < facilityCost ? "locked" : "default",
+    selected: facilitySelected,
+    control: {
+      kind: "toggle",
+      label: "建立研究院",
+      checked: facilitySelected,
+      disabled: !facilitySelected && remainingGovernmentBudget < facilityCost,
+    },
+    interaction: { type: "governmentStrategy", actionId: "expand_research" },
   };
-
-  if (!researchWorkspace?.talentBranches) {
-    return { ...baseReturn, sections: [] };
-  }
-
-  const selectedNodeIds = new Set(
-    (draft.talentPlan?.talentUnlocks ?? []).map((u) => u.nodeId),
-  );
-
-  const BRANCH_ICONS: Record<string, string> = {
-    industry: "工业",
-    domestic: "市民",
-    government: "政府",
-    military: "军事",
-  };
-
-  // --- Step 1: Branch selection cards (always shown) ---
-  const branchCards = researchWorkspace.talentBranches.map((branch) => {
-    const unlockedCount = branch.nodes.filter((n) => n.isUnlocked).length;
-    const totalCost = branch.nodes.reduce((s, n) => s + n.techPointCost, 0);
-    const isActive = activeResearchBranch === branch.branchId;
-    const capstone = branch.nodes[branch.nodes.length - 1];
-    const capstoneName = capstone?.label ?? "";
-
-    return {
-      id: `branch-${branch.branchId}`,
-      title: `${BRANCH_ICONS[branch.branchId] ?? branch.label}分支`,
-      subtitle: `${unlockedCount} / ${branch.nodes.length} 已解锁`,
-      description: `终极天赋：${capstoneName}。总消耗 ${totalCost} 科技点。`,
-      badges: isActive ? ["当前查看"] : [],
-      metrics: [
-        { label: "进度", value: `${unlockedCount}/${branch.nodes.length}` },
-        { label: "总成本", value: `${totalCost} 科技点` },
-      ],
-      feedback: isActive ? "点击下方天赋节点进行解锁。" : undefined,
-      lockedReason: null,
-      tone: isActive ? ("accent" as const) : ("default" as const),
-      selected: isActive,
-      control: {
-        kind: "toggle" as const,
-        label: isActive ? "收起" : "查看",
-        checked: isActive,
-        disabled: false,
-      },
-      interaction: { type: "selectResearchBranch" as const, branchId: branch.branchId },
-    } satisfies DecisionCardViewModel;
-  });
 
   const sections: DecisionLocationViewModel["sections"] = [
     {
-      id: "branch-selection",
-      title: "选择研究方向",
-      description: "选择一条分支查看天赋详情。",
-      cards: branchCards,
+      id: "research-facility",
+      title: "研究设施",
+      description: "研究院只消耗政府财政，设施越多，研究推进越快。",
+      cards: [facilityCard],
     },
+    ...chains.map((chain) => ({
+      id: `research-chain-${chain.chainId}`,
+      title: chain.label,
+      description: "同一回合只能选择一个研究目标。",
+      cards: chain.techs.map((tech) => {
+        const selected = selectedTechIds.has(tech.techId);
+        const progressDisplay = Math.min(tech.progress, tech.effectiveThreshold);
+        const progressText = `${progressDisplay}/${tech.effectiveThreshold}`;
+        const progressPercent = tech.effectiveThreshold > 0
+          ? Math.min(100, Math.round((progressDisplay / tech.effectiveThreshold) * 100))
+          : 0;
+        const unlocks = [
+          ...(tech.unlocksGoods ?? []),
+          ...(tech.unlocksRoutes ?? []),
+        ];
+        const lockedReason = tech.isUnlocked
+          ? "已完成"
+          : tech.isActive
+            ? null
+            : !tech.canResearch
+              ? "需完成前置科技"
+              : null;
+
+        return {
+          id: `research-${tech.techId}`,
+          title: tech.label,
+          subtitle: tech.isUnlocked ? "已完成" : `${progressText} 进度`,
+          description: unlocks.length > 0
+            ? `完成后解锁：${unlocks.join("、")}`
+            : "完成后解锁后续工业能力。",
+          badges: tech.isUnlocked
+            ? ["已解锁"]
+            : tech.isActive
+              ? ["研究中"]
+              : selected
+                ? ["本轮目标"]
+                : tech.canResearch
+                  ? ["可研究"]
+                  : [],
+          metrics: [
+            { label: "进度", value: `${progressPercent}%` },
+            { label: "阈值", value: tech.effectiveThreshold },
+          ],
+          feedback: selected
+            ? "提交后将作为研究院目标。"
+            : tech.isActive
+              ? tech.progress >= tech.effectiveThreshold
+                ? "已达到突破条件，下次结算会继续尝试。"
+                : "当前研究设施正在推进该科技。"
+              : undefined,
+          lockedReason,
+          tone: tech.isUnlocked
+            ? "locked"
+            : selected || tech.isActive
+              ? "accent"
+              : lockedReason
+                ? "locked"
+                : "default",
+          selected: tech.isUnlocked || tech.isActive || selected,
+          control: {
+            kind: "toggle" as const,
+            label: tech.isUnlocked ? "已完成" : tech.isActive ? "研究中" : "研究",
+            checked: tech.isUnlocked || tech.isActive || selected,
+            disabled: tech.isUnlocked || tech.isActive || (!selected && lockedReason !== null),
+          },
+          interaction: { type: "technology" as const, techId: tech.techId },
+        } satisfies DecisionCardViewModel;
+      }),
+    })),
   ];
 
-  // --- Step 2: Selected branch nodes (only when a branch is active) ---
-  const activeBranch = activeResearchBranch
-    ? researchWorkspace.talentBranches.find((b) => b.branchId === activeResearchBranch)
-    : null;
-
-  if (activeBranch) {
-    const nodeCards = activeBranch.nodes.map((node, nodeIndex) => {
-      const isSelected = selectedNodeIds.has(node.nodeId);
-      const effectMetrics = buildEffectMetrics(node.permanentEffects);
-
-      const prerequisiteMet = nodeIndex === 0
-        || node.isUnlocked
-        || activeBranch.nodes[nodeIndex - 1]?.isUnlocked
-        || selectedNodeIds.has(activeBranch.nodes[nodeIndex - 1]?.nodeId ?? "");
-      const canAfford = projectedTechPoints >= node.techPointCost;
-      const canUnlock = !node.isUnlocked && prerequisiteMet && canAfford;
-
-      const stepLabel = `${nodeIndex + 1}/${activeBranch.nodes.length}`;
-
-      return {
-        id: `talent-${node.nodeId}`,
-        title: `${stepLabel} ${node.label}`,
-        subtitle: `科技点 ${node.techPointCost}`,
-        description: node.description,
-        badges: node.isUnlocked
-          ? ["已解锁"]
-          : canUnlock
-            ? ["可解锁"]
-            : [],
-        metrics: effectMetrics.map((em) => ({ label: em.label, value: em.value })),
-        feedback: node.isUnlocked
-          ? "该天赋已永久生效。"
-          : isSelected
-            ? "已选择，提交后将解锁。"
-            : undefined,
-        lockedReason: node.isUnlocked
-          ? "已解锁"
-          : !canUnlock
-            ? (nodeIndex > 0 && !prerequisiteMet
-                ? `需先解锁「${activeBranch.nodes[nodeIndex - 1]?.label ?? "前置"}」`
-                : "科技点不足")
-            : null,
-        tone: node.isUnlocked
-          ? ("locked" as const)
-          : isSelected
-            ? ("accent" as const)
-            : canUnlock
-              ? ("default" as const)
-              : ("locked" as const),
-        selected: node.isUnlocked || isSelected,
-        control: {
-          kind: "toggle" as const,
-          label: node.isUnlocked ? "已解锁" : "解锁",
-          checked: node.isUnlocked || isSelected,
-          disabled: node.isUnlocked || !canUnlock,
-        },
-        interaction: { type: "talentUnlock" as const, nodeId: node.nodeId },
-      } satisfies DecisionCardViewModel;
-    });
-
-    sections.push({
-      id: `talent-nodes-${activeBranch.branchId}`,
-      title: `${activeBranch.label}分支 · 天赋节点`,
-      description: `按顺序解锁，从上到下依次点亮。`,
-      cards: nodeCards,
-    });
-  }
-
   return {
-    ...baseReturn,
+    id: "research",
+    label: "研究院",
+    eyebrow: "步骤 5 / 5",
+    subtitle: "政府财政支持的科技研究",
+    description: "玩家只需要建设研究设施，并选择一个研究目标。",
+    budgetLabel: "政府财政",
+    remainingBudget: remainingGovernmentBudget,
     summaryPills: [
-      `科技点 ${projectedTechPoints}`,
-      `已解锁天赋 ${researchWorkspace.unlockedTalentCount ?? 0}`,
-      `本轮选择 ${selectedNodeIds.size} 项`,
+      `政府财政 ${remainingGovernmentBudget}`,
+      `研究设施 ${researchFacilities} 所`,
+      `进度 ${perTurnProgress}/回合`,
+      activeTech ? `当前 ${activeTech.label}` : "当前未指定",
+      selectedTechIds.size > 0 ? "本轮已选目标" : "本轮未选目标",
     ],
     sections,
   };
@@ -1225,24 +1167,24 @@ function buildNewFactoryCard(
 function buildMilitaryActionCard(
   action: DecisionPlayerPhaseWorkspace["militaryWorkspace"]["availableMilitaryActions"][number],
   selectionCount: number,
-  remainingGovernmentBudget: number,
+  remainingMilitaryPoints: number,
 ): DecisionCardViewModel {
-  const canAdd = selectionCount < action.maxPerRound && remainingGovernmentBudget >= action.cost;
+  const canAdd = selectionCount < action.maxPerRound && remainingMilitaryPoints >= action.cost;
   const lockedReason = selectionCount >= action.maxPerRound
     ? `已达到本轮上限 ${action.maxPerRound} 次`
     : !canAdd
-      ? "政府预算不足"
+      ? "军事点不足"
       : null;
 
   return {
     id: `military-${action.actionId}`,
     title: action.label,
-    subtitle: `政府预算 ${action.cost}`,
+    subtitle: `军事点 ${action.cost}`,
     description: buildMilitaryActionDescription(action),
     badges: [`每轮上限 ${action.maxPerRound}`],
     metrics: [
       { label: "当前安排", value: `${selectionCount} / ${action.maxPerRound}` },
-      { label: "财政消耗", value: action.cost },
+      { label: "军事点消耗", value: action.cost },
     ],
     feedback: selectionCount > 0 ? `当前已安排 ${selectionCount} / ${action.maxPerRound} 次。` : undefined,
     lockedReason,

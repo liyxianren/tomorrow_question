@@ -129,10 +129,60 @@ def get_state(ctx: dict) -> dict:
     return ns.get(ctx["player_id"], {})
 
 
+def build_safe_market_payload(ctx: dict, requested_domestic: int = 8) -> dict:
+    """Build a market payload that mirrors the frontend's MAX clamping."""
+    requested_domestic = min(requested_domestic, 4)
+    c = get_context(ctx["room_code"])
+    ctx["activeGame"] = c.get("activeGame", {})
+    ctx["activeSnapshot"] = c.get("activeSnapshot", {})
+    state = ctx["activeSnapshot"].get("nationalStateByPlayer", {}).get(ctx["player_id"], {})
+    economy = state.get("phase1Economy", {})
+    metrics = economy.get("marketMetrics", {})
+    income_summary = state.get("incomeSummary", {})
+    inventory = int(economy.get("goodsInventory", requested_domestic))
+    raw_demand = metrics.get("domesticDemand", metrics.get("demand"))
+    demand = int(float(raw_demand)) if raw_demand is not None else requested_domestic
+    if demand <= 0:
+        demand = requested_domestic
+    capacity = int(income_summary.get("domesticMarketCapacity", requested_domestic))
+    if capacity <= 0:
+        capacity = requested_domestic
+    domestic_allocation = max(0, min(requested_domestic, inventory, demand, capacity))
+    return {
+        "saleOrders": [],
+        "phase1Market": {
+            "domesticAllocation": domestic_allocation,
+            "externalAllocations": [],
+        },
+    }
+
+
+def clamp_phase1_production_to_budget(ctx: dict, payload: dict) -> dict:
+    """Clamp the raw-material assignment like the frontend does before submit."""
+    phase1 = payload.get("phase1Production")
+    if not isinstance(phase1, dict):
+        return payload
+    assignments = phase1.get("rawMaterialAssignments")
+    if not isinstance(assignments, dict):
+        return payload
+    c = get_context(ctx["room_code"])
+    ctx["activeGame"] = c.get("activeGame", {})
+    ctx["activeSnapshot"] = c.get("activeSnapshot", {})
+    state = ctx["activeSnapshot"].get("nationalStateByPlayer", {}).get(ctx["player_id"], {})
+    remaining = max(0, int(state.get("budgetPools", {}).get("factory", 0)))
+    for mode, value in list(assignments.items()):
+        quantity = max(0, int(value or 0))
+        allowed = min(quantity, remaining)
+        assignments[mode] = allowed
+        remaining -= allowed
+    return payload
+
+
 def advance_round(ctx: dict, decision_payload: dict, market_domestic: int = 8) -> dict:
     """Submit decision + market, wait for settlement, return updated ctx."""
     game_id = ctx["game_id"]
     sid = ctx["session_id"]
+    decision_payload = clamp_phase1_production_to_budget(ctx, decision_payload)
 
     resp_d, code_d = submit_decision(game_id, sid, decision_payload)
     assert code_d == 200, f"Decision submit failed: {code_d} {json.dumps(resp_d, ensure_ascii=False)[:200]}"
@@ -142,13 +192,7 @@ def advance_round(ctx: dict, decision_payload: dict, market_domestic: int = 8) -
     all_submitted = resp_d.get("data", {}).get("allSubmitted", False)
 
     if not all_submitted or phase_after_decision != "settlement":
-        market_payload = {
-            "saleOrders": [],
-            "phase1Market": {
-                "domesticAllocation": market_domestic,
-                "externalAllocations": [],
-            },
-        }
+        market_payload = build_safe_market_payload(ctx, market_domestic)
         resp_m, code_m = submit_market(game_id, sid, market_payload)
         assert code_m == 200, f"Market submit failed: {code_m} {json.dumps(resp_m, ensure_ascii=False)[:200]}"
 
@@ -238,7 +282,7 @@ def frontend_decision_payload(
     if phase1_production is not None:
         payload["phase1Production"] = phase1_production
     else:
-        payload["phase1Production"] = {"rawMaterialAssignments": {"handicraft": 8}}
+        payload["phase1Production"] = {"rawMaterialAssignments": {"handicraft": 4}}
 
     if research_target is not None:
         payload["researchTarget"] = research_target
@@ -285,14 +329,21 @@ def test_frontend_military_actions_payload():
     ctx = setup_game()
     state = get_state(ctx)
     mp_before = state["militaryPoints"]
+    infantry_before = state.get("army", {}).get("infantry", 0)
+
+    if mp_before < 1:
+        print(f"  ⚠️ SKIP: militaryPoints={mp_before} < 1")
+        return
 
     payload = frontend_decision_payload(military_actions=["recruit_infantry"])
     ctx = advance_round(ctx, payload)
 
     state2 = get_state(ctx)
     mp_after = state2["militaryPoints"]
-    print(f"  mp before={mp_before}, after={mp_after}")
-    assert mp_after == mp_before + 1, f"Expected +1 mp, got {mp_before}→{mp_after}"
+    infantry_after = state2.get("army", {}).get("infantry", 0)
+    print(f"  mp before={mp_before}, after={mp_after}; infantry={infantry_before}→{infantry_after}")
+    assert mp_after == mp_before - 1, f"Expected -1 mp, got {mp_before}→{mp_after}"
+    assert infantry_after == infantry_before + 1, f"Expected +1 infantry, got {infantry_before}→{infantry_after}"
     print("  ✅ PASS: Frontend military actions work")
 
 
@@ -472,7 +523,7 @@ def test_frontend_combined_all_features():
 
     # Pick actions that fit within budget
     # Britain starts with 10 govFiscal
-    # recruit_infantry=2, admin=varies, unlock_colonization=10
+    # recruit_infantry spends 1 military point; admin and unlock_colonization spend government fiscal.
     # We can't afford everything, so test payload shape acceptance
     payload = frontend_decision_payload(
         # Factory
@@ -496,17 +547,14 @@ def test_frontend_combined_all_features():
         activate_policies=[],
         deactivate_policies=[],
         # Phase1 production
-        phase1_production={"rawMaterialAssignments": {"handicraft": 8}},
+        phase1_production={"rawMaterialAssignments": {"handicraft": 4}},
     )
 
     resp, code = submit_decision(ctx["game_id"], ctx["session_id"], payload)
     assert code == 200, f"Expected 200, got {code}: {json.dumps(resp, ensure_ascii=False)[:300]}"
 
     # Verify settlement works
-    market_payload = {
-        "saleOrders": [],
-        "phase1Market": {"domesticAllocation": 8, "externalAllocations": []},
-    }
+    market_payload = build_safe_market_payload(ctx)
     resp_m, code_m = submit_market(ctx["game_id"], ctx["session_id"], market_payload)
     assert code_m == 200, f"Market submit failed: {code_m}"
 
@@ -536,8 +584,8 @@ def test_frontend_multi_round_progression():
         mp = state.get("militaryPoints", "?")
         round_no = ctx["activeGame"].get("currentRound", "?")
 
-        # Only add actions if we can afford them (recruit_infantry costs 2)
-        if gov >= 2:
+        # Only add actions if we have military points (recruit_infantry costs 1 mp)
+        if isinstance(mp, int) and mp >= 1:
             payload = frontend_decision_payload(military_actions=["recruit_infantry"])
         else:
             payload = frontend_decision_payload()

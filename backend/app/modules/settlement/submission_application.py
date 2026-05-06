@@ -40,7 +40,7 @@ from app.modules.session.models import PlayerSession
 from app.modules.session.service import SessionError, connect_session
 
 from .contracts import SettlementOutcome
-from .final_result import build_final_ranking
+from .final_result import build_final_ranking, sanitize_final_logs
 from .phase_submission import PhaseSubmissionError, PhaseSubmissionService
 
 
@@ -479,7 +479,7 @@ def _emit_settlement_events(
             game=game,
             snapshot=snapshot,
             final_ranking=list(outcome.final_ranking),
-            final_logs=list(outcome.generated_logs),
+            final_logs=sanitize_final_logs(list(outcome.generated_logs)),
         )
         return
 

@@ -265,6 +265,26 @@ class StrategySelectionsE2E(unittest.TestCase):
         self.assertLess(britain.budget_pools["governmentFiscal"], 100,
                         "trade_agreement should deduct budget (cost=6)")
 
+    def test_expand_research_builds_research_facility(self):
+        """expand_research should spend fiscal budget and add one academy."""
+        self.seed_active_game()
+        snapshot = self._load_snapshot()
+        britain = self._player(snapshot, "player-1")
+        britain.budget_pools["governmentFiscal"] = 100
+        original_facilities = int(britain.research_facilities.get("academy", 0))
+        self._save_snapshot(snapshot)
+
+        snap = self._submit_decisions_for_all(
+            {"session-1": _decision_payload(strategy_selections=["expand_research"])}
+        )
+        britain = self._player(snap, "player-1")
+        self.assertEqual(
+            britain.research_facilities.get("academy"),
+            original_facilities + 1,
+            "expand_research should add one academy research facility",
+        )
+        self.assertEqual(britain.budget_pools["governmentFiscal"], 94)
+
     def test_strategy_over_budget_rejected(self):
         """Strategy selection exceeding government budget should be rejected."""
         self.seed_active_game()

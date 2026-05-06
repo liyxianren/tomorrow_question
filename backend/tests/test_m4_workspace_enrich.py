@@ -23,11 +23,11 @@ from app.modules.game_state.workspaces import (
     build_settlement_player_workspace,
 )
 from app.modules.rules.phase1_economy import (
-    allocate_revenue_to_pools,
     calculate_domestic_demand,
     calculate_domestic_price,
     calculate_equilibrium_price,
 )
+from app.modules.rules.settlement import resolve_settlement_phase
 
 
 def _build_snapshot():
@@ -188,6 +188,83 @@ class DecisionWorkspaceMarketPreviewTests(unittest.TestCase):
         self.assertEqual(workspace["phase1Economy"]["investmentPool"], 77)
 
 
+class DecisionWorkspaceRouteUnlockTests(unittest.TestCase):
+    def test_locked_factory_routes_are_hidden_until_researched(self) -> None:
+        snapshot = _build_snapshot()
+        britain = _get_player(snapshot, "player-1")
+
+        workspace = build_decision_player_workspace(snapshot, britain)
+
+        self.assertNotIn(
+            "mechanized",
+            [option["routeId"] for option in workspace["upgradeOptions"]],
+        )
+        self.assertNotIn(
+            "mechanized",
+            [option["routeId"] for option in workspace["newFactoryOptions"]],
+        )
+
+    def test_factory_routes_appear_after_research_unlock(self) -> None:
+        snapshot = _build_snapshot()
+        britain = _get_player(snapshot, "player-1")
+        britain.unlocked_techs = ["spinning_jenny"]
+
+        workspace = build_decision_player_workspace(snapshot, britain)
+
+        self.assertIn(
+            "mechanized",
+            [option["routeId"] for option in workspace["upgradeOptions"]],
+        )
+        self.assertIn(
+            "mechanized",
+            [option["routeId"] for option in workspace["newFactoryOptions"]],
+        )
+
+    def test_research_tree_marks_route_unlocks(self) -> None:
+        snapshot = _build_snapshot()
+        britain = _get_player(snapshot, "player-1")
+
+        workspace = build_decision_player_workspace(snapshot, britain)
+        techs = {
+            tech["techId"]: tech
+            for chain in workspace["techTree"]["chains"]
+            for tech in chain["techs"]
+        }
+
+        self.assertEqual(techs["spinning_jenny"]["unlocksRoutes"], ["mechanized"])
+
+    def test_industry_specialization_discounts_upgrade_cost(self) -> None:
+        snapshot = _build_snapshot()
+        britain = _get_player(snapshot, "player-1")
+        britain.unlocked_techs = ["spinning_jenny"]
+        britain.unlocked_talents = [
+            "ind_basic_metallurgy",
+            "ind_process_improvement",
+            "ind_standardization",
+        ]
+
+        workspace = build_decision_player_workspace(snapshot, britain)
+        mechanized_upgrade = next(
+            option for option in workspace["upgradeOptions"] if option["routeId"] == "mechanized"
+        )
+
+        self.assertEqual(mechanized_upgrade["unitBudgetCost"], 10)
+
+    def test_industry_specialization_increases_raw_materials_per_turn(self) -> None:
+        snapshot = _build_snapshot()
+        britain = _get_player(snapshot, "player-1")
+        britain.unlocked_talents = ["ind_basic_metallurgy", "ind_process_improvement"]
+        raw_before = int(britain.phase1_economy.raw_materials)
+
+        workspace = build_decision_player_workspace(snapshot, britain)
+        self.assertEqual(workspace["phase1Economy"]["rawMaterialsPerTurn"], 5)
+
+        resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
+        updated_britain = _get_player(resolution.updated_snapshot, "player-1")
+
+        self.assertEqual(updated_britain.phase1_economy.raw_materials, raw_before + 5)
+
+
 class MarketWorkspaceEnrichmentTests(unittest.TestCase):
     def test_market_workspace_has_same_enriched_fields(self) -> None:
         snapshot = _build_snapshot()
@@ -253,10 +330,27 @@ class SettlementWorkspacePoolDeltaPreviewTests(unittest.TestCase):
         workspace = build_settlement_player_workspace(snapshot, britain)
         delta = workspace["phase1Economy"]["poolDeltaPreview"]
 
-        expected = allocate_revenue_to_pools(73)
-        self.assertAlmostEqual(delta["consumption"], float(expected.consumption), places=6)
-        self.assertAlmostEqual(delta["investment"], float(expected.investment), places=6)
-        self.assertAlmostEqual(delta["fiscal"], float(expected.fiscal), places=6)
+        self.assertEqual(delta["consumption"], float(workspace["budgetAllocation"]["domesticMarket"]))
+        self.assertEqual(delta["investment"], float(workspace["budgetAllocation"]["factory"]))
+        self.assertEqual(delta["fiscal"], float(workspace["budgetAllocation"]["governmentFiscal"]))
+
+    def test_settlement_preview_includes_pending_colony_income(self) -> None:
+        snapshot = _build_snapshot()
+        snapshot.phase = GamePhase.SETTLEMENT
+        britain = _get_player(snapshot, "player-1")
+        britain.national_income = 12
+        americas = next(region for region in snapshot.region_states if region.region_id == "americas")
+        americas.controller = britain.country.value
+
+        workspace = build_settlement_player_workspace(snapshot, britain)
+        delta = workspace["phase1Economy"]["poolDeltaPreview"]
+
+        self.assertEqual(workspace["marketIncome"], 12)
+        self.assertEqual(workspace["colonyIncome"], 5)
+        self.assertEqual(workspace["nationalIncome"], 17)
+        self.assertEqual(delta["consumption"], float(workspace["budgetAllocation"]["domesticMarket"]))
+        self.assertEqual(delta["investment"], float(workspace["budgetAllocation"]["factory"]))
+        self.assertEqual(delta["fiscal"], float(workspace["budgetAllocation"]["governmentFiscal"]))
 
     def test_zero_income_yields_zero_pool_delta(self) -> None:
         snapshot = _build_snapshot()

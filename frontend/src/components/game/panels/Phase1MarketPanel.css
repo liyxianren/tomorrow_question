@@ -260,6 +260,13 @@
   color: var(--game-text-value, #fceb9c);
 }
 
+.phase1-market__price-note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.62));
+}
+
 @keyframes phase1-market-fade {
   from { opacity: 0; transform: translateY(3px); }
   to   { opacity: 1; transform: translateY(0); }

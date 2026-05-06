@@ -160,6 +160,7 @@ class DecisionActionConfig:
 @dataclass(frozen=True, slots=True)
 class DecisionActionsBalanceConfig:
     domestic_market_actions: dict[str, DecisionActionConfig]
+    factory_actions: dict[str, DecisionActionConfig]
     government_actions: dict[str, DecisionActionConfig]
 
 
@@ -267,6 +268,7 @@ class ReformConfig:
     label: str
     path: str
     admin_cost: int
+    description: str = ""
     effects: dict[str, Any] = field(default_factory=dict)
     unlocks_policies: tuple[str, ...] = ()
     blocks_other_paths: tuple[str, ...] = ()

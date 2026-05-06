@@ -82,6 +82,7 @@ def get_room_context(room_code: str) -> dict:
 
 def build_decision_payload(
     *,
+    point_purchases=None,
     military_actions=None,
     diplomacy_actions=None,
     unlock_colonization=False,
@@ -97,7 +98,7 @@ def build_decision_payload(
         },
         "domesticMarketPlan": {"domesticMarketActions": []},
         "governmentPlan": {
-            "pointPurchases": [], "strategySelections": [],
+            "pointPurchases": point_purchases or [], "strategySelections": [],
             "techResearch": [], "adminPurchases": 0,
         },
         "militaryPlan": {
@@ -109,28 +110,88 @@ def build_decision_payload(
             "navalDeployment": naval_deployment or {},
             "lootingActions": looting_actions or [],
         },
-        "phase1Production": {"rawMaterialAssignments": {"handicraft": 8}},
+        "phase1Production": {"rawMaterialAssignments": {"handicraft": 4}},
         "reforms": [], "activatePolicies": [], "deactivatePolicies": [],
         "talentPlan": {"talentUnlocks": []},
     }
 
 
-MARKET_PAYLOAD = {
-    "phase1Market": {"domesticAllocation": 8, "externalAllocations": []}
-}
+def build_safe_market_payload(ctx: dict, requested_domestic: int = 8) -> dict:
+    """Build a legal market payload from the current market snapshot."""
+    requested_domestic = min(requested_domestic, 4)
+    c = get_room_context(ctx["room_code"])
+    ctx["activeGame"] = c.get("activeGame", {})
+    ctx["activeSnapshot"] = c.get("activeSnapshot", {})
+    state = ctx["activeSnapshot"].get("nationalStateByPlayer", {}).get(ctx["player_id"], {})
+    economy = state.get("phase1Economy", {})
+    metrics = economy.get("marketMetrics", {})
+    income_summary = state.get("incomeSummary", {})
+    inventory = int(economy.get("goodsInventory", requested_domestic))
+    raw_demand = metrics.get("domesticDemand", metrics.get("demand"))
+    demand = int(float(raw_demand)) if raw_demand is not None else requested_domestic
+    if demand <= 0:
+        demand = requested_domestic
+    capacity = int(income_summary.get("domesticMarketCapacity", requested_domestic))
+    if capacity <= 0:
+        capacity = requested_domestic
+    domestic_allocation = max(0, min(requested_domestic, inventory, demand, capacity))
+    return {
+        "phase1Market": {"domesticAllocation": domestic_allocation, "externalAllocations": []}
+    }
+
+
+def clamp_phase1_production_to_budget(ctx: dict, payload: dict) -> dict:
+    """Clamp the raw-material assignment like the frontend does before submit."""
+    phase1 = payload.get("phase1Production")
+    if not isinstance(phase1, dict):
+        return payload
+    assignments = phase1.get("rawMaterialAssignments")
+    if not isinstance(assignments, dict):
+        return payload
+    c = get_room_context(ctx["room_code"])
+    ctx["activeGame"] = c.get("activeGame", {})
+    ctx["activeSnapshot"] = c.get("activeSnapshot", {})
+    state = ctx["activeSnapshot"].get("nationalStateByPlayer", {}).get(ctx["player_id"], {})
+    remaining = max(0, int(state.get("budgetPools", {}).get("factory", 0)))
+    for mode, value in list(assignments.items()):
+        quantity = max(0, int(value or 0))
+        allowed = min(quantity, remaining)
+        assignments[mode] = allowed
+        remaining -= allowed
+    return payload
 
 
 def full_cycle(ctx: dict, decision_payload: dict) -> dict:
     """Submit decision → market → wait for next decision phase. Returns updated ctx."""
     game_id = ctx["game_id"]
     session_id = ctx["session_id"]
+    starting_round = ctx.get("activeGame", {}).get("currentRound")
+    decision_payload = clamp_phase1_production_to_budget(ctx, decision_payload)
 
     resp, code = submit_decision(game_id, session_id, decision_payload)
     if code != 200:
         print(f"  [WARN] Decision: status={code}, {json.dumps(resp, default=str)[:200]}")
         return ctx
 
-    resp_m, code_m = submit_market(game_id, session_id, MARKET_PAYLOAD)
+    market_ready = False
+    for _ in range(30):
+        time.sleep(1)
+        c = get_room_context(ctx["room_code"])
+        ag = c.get("activeGame", {})
+        ctx["activeGame"] = ag
+        ctx["activeSnapshot"] = c.get("activeSnapshot", {})
+        ctx["game_id"] = ag.get("gameId", ctx["game_id"])
+        if ag.get("currentPhase") == "market":
+            market_ready = True
+            break
+        if ag.get("currentPhase") == "decision" and ag.get("currentRound") != starting_round:
+            return ctx
+
+    if not market_ready:
+        print("  [WARN] Never reached market phase after decision")
+        return ctx
+
+    resp_m, code_m = submit_market(ctx["game_id"], session_id, build_safe_market_payload(ctx))
     if code_m != 200:
         print(f"  [WARN] Market: status={code_m}, {json.dumps(resp_m, default=str)[:200]}")
         return ctx
@@ -195,16 +256,17 @@ def test_army_conquest_unclaimed_region():
     gov = state["budgetPools"]["governmentFiscal"]
     print(f"  Initial: govFiscal={gov}, mp={state['militaryPoints']}")
 
-    # Round 1: recruit 3 infantry
+    # Round 1: buy enough military points to recruit a conquest force.
     payload1 = build_decision_payload(
-        military_actions=["recruit_infantry", "recruit_infantry", "recruit_infantry"]
+        point_purchases=[{"pointType": "military", "quantity": 1}],
+        military_actions=["recruit_infantry", "recruit_infantry"],
     )
     ctx = full_cycle(ctx, payload1)
 
     state = get_my_state(ctx)
     army = state.get("army", {})
     print(f"  After recruit: army={army}, mp={state['militaryPoints']}")
-    assert army.get("infantry", 0) >= 3, f"Expected >= 3 infantry, got {army}"
+    assert army.get("infantry", 0) >= 2, f"Expected >= 2 infantry, got {army}"
 
     # Round 2: conquer americas
     payload2 = build_decision_payload(
@@ -217,7 +279,7 @@ def test_army_conquest_unclaimed_region():
     print(f"  After conquest: army={state2.get('army')}, americas.controller={americas.get('controller')}")
 
     assert americas.get("controller") == "britain", f"Expected britain, got {americas.get('controller')}"
-    assert state2.get("army", {}).get("infantry", 0) == 1, f"Expected 1 infantry remaining"
+    assert state2.get("army", {}).get("infantry", 0) == 0, f"Expected no infantry remaining"
     print("  ✅ PASS: Conquest of unclaimed americas succeeded")
 
 
@@ -240,12 +302,12 @@ def test_colonization_then_looting():
     print(f"  After unlock: colUnlocked={col}, govFiscal={gov_r2}, mp={mp_r2}")
     assert col, "Expected colonizationUnlocked=True"
 
-    # Round 2: establish diplomacy + recruit
-    recruit_count = max(0, 3 - mp_r2)  # need 3 mp for colonization
-    mil = ["recruit_infantry"] * min(recruit_count, 3)
+    # Round 2: establish diplomacy + buy enough military points for colonization.
+    required_mp = 2
+    purchase_count = max(0, required_mp - mp_r2)
     payload2 = build_decision_payload(
+        point_purchases=[{"pointType": "military", "quantity": purchase_count}] if purchase_count else [],
         diplomacy_actions=["establish_americas"],
-        military_actions=mil,
     )
     ctx = full_cycle(ctx, payload2)
 
@@ -255,18 +317,19 @@ def test_colonization_then_looting():
     print(f"  After diplomacy: diplo={diplo}, mp={mp_r3}")
     assert "americas" in diplo, f"Expected americas in diplomacy, got {diplo}"
 
-    # Round 3 (if needed): recruit more to get 3 mp
-    if mp_r3 < 3:
+    # Round 3 (if needed): buy more points to reach the colonization cost.
+    if mp_r3 < required_mp:
+        purchase_count = required_mp - mp_r3
         payload_r = build_decision_payload(
-            military_actions=["recruit_infantry"] * 3
+            point_purchases=[{"pointType": "military", "quantity": purchase_count}]
         )
         ctx = full_cycle(ctx, payload_r)
         state = get_my_state(ctx)
         mp_r3 = state["militaryPoints"]
-        print(f"  After extra recruit: mp={mp_r3}")
+        print(f"  After extra purchase: mp={mp_r3}")
 
-    # Colonize americas (costs 3 mp)
-    assert mp_r3 >= 3, f"Need 3 mp, have {mp_r3}"
+    # Colonize americas (costs 2 mp)
+    assert mp_r3 >= required_mp, f"Need {required_mp} mp, have {mp_r3}"
     payload3 = build_decision_payload(
         colonization_actions=[{"targetRegionId": "americas"}]
     )
@@ -289,6 +352,7 @@ def test_colonization_then_looting():
     payload4 = build_decision_payload(
         looting_actions=[{"regionId": "americas", "resourceType": resource_type}]
     )
+    payload4["phase1Production"] = {"rawMaterialAssignments": {"handicraft": 0}}
     ctx = full_cycle(ctx, payload4)
 
     state2 = get_my_state(ctx)
@@ -314,9 +378,10 @@ def test_naval_deployment():
 
     # Deploy fleet to north_atlantic
     payload = build_decision_payload(naval_deployment={"north_atlantic": fleets})
+    payload = clamp_phase1_production_to_budget(ctx, payload)
     resp, code = submit_decision(ctx["game_id"], ctx["session_id"], payload)
     assert code == 200, f"Expected 200, got {code}: {resp}"
-    submit_market(ctx["game_id"], ctx["session_id"], MARKET_PAYLOAD)
+    submit_market(ctx["game_id"], ctx["session_id"], build_safe_market_payload(ctx))
 
     # Wait for settlement
     for _ in range(20):
@@ -340,17 +405,17 @@ def test_conquest_and_looting_accepted():
     ctx = setup_game()
     state = get_my_state(ctx)
 
-    # Recruit 3 rounds to build army
-    for _ in range(3):
-        payload = build_decision_payload(
-            military_actions=["recruit_infantry", "recruit_infantry", "recruit_infantry"]
-        )
-        ctx = full_cycle(ctx, payload)
+    # Buy enough military points and recruit a conquest force.
+    payload = build_decision_payload(
+        point_purchases=[{"pointType": "military", "quantity": 1}],
+        military_actions=["recruit_infantry", "recruit_infantry"],
+    )
+    ctx = full_cycle(ctx, payload)
 
     state = get_my_state(ctx)
     army = state.get("army", {})
     inf = army.get("infantry", 0)
-    print(f"  After 3 rounds recruit: army={army}")
+    print(f"  After recruit: army={army}")
     assert inf >= 2, f"Need >= 2 infantry, got {inf}"
 
     # Submit combined conquest + looting
@@ -358,12 +423,13 @@ def test_conquest_and_looting_accepted():
         conquest_actions=[{"regionId": "americas", "infantry": 2, "artillery": 0}],
         looting_actions=[{"regionId": "americas", "resourceType": "cotton"}],
     )
+    payload = clamp_phase1_production_to_budget(ctx, payload)
     resp, code = submit_decision(ctx["game_id"], ctx["session_id"], payload)
     assert code == 200, f"Expected 200, got {code}"
     print("  ✅ PASS: conquest + looting accepted in same submission")
 
     # Complete the cycle
-    submit_market(ctx["game_id"], ctx["session_id"], MARKET_PAYLOAD)
+    submit_market(ctx["game_id"], ctx["session_id"], build_safe_market_payload(ctx))
 
 
 def test_looting_multi_turn():
@@ -377,23 +443,24 @@ def test_looting_multi_turn():
     state = get_my_state(ctx)
     mp = state["militaryPoints"]
 
-    # Round 2: diplomacy + recruit
-    recruit_n = max(0, 3 - mp)
+    # Round 2: diplomacy + buy military points for colonization
+    required_mp = 2
+    purchase_n = max(0, required_mp - mp)
     ctx = full_cycle(ctx, build_decision_payload(
+        point_purchases=[{"pointType": "military", "quantity": purchase_n}] if purchase_n else [],
         diplomacy_actions=["establish_americas"],
-        military_actions=["recruit_infantry"] * min(recruit_n, 3),
     ))
     state = get_my_state(ctx)
     mp = state["militaryPoints"]
 
-    if mp < 3:
+    if mp < required_mp:
         ctx = full_cycle(ctx, build_decision_payload(
-            military_actions=["recruit_infantry"] * 3
+            point_purchases=[{"pointType": "military", "quantity": required_mp - mp}]
         ))
         state = get_my_state(ctx)
         mp = state["militaryPoints"]
 
-    if mp < 3:
+    if mp < required_mp:
         print(f"  ⚠️ SKIP: Not enough mp ({mp})")
         return
 
@@ -418,20 +485,24 @@ def test_looting_multi_turn():
     initial_limit = resources.get(resource_type, 0)
 
     # Loot turn 1
-    ctx = full_cycle(ctx, build_decision_payload(
+    loot_payload_1 = build_decision_payload(
         looting_actions=[{"regionId": "americas", "resourceType": resource_type}]
-    ))
+    )
+    loot_payload_1["phase1Production"] = {"rawMaterialAssignments": {"handicraft": 0}}
+    ctx = full_cycle(ctx, loot_payload_1)
     state = get_my_state(ctx)
     raw_after_1 = state.get("phase1Economy", {}).get("rawMaterials", 0)
     americas1 = get_region_state(ctx, "americas")
     limit_1 = americas1.get("resourceLimit", {}).get(resource_type, 0)
     print(f"  Loot 1: raw {raw_before}→{raw_after_1}, {resource_type} {initial_limit}→{limit_1}")
-    assert raw_after_1 > raw_before, "Expected +1 raw material"
+    assert limit_1 < initial_limit, "Resource limit should decrease"
 
     # Loot turn 2 (should work — new turn, new loot allowance)
-    ctx = full_cycle(ctx, build_decision_payload(
+    loot_payload_2 = build_decision_payload(
         looting_actions=[{"regionId": "americas", "resourceType": resource_type}]
-    ))
+    )
+    loot_payload_2["phase1Production"] = {"rawMaterialAssignments": {"handicraft": 0}}
+    ctx = full_cycle(ctx, loot_payload_2)
     state = get_my_state(ctx)
     raw_after_2 = state.get("phase1Economy", {}).get("rawMaterials", 0)
     americas2 = get_region_state(ctx, "americas")

@@ -11,6 +11,7 @@ import {
   SettlementWorkbench,
 } from "../components/game/panels/GamePhasePanelContent";
 import { GameSituationSummary } from "../components/game/status/GameSituationSummary";
+import type { DecisionStepId } from "../features/game/flow/decisionFlow";
 import { createGameWorkbenchViewModel } from "../features/game/flow/gameWorkbench";
 import { useGamePageController } from "../features/game/flow/useGamePageController";
 import { useMapViewState } from "../features/game/flow/useMapViewState";
@@ -25,6 +26,14 @@ import type {
 
 type GameRouteState = {
   bootstrap: SessionContextResponse;
+};
+
+const DECISION_STEP_MODAL_TITLE: Record<DecisionStepId, string> = {
+  factory: "工业区",
+  domestic: "市民广场",
+  government: "议会厅",
+  military: "军事要塞",
+  research: "研究院",
 };
 
 export function GamePage() {
@@ -65,7 +74,10 @@ export function GamePage() {
   }, [controller.flowState.shouldRedirectToSettlement, navigate, runtimeState.finalResult, runtimeState.room?.roomCode, settlementTargetPath]);
 
   function handleSubmitted(response: SubmitPhaseResponse): void {
-    updateSubmissionStatusByPlayerId(response.submissionStatus);
+    updateSubmissionStatusByPlayerId(response.submissionStatus, {
+      phase: response.phase,
+      roundNo: response.roundNo,
+    });
     if (response.settlementTriggered || response.allSubmitted) {
       setTimeout(() => forceReconcile(), 300);
       setTimeout(() => forceReconcile(), 1000);
@@ -95,9 +107,17 @@ export function GamePage() {
 
   const mapState = useMapViewState({
     currentPhase,
+    currentPlayerWorkspace: currentWorkspace,
     currentPlayerState,
     onDecisionFlowChange: controller.onDecisionFlowChange,
   });
+  const activeDecisionModalStep =
+    currentPhase === "decision" && mapState.activeModalId
+      ? controller.decisionFlowState.activeStep
+      : null;
+  const currentRound = runtimeState.snapshot?.round ?? runtimeState.game?.currentRound ?? 0;
+  const totalRounds = runtimeState.game?.totalRounds ?? runtimeState.snapshot?.maxRounds ?? 0;
+  const isFinalRoundSettlement = currentPhase === "settlement" && totalRounds > 0 && currentRound >= totalRounds;
 
   const bottomDock =
     runtimeState.game && currentPhase && currentPlayerId && currentPhase !== "settlement" ? (
@@ -108,12 +128,13 @@ export function GamePage() {
         onSubmitted={handleSubmitted}
         phase={currentPhase}
         playerId={currentPlayerId}
+        roundNo={runtimeState.snapshot?.round ?? runtimeState.game.currentRound}
         submissionStatus={currentSubmittedStatus}
         submissionStatusByPlayerId={runtimeState.submissionStatusByPlayerId}
       />
     ) : (
       <div style={{ color: "var(--game-text-secondary)", fontSize: 14, textAlign: "center" }}>
-        结算完成，{runtimeState.secondsRemaining != null && runtimeState.secondsRemaining > 0 ? `${runtimeState.secondsRemaining} 秒后` : "即将"}进入下一回合
+        结算完成，{runtimeState.secondsRemaining != null && runtimeState.secondsRemaining > 0 ? `${runtimeState.secondsRemaining} 秒后` : "即将"}进入{isFinalRoundSettlement ? "终局档案" : "下一回合"}
       </div>
     );
 
@@ -131,6 +152,7 @@ export function GamePage() {
           onComplete={mapState.closeModal}
           onDecisionFlowChange={controller.onDecisionFlowChange}
           onDraftsChange={controller.onDraftsChange}
+          isFinalRoundSettlement={isFinalRoundSettlement}
           secondsRemaining={runtimeState.secondsRemaining}
         />
       );
@@ -142,6 +164,7 @@ export function GamePage() {
           draft={controller.drafts.market}
           onChange={(value) => controller.onDraftsChange((prev) => ({ ...prev, market: value }))}
           playerState={currentPlayerState}
+          readOnly={currentSubmittedStatus === "submitted" || currentSubmittedStatus === "timeout_auto_submitted"}
           workspace={currentWorkspace as MarketPlayerPhaseWorkspace}
         />
       );
@@ -153,6 +176,7 @@ export function GamePage() {
   const inlineSettlement =
     currentPhase === "settlement" && currentWorkspace ? (
       <SettlementWorkbench
+        isFinalRound={isFinalRoundSettlement}
         playerState={currentPlayerState}
         workspace={currentWorkspace as SettlementPlayerPhaseWorkspace}
         secondsRemaining={runtimeState.secondsRemaining}
@@ -163,7 +187,7 @@ export function GamePage() {
     <>
     <PhaseAnnounce
       phase={currentPhase}
-      round={runtimeState.snapshot?.round ?? runtimeState.game?.currentRound ?? 0}
+      round={currentRound}
     />
     <GameMapView
       activeModalId={mapState.activeModalId}
@@ -176,7 +200,12 @@ export function GamePage() {
         </section>
       ) : inlineSettlement}
       modalContent={renderModalContent()}
-      modalTitle={mapState.modalTitle}
+      modalTitle={
+        activeDecisionModalStep
+          ? DECISION_STEP_MODAL_TITLE[activeDecisionModalStep]
+          : mapState.modalTitle
+      }
+      modalVariant={activeDecisionModalStep ?? mapState.activeModalId}
       onBuildingClick={mapState.openModal}
       onModalClose={mapState.closeModal}
       situationBar={

@@ -131,10 +131,12 @@ class DecisionRulesTests(unittest.TestCase):
         self.assertEqual(updated_britain.tech_points, 1)
         self.assertEqual(updated_britain.budget_pools["factory"], 8)
 
-    def test_military_plan_uses_remaining_government_budget_after_government_plan(self) -> None:
+    def test_military_plan_spends_military_points_not_government_budget(self) -> None:
         snapshot = build_snapshot()
         britain = get_player(snapshot, "player-1")
         britain.budget_pools = {"domesticMarket": 12, "factory": 12, "governmentFiscal": 18}
+        britain.military_points = 2
+        starting_infantry = int(britain.army.get("infantry", 0))
 
         resolution = resolve_decision_phase(
             snapshot=snapshot,
@@ -170,13 +172,59 @@ class DecisionRulesTests(unittest.TestCase):
         )
 
         updated_britain = get_player(resolution.updated_snapshot, "player-1")
-        self.assertEqual(updated_britain.budget_pools["governmentFiscal"], 12)
-        self.assertEqual(updated_britain.military_points, britain.military_points + 2)
+        self.assertEqual(updated_britain.budget_pools["governmentFiscal"], 18)
+        self.assertEqual(updated_britain.military_points, 0)
+        self.assertEqual(updated_britain.army.get("infantry", 0), starting_infantry + 1)
+
+    def test_build_fleet_costs_3_military_points(self) -> None:
+        snapshot = build_snapshot()
+        britain = get_player(snapshot, "player-1")
+        britain.budget_pools = {"domesticMarket": 12, "factory": 12, "governmentFiscal": 30}
+        britain.military_points = 3
+        starting_fleets = int(britain.navy.get("fleets", 0))
+        starting_military_points = int(britain.military_points)
+
+        resolution = resolve_decision_phase(
+            snapshot=snapshot,
+            turn_inputs=[
+                build_turn_input(
+                    "player-1",
+                    {
+                        "factoryPlan": {
+                            "productionOrders": [],
+                            "expansionOrders": [],
+                            "upgradeOrders": [],
+                            "newFactoryOrders": [],
+                        },
+                        "domesticMarketPlan": {"domesticMarketActions": []},
+                        "governmentPlan": {
+                            "pointPurchases": [],
+                            "strategySelections": [],
+                            "adminPurchases": 0,
+                        },
+                        "militaryPlan": {
+                            "militaryActions": [{"actionId": "build_fleet"}],
+                            "diplomacyActions": [],
+                            "navalDeployment": {},
+                            "conquestActions": [],
+                            "lootingActions": [],
+                        },
+                    },
+                )
+            ],
+        )
+
+        updated_britain = get_player(resolution.updated_snapshot, "player-1")
+        self.assertEqual(updated_britain.budget_pools["governmentFiscal"], 30)
+        self.assertEqual(updated_britain.navy.get("fleets", 0), starting_fleets + 1)
+        self.assertEqual(updated_britain.military_points, starting_military_points - 3)
 
     def test_military_plan_establishes_diplomacy_and_applies_expedition_effects(self) -> None:
         snapshot = build_snapshot()
         france = get_player(snapshot, "player-2")
         france.budget_pools = {"domesticMarket": 12, "factory": 12, "governmentFiscal": 20}
+        france.military_points = 2
+        starting_infantry = int(france.army.get("infantry", 0))
 
         resolution = resolve_decision_phase(
             snapshot=snapshot,
@@ -207,10 +255,11 @@ class DecisionRulesTests(unittest.TestCase):
         )
 
         updated_france = get_player(resolution.updated_snapshot, "player-2")
-        self.assertEqual(updated_france.budget_pools["governmentFiscal"], 13)
+        self.assertEqual(updated_france.budget_pools["governmentFiscal"], 17)
         self.assertIn("africa", updated_france.established_diplomacy)
         self.assertIn("americas", updated_france.established_diplomacy)
-        self.assertEqual(updated_france.military_points, france.military_points + 2)
+        self.assertEqual(updated_france.military_points, 0)
+        self.assertEqual(updated_france.army.get("infantry", 0), starting_infantry + 2)
 
     def test_military_plan_can_conquer_colonizable_region(self) -> None:
         snapshot = build_snapshot()

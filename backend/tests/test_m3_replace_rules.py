@@ -30,7 +30,6 @@ from app.modules.game_state.turn_input import PlayerTurnInput
 from app.modules.rules.decision import resolve_decision_phase
 from app.modules.rules.market import resolve_market_phase
 from app.modules.rules.phase1_economy import (
-    allocate_revenue_to_pools,
     calculate_domestic_demand,
     calculate_domestic_price,
     calculate_equilibrium_price,
@@ -114,7 +113,7 @@ class DecisionPhase1ProductionTests(unittest.TestCase):
             "electrified": 0,
         }
         britain.phase1_economy.raw_materials = 30
-        britain.budget_pools = {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
+        britain.budget_pools = {"domesticMarket": 0, "factory": 9, "governmentFiscal": 0}
 
         resolution = resolve_decision_phase(
             snapshot=snapshot,
@@ -137,8 +136,43 @@ class DecisionPhase1ProductionTests(unittest.TestCase):
         self.assertEqual(updated.phase1_economy.goods_inventory, expected_output)
         # 9 raw materials consumed from initial 30 -> 21 remaining.
         self.assertEqual(updated.phase1_economy.raw_materials, 21)
+        self.assertEqual(updated.budget_pools["factory"], 0)
         # Legacy goods_stock receives the unified bucket for frontend compat.
         self.assertEqual(updated.goods_stock.get("phase1_goods"), expected_output)
+
+    def test_factory_action_trades_production_capacity_for_government_budget(self) -> None:
+        snapshot = _build_snapshot()
+        britain = _get_player(snapshot, "player-1")
+        britain.phase1_economy.capacity_by_mode = {
+            "idle": 0,
+            "handicraft": 4,
+            "mechanized": 0,
+            "steam": 0,
+            "electrified": 0,
+        }
+        britain.phase1_economy.raw_materials = 10
+        britain.budget_pools = {"domesticMarket": 0, "factory": 4, "governmentFiscal": 1}
+
+        payload = _decision_payload(
+            phase1_production={
+                "rawMaterialAssignments": {"handicraft": 4},
+            }
+        )
+        payload["factoryPlan"]["factoryActions"] = [{"actionId": "factory_tax_contracting"}]
+
+        resolution = resolve_decision_phase(
+            snapshot=snapshot,
+            turn_inputs=[
+                _build_turn_input("player-1", GamePhase.DECISION, payload)
+            ],
+        )
+
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+        # 财政承包把本回合投料上限从 4 压到 2，并给政府财政 +4。
+        self.assertEqual(updated.phase1_economy.goods_inventory, 2)
+        self.assertEqual(updated.phase1_economy.raw_materials, 8)
+        self.assertEqual(updated.budget_pools["factory"], 2)
+        self.assertEqual(updated.budget_pools["governmentFiscal"], 5)
 
     def test_phase1_production_caps_raw_materials_by_capacity(self) -> None:
         snapshot = _build_snapshot()
@@ -147,7 +181,7 @@ class DecisionPhase1ProductionTests(unittest.TestCase):
             "idle": 0, "handicraft": 2, "mechanized": 0, "steam": 0, "electrified": 0,
         }
         britain.phase1_economy.raw_materials = 30
-        britain.budget_pools = {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
+        britain.budget_pools = {"domesticMarket": 0, "factory": 2, "governmentFiscal": 0}
 
         resolution = resolve_decision_phase(
             snapshot=snapshot,
@@ -177,7 +211,7 @@ class DecisionPhase1ProductionTests(unittest.TestCase):
             "idle": 0, "handicraft": 100, "mechanized": 0, "steam": 0, "electrified": 0,
         }
         britain.phase1_economy.raw_materials = 5
-        britain.budget_pools = {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
+        britain.budget_pools = {"domesticMarket": 0, "factory": 5, "governmentFiscal": 0}
 
         resolution = resolve_decision_phase(
             snapshot=snapshot,
@@ -207,7 +241,7 @@ class DecisionPhase1ProductionTests(unittest.TestCase):
             "idle": 0, "handicraft": 8, "mechanized": 8, "steam": 0, "electrified": 0,
         }
         britain.phase1_economy.raw_materials = 10
-        britain.budget_pools = {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
+        britain.budget_pools = {"domesticMarket": 0, "factory": 10, "governmentFiscal": 0}
 
         resolution = resolve_decision_phase(
             snapshot=snapshot,
@@ -230,6 +264,35 @@ class DecisionPhase1ProductionTests(unittest.TestCase):
         # Iteration order is dict insertion: handicraft 8 used (8*1=8 goods),
         # then mechanized capped to remaining 2 (2*2=4 goods). Total = 12.
         self.assertEqual(updated.phase1_economy.goods_inventory, 12)
+
+    def test_phase1_production_caps_raw_materials_by_factory_budget(self) -> None:
+        snapshot = _build_snapshot()
+        britain = _get_player(snapshot, "player-1")
+        britain.phase1_economy.capacity_by_mode = {
+            "idle": 0, "handicraft": 8, "mechanized": 0, "steam": 0, "electrified": 0,
+        }
+        britain.phase1_economy.raw_materials = 8
+        britain.budget_pools = {"domesticMarket": 0, "factory": 3, "governmentFiscal": 0}
+
+        resolution = resolve_decision_phase(
+            snapshot=snapshot,
+            turn_inputs=[
+                _build_turn_input(
+                    "player-1",
+                    GamePhase.DECISION,
+                    _decision_payload(
+                        phase1_production={
+                            "rawMaterialAssignments": {"handicraft": 8},
+                        }
+                    ),
+                )
+            ],
+        )
+
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+        self.assertEqual(updated.phase1_economy.goods_inventory, 3)
+        self.assertEqual(updated.phase1_economy.raw_materials, 5)
+        self.assertEqual(updated.budget_pools["factory"], 0)
 
     def test_phase1_build_orders_increment_capacity_and_deduct_factory_budget(self) -> None:
         snapshot = _build_snapshot()
@@ -264,6 +327,60 @@ class DecisionPhase1ProductionTests(unittest.TestCase):
         self.assertEqual(updated.production_capacity["handicraft"], starting_handicraft + 2)
         self.assertEqual(updated.production_capacity["mechanized"], starting_mechanized + 1)
         self.assertEqual(updated.budget_pools["factory"], 100 - 12 * 2 - 25)
+
+    def test_factory_plan_new_factory_orders_add_pending_capacity_and_deduct_budget(self) -> None:
+        snapshot = _build_snapshot()
+        britain = _get_player(snapshot, "player-1")
+        britain.budget_pools = {"domesticMarket": 0, "factory": 50, "governmentFiscal": 0}
+        starting_handicraft = britain.phase1_economy.capacity_by_mode["handicraft"]
+
+        payload = _decision_payload()
+        payload["factoryPlan"]["newFactoryOrders"] = [{"routeId": "handicraft", "quantity": 1}]
+
+        resolution = resolve_decision_phase(
+            snapshot=snapshot,
+            turn_inputs=[_build_turn_input("player-1", GamePhase.DECISION, payload)],
+        )
+
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+        self.assertEqual(updated.phase1_economy.capacity_by_mode["handicraft"], starting_handicraft)
+        self.assertEqual(updated.pending_production_capacity["handicraft"], 2)
+        self.assertEqual(updated.budget_pools["factory"], 50 - 12)
+
+    def test_factory_plan_new_factory_orders_allow_unlocked_advanced_route(self) -> None:
+        snapshot = _build_snapshot()
+        britain = _get_player(snapshot, "player-1")
+        britain.budget_pools = {"domesticMarket": 0, "factory": 50, "governmentFiscal": 0}
+        britain.unlocked_techs = ["spinning_jenny"]
+
+        payload = _decision_payload()
+        payload["factoryPlan"]["newFactoryOrders"] = [{"routeId": "mechanized", "quantity": 1}]
+
+        resolution = resolve_decision_phase(
+            snapshot=snapshot,
+            turn_inputs=[_build_turn_input("player-1", GamePhase.DECISION, payload)],
+        )
+
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+        self.assertEqual(updated.pending_production_capacity["mechanized"], 2)
+        self.assertEqual(updated.budget_pools["factory"], 50 - 25)
+
+    def test_factory_plan_expansion_orders_add_pending_capacity_and_deduct_budget(self) -> None:
+        snapshot = _build_snapshot()
+        britain = _get_player(snapshot, "player-1")
+        britain.budget_pools = {"domesticMarket": 0, "factory": 20, "governmentFiscal": 0}
+
+        payload = _decision_payload()
+        payload["factoryPlan"]["expansionOrders"] = [{"routeId": "handicraft", "quantity": 2}]
+
+        resolution = resolve_decision_phase(
+            snapshot=snapshot,
+            turn_inputs=[_build_turn_input("player-1", GamePhase.DECISION, payload)],
+        )
+
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+        self.assertEqual(updated.pending_production_capacity["handicraft"], 2)
+        self.assertEqual(updated.budget_pools["factory"], 20 - 3 * 2)
 
     def test_phase1_upgrade_orders_move_capacity_between_modes(self) -> None:
         snapshot = _build_snapshot()
@@ -390,7 +507,7 @@ class MarketPhase1Tests(unittest.TestCase):
         expected_eq = calculate_equilibrium_price(consumption_pool=Decimal(12), demand=expected_demand)
         expected_final = calculate_domestic_price(
             equilibrium_price=expected_eq,
-            supply=Decimal(5),
+            supply=Decimal(4),
             demand=expected_demand,
             minimum_price=1,
         )
@@ -465,19 +582,19 @@ class MarketPhase1Tests(unittest.TestCase):
         )
 
         updated = _get_player(resolution.updated_snapshot, "player-1")
-        # equilibrium = 80 / 8 = 10, capped to 8. Domestic shortage 4/8 raises
-        # raw price to 12 but the cap clamps it back to 8 -> 4 sold at 8 = 32.
+        # equilibrium = 80 / 8 = 10. Domestic shortage 4/8 keeps the final
+        # price at 10 under the configured cap -> 4 sold at 10 = 40.
         # Overseas (Europe, multiplier 0.9): int(8 * 0.9) = 7, so 4 * 7 = 28.
-        self.assertEqual(updated.domestic_sales_revenue, 32)
+        self.assertEqual(updated.domestic_sales_revenue, 40)
         self.assertEqual(updated.overseas_sales_revenue, 28)
-        self.assertEqual(updated.national_income, 60)
+        self.assertEqual(updated.national_income, 68)
         self.assertEqual(updated.phase1_economy.market_metrics["soldQuantity"], 8.0)
 
 
 class SettlementPhase1Tests(unittest.TestCase):
-    """When phase-1 economy is active, settlement uses 5:3:2 instead of legacy 3:3:4."""
+    """Phase-1 settlement uses the player's current income allocation weights."""
 
-    def test_settlement_splits_revenue_5_3_2_when_phase1_inventory_present(self) -> None:
+    def test_settlement_splits_revenue_by_current_ratio_when_phase1_inventory_present(self) -> None:
         snapshot = _build_snapshot(GamePhase.SETTLEMENT)
         prussia = _get_player(snapshot, "player-3")
         # Mark phase-1 active by leaving non-zero goods_inventory (a real produced good).
@@ -491,17 +608,12 @@ class SettlementPhase1Tests(unittest.TestCase):
         resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
 
         updated = _get_player(resolution.updated_snapshot, "player-3")
-        delta = allocate_revenue_to_pools(Decimal(100))
-        # 100 * 0.5 = 50 -> domesticMarket, then 40% consumption drain -> 50 * 0.6 = 30
-        # 100 * 0.3 = 30 -> factory; remainder 20 -> governmentFiscal.
-        self.assertEqual(updated.budget_pools["domesticMarket"], int(int(delta.consumption) * 0.6))
-        self.assertEqual(updated.budget_pools["factory"], int(delta.investment))
-        self.assertEqual(updated.budget_pools["governmentFiscal"], 100 - int(delta.consumption) - int(delta.investment))
-        self.assertEqual(updated.budget_pools["domesticMarket"], 30)
+        # 3:3:4 of 100 -> 30 / 30 / 40, then domesticMarket drains by 40%.
+        self.assertEqual(updated.budget_pools["domesticMarket"], 18)
         self.assertEqual(updated.budget_pools["factory"], 30)
-        self.assertEqual(updated.budget_pools["governmentFiscal"], 20)
+        self.assertEqual(updated.budget_pools["governmentFiscal"], 40)
 
-    def test_settlement_phase1_pins_income_allocation_ratio_to_default_5_3_2(self) -> None:
+    def test_settlement_phase1_mirrors_current_income_allocation_ratio(self) -> None:
         snapshot = _build_snapshot(GamePhase.SETTLEMENT)
         prussia = _get_player(snapshot, "player-3")
         prussia.phase1_economy.goods_inventory = 3  # phase-1 active
@@ -511,10 +623,9 @@ class SettlementPhase1Tests(unittest.TestCase):
         resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
 
         updated = _get_player(resolution.updated_snapshot, "player-3")
-        # Phase1 ratio is the canonical 5:3:2, NOT the normalized legacy 1:1:8.
-        self.assertAlmostEqual(updated.phase1_economy.income_allocation_ratio["consumption"], 0.5, places=6)
-        self.assertAlmostEqual(updated.phase1_economy.income_allocation_ratio["investment"], 0.3, places=6)
-        self.assertAlmostEqual(updated.phase1_economy.income_allocation_ratio["fiscal"], 0.2, places=6)
+        self.assertAlmostEqual(updated.phase1_economy.income_allocation_ratio["consumption"], 0.1, places=6)
+        self.assertAlmostEqual(updated.phase1_economy.income_allocation_ratio["investment"], 0.1, places=6)
+        self.assertAlmostEqual(updated.phase1_economy.income_allocation_ratio["fiscal"], 0.8, places=6)
 
     def test_settlement_adds_per_turn_raw_material_income_when_phase1_active(self) -> None:
         snapshot = _build_snapshot(GamePhase.SETTLEMENT)
@@ -529,8 +640,28 @@ class SettlementPhase1Tests(unittest.TestCase):
         updated = _get_player(resolution.updated_snapshot, "player-3")
         self.assertEqual(
             updated.phase1_economy.raw_materials,
-            12 + 12,  # prussia rawMaterialsPerTurn = 12 from countries.json
+            12 + 2,  # prussia rawMaterialsPerTurn = 2 from countries.json
         )
+
+    def test_settlement_applies_pending_capacity_to_phase1_capacity(self) -> None:
+        snapshot = _build_snapshot(GamePhase.SETTLEMENT)
+        britain = _get_player(snapshot, "player-1")
+        britain.pending_production_capacity["handicraft"] = 2
+        starting_phase1_capacity = britain.phase1_economy.capacity_by_mode["handicraft"]
+        starting_legacy_capacity = britain.production_capacity["handicraft"]
+
+        resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
+
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+        self.assertEqual(
+            updated.phase1_economy.capacity_by_mode["handicraft"],
+            starting_phase1_capacity + 2,
+        )
+        self.assertEqual(
+            updated.production_capacity["handicraft"],
+            starting_legacy_capacity + 2,
+        )
+        self.assertEqual(updated.pending_production_capacity["handicraft"], 0)
 
 if __name__ == "__main__":
     unittest.main()

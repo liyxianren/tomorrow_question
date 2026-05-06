@@ -2499,6 +2499,40 @@ ul {
   animation: mapModalSlideUp 0.25s ease;
 }
 
+.game-map-modal__panel--factory {
+  width: min(98vw, 1360px);
+  max-height: 92vh;
+}
+
+.game-map-modal__panel--government {
+  width: min(98vw, 1240px);
+  max-height: 92vh;
+}
+
+.game-map-modal__panel--domestic {
+  width: min(98vw, 1180px);
+  max-height: 92vh;
+}
+
+.game-map-modal__panel--military {
+  width: min(98vw, 1360px);
+  max-height: 92vh;
+}
+
+.game-map-modal__panel--factory .game-map-modal__header,
+.game-map-modal__panel--domestic .game-map-modal__header,
+.game-map-modal__panel--government .game-map-modal__header,
+.game-map-modal__panel--military .game-map-modal__header {
+  padding: 14px 22px;
+}
+
+.game-map-modal__panel--factory .game-map-modal__body,
+.game-map-modal__panel--domestic .game-map-modal__body,
+.game-map-modal__panel--government .game-map-modal__body,
+.game-map-modal__panel--military .game-map-modal__body {
+  padding: 14px 18px 18px;
+}
+
 @keyframes mapModalSlideUp {
   from { opacity: 0; transform: translateY(24px); }
   to { opacity: 1; transform: translateY(0); }

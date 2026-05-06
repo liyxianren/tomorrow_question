@@ -120,6 +120,49 @@ class NavalDeploymentTests(unittest.TestCase):
         node_north = get_node(resolution.updated_snapshot, "north_atlantic")
         self.assertEqual(node_north.navy_by_country.get("britain", 0), 0)
 
+    def test_empty_deployment_preserves_existing_fleet_positions(self) -> None:
+        snapshot = build_snapshot()
+        britain = get_player(snapshot, "player-1")
+        britain.navy = {"fleets": 2}
+        get_node(snapshot, "north_atlantic").navy_by_country = {"britain": 2}
+
+        resolution = resolve_decision_phase(
+            snapshot=snapshot,
+            turn_inputs=[build_turn_input("player-1", empty_payload(naval_deployment={}))],
+        )
+
+        node_north = get_node(resolution.updated_snapshot, "north_atlantic")
+        self.assertEqual(node_north.navy_by_country.get("britain"), 2)
+
+    def test_explicit_zero_withdraws_fleet_from_node(self) -> None:
+        snapshot = build_snapshot()
+        britain = get_player(snapshot, "player-1")
+        britain.navy = {"fleets": 2}
+        get_node(snapshot, "north_atlantic").navy_by_country = {"britain": 2}
+
+        resolution = resolve_decision_phase(
+            snapshot=snapshot,
+            turn_inputs=[build_turn_input("player-1", empty_payload(naval_deployment={"north_atlantic": 0}))],
+        )
+
+        node_north = get_node(resolution.updated_snapshot, "north_atlantic")
+        self.assertEqual(node_north.navy_by_country.get("britain", 0), 0)
+
+    def test_decision_deployment_resolves_blockade_before_market_phase(self) -> None:
+        snapshot = build_snapshot()
+        britain = get_player(snapshot, "player-1")
+        britain.navy = {"fleets": 2}
+
+        resolution = resolve_decision_phase(
+            snapshot=snapshot,
+            turn_inputs=[build_turn_input("player-1", empty_payload(naval_deployment={"north_atlantic": 2}))],
+        )
+
+        node_north = get_node(resolution.updated_snapshot, "north_atlantic")
+        self.assertEqual(node_north.controller, "britain")
+        self.assertTrue(node_north.is_blockaded)
+        self.assertFalse(check_route_accessible("france", "americas", resolution.updated_snapshot, get_balance_config()))
+
 
 class NavalBlockadeResolutionTests(unittest.TestCase):
     def test_blockade_determined_when_clear_leader_meets_threshold(self) -> None:

@@ -27,6 +27,7 @@ class BalanceConfigTests(unittest.TestCase):
         )
         self.assertEqual(set(config.countries), {country.value for country in CountryCode})
         self.assertIn("consumer_subsidy", config.decision_actions.domestic_market_actions)
+        self.assertIn("factory_tax_contracting", config.decision_actions.factory_actions)
         self.assertIn("expand_shipping_lines", config.decision_actions.government_actions)
         self.assertNotIn("military_draft", config.decision_actions.government_actions)
         self.assertNotIn("raise_expeditionary_force", config.decision_actions.government_actions)
@@ -35,14 +36,18 @@ class BalanceConfigTests(unittest.TestCase):
         self.assertIn("establish_africa", config.military_actions.diplomacy_actions)
         self.assertEqual(config.production.goods["phase1_goods"].route_id, "handicraft")
         self.assertEqual(config.production.goods["phase1_goods"].unit_budget_cost, 1)
-        self.assertEqual(config.production.goods["phase1_goods"].demand_threshold, 30)
+        self.assertEqual(config.production.goods["phase1_goods"].demand_threshold, 40)
         self.assertEqual(config.production.goods["phase1_goods"].price_floor, 2)
         self.assertEqual(config.production.goods["phase1_goods"].price_ceiling, 12)
         self.assertEqual(config.production.upgrade_costs["electrified"], 30)
         self.assertEqual(config.production.new_factory_costs["handicraft"], 12)
         self.assertEqual(config.market.region_goods_premiums["middle_east"]["steel"], 3)
         self.assertEqual(config.countries["britain"].initial_goods, ("phase1_goods",))
-        self.assertEqual(config.technology.chains["mechanical"].techs[0].tech_id, "spinning_jenny")
+        self.assertEqual(config.technology.chains["industrialization"].techs[0].tech_id, "spinning_jenny")
+        self.assertEqual(
+            [tech.tech_id for tech in config.technology.chains["industrialization"].techs],
+            ["spinning_jenny", "lathe", "watt_engine", "power_generation", "combustion_engine"],
+        )
         self.assertEqual(config.technology.route_unlocks["mechanized"], ["spinning_jenny"])
         self.assertGreaterEqual(len(config.events.events), 8)
         self.assertEqual(config.events.events[0].duration_rounds, 1)
@@ -120,8 +125,8 @@ class BalanceConfigTests(unittest.TestCase):
             for source_path in source_dir.glob("*.json"):
                 payload = json.loads(source_path.read_text(encoding="utf-8"))
                 if source_path.name == "technology.json":
-                    # Duplicate a tech_id across chains to trigger validation error.
-                    payload["chains"]["mechanical"]["techs"][0]["id"] = "leyden_jar"
+                    # Duplicate a tech_id within the chain to trigger validation error.
+                    payload["chains"]["industrialization"]["techs"][1]["id"] = "spinning_jenny"
                 (config_dir / source_path.name).write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
 
             with self.assertRaises(BalanceConfigError):

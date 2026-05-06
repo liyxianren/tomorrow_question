@@ -66,14 +66,14 @@ GamePage (frontend/src/pages/GamePage.tsx)
 |---|---|---|---|
 | `budgetPools.factory` | `factoryPlan.expansionOrders/upgradeOrders/newFactoryOrders/productionOrders` | workspace.budgetPools.factory | sidebar resourceStrip + `factory-panel__budget` |
 | `budgetPools.domesticMarket` | `domesticMarketPlan.domesticMarketActions` | workspace.budgetPools.domesticMarket | sidebar resourceStrip + `domestic-panel__budget` + `domestic-stats` 第一格 |
-| `budgetPools.governmentFiscal` | `governmentPlan.pointPurchases` + `governmentPlan.strategySelections` + `militaryPlan.militaryActions` + `militaryPlan.diplomacyActions` + `militaryPlan.unlockColonization` + `conquestActions.artillery × 16` | workspace.budgetPools.governmentFiscal | sidebar resourceStrip + `government-panel__budget` + `military-panel__budget` （**同一个数字三处显示**） |
-| `militaryPoints` | `conquestActions.infantry × 10` + 殖民执行 (`militaryPointCost`) | workspace.militaryPoints | `military-stats` |
+| `budgetPools.governmentFiscal` | `governmentPlan.pointPurchases` + `governmentPlan.strategySelections` + `militaryPlan.diplomacyActions` + `militaryPlan.unlockColonization` | workspace.budgetPools.governmentFiscal | sidebar resourceStrip + `government-panel__budget` |
+| `militaryPoints` | `militaryPlan.militaryActions` (`militaryPointCost`) + 殖民执行 (`militaryPointCost`) | computed via `calculateGovernmentPointPreview` | `military-stats` + `military-panel__budget` |
 | `techPoints`（计算预览） | `governmentPlan.pointPurchases`（购买）+ `governmentPlan.strategySelections`（消耗） | computed via `calculateGovernmentPointPreview` | `talent-tree__budget` |
 | 行政力 (administrationCapacity) | `governmentPlan.adminPurchases` + `reforms` + 政策维护 | workspace.governmentReforms.administrationCapacity | `government-stats` |
 | 原材料 (rawMaterials) | `phase1Production.rawMaterialAssignments` | workspace.phase1Economy.rawMaterials | `phase1-panel__summary` |
 | 商品库存 (goodsInventory) | （消费阶段）`phase1Market.domesticAllocation/externalAllocations` | workspace.phase1Economy.goodsInventory | `phase1-panel__summary` |
 
-**关键洞察**：`governmentFiscal` 是 6 类不同支出的共享池，`techPoints` 是研究院与天赋树的桥梁，`军事点` 是军事面板内部资源——这三条横向关系是当前最缺的信息。
+**关键洞察**：`governmentFiscal` 负责政府购买、战略、外交与殖民解锁；`techPoints` 是研究院与天赋树的桥梁；`军事点` 负责军事要塞动作与殖民执行——这三条横向关系是当前最缺的信息。
 
 ### A.4 测试约束（实施时不能破坏的契约）
 

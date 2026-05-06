@@ -3,7 +3,7 @@
   "phaseDurationSeconds": 15,
   "baseIncomePerRound": 0,
   "baseOverseasCapacity": 5,
-  "rawMaterialsPerTurn": 12,
+  "rawMaterialsPerTurn": 2,
   "rankingTieBreakOrder": [
     "productionCapacity",
     "controlledRegions",

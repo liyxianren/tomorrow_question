@@ -4,7 +4,7 @@ from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from app.modules.balance_config import get_balance_config
-from app.modules.game_state.effects import get_effect_bonus
+from app.modules.game_state.effects import get_effect_bonus, get_talent_effect_total
 
 if TYPE_CHECKING:
     from app.modules.game_state.models import GameSnapshot, PlayerState, RegionState
@@ -68,10 +68,14 @@ def goods_ids_for_route(route_id: str) -> list[str]:
 def route_locked_reason(player: PlayerState, route_id: str) -> str | None:
     if route_id == "handicraft" or current_route_capacity(player, route_id) > 0:
         return None
-    tech = route_unlocking_tech(route_id)
-    if tech is None or tech.tech_id in player.unlocked_techs:
+    required_techs = get_balance_config().technology.route_unlocks.get(route_id)
+    if not required_techs:
         return None
-    return f"需要研究「{tech.label}」"
+    missing_techs = [tech_id for tech_id in required_techs if tech_id not in player.unlocked_techs]
+    if not missing_techs:
+        return None
+    labels = "、".join(f"「{_technology_label(tech_id)}」" for tech_id in missing_techs)
+    return f"需要研究{labels}"
 
 
 def goods_locked_reason(player: PlayerState, route_id: str, goods_id: str | None = None) -> str | None:
@@ -119,9 +123,23 @@ def action_unlocking_tech(action_id: str):
 
 
 def route_unlocking_tech(route_id: str):
-    # Shim: chain-based research has no per-route unlocks (Tasks 3-4 will replace this).
-    del route_id
+    required_techs = get_balance_config().technology.route_unlocks.get(route_id)
+    if not required_techs:
+        return None
+    return _technology_config(required_techs[0])
+
+
+def _technology_config(tech_id: str):
+    for chain in get_balance_config().technology.chains.values():
+        for tech in chain.techs:
+            if tech.tech_id == tech_id:
+                return tech
     return None
+
+
+def _technology_label(tech_id: str) -> str:
+    tech = _technology_config(tech_id)
+    return tech.label if tech is not None else tech_id
 
 
 def is_tech_researchable(player: PlayerState, tech_id: str) -> bool:
@@ -158,8 +176,7 @@ def production_option_max_quantity(player: PlayerState, goods_id: str) -> int:
 
 
 def expansion_option_max_quantity(player: PlayerState, route_id: str) -> int:
-    balance = get_balance_config()
-    unit_cost = int(balance.production.expansion_costs.get(route_id, 0))
+    unit_cost = expansion_unit_budget_cost(player, route_id)
     if unit_cost <= 0 or current_route_capacity(player, route_id) <= 0:
         return 0
     return max(0, int(player.budget_pools.get("factory", 0)) // unit_cost)
@@ -168,7 +185,7 @@ def expansion_option_max_quantity(player: PlayerState, route_id: str) -> int:
 def upgrade_option_max_quantity(player: PlayerState, target_route_id: str) -> int:
     balance = get_balance_config()
     source_route_id = balance.production.upgrade_source_levels.get(target_route_id)
-    unit_cost = int(balance.production.upgrade_costs.get(target_route_id, 0))
+    unit_cost = upgrade_unit_budget_cost(player, target_route_id)
     if source_route_id is None or unit_cost <= 0:
         return 0
     if route_locked_reason(player, target_route_id) is not None:
@@ -180,11 +197,40 @@ def upgrade_option_max_quantity(player: PlayerState, target_route_id: str) -> in
 
 
 def new_factory_option_max_quantity(player: PlayerState, route_id: str) -> int:
-    balance = get_balance_config()
-    unit_cost = int(balance.production.new_factory_costs.get(route_id, 0))
+    unit_cost = new_factory_unit_budget_cost(player, route_id)
     if unit_cost <= 0:
         return 0
     return max(0, int(player.budget_pools.get("factory", 0)) // unit_cost)
+
+
+def expansion_unit_budget_cost(player: PlayerState, route_id: str) -> int:
+    base_cost = int(get_balance_config().production.expansion_costs.get(route_id, 0))
+    discount = _factory_discount_percent(player, "factoryExpansionCostReductionPercent")
+    return _discounted_unit_cost(base_cost, discount)
+
+
+def upgrade_unit_budget_cost(player: PlayerState, route_id: str) -> int:
+    base_cost = int(get_balance_config().production.upgrade_costs.get(route_id, 0))
+    discount = _factory_discount_percent(player, "factoryUpgradeCostReductionPercent")
+    return _discounted_unit_cost(base_cost, discount)
+
+
+def new_factory_unit_budget_cost(player: PlayerState, route_id: str) -> int:
+    base_cost = int(get_balance_config().production.new_factory_costs.get(route_id, 0))
+    discount = _factory_discount_percent(player, "newFactoryCostReductionPercent")
+    return _discounted_unit_cost(base_cost, discount)
+
+
+def _factory_discount_percent(player: PlayerState, effect_key: str) -> int:
+    return max(0, min(90, get_talent_effect_total(player, effect_key)))
+
+
+def _discounted_unit_cost(base_cost: int, discount_percent: int) -> int:
+    if base_cost <= 0:
+        return 0
+    if discount_percent <= 0:
+        return base_cost
+    return max(1, (base_cost * (100 - discount_percent) + 99) // 100)
 
 
 def domestic_reference_price(player: PlayerState, goods_id: str, snapshot: "GameSnapshot" | None = None) -> int:

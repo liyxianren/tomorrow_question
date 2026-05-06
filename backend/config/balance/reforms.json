@@ -6,6 +6,7 @@
         "path": "freedom",
         "label": "制定宪法",
         "adminCost": 2,
+        "description": "以宪法约束国家权力，降低三类激进思潮，减少革命风险。",
         "effects": {
           "ideologyDelta": {
             "liberalism": -1,
@@ -21,6 +22,7 @@
         "path": "freedom",
         "label": "股票市场",
         "adminCost": 2,
+        "description": "建立资本市场和股份融资框架；当前不会立刻给预算或点数，主要作为自由路线的早期制度基础。",
         "effects": {},
         "unlocksPolicies": [],
         "blocksOtherPaths": []
@@ -30,6 +32,7 @@
         "path": "freedom",
         "label": "建立国会",
         "adminCost": 4,
+        "description": "建立议会程序，开放请愿与国会系政策空间，让后续政策能通过制度渠道处理。",
         "effects": {},
         "unlocksPolicies": ["people_petition"],
         "blocksOtherPaths": []
@@ -39,6 +42,7 @@
         "path": "freedom",
         "label": "专利制度",
         "adminCost": 4,
+        "description": "保护发明和技术产权，为私人研发与工业升级政策提供制度基础。",
         "effects": {},
         "unlocksPolicies": ["private_research"],
         "blocksOtherPaths": []
@@ -48,6 +52,7 @@
         "path": "freedom",
         "label": "代议制民主国",
         "adminCost": 6,
+        "description": "完成代议制转型，大幅缓和三类思潮压力，降低接近革命阈值的风险。",
         "effects": {
           "ideologyDelta": {
             "liberalism": -2,
@@ -63,6 +68,7 @@
         "path": "freedom",
         "label": "普选制度",
         "adminCost": 6,
+        "description": "扩大选举权，提高大众政治参与和民族动员；会推高民族主义压力。",
         "effects": {
           "ideologyDelta": {
             "nationalism": 5
@@ -77,6 +83,7 @@
         "path": "freedom",
         "label": "托拉斯制度",
         "adminCost": 6,
+        "description": "扶持大型企业集团，把收入分配推向工厂并降低升级成本，但会显著激化平等主义。",
         "effects": {
           "ratioDelta": {
             "factory": 1.0,
@@ -97,6 +104,7 @@
         "path": "equality",
         "label": "社会救济",
         "adminCost": 2,
+        "description": "建立救济制度，作为平等路线基础；当前不会立刻给预算或点数，主要铺垫福利与再分配改革。",
         "effects": {},
         "unlocksPolicies": [],
         "blocksOtherPaths": []
@@ -106,6 +114,7 @@
         "path": "equality",
         "label": "八小时工作制",
         "adminCost": 2,
+        "description": "限制工时以缓和劳工激进情绪，但全品类产能下降，短期工业能力会受损。",
         "effects": {
           "productionCapacityDelta": {
             "all": -2
@@ -122,6 +131,7 @@
         "path": "equality",
         "label": "社会再分配",
         "adminCost": 4,
+        "description": "建立再分配制度，解锁资本税相关政策，后续可调节财政与阶级压力。",
         "effects": {},
         "unlocksPolicies": ["capital_tax_increase", "capital_tax_decrease"],
         "blocksOtherPaths": []
@@ -131,6 +141,7 @@
         "path": "equality",
         "label": "工会组织",
         "adminCost": 4,
+        "description": "承认工会组织，形成劳资谈判渠道；当前不会立刻给预算或点数，主要铺垫平等路线深化。",
         "effects": {},
         "unlocksPolicies": [],
         "blocksOtherPaths": []
@@ -140,6 +151,7 @@
         "path": "equality",
         "label": "苏维埃国",
         "adminCost": 6,
+        "description": "转向苏维埃国家形态，锁定平等路线，并排斥自由与民族终局路线。",
         "effects": {},
         "unlocksPolicies": [],
         "blocksOtherPaths": ["freedom", "national"]
@@ -149,6 +161,7 @@
         "path": "equality",
         "label": "集体农庄",
         "adminCost": 6,
+        "description": "推动农业集体化，大幅降低升级成本，但会刺激自由主义反弹。",
         "effects": {
           "upgradeCostMultiplier": 0.5,
           "ideologyDelta": {
@@ -163,6 +176,7 @@
         "path": "equality",
         "label": "计划经济",
         "adminCost": 6,
+        "description": "改为计划经济，锁定收入分配到国民消费与政府财政，牺牲工厂预算并刺激自由主义。",
         "effects": {
           "ratioOverride": {
             "factory": 0,
@@ -183,6 +197,7 @@
         "path": "national",
         "label": "义务教育",
         "adminCost": 2,
+        "description": "建立义务教育体系，每回合额外获得科技点，适合长期研发。",
         "effects": {
           "permanent": {
             "techPointsPerTurn": 1
@@ -196,6 +211,7 @@
         "path": "national",
         "label": "国家媒体",
         "adminCost": 2,
+        "description": "建设国家媒体机器，解锁政治鼓动类政策，用于主动调节思潮。",
         "effects": {},
         "unlocksPolicies": ["political_agitation"],
         "blocksOtherPaths": []
@@ -205,6 +221,7 @@
         "path": "national",
         "label": "现代海关",
         "adminCost": 4,
+        "description": "建立现代海关体系，解锁贸易开闭政策，用于控制海外贸易和收入结构。",
         "effects": {},
         "unlocksPolicies": ["open_trade", "close_trade"],
         "blocksOtherPaths": []
@@ -214,6 +231,7 @@
         "path": "national",
         "label": "凯恩斯主义",
         "adminCost": 4,
+        "description": "建立国家干预经济框架，解锁以工代赈等政策，用财政稳定内需和就业。",
         "effects": {},
         "unlocksPolicies": ["work_relief"],
         "blocksOtherPaths": []
@@ -223,6 +241,7 @@
         "path": "national",
         "label": "法西斯国",
         "adminCost": 6,
+        "description": "转向法西斯国家形态，压低民族主义革命压力，同时封锁自由和平等终局路线。",
         "effects": {
           "ideologyDelta": {
             "nationalism": -999
@@ -236,6 +255,7 @@
         "path": "national",
         "label": "全民动员",
         "adminCost": 6,
+        "description": "建立全民动员体制，作为民族路线后期军事化基础；当前不会立刻给预算或点数。",
         "effects": {},
         "unlocksPolicies": [],
         "blocksOtherPaths": []
@@ -245,6 +265,7 @@
         "path": "national",
         "label": "特务机关",
         "adminCost": 6,
+        "description": "建立秘密警察体系，作为压制与控制思潮的后期制度基础；当前不会立刻给预算或点数。",
         "effects": {},
         "unlocksPolicies": [],
         "blocksOtherPaths": []

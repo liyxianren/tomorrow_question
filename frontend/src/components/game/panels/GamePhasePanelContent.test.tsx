@@ -44,6 +44,7 @@ function renderPanel(
           onDraftsChange={setDrafts}
         />
         <pre data-testid="draft-json">{JSON.stringify(drafts[phase])}</pre>
+        <pre data-testid="flow-json">{JSON.stringify(decisionFlowState)}</pre>
       </>
     );
   }
@@ -53,6 +54,10 @@ function renderPanel(
 
 function readDraftJson() {
   return JSON.parse(screen.getByTestId("draft-json").textContent ?? "{}");
+}
+
+function readFlowJson() {
+  return JSON.parse(screen.getByTestId("flow-json").textContent ?? "{}");
 }
 
 describe("GamePhasePanelContent", () => {
@@ -68,6 +73,7 @@ describe("GamePhasePanelContent", () => {
     expect(screen.getByTestId("domestic-panel")).toBeInTheDocument();
     expect(screen.getByTestId("decision-step-tab-domestic")).toHaveAttribute("aria-pressed", "true");
     await user.click(screen.getByRole("button", { name: "选择 博览会" }));
+    expect(screen.getByTestId("decision-step-footer-status")).toHaveTextContent("已决策");
 
     await user.click(screen.getByRole("button", { name: "下一步：政府政策" }));
     expect(screen.getByTestId("government-panel")).toBeInTheDocument();
@@ -86,6 +92,7 @@ describe("GamePhasePanelContent", () => {
         expansionOrders: [],
         upgradeOrders: [],
         newFactoryOrders: [],
+        factoryActions: [],
       },
       domesticMarketPlan: {
         domesticMarketActions: [{ actionId: "market_fair" }],
@@ -155,6 +162,40 @@ describe("GamePhasePanelContent", () => {
     expect(screen.queryByTestId("decision-command-deck")).not.toBeInTheDocument();
   });
 
+  it("marks empty guided steps as skipped when moving forward", async () => {
+    renderPanel("decision");
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "下一步：国民消费" }));
+    expect(readFlowJson().stepReviewStateByStep.factory).toBe("no_op");
+
+    await user.click(screen.getByRole("button", { name: "下一步：政府政策" }));
+    await user.click(screen.getByRole("button", { name: "下一步：军事要塞" }));
+
+    const flow = readFlowJson();
+    expect(flow.stepReviewStateByStep.domestic).toBe("no_op");
+    expect(flow.stepReviewStateByStep.government).toBe("no_op");
+  });
+
+  it("disables policy activation when government fiscal cannot cover the activation cost", async () => {
+    renderPanel("decision", {
+      decisionWorkspace: createDecisionPlayerWorkspace({
+        budgetPools: {
+          domesticMarket: 12,
+          factory: 15,
+          governmentFiscal: 5,
+        },
+      }),
+    });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "下一步：国民消费" }));
+    await user.click(screen.getByRole("button", { name: "下一步：政府政策" }));
+
+    expect(screen.getByRole("button", { name: "激活政策：贸易协定" })).toBeDisabled();
+    expect(screen.getAllByText("财政不足").length).toBeGreaterThan(0);
+  });
+
   it.skip("shows locked factory goods and route reasons inside industrial intel (legacy — removed with v1 panels)", () => {});
 
   it.skip("renders route labels with localized names instead of internal ids (legacy — removed with v1 panels)", () => {});
@@ -222,7 +263,7 @@ describe("GamePhasePanelContent", () => {
     expect(screen.getByRole("button", { name: "产业政策" })).toBeDisabled();
   });
 
-  it.skip("includes national ability selection and france ideology targeting in the decision payload", async () => {
+  it("includes national ability selection and france ideology targeting in the decision payload", async () => {
     renderPanel("decision", {
       decisionWorkspace: createDecisionPlayerWorkspace({
         countryCode: "france",
@@ -249,6 +290,7 @@ describe("GamePhasePanelContent", () => {
         expansionOrders: [],
         upgradeOrders: [],
         newFactoryOrders: [],
+        factoryActions: [],
       },
       domesticMarketPlan: {
         domesticMarketActions: [],
@@ -289,8 +331,8 @@ describe("GamePhasePanelContent", () => {
     await user.click(screen.getByRole("button", { name: "下一步：政府政策" }));
     await user.click(screen.getByRole("button", { name: "下一步：军事要塞" }));
 
-    expect(screen.getByRole("heading", { name: /海外区域/ })).toBeInTheDocument();
-    expect(screen.getByText("橡胶·棉花·矿产")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /世界地图/ })).toBeInTheDocument();
+    expect(screen.getAllByText("橡胶·棉花·矿产").length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "与中东建交" })).not.toBeInTheDocument();
     expect(screen.getByText("中东 已建交")).toBeInTheDocument();
   });
@@ -330,6 +372,60 @@ describe("GamePhasePanelContent", () => {
     });
   });
 
+  it("clamps domestic MAX to domestic demand instead of total inventory", async () => {
+    renderPanel("market", {
+      marketWorkspace: createMarketPlayerWorkspace({
+        phase1GoodsAvailable: 8,
+        domesticMarketCapacity: 10,
+        phase1Economy: {
+          capacityByMode: {},
+          rawMaterials: 10,
+          goodsInventory: 8,
+          productionModes: [],
+          domesticDemand: 7,
+          equilibriumPrice: 1,
+          domesticPricePreview: 1,
+          investmentPool: 12,
+          incomeAllocationRatio: {},
+          marketMetrics: {},
+        },
+      }),
+    });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByLabelText("国内市场投放最大"));
+
+    const draft = readDraftJson();
+    expect(draft.phase1Market?.domesticAllocation).toBe(7);
+  });
+
+  it("clamps domestic MAX to domestic market capacity when capacity is lower than demand", async () => {
+    renderPanel("market", {
+      marketWorkspace: createMarketPlayerWorkspace({
+        phase1GoodsAvailable: 8,
+        domesticMarketCapacity: 4,
+        phase1Economy: {
+          capacityByMode: {},
+          rawMaterials: 10,
+          goodsInventory: 8,
+          productionModes: [],
+          domesticDemand: 7,
+          equilibriumPrice: 1,
+          domesticPricePreview: 1,
+          investmentPool: 12,
+          incomeAllocationRatio: {},
+          marketMetrics: {},
+        },
+      }),
+    });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByLabelText("国内市场投放最大"));
+
+    const draft = readDraftJson();
+    expect(draft.phase1Market?.domesticAllocation).toBe(4);
+  });
+
   it("renders the Phase1MarketPanel with summary stats", () => {
     renderPanel("market");
 
@@ -337,6 +433,9 @@ describe("GamePhasePanelContent", () => {
     expect(panel).toBeInTheDocument();
     expect(within(panel).getByText("商品库存")).toBeInTheDocument();
     expect(within(panel).getByText("市场需求")).toBeInTheDocument();
-    expect(within(panel).getByText("购买力")).toBeInTheDocument();
+    expect(within(panel).getByText("定价池")).toBeInTheDocument();
+    expect(within(panel).getByText("投放上限")).toBeInTheDocument();
+    expect(within(panel).getByText(/实际成交会按投放量重新计算/)).toBeInTheDocument();
+    expect(within(panel).getAllByText(/海外加成/).length).toBeGreaterThan(0);
   });
 });

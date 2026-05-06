@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from decimal import Decimal
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -10,9 +11,11 @@ sys.path.insert(0, str(ROOT))
 
 from app.contracts.enums import CountryCode, GamePhase, PlayerSubmissionStatus, RegionAccessLevel
 from app.modules.game_state.factory import create_game, create_initial_snapshot
+from app.modules.game_state.effects import apply_effects
 from app.modules.game_state.models import GameSnapshot, PlayerState, RegionState
 from app.modules.game_state.turn_input import PlayerTurnInput
 from app.modules.rules.market import resolve_market_phase
+from app.modules.rules.phase1_economy import calculate_domestic_price, calculate_equilibrium_price
 
 
 def build_snapshot() -> GameSnapshot:
@@ -54,4 +57,110 @@ def build_turn_input(player_id: str, payload: dict[str, object]) -> PlayerTurnIn
 
 
 class MarketRulesTests(unittest.TestCase):
-    pass
+    def test_phase1_domestic_price_uses_submitted_domestic_allocation(self) -> None:
+        snapshot = build_snapshot()
+        britain = get_player(snapshot, "player-1")
+        britain.phase1_economy.capacity_by_mode = {
+            "idle": 0,
+            "handicraft": 4,
+            "mechanized": 0,
+            "steam": 0,
+            "electrified": 0,
+        }
+        britain.phase1_economy.goods_inventory = 5
+        britain.goods_stock = {"phase1_goods": 5}
+        britain.budget_pools = {"domesticMarket": 12, "factory": 0, "governmentFiscal": 0}
+
+        resolution = resolve_market_phase(
+            snapshot=snapshot,
+            turn_inputs=[
+                build_turn_input(
+                    "player-1",
+                    {"saleOrders": [], "phase1Market": {"domesticAllocation": 3}},
+                )
+            ],
+        )
+
+        updated = get_player(resolution.updated_snapshot, "player-1")
+        expected_equilibrium = calculate_equilibrium_price(
+            consumption_pool=Decimal(12),
+            demand=Decimal(4),
+        )
+        expected_final = calculate_domestic_price(
+            equilibrium_price=expected_equilibrium,
+            supply=Decimal(3),
+            demand=Decimal(4),
+            minimum_price=1,
+        )
+
+        self.assertAlmostEqual(
+            updated.phase1_economy.market_metrics["finalPrice"],
+            float(expected_final),
+            places=6,
+        )
+        self.assertEqual(updated.domestic_sales_revenue, int(Decimal(3) * expected_final))
+        self.assertEqual(updated.phase1_economy.goods_inventory, 2)
+
+    def test_phase1_domestic_price_bonus_applies_to_actual_sale_price(self) -> None:
+        snapshot = build_snapshot()
+        britain = get_player(snapshot, "player-1")
+        britain.phase1_economy.capacity_by_mode = {
+            "idle": 0,
+            "handicraft": 3,
+            "mechanized": 0,
+            "steam": 0,
+            "electrified": 0,
+        }
+        britain.phase1_economy.goods_inventory = 3
+        britain.goods_stock = {"phase1_goods": 3}
+        britain.budget_pools = {"domesticMarket": 24, "factory": 0, "governmentFiscal": 0}
+        apply_effects(britain, {"domesticPriceBonusDelta": 2})
+
+        resolution = resolve_market_phase(
+            snapshot=snapshot,
+            turn_inputs=[
+                build_turn_input(
+                    "player-1",
+                    {"saleOrders": [], "phase1Market": {"domesticAllocation": 3}},
+                )
+            ],
+        )
+
+        updated = get_player(resolution.updated_snapshot, "player-1")
+        self.assertEqual(updated.phase1_economy.market_metrics["finalPrice"], 10.0)
+        self.assertEqual(updated.domestic_sales_revenue, 30)
+
+    def test_phase1_overseas_price_bonus_applies_to_external_sales(self) -> None:
+        snapshot = build_snapshot()
+        britain = get_player(snapshot, "player-1")
+        britain.phase1_economy.capacity_by_mode = {
+            "idle": 0,
+            "handicraft": 3,
+            "mechanized": 0,
+            "steam": 0,
+            "electrified": 0,
+        }
+        britain.phase1_economy.goods_inventory = 1
+        britain.goods_stock = {"phase1_goods": 1}
+        britain.budget_pools = {"domesticMarket": 24, "factory": 0, "governmentFiscal": 0}
+        britain.established_diplomacy = ["asia_pacific"]
+        apply_effects(britain, {"overseasPriceBonusDelta": 2})
+
+        resolution = resolve_market_phase(
+            snapshot=snapshot,
+            turn_inputs=[
+                build_turn_input(
+                    "player-1",
+                    {
+                        "saleOrders": [],
+                        "phase1Market": {
+                            "domesticAllocation": 0,
+                            "externalAllocations": [{"marketId": "asia_pacific", "quantity": 1}],
+                        },
+                    },
+                )
+            ],
+        )
+
+        updated = get_player(resolution.updated_snapshot, "player-1")
+        self.assertEqual(updated.overseas_sales_revenue, 10)

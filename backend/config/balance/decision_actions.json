@@ -3,7 +3,7 @@
     "expand_workshop": {
       "label": "扩建作坊",
       "budgetPoolCost": 4,
-      "description": "扩建民间手工作坊，增加基础工业产能。",
+      "description": "扩建民间手工作坊，增加后续手工业产能。",
       "effects": {
         "handicraftCapacityDelta": 1
       }
@@ -11,7 +11,7 @@
     "market_fair": {
       "label": "博览会",
       "budgetPoolCost": 5,
-      "description": "举办商品博览会，低成本扩大国内市场承接能力。",
+      "description": "举办商品博览会，低成本扩大本回合国内承接量。",
       "effects": {
         "domesticMarketCapacityDelta": 2
       }
@@ -19,7 +19,7 @@
     "rural_development": {
       "label": "乡村开发",
       "budgetPoolCost": 6,
-      "description": "投资乡村基建，大幅扩大市场覆盖面但不直接提价。",
+      "description": "投资乡村基建，大幅扩大本回合国内承接量。",
       "effects": {
         "domesticMarketCapacityDelta": 3
       }
@@ -27,7 +27,7 @@
     "consumer_subsidy": {
       "label": "消费补贴",
       "budgetPoolCost": 8,
-      "description": "向国内市场追加补贴，提高本回合国内市场承接能力。",
+      "description": "追加消费补贴，同时提高本回合国内承接量和收购价格。",
       "effects": {
         "domesticMarketCapacityDelta": 2,
         "domesticPriceBonusDelta": 1
@@ -36,7 +36,7 @@
     "import_substitution": {
       "label": "进口替代",
       "budgetPoolCost": 7,
-      "description": "限制进口同类商品，让国内收购价格显著上升。",
+      "description": "限制进口替代品，提高本回合国内承接量和收购价格。",
       "effects": {
         "domesticMarketCapacityDelta": 1,
         "domesticPriceBonusDelta": 2
@@ -45,7 +45,7 @@
     "public_works": {
       "label": "公共工程",
       "budgetPoolCost": 8,
-      "description": "投入基础设施，提升内需承接力和价格。",
+      "description": "投入公共工程，同时抬高本回合内需承接和价格。",
       "effects": {
         "domesticMarketCapacityDelta": 2,
         "domesticPriceBonusDelta": 2
@@ -54,15 +54,15 @@
     "luxury_promotion": {
       "label": "奢侈品推广",
       "budgetPoolCost": 9,
-      "description": "培育高端消费市场，大幅提高国内商品收购价格。",
+      "description": "培育高端消费市场，提高国内商品收购价格，但收益不再压过完整军事路线。",
       "effects": {
-        "domesticPriceBonusDelta": 4
+        "domesticPriceBonusDelta": 2
       }
     },
     "infrastructure_investment": {
       "label": "基础设施投资",
       "budgetPoolCost": 10,
-      "description": "大规模投资国内基础设施，显著提升手工业产能。",
+      "description": "投资基础设施，增加后续手工业产能。",
       "effects": {
         "handicraftCapacityDelta": 2
       }
@@ -70,9 +70,45 @@
     "trade_hub": {
       "label": "商贸枢纽",
       "budgetPoolCost": 15,
-      "description": "建设商贸枢纽，永久扩展海外市场能力。",
+      "description": "建设临时商贸枢纽，本回合扩展海外市场承接能力。",
       "effects": {
         "overseasMarketCapacityDelta": 1
+      }
+    }
+  },
+  "factoryActions": {
+    "factory_tax_contracting": {
+      "label": "财政承包",
+      "budgetPoolCost": 0,
+      "description": "抽调工人与账房支援财政征收，本回合工厂最多少投入 2 份原材料，换取政府财政。",
+      "effects": {
+        "phase1ProductionRawCapacityDelta": -2,
+        "governmentFiscalBudgetDelta": 4
+      }
+    },
+    "factory_raw_procurement": {
+      "label": "原料开采",
+      "budgetPoolCost": 3,
+      "description": "由工厂组织矿场、林场与运输线，立刻补充本回合可用原材料。",
+      "effects": {
+        "rawMaterialsDelta": 4
+      }
+    },
+    "factory_overtime_shift": {
+      "label": "加班轮班",
+      "budgetPoolCost": 6,
+      "description": "支付加班和维护成本，本回合统一商品产出翻倍。",
+      "effects": {
+        "productionOutputMultiplier": 2
+      }
+    },
+    "factory_technical_drill": {
+      "label": "技术实训",
+      "budgetPoolCost": 0,
+      "description": "暂停一部分产线做工艺训练，本回合投料上限降低，获得科技点。",
+      "effects": {
+        "phase1ProductionRawCapacityDelta": -1,
+        "techPointsDelta": 1
       }
     }
   },
@@ -123,6 +159,16 @@
       "effects": {
         "domesticPriceBonusDelta": 1,
         "overseasPriceBonusDelta": 1
+      }
+    },
+    "expand_research": {
+      "label": "建立研究院",
+      "budgetPoolCost": 6,
+      "description": "从政府财政建设一所研究院，永久增加每回合研究进度。",
+      "effects": {
+        "researchFacilityDelta": {
+          "academy": 1
+        }
       }
     },
     "global_trade_dominance": {
@@ -189,7 +235,7 @@
       "effects": {
         "militaryPointsDelta": 1
       },
-      "description": "扩充军事力量，增加军事点数。",
+      "description": "扩充常备军；从本回合结算后开始，每回合增加 1 军事点。",
       "maxPerRound": 2
     },
     "reduce_army": {

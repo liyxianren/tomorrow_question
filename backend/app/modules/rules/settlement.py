@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from app.contracts.enums import RegionAccessLevel
 from app.modules.balance_config import get_balance_config
-from app.modules.game_state.effects import apply_effects, reset_temporary_effects
+from app.modules.game_state.effects import apply_effects, get_raw_materials_per_turn, reset_temporary_effects
 
 from .common import RuleResolution, clone_snapshot
 from .decision import _apply_reform_or_policy_effects
@@ -13,6 +13,7 @@ from .phase1_economy import (
     DEFAULT_INCOME_ALLOCATION_RATIO as PHASE1_DEFAULT_RATIO,
     allocate_revenue_to_pools,
 )
+from .route_utils import resolve_naval_blockade
 
 
 def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
@@ -34,8 +35,14 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
 
         player_state.national_income = int(player_state.national_income) + colony_income
 
+        reset_temporary_effects(player_state)
+        _apply_active_policy_effects(player_state, balance)
+
         effective_income = int(player_state.national_income)
-        allocation = _allocate_income_phase1(national_income=effective_income)
+        allocation = _allocate_income_phase1(
+            national_income=effective_income,
+            ratio=player_state.income_allocation_ratio,
+        )
         for key, value in allocation.items():
             player_state.budget_pools[key] = int(player_state.budget_pools.get(key, 0)) + int(value)
         # 消费池消耗率：打断"收入→消费池→价格→收入"的指数增长正反馈
@@ -45,6 +52,9 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
         player_state.cumulative_national_income = int(player_state.cumulative_national_income) + effective_income
         for route_key, pending in list(player_state.pending_production_capacity.items()):
             player_state.production_capacity[route_key] = int(player_state.production_capacity.get(route_key, 0)) + int(pending)
+            player_state.phase1_economy.capacity_by_mode[route_key] = (
+                int(player_state.phase1_economy.capacity_by_mode.get(route_key, 0)) + int(pending)
+            )
             player_state.pending_production_capacity[route_key] = 0
         for goods_id, quantity in player_state.goods_allocation.items():
             total_sold_by_goods[goods_id] = int(total_sold_by_goods.get(goods_id, 0)) + int(quantity)
@@ -82,22 +92,13 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
                 "createdAt": None,
             }
         )
-        reset_temporary_effects(player_state)
         _apply_ideology_progression(player_state, signal_values_by_player_id[player_state.player_id], balance)
-        _apply_active_policy_effects(player_state, balance)
         _apply_permanent_reform_effects(player_state, balance)
         _apply_phase3_research_progress(player_state, updated_snapshot, balance)
-        player_state.phase1_economy.income_allocation_ratio = {
-            "consumption": float(PHASE1_DEFAULT_RATIO["consumption"]),
-            "investment": float(PHASE1_DEFAULT_RATIO["investment"]),
-            "fiscal": float(PHASE1_DEFAULT_RATIO["fiscal"]),
-        }
-        country_config = balance.countries.get(player_state.country.value)
-        raw_materials_per_turn = (
-            int(country_config.raw_materials_per_turn)
-            if country_config is not None
-            else int(balance.global_config.raw_materials_per_turn)
+        player_state.phase1_economy.income_allocation_ratio = _phase1_ratio_from_legacy(
+            player_state.income_allocation_ratio
         )
+        raw_materials_per_turn = get_raw_materials_per_turn(player_state, balance)
         player_state.phase1_economy.raw_materials = (
             int(player_state.phase1_economy.raw_materials)
             + raw_materials_per_turn
@@ -155,11 +156,12 @@ def _is_phase1_economy_active(player_state) -> bool:
     return False
 
 
-def _allocate_income_phase1(*, national_income: int) -> dict[str, int]:
-    """5:3:2 split mapped onto the legacy three-pool layout (consumption→domesticMarket, investment→factory, fiscal→governmentFiscal)."""
+def _allocate_income_phase1(*, national_income: int, ratio: dict[str, float] | None = None) -> dict[str, int]:
+    """Split income by the player's current three-pool weights."""
     if national_income <= 0:
         return {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
-    delta = allocate_revenue_to_pools(Decimal(int(national_income)))
+    normalized_ratio = _phase1_ratio_from_legacy(ratio)
+    delta = allocate_revenue_to_pools(Decimal(int(national_income)), ratio=normalized_ratio)
     domestic = int(delta.consumption)
     factory = int(delta.investment)
     government = int(national_income) - domestic - factory
@@ -167,6 +169,32 @@ def _allocate_income_phase1(*, national_income: int) -> dict[str, int]:
         "domesticMarket": domestic,
         "factory": factory,
         "governmentFiscal": government,
+    }
+
+
+def _phase1_ratio_from_legacy(ratio: dict[str, float] | None) -> dict[str, float]:
+    if not ratio:
+        return {
+            "consumption": float(PHASE1_DEFAULT_RATIO["consumption"]),
+            "investment": float(PHASE1_DEFAULT_RATIO["investment"]),
+            "fiscal": float(PHASE1_DEFAULT_RATIO["fiscal"]),
+        }
+
+    domestic = max(0.0, float(ratio.get("domesticMarket", 0.0)))
+    factory = max(0.0, float(ratio.get("factory", 0.0)))
+    government = max(0.0, float(ratio.get("governmentFiscal", 0.0)))
+    total = domestic + factory + government
+    if total <= 0:
+        return {
+            "consumption": float(PHASE1_DEFAULT_RATIO["consumption"]),
+            "investment": float(PHASE1_DEFAULT_RATIO["investment"]),
+            "fiscal": float(PHASE1_DEFAULT_RATIO["fiscal"]),
+        }
+
+    return {
+        "consumption": domestic / total,
+        "investment": factory / total,
+        "fiscal": government / total,
     }
 
 
@@ -365,17 +393,34 @@ def _apply_active_policy_effects(player_state, balance) -> None:
         policy = balance.reforms.regular_policies.get(policy_id)
         if policy is None:
             continue
-        player_state.administration_capacity = (
-            int(player_state.administration_capacity) - int(policy.admin_cost_per_turn)
-        )
-        if int(player_state.administration_capacity) < 0:
+        if int(player_state.administration_capacity) < int(policy.admin_cost_per_turn):
             if policy_id in player_state.active_policies:
                 player_state.active_policies.remove(policy_id)
-            continue  # 行政力不足，移除政策且不应用效果
-        _apply_reform_or_policy_effects(player_state, policy.effects)
+                _reverse_policy_ratio_effect(player_state, policy.effects)
+            continue
+        recurring_effects = {
+            key: value
+            for key, value in policy.effects.items()
+            if key != "ratioDelta"
+        }
+        if "administrationCapacityDelta" in recurring_effects:
+            next_admin_delta = int(recurring_effects["administrationCapacityDelta"]) - int(policy.admin_cost_per_turn)
+            if next_admin_delta == 0:
+                recurring_effects.pop("administrationCapacityDelta")
+            else:
+                recurring_effects["administrationCapacityDelta"] = next_admin_delta
+        _apply_reform_or_policy_effects(player_state, recurring_effects)
         permanent = policy.effects.get("permanent") if isinstance(policy.effects, dict) else None
         if isinstance(permanent, dict):
             _apply_permanent_effects(player_state, permanent)
+
+
+def _reverse_policy_ratio_effect(player_state, effects: dict) -> None:
+    ratio_delta = effects.get("ratioDelta")
+    if not isinstance(ratio_delta, dict):
+        return
+    reversed_delta = {key: -float(value) for key, value in ratio_delta.items()}
+    _apply_reform_or_policy_effects(player_state, {"ratioDelta": reversed_delta})
 
 
 def _apply_permanent_reform_effects(player_state, balance) -> None:
@@ -457,13 +502,14 @@ def _apply_independence_progression(
     for region in snapshot.region_states:
         if region.controller is None:
             region.independence = 0
+            region.market_supply = {}
             continue
 
         delta = 0
 
         supply_total = sum(int(value) for value in region.market_supply.values())
         demand_total = sum(int(value) for value in region.resource_limit.values())
-        if demand_total > 0:
+        if supply_total > 0 and demand_total > 0:
             ratio = supply_total / demand_total
             if ratio > 2.0 or ratio < 0.5:
                 delta += 2
@@ -484,39 +530,28 @@ def _apply_independence_progression(
             region.garrison = {}
             region.independence = 0
             region.access_level = RegionAccessLevel.CONCESSION
+            region.market_supply = {}
             logs.append(
                 {
                     "gameId": snapshot.game_id,
                     "roundNo": snapshot.round_no,
                     "phase": snapshot.phase,
                     "kind": "settlement.region_revolt",
-                    "message": f"{region.region_id} revolted against {previous_controller}.",
+                    "message": f"{region.region_id} 殖民地独立度达到阈值，脱离 {previous_controller} 控制。",
                     "details": {
                         "regionId": region.region_id,
                         "previousController": previous_controller,
+                        "reason": "independence_threshold",
+                        "threshold": threshold,
                     },
                     "createdAt": None,
                 }
             )
+            continue
+
+        region.market_supply = {}
     return logs
 
 
 def _resolve_naval_blockade(snapshot, balance) -> None:
-    threshold = int(balance.military.ocean_control_threshold)
-    for node in snapshot.ocean_node_states:
-        non_zero = [(country, count) for country, count in node.navy_by_country.items() if count > 0]
-        if not non_zero:
-            node.controller = None
-            node.is_blockaded = False
-            continue
-        non_zero.sort(key=lambda item: item[1], reverse=True)
-        top_country, top_count = non_zero[0]
-        runner_up_count = non_zero[1][1] if len(non_zero) > 1 else 0
-        if top_count >= threshold and top_count > runner_up_count:
-            node.controller = top_country
-            node.is_blockaded = True
-        else:
-            node.controller = None
-            node.is_blockaded = False
-
-
+    resolve_naval_blockade(snapshot, balance)

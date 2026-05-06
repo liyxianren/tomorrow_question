@@ -3,7 +3,7 @@
 .military-panel {
   display: flex;
   flex-direction: column;
-  gap: var(--game-gap-section, 22px);
+  gap: 16px;
 }
 
 .military-panel__header {
@@ -22,6 +22,17 @@
 .military-panel__budget {
   font-size: 14px;
   color: var(--game-text-value, #fceb9c);
+}
+
+.military-panel__rule-note {
+  margin: -6px 0 0;
+  padding: 9px 11px;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 175, 55, 0.14);
+  background: rgba(212, 175, 55, 0.055);
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.66));
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 /* ── Region Map Grid ── */
@@ -108,7 +119,7 @@
   font-family: var(--font-serif, Georgia, serif);
   font-size: 15px;
   color: var(--game-text-primary, #fff5e7);
-  margin: 0 0 10px;
+  margin: 0 0 8px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -116,7 +127,16 @@
 
 .military-actions {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 10px;
 }
 
+.military-panel .dss {
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+}
+
+@media (max-width: 760px) {
+  .military-panel .dss {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

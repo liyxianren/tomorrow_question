@@ -1,19 +1,33 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 
 from app.modules.balance_config import get_balance_config
-from app.modules.game_state.effects import apply_effects
-from app.modules.game_state.factory_economy import action_locked_reason
+from app.modules.game_state.effects import apply_effects, get_talent_effect_total
+from app.modules.game_state.factory_economy import (
+    action_locked_reason,
+    current_route_capacity,
+    expansion_unit_budget_cost,
+    new_factory_unit_budget_cost,
+    route_locked_reason,
+    upgrade_unit_budget_cost,
+)
 from app.contracts.enums import RegionAccessLevel
 from app.modules.game_state.models import DEFAULT_PHASE1_CAPACITY_BY_MODE
 
-from .common import RuleResolution, clone_snapshot, default_decision_submission_payload, index_turn_inputs
+from .common import (
+    POINT_PURCHASE_COSTS,
+    RuleResolution,
+    clone_snapshot,
+    default_decision_submission_payload,
+    index_turn_inputs,
+)
 from .phase1_economy import (
     PRODUCTION_MODE_OUTPUT_RATIOS,
     calculate_production_output,
 )
-from .route_utils import check_route_accessible
+from .route_utils import check_route_accessible, resolve_naval_blockade
 
 
 PHASE1_GOODS_KEY = "phase1_goods"
@@ -49,7 +63,16 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
             or phase1_production.get("expansionOrders", [])
             or []
         )
-        factory_spent = _apply_phase1_production_plan(player_state, phase1_production, balance, upgrade_orders, expansion_orders)
+        new_factory_orders = payload.get("factoryPlan", {}).get("newFactoryOrders", []) or []
+        factory_spent = _apply_factory_actions(player_state, payload.get("factoryPlan") or {}, balance)
+        factory_spent += _apply_phase1_production_plan(
+            player_state,
+            phase1_production,
+            balance,
+            upgrade_orders,
+            expansion_orders,
+            new_factory_orders,
+        )
         domestic_spent = _apply_domestic_market_plan(player_state, payload.get("domesticMarketPlan") or {}, balance)
         government_spent = _apply_government_plan(player_state, payload.get("governmentPlan") or {}, balance)
         military_plan = payload.get("militaryPlan") or {}
@@ -93,6 +116,8 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
     if all_conquest_actions:
         _resolve_conquest_actions(all_conquest_actions, updated_snapshot, balance)
 
+    resolve_naval_blockade(updated_snapshot, balance)
+
     return RuleResolution(
         updated_snapshot=updated_snapshot,
         generated_logs=generated_logs,
@@ -104,7 +129,14 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
     )
 
 
-def _apply_phase1_production_plan(player_state, phase1_production: dict[str, Any], balance, upgrade_orders=None, expansion_orders=None) -> int:
+def _apply_phase1_production_plan(
+    player_state,
+    phase1_production: dict[str, Any],
+    balance,
+    upgrade_orders=None,
+    expansion_orders=None,
+    new_factory_orders=None,
+) -> int:
     """Phase-1 unified production: build/upgrade capacity_by_mode, then turn raw materials into goods."""
     spent = 0
     remaining_budget = int(player_state.budget_pools.get("factory", 0))
@@ -120,7 +152,7 @@ def _apply_phase1_production_plan(player_state, phase1_production: dict[str, Any
             required_techs = balance.technology.route_unlocks[mode]
             if not all(t in player_state.unlocked_techs for t in required_techs):
                 continue
-        unit_cost = int(balance.production.new_factory_costs.get(mode, 0))
+        unit_cost = new_factory_unit_budget_cost(player_state, mode)
         if unit_cost <= 0:
             continue
         affordable = min(quantity, remaining_budget // unit_cost)
@@ -129,6 +161,27 @@ def _apply_phase1_production_plan(player_state, phase1_production: dict[str, Any
         capacity_by_mode[mode] = int(capacity_by_mode.get(mode, 0)) + affordable
         player_state.production_capacity[mode] = (
             int(player_state.production_capacity.get(mode, 0)) + affordable
+        )
+        total_cost = affordable * unit_cost
+        spent += total_cost
+        remaining_budget -= total_cost
+
+    for order in (new_factory_orders or []):
+        route_id = str(order.get("routeId") or order.get("mode") or "")
+        quantity = max(0, int(order.get("quantity", 0)))
+        if route_id not in DEFAULT_PHASE1_CAPACITY_BY_MODE or quantity <= 0:
+            continue
+        if route_locked_reason(player_state, route_id) is not None:
+            continue
+        unit_cost = new_factory_unit_budget_cost(player_state, route_id)
+        if unit_cost <= 0:
+            continue
+        affordable = min(quantity, remaining_budget // unit_cost)
+        if affordable <= 0:
+            continue
+        capacity_delta = affordable * 2
+        player_state.pending_production_capacity[route_id] = (
+            int(player_state.pending_production_capacity.get(route_id, 0)) + capacity_delta
         )
         total_cost = affordable * unit_cost
         spent += total_cost
@@ -149,7 +202,7 @@ def _apply_phase1_production_plan(player_state, phase1_production: dict[str, Any
             required_techs = balance.technology.route_unlocks[target_mode]
             if not all(t in player_state.unlocked_techs for t in required_techs):
                 continue
-        unit_cost = int(balance.production.upgrade_costs.get(target_mode, 0))
+        unit_cost = upgrade_unit_budget_cost(player_state, target_mode)
         if unit_cost <= 0 or quantity <= 0:
             continue
         available_source = int(capacity_by_mode.get(source_mode, 0))
@@ -173,12 +226,38 @@ def _apply_phase1_production_plan(player_state, phase1_production: dict[str, Any
         quantity = max(0, int(order.get("quantity", 0)))
         if not route or quantity <= 0:
             continue
+        if current_route_capacity(player_state, route) <= 0:
+            continue
+        unit_cost = expansion_unit_budget_cost(player_state, route)
+        if unit_cost <= 0:
+            continue
+        affordable = min(quantity, remaining_budget // unit_cost)
+        if affordable <= 0:
+            continue
         player_state.pending_production_capacity[route] = (
-            int(player_state.pending_production_capacity.get(route, 0)) + quantity
+            int(player_state.pending_production_capacity.get(route, 0)) + affordable
         )
+        total_cost = affordable * unit_cost
+        spent += total_cost
+        remaining_budget -= total_cost
 
     raw_assignments_in = phase1_production.get("rawMaterialAssignments") or {}
     available_raw = max(0, int(player_state.phase1_economy.raw_materials))
+    production_unit_cost = _phase1_production_unit_budget_cost(balance)
+    available_budget_units = (
+        max(0, remaining_budget // production_unit_cost)
+        if production_unit_cost > 0
+        else available_raw
+    )
+    total_capacity_limit = max(
+        0,
+        sum(
+            max(0, int(capacity_by_mode.get(mode, 0)))
+            for mode, output_ratio in PRODUCTION_MODE_OUTPUT_RATIOS.items()
+            if mode != "idle" and output_ratio > 0
+        )
+        + int(player_state.temporary_effects.get("phase1ProductionRawCapacityDelta", 0)),
+    )
     raw_assignments: dict[str, int] = {}
     for mode, raw_amount in raw_assignments_in.items():
         if mode not in PRODUCTION_MODE_OUTPUT_RATIOS:
@@ -187,17 +266,28 @@ def _apply_phase1_production_plan(player_state, phase1_production: dict[str, Any
             max(0, int(raw_amount)),
             int(capacity_by_mode.get(mode, 0)),
             available_raw,
+            available_budget_units,
+            total_capacity_limit,
         )
         if capped > 0:
             raw_assignments[mode] = capped
             available_raw -= capped
+            if production_unit_cost > 0:
+                available_budget_units -= capped
+            total_capacity_limit -= capped
 
     output_decimal = calculate_production_output(raw_assignments)
     multiplier = int(player_state.temporary_effects.get("productionOutputMultiplier", 1))
     if multiplier > 1:
         output_decimal = output_decimal * multiplier
+    output_bonus_percent = get_talent_effect_total(player_state, "phase1ProductionOutputBonusPercent")
+    if output_bonus_percent > 0:
+        output_decimal = output_decimal * Decimal(100 + output_bonus_percent) / Decimal(100)
     output_int = int(output_decimal)
     raw_used = sum(raw_assignments.values())
+    production_spent = raw_used * production_unit_cost
+    spent += production_spent
+    remaining_budget -= production_spent
 
     player_state.phase1_economy.goods_inventory = (
         int(player_state.phase1_economy.goods_inventory) + output_int
@@ -213,6 +303,38 @@ def _apply_phase1_production_plan(player_state, phase1_production: dict[str, Any
 
     player_state.budget_pools["factory"] = max(0, remaining_budget)
     return spent
+
+
+def _apply_factory_actions(player_state, factory_plan: dict[str, Any], balance) -> int:
+    spent = 0
+    selected_action_ids: set[str] = set()
+    for selection in factory_plan.get("factoryActions", []) or []:
+        action_id = str(selection.get("actionId") or "")
+        if not action_id or action_id in selected_action_ids:
+            continue
+        selected_action_ids.add(action_id)
+        action = balance.decision_actions.factory_actions.get(action_id)
+        if action is None or action_locked_reason(player_state, action_id) is not None:
+            continue
+        cost = int(action.budget_pool_cost)
+        if cost > int(player_state.budget_pools.get("factory", 0)):
+            continue
+        player_state.budget_pools["factory"] = max(0, int(player_state.budget_pools.get("factory", 0)) - cost)
+        spent += cost
+        apply_effects(player_state, action.effects)
+        for pool_key, delta in action.ratio_delta.items():
+            player_state.income_allocation_ratio[pool_key] = max(
+                0.0,
+                float(player_state.income_allocation_ratio.get(pool_key, 0.0)) + float(delta),
+            )
+    return spent
+
+
+def _phase1_production_unit_budget_cost(balance) -> int:
+    goods = balance.production.goods.get(PHASE1_GOODS_KEY)
+    if goods is None:
+        return 1
+    return max(0, int(goods.unit_budget_cost))
 
 
 def _apply_domestic_market_plan(player_state, domestic_plan: dict[str, Any], balance) -> int:
@@ -250,7 +372,7 @@ def _apply_government_plan(player_state, government_plan: dict[str, Any], balanc
             )
 
     # Process point purchases (tech/military)
-    point_costs = {"tech": 2, "military": 10}  # budget cost per point
+    point_costs = POINT_PURCHASE_COSTS
     for purchase in government_plan.get("pointPurchases") or []:
         point_type = str(purchase.get("pointType", ""))
         quantity = max(0, int(purchase.get("quantity", 0)))
@@ -316,10 +438,15 @@ def _apply_military_plan(player_state, military_plan: dict[str, Any], balance, s
         action = balance.military_actions.military_actions.get(action_id)
         if action is None:
             continue
-        if remaining_budget < int(action.budget_pool_cost):
+        budget_cost = int(action.budget_pool_cost)
+        military_point_cost = int(action.military_point_cost)
+        if remaining_budget < budget_cost:
             continue
-        remaining_budget -= int(action.budget_pool_cost)
-        spent += int(action.budget_pool_cost)
+        if int(player_state.military_points) < military_point_cost:
+            continue
+        remaining_budget -= budget_cost
+        spent += budget_cost
+        player_state.military_points = max(0, int(player_state.military_points) - military_point_cost)
         apply_effects(player_state, action.effects)
 
     if snapshot is not None:
@@ -562,6 +689,8 @@ def _apply_naval_deployment(player_state, military_plan: dict[str, Any], snapsho
     deployment = military_plan.get("navalDeployment")
     if not isinstance(deployment, dict):
         return
+    if len(deployment) == 0:
+        return
 
     total_fleets = int(player_state.navy.get("fleets", 0))
     nodes_by_id = {node.node_id: node for node in snapshot.ocean_node_states}
@@ -580,14 +709,18 @@ def _apply_naval_deployment(player_state, military_plan: dict[str, Any], snapsho
             return
         sanitized[node_id_str] = count
 
-    if sum(sanitized.values()) > total_fleets:
+    proposed_by_node = {
+        node.node_id: int(node.navy_by_country.get(country_key, 0))
+        for node in snapshot.ocean_node_states
+    }
+    for node_id, count in sanitized.items():
+        proposed_by_node[node_id] = count
+
+    if sum(proposed_by_node.values()) > total_fleets:
         return
 
     for node in snapshot.ocean_node_states:
-        if node.node_id in sanitized:
-            node.navy_by_country[country_key] = sanitized[node.node_id]
-        elif country_key in node.navy_by_country:
-            node.navy_by_country[country_key] = 0
+        node.navy_by_country[country_key] = proposed_by_node.get(node.node_id, 0)
 
 
 def _apply_talent_plan(player_state, talent_plan: dict[str, Any], balance) -> None:
@@ -845,6 +978,9 @@ def _apply_policy_plan(player_state, payload: dict[str, Any], balance) -> list[s
             policy_id = str(raw_id or "")
             if policy_id in player_state.active_policies:
                 player_state.active_policies.remove(policy_id)
+                policy = balance.reforms.regular_policies.get(policy_id)
+                if policy is not None:
+                    _reverse_policy_ratio_effect(player_state, policy.effects)
 
     activate_list = payload.get("activatePolicies")
     if not isinstance(activate_list, list):
@@ -859,18 +995,41 @@ def _apply_policy_plan(player_state, payload: dict[str, Any], balance) -> list[s
             continue
         if policy.requires_reform is not None and policy.requires_reform not in player_state.completed_reforms:
             continue
-        # admin_cost_per_turn is now deducted exclusively in settlement phase
-        # to avoid double-deduction (once here, once in _apply_active_policy_effects)
-        if int(player_state.administration_capacity) < int(policy.admin_cost_per_turn):
+        active_upkeep = _active_policy_upkeep(player_state, balance)
+        if int(player_state.administration_capacity) < active_upkeep + int(policy.admin_cost_per_turn):
             continue
 
         budget_cost = int(policy.budget_cost)
         if budget_cost > 0:
             pool = player_state.budget_pools.get("governmentFiscal", 0)
-            player_state.budget_pools["governmentFiscal"] = max(0, int(pool) - budget_cost)
+            if int(pool) < budget_cost:
+                continue
+            player_state.budget_pools["governmentFiscal"] = int(pool) - budget_cost
         player_state.active_policies.append(policy_id)
+        _apply_policy_ratio_effect_once(player_state, policy.effects)
         activated.append(policy_id)
 
     return activated
 
 
+def _active_policy_upkeep(player_state, balance) -> int:
+    total = 0
+    for policy_id in player_state.active_policies:
+        policy = balance.reforms.regular_policies.get(policy_id)
+        if policy is not None:
+            total += int(policy.admin_cost_per_turn)
+    return total
+
+
+def _apply_policy_ratio_effect_once(player_state, effects: dict[str, Any]) -> None:
+    ratio_delta = effects.get("ratioDelta")
+    if isinstance(ratio_delta, dict):
+        _apply_reform_or_policy_effects(player_state, {"ratioDelta": ratio_delta})
+
+
+def _reverse_policy_ratio_effect(player_state, effects: dict[str, Any]) -> None:
+    ratio_delta = effects.get("ratioDelta")
+    if not isinstance(ratio_delta, dict):
+        return
+    reversed_delta = {key: -float(value) for key, value in ratio_delta.items()}
+    _apply_reform_or_policy_effects(player_state, {"ratioDelta": reversed_delta})

@@ -57,6 +57,7 @@ def empty_decision_payload() -> dict[str, object]:
             "expansionOrders": [],
             "upgradeOrders": [],
             "newFactoryOrders": [],
+            "factoryActions": [],
         },
         "domesticMarketPlan": {"domesticMarketActions": []},
         "governmentPlan": {
@@ -170,6 +171,64 @@ class PhaseSubmissionServiceTests(unittest.TestCase):
             )
 
         self.assertEqual(error.exception.error_code, ErrorCode.ALREADY_SUBMITTED)
+
+    def test_submit_rejects_phase1_production_over_factory_budget(self) -> None:
+        room = build_room()
+        game, snapshot = build_snapshot()
+        britain = next(player for player in snapshot.player_states if player.player_id == "player-1")
+        britain.budget_pools["factory"] = 2
+        assign_phase_deadline(
+            snapshot,
+            started_at=datetime(2026, 3, 29, 12, 0, tzinfo=UTC),
+            duration=timedelta(minutes=2),
+        )
+
+        payload = empty_decision_payload()
+        payload["phase1Production"] = {"rawMaterialAssignments": {"handicraft": 8}}
+
+        with self.assertRaises(PhaseSubmissionError) as error:
+            PhaseSubmissionService().submit(
+                room=room,
+                game=game,
+                snapshot=snapshot,
+                phase_state=PhaseSubmissionState.from_snapshot(snapshot),
+                player_id="player-1",
+                requested_phase=GamePhase.DECISION,
+                payload=payload,
+                submitted_at=datetime(2026, 3, 29, 12, 1, tzinfo=UTC),
+            )
+
+        self.assertEqual(error.exception.error_code, ErrorCode.INVALID_SUBMISSION)
+        self.assertIn("工厂预算超支", error.exception.details["reason"])
+
+    def test_submit_rejects_factory_upgrade_before_route_research(self) -> None:
+        room = build_room()
+        game, snapshot = build_snapshot()
+        britain = next(player for player in snapshot.player_states if player.player_id == "player-1")
+        britain.budget_pools["factory"] = 100
+        assign_phase_deadline(
+            snapshot,
+            started_at=datetime(2026, 3, 29, 12, 0, tzinfo=UTC),
+            duration=timedelta(minutes=2),
+        )
+
+        payload = empty_decision_payload()
+        payload["factoryPlan"]["upgradeOrders"] = [{"routeId": "mechanized", "quantity": 1}]
+
+        with self.assertRaises(PhaseSubmissionError) as error:
+            PhaseSubmissionService().submit(
+                room=room,
+                game=game,
+                snapshot=snapshot,
+                phase_state=PhaseSubmissionState.from_snapshot(snapshot),
+                player_id="player-1",
+                requested_phase=GamePhase.DECISION,
+                payload=payload,
+                submitted_at=datetime(2026, 3, 29, 12, 1, tzinfo=UTC),
+            )
+
+        self.assertEqual(error.exception.error_code, ErrorCode.INVALID_SUBMISSION)
+        self.assertIn("requires route technology", str(error.exception))
 
     def test_submit_rejects_after_deadline(self) -> None:
         room = build_room()

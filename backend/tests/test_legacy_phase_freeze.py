@@ -56,7 +56,7 @@ class LegacyPhaseFreezeTests(unittest.TestCase):
 
         self.assertEqual(
             set(decision_payload["factoryPlan"].keys()),
-            {"productionOrders", "expansionOrders", "upgradeOrders", "newFactoryOrders"},
+            {"productionOrders", "expansionOrders", "upgradeOrders", "newFactoryOrders", "factoryActions"},
         )
         self.assertIn("adminPurchases", decision_payload["governmentPlan"])
         self.assertEqual(decision_payload["militaryPlan"]["militaryActions"], [])
@@ -104,7 +104,8 @@ class LegacyPhaseFreezeTests(unittest.TestCase):
         )
 
         updated = next(state for state in resolution.updated_snapshot.player_states if state.player_id == "player-1")
-        self.assertGreaterEqual(updated.military_points, 2)
+        self.assertEqual(updated.army.get("infantry"), 1)
+        self.assertEqual(updated.military_points, 0)
         self.assertIn("africa", updated.established_diplomacy)
 
 

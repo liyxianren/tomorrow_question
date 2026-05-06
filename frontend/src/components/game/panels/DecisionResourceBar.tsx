@@ -8,7 +8,7 @@ import {
 } from "../../../features/game/decisionShared";
 import "./DecisionResourceBar.css";
 
-type ChipKey = "domestic" | "factory" | "government" | "tech";
+type ChipKey = "domestic" | "factory" | "government" | "military";
 
 type DecisionResourceBarProps = {
   workspace: DecisionPlayerPhaseWorkspace;
@@ -19,14 +19,16 @@ type DecisionResourceBarProps = {
 export function DecisionResourceBar({ workspace, draft, activeStep }: DecisionResourceBarProps) {
   const spendSummary = calculateDecisionSpendSummary(workspace, draft);
   const governmentBreakdown = calculateGovernmentSpendBreakdown(workspace, draft);
-  const techPreview = calculateGovernmentPointPreview(workspace, draft);
+  const militaryPointPreview = calculateGovernmentPointPreview(workspace, draft);
+  const militaryPointSpend = calculateMilitaryPointSpend(workspace, draft);
+  const militaryPointGain = Math.max(0, militaryPointPreview.militaryPoints - workspace.militaryPoints);
 
   const activeChip = mapStepToChip(activeStep);
 
   return (
     <div className="drb" data-testid="decision-resource-bar">
       <ResourceChip
-        label="国内消费"
+        label="消费池"
         total={workspace.budgetPools.domesticMarket}
         spent={spendSummary.domesticSpend}
         active={activeChip === "domestic"}
@@ -42,15 +44,14 @@ export function DecisionResourceBar({ workspace, draft, activeStep }: DecisionRe
         total={workspace.budgetPools.governmentFiscal}
         spent={spendSummary.governmentSpend}
         active={activeChip === "government"}
-        breakdown={`政府 ${governmentBreakdown.government} · 军事 ${governmentBreakdown.military}`}
+        breakdown={`政务 ${governmentBreakdown.government} · 外交/解锁 ${governmentBreakdown.military}`}
       />
       <ResourceChip
-        label="科技点预览"
-        total={techPreview.techPoints}
-        spent={0}
-        active={activeChip === "tech"}
-        valueOverride={`${techPreview.techPoints}`}
-        hideProgress
+        label="军事点"
+        total={militaryPointPreview.militaryPoints}
+        spent={militaryPointSpend}
+        active={activeChip === "military"}
+        breakdown={`本轮购买 +${militaryPointGain} · 军事行动 ${militaryPointSpend}`}
       />
     </div>
   );
@@ -108,10 +109,23 @@ function mapStepToChip(step: DecisionStepId): ChipKey | null {
     case "government":
       return "government";
     case "military":
-      return "government";
+      return "military";
     case "research":
-      return "tech";
+      return "government";
     default:
       return null;
   }
+}
+
+function calculateMilitaryPointSpend(
+  workspace: DecisionPlayerPhaseWorkspace,
+  draft: PhaseDraftByPhase["decision"],
+): number {
+  const militaryActionsSpend = draft.militaryPlan.militaryActions.reduce((sum, selection) => {
+    const action = workspace.militaryWorkspace.availableMilitaryActions.find((item) => item.actionId === selection.actionId);
+    return sum + (action?.cost ?? 0);
+  }, 0);
+  const colonizationSpend = draft.militaryPlan.colonizationActions.length
+    * workspace.militaryWorkspace.colonizationCapability.militaryPointCost;
+  return militaryActionsSpend + colonizationSpend;
 }

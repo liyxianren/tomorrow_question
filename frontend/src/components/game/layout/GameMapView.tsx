@@ -11,6 +11,7 @@ type GameMapViewProps = {
   buildings: MapBuildingDef[];
   activeModalId: string | null;
   modalTitle: string;
+  modalVariant?: string | null;
   modalContent: ReactNode | null;
   mapImage: string;
   onBuildingClick: (id: string) => void;
@@ -24,6 +25,7 @@ export function GameMapView({
   buildings,
   activeModalId,
   modalTitle,
+  modalVariant,
   modalContent,
   mapImage,
   onBuildingClick,
@@ -74,7 +76,9 @@ export function GameMapView({
       <GameMapModal
         isOpen={!!activeModalId && !!modalContent}
         onClose={onModalClose}
+        resetKey={modalVariant ?? activeModalId}
         title={modalTitle}
+        variant={modalVariant ?? activeModalId}
       >
         {modalContent}
       </GameMapModal>

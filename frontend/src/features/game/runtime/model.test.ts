@@ -14,6 +14,7 @@ import { createGameSnapshot, createPhaseWorkspace, createRankingWorkspace, creat
 import {
   applyGamePhaseStarted,
   applyGameSnapshotSync,
+  applySubmissionStatusUpdate,
   createRecoveredGameRuntimeState,
   createEmptyGameRuntimeState,
 } from "./model";
@@ -228,5 +229,30 @@ describe("game runtime model settlement lifecycle", () => {
 
     expect(state.submissionStatusByPlayerId).toEqual({});
     expect(state.canSubmitCurrentPhase).toBe(false);
+  });
+
+  it("ignores a stale submission status response after the phase has advanced", () => {
+    const state = createRecoveredGameRuntimeState(
+      createRecoveredContext({
+        activeGame: createGame("market", 3),
+        activeSnapshot: createSnapshot("market", 3),
+        activeTurnInputs: [],
+      }),
+    );
+
+    const nextState = applySubmissionStatusUpdate(
+      state,
+      {
+        "player-1": "submitted",
+        "player-2": "submitted",
+      },
+      {
+        phase: "decision",
+        roundNo: 3,
+      },
+    );
+
+    expect(nextState.submissionStatusByPlayerId).toEqual({});
+    expect(nextState.canSubmitCurrentPhase).toBe(true);
   });
 });

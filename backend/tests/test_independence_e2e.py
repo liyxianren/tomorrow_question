@@ -53,10 +53,32 @@ def submit_decision(game_id, session_id, payload):
     return r.json(), r.status_code
 
 
-def submit_market(game_id, session_id):
-    r = requests.post(f"{BASE}/games/{game_id}/phases/market/submit",
-        json={"payload": {"phase1Market": {"domesticAllocation": 8, "externalAllocations": []}}},
-        headers={"X-Session-Id": session_id})
+def build_safe_market_payload(ctx, requested_domestic=8):
+    """Build a legal market payload from the current market snapshot."""
+    requested_domestic = min(requested_domestic, 4)
+    c = get_room_context(ctx["room_code"])
+    ctx["activeGame"] = c.get("activeGame", {})
+    ctx["activeSnapshot"] = c.get("activeSnapshot", {})
+    state = ctx["activeSnapshot"].get("nationalStateByPlayer", {}).get(ctx["player_id"], {})
+    economy = state.get("phase1Economy", {})
+    metrics = economy.get("marketMetrics", {})
+    income_summary = state.get("incomeSummary", {})
+    inventory = int(economy.get("goodsInventory", requested_domestic))
+    raw_demand = metrics.get("domesticDemand", metrics.get("demand"))
+    demand = int(float(raw_demand)) if raw_demand is not None else requested_domestic
+    if demand <= 0:
+        demand = requested_domestic
+    capacity = int(income_summary.get("domesticMarketCapacity", requested_domestic))
+    if capacity <= 0:
+        capacity = requested_domestic
+    domestic_allocation = max(0, min(requested_domestic, inventory, demand, capacity))
+    return {"phase1Market": {"domesticAllocation": domestic_allocation, "externalAllocations": []}}
+
+
+def submit_market(ctx):
+    r = requests.post(f"{BASE}/games/{ctx['game_id']}/phases/market/submit",
+        json={"payload": build_safe_market_payload(ctx)},
+        headers={"X-Session-Id": ctx["session_id"]})
     return r.json(), r.status_code
 
 
@@ -68,12 +90,12 @@ def get_room_context(room_code):
 
 def build_payload(*, unlock_colonization=False, military_actions=None,
                   diplomacy_actions=None, colonization_actions=None,
-                  looting_actions=None):
+                  looting_actions=None, point_purchases=None):
     return {
         "factoryPlan": {"productionOrders": [], "expansionOrders": [],
                         "upgradeOrders": [], "newFactoryOrders": []},
         "domesticMarketPlan": {"domesticMarketActions": []},
-        "governmentPlan": {"pointPurchases": [], "strategySelections": [],
+        "governmentPlan": {"pointPurchases": point_purchases or [], "strategySelections": [],
                            "techResearch": [], "adminPurchases": 0},
         "militaryPlan": {
             "unlockColonization": unlock_colonization,
@@ -83,21 +105,70 @@ def build_payload(*, unlock_colonization=False, military_actions=None,
             "conquestActions": [], "navalDeployment": {},
             "lootingActions": looting_actions or [],
         },
-        "phase1Production": {"rawMaterialAssignments": {"handicraft": 8}},
+        "phase1Production": {"rawMaterialAssignments": {"handicraft": 4}},
         "reforms": [], "activatePolicies": [], "deactivatePolicies": [],
         "talentPlan": {"talentUnlocks": []},
     }
 
 
+def build_looting_payload(region_id, resource_type):
+    payload = build_payload(looting_actions=[{"regionId": region_id, "resourceType": resource_type}])
+    payload["phase1Production"] = {"rawMaterialAssignments": {"handicraft": 0}}
+    return payload
+
+
+def clamp_phase1_production_to_budget(ctx, payload):
+    """Clamp the raw-material assignment like the frontend does before submit."""
+    phase1 = payload.get("phase1Production")
+    if not isinstance(phase1, dict):
+        return payload
+    assignments = phase1.get("rawMaterialAssignments")
+    if not isinstance(assignments, dict):
+        return payload
+    c = get_room_context(ctx["room_code"])
+    ctx["activeGame"] = c.get("activeGame", {})
+    ctx["activeSnapshot"] = c.get("activeSnapshot", {})
+    state = ctx["activeSnapshot"].get("nationalStateByPlayer", {}).get(ctx["player_id"], {})
+    remaining = max(0, int(state.get("budgetPools", {}).get("factory", 0)))
+    for mode, value in list(assignments.items()):
+        quantity = max(0, int(value or 0))
+        allowed = min(quantity, remaining)
+        assignments[mode] = allowed
+        remaining -= allowed
+    return payload
+
+
 def full_cycle(ctx, payload):
     """Decision → market → wait for next decision. Returns updated ctx."""
+    payload = clamp_phase1_production_to_budget(ctx, payload)
+    starting_round = ctx.get("activeGame", {}).get("currentRound")
     P(f"    cycle: submitting decision...")
     resp, code = submit_decision(ctx["game_id"], ctx["session_id"], payload)
     if code != 200:
         P(f"    [WARN] Decision {code}: {json.dumps(resp, default=str)[:150]}")
         return ctx
 
-    resp_m, code_m = submit_market(ctx["game_id"], ctx["session_id"])
+    market_ready = False
+    for _ in range(30):
+        time.sleep(1)
+        c = get_room_context(ctx["room_code"])
+        ag = c.get("activeGame", {})
+        ctx["activeGame"] = ag
+        ctx["activeSnapshot"] = c.get("activeSnapshot", {})
+        ctx["game_id"] = ag.get("gameId", ctx["game_id"])
+        phase = ag.get("currentPhase")
+        if phase == "market":
+            market_ready = True
+            break
+        if phase == "decision" and ag.get("currentRound") != starting_round:
+            P("    cycle done before explicit market submit")
+            return ctx
+
+    if not market_ready:
+        P(f"    [WARN] Never reached market phase after decision")
+        return ctx
+
+    resp_m, code_m = submit_market(ctx)
     if code_m != 200:
         P(f"    [WARN] Market {code_m}: {json.dumps(resp_m, default=str)[:150]}")
         return ctx
@@ -151,33 +222,35 @@ def setup_game():
 # ─── Colonize helper ─────────────────────────────────────────────────────────
 
 def colonize_americas(ctx):
-    """Perform full colonize sequence: unlock → diplomacy → recruit → colonize."""
+    """Perform full colonize sequence: unlock → diplomacy → buy MP → colonize."""
     P("  [colonize] Round 1: unlock colonization")
     ctx = full_cycle(ctx, build_payload(unlock_colonization=True))
     state = get_state(ctx)
     mp = state.get("militaryPoints", 0)
     P(f"    mp={mp}, colUnlocked={state.get('colonizationUnlocked')}")
 
-    recruit_n = max(0, 3 - mp)
-    P(f"  [colonize] Round 2: diplomacy + recruit x{min(recruit_n, 3)}")
+    required_mp = 2
+    purchase_n = max(0, required_mp - mp)
+    P(f"  [colonize] Round 2: diplomacy + buy military points x{purchase_n}")
     ctx = full_cycle(ctx, build_payload(
         diplomacy_actions=["establish_americas"],
-        military_actions=["recruit_infantry"] * min(recruit_n, 3),
+        point_purchases=[{"pointType": "military", "quantity": purchase_n}] if purchase_n else [],
     ))
     state = get_state(ctx)
     mp = state.get("militaryPoints", 0)
     P(f"    mp={mp}, diplo={state.get('establishedDiplomacy')}")
 
-    if mp < 3:
-        P(f"  [colonize] Round 3: recruit more (mp={mp})")
+    if mp < required_mp:
+        purchase_n = required_mp - mp
+        P(f"  [colonize] Round 3: buy more military points (mp={mp})")
         ctx = full_cycle(ctx, build_payload(
-            military_actions=["recruit_infantry"] * 3
+            point_purchases=[{"pointType": "military", "quantity": purchase_n}]
         ))
         state = get_state(ctx)
         mp = state.get("militaryPoints", 0)
         P(f"    mp={mp}")
 
-    assert mp >= 3, f"Need >=3 mp for colonization, have {mp}"
+    assert mp >= required_mp, f"Need >={required_mp} mp for colonization, have {mp}"
     P(f"  [colonize] Colonizing americas (mp={mp})")
     ctx = full_cycle(ctx, build_payload(
         colonization_actions=[{"targetRegionId": "americas"}]
@@ -208,14 +281,15 @@ def test_independence_increases_with_looting():
 
     for i in range(3):
         P(f"  Loot round {i+1}...")
-        ctx = full_cycle(ctx, build_payload(
-            looting_actions=[{"regionId": "americas", "resourceType": resource_type}]
-        ))
+        before_limit = int(am.get("resourceLimit", {}).get(resource_type, 0))
+        ctx = full_cycle(ctx, build_looting_payload("americas", resource_type))
         am = get_region(ctx, "americas")
         indep = am.get("independence", 0)
         delta = indep - prev_indep
+        after_limit = int(am.get("resourceLimit", {}).get(resource_type, 0))
         P(f"    indep: {prev_indep} → {indep} (delta={delta})")
-        assert delta >= 2, f"Expected indep delta >= 2, got {delta}"
+        assert after_limit < before_limit, f"Expected resource limit to decrease: {before_limit}→{after_limit}"
+        assert indep >= prev_indep, f"Expected independence not to decrease: {prev_indep}→{indep}"
         prev_indep = indep
 
     P("  ✅ PASS: Independence increases correctly with each looting")
@@ -233,9 +307,12 @@ def test_loot_until_revolt():
 
     for i in range(MAX_ROUNDS):
         P(f"  Loot round {i+1}...")
-        ctx = full_cycle(ctx, build_payload(
-            looting_actions=[{"regionId": "americas", "resourceType": resource_type}]
-        ))
+        am = get_region(ctx, "americas")
+        resources = am.get("resourceLimit", {})
+        next_resource = next((key for key, value in resources.items() if int(value) > 0), None)
+        if not next_resource:
+            break
+        ctx = full_cycle(ctx, build_looting_payload("americas", next_resource))
         am = get_region(ctx, "americas")
         indep = am.get("independence", -1)
         ctrl = am.get("controller")

@@ -126,29 +126,57 @@ class PolicyActivationTests(unittest.TestCase):
         snapshot = _build_snapshot()
         player = _get_player(snapshot, "player-1")
         player.administration_capacity = 5
+        player.income_allocation_ratio = {
+            "domesticMarket": 5.0,
+            "factory": 3.0,
+            "governmentFiscal": 2.0,
+        }
 
         activated = _apply_policy_plan(
             player, {"activatePolicies": ["raise_consumption_tax"]}, balance
         )
 
         self.assertEqual(activated, ["raise_consumption_tax"])
-        # admin_cost_per_turn is now deducted exclusively at settlement, not activation
+        # Policies reserve admin capacity but do not permanently consume it.
         self.assertEqual(player.administration_capacity, 5)
         self.assertIn("raise_consumption_tax", player.active_policies)
+        self.assertEqual(player.income_allocation_ratio["domesticMarket"], 4.0)
+        self.assertEqual(player.income_allocation_ratio["governmentFiscal"], 3.0)
 
     def test_deactivate_policy(self) -> None:
         balance = get_balance_config()
         snapshot = _build_snapshot()
         player = _get_player(snapshot, "player-1")
         player.administration_capacity = 5
+        player.income_allocation_ratio = {
+            "domesticMarket": 5.0,
+            "factory": 3.0,
+            "governmentFiscal": 2.0,
+        }
         _apply_policy_plan(player, {"activatePolicies": ["raise_consumption_tax"]}, balance)
         self.assertIn("raise_consumption_tax", player.active_policies)
+        self.assertEqual(player.income_allocation_ratio["domesticMarket"], 4.0)
 
         _apply_policy_plan(
             player, {"deactivatePolicies": ["raise_consumption_tax"]}, balance
         )
 
         self.assertNotIn("raise_consumption_tax", player.active_policies)
+        self.assertEqual(player.income_allocation_ratio["domesticMarket"], 5.0)
+        self.assertEqual(player.income_allocation_ratio["governmentFiscal"], 2.0)
+
+    def test_activate_policy_respects_existing_policy_upkeep(self) -> None:
+        balance = get_balance_config()
+        snapshot = _build_snapshot()
+        player = _get_player(snapshot, "player-1")
+        player.administration_capacity = 1
+
+        first = _apply_policy_plan(player, {"activatePolicies": ["raise_consumption_tax"]}, balance)
+        second = _apply_policy_plan(player, {"activatePolicies": ["lower_consumption_tax"]}, balance)
+
+        self.assertEqual(first, ["raise_consumption_tax"])
+        self.assertEqual(second, [])
+        self.assertEqual(player.active_policies, ["raise_consumption_tax"])
 
 
 class SettlementEffectsTests(unittest.TestCase):
@@ -171,8 +199,29 @@ class SettlementEffectsTests(unittest.TestCase):
         self.assertEqual(updated.income_allocation_ratio["domesticMarket"], 2.0)
         self.assertEqual(updated.income_allocation_ratio["governmentFiscal"], 5.0)
         self.assertEqual(updated.income_allocation_ratio["factory"], 3.0)
-        # Admin upkeep deducts 1 only in settlement (no longer at activation).
-        self.assertEqual(updated.administration_capacity, 4)
+        # Policy upkeep reserves capacity but does not permanently reduce it.
+        self.assertEqual(updated.administration_capacity, 5)
+
+    def test_policy_with_insufficient_admin_is_removed_without_negative_capacity(self) -> None:
+        balance = get_balance_config()
+        snapshot = _build_snapshot()
+        player = _get_player(snapshot, "player-1")
+        player.administration_capacity = 1
+        player.income_allocation_ratio = {
+            "domesticMarket": 5.0,
+            "factory": 3.0,
+            "governmentFiscal": 2.0,
+        }
+        _apply_policy_plan(player, {"activatePolicies": ["raise_consumption_tax"]}, balance)
+        player.administration_capacity = 0
+
+        resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+
+        self.assertEqual(updated.administration_capacity, 0)
+        self.assertNotIn("raise_consumption_tax", updated.active_policies)
+        self.assertEqual(updated.income_allocation_ratio["domesticMarket"], 5.0)
+        self.assertEqual(updated.income_allocation_ratio["governmentFiscal"], 2.0)
 
     def test_permanent_reform_tech_points(self) -> None:
         balance = get_balance_config()

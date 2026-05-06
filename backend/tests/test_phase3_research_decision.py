@@ -79,22 +79,22 @@ class Phase3ResearchDecisionTests(unittest.TestCase):
         snapshot = build_snapshot()
         resolution = resolve_decision_phase(
             snapshot=snapshot,
-            turn_inputs=[build_turn_input("player-1", "leyden_jar")],
+            turn_inputs=[build_turn_input("player-1", "spinning_jenny")],
         )
         britain = get_player(resolution.updated_snapshot, "player-1")
-        self.assertEqual(britain.active_research, "leyden_jar")
+        self.assertEqual(britain.active_research, "spinning_jenny")
 
     def test_set_valid_second_tech_when_prerequisite_unlocked(self) -> None:
         snapshot = build_snapshot()
         britain = get_player(snapshot, "player-1")
-        britain.unlocked_techs.append("leyden_jar")
+        britain.unlocked_techs.append("spinning_jenny")
 
         resolution = resolve_decision_phase(
             snapshot=snapshot,
-            turn_inputs=[build_turn_input("player-1", "voltaic_pile")],
+            turn_inputs=[build_turn_input("player-1", "lathe")],
         )
         updated = get_player(resolution.updated_snapshot, "player-1")
-        self.assertEqual(updated.active_research, "voltaic_pile")
+        self.assertEqual(updated.active_research, "lathe")
 
     def test_invalid_target_not_in_any_chain_keeps_active_research_none(self) -> None:
         snapshot = build_snapshot()
@@ -107,10 +107,10 @@ class Phase3ResearchDecisionTests(unittest.TestCase):
 
     def test_target_with_unmet_prerequisite_keeps_active_research_none(self) -> None:
         snapshot = build_snapshot()
-        # voltaic_pile requires leyden_jar; do not unlock it.
+        # lathe requires spinning_jenny; do not unlock it.
         resolution = resolve_decision_phase(
             snapshot=snapshot,
-            turn_inputs=[build_turn_input("player-1", "voltaic_pile")],
+            turn_inputs=[build_turn_input("player-1", "lathe")],
         )
         britain = get_player(resolution.updated_snapshot, "player-1")
         self.assertIsNone(britain.active_research)
@@ -130,17 +130,18 @@ class Phase3ResearchDecisionTests(unittest.TestCase):
     def test_switching_targets_changes_active_research(self) -> None:
         snapshot = build_snapshot()
         britain = get_player(snapshot, "player-1")
-        britain.active_research = "leyden_jar"
-        britain.research_progress = {"leyden_jar": 2}
+        britain.active_research = "spinning_jenny"
+        britain.research_progress = {"spinning_jenny": 2}
+        britain.unlocked_techs.append("spinning_jenny")
 
         resolution = resolve_decision_phase(
             snapshot=snapshot,
-            turn_inputs=[build_turn_input("player-1", "spinning_jenny")],
+            turn_inputs=[build_turn_input("player-1", "lathe")],
         )
         updated = get_player(resolution.updated_snapshot, "player-1")
-        self.assertEqual(updated.active_research, "spinning_jenny")
+        self.assertEqual(updated.active_research, "lathe")
         # Old progress is preserved on the dict (settlement-phase logic decides what to do with it).
-        self.assertEqual(updated.research_progress.get("leyden_jar"), 2)
+        self.assertEqual(updated.research_progress.get("spinning_jenny"), 2)
 
 
 if __name__ == "__main__":

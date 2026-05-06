@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 
-import type { CountryCode, GamePhase, PlayerState } from "../../../types";
+import type {
+  CountryCode,
+  DecisionPlayerPhaseWorkspace,
+  GamePhase,
+  PlayerPhaseWorkspace,
+  PlayerState,
+} from "../../../types";
 import type { DecisionFlowState, DecisionStepId } from "./decisionFlow";
 import { setDecisionActiveStep } from "./decisionFlow";
 
@@ -16,6 +22,7 @@ export type MapBuildingDef = {
 
 type UseMapViewStateArgs = {
   currentPhase: GamePhase | null;
+  currentPlayerWorkspace: PlayerPhaseWorkspace | null;
   currentPlayerState: PlayerState | null;
   onDecisionFlowChange: Dispatch<SetStateAction<DecisionFlowState>>;
 };
@@ -93,6 +100,7 @@ const DEFAULT_POSITIONS: BuildingPositions = POSITIONS_BY_COUNTRY.britain;
 
 export function useMapViewState({
   currentPhase,
+  currentPlayerWorkspace,
   currentPlayerState,
   onDecisionFlowChange,
 }: UseMapViewStateArgs) {
@@ -120,7 +128,11 @@ export function useMapViewState({
   }, []);
 
   const countryId = currentPlayerState?.countryId ?? "britain";
-  const buildings = buildBuildingDefs(currentPhase, currentPlayerState, countryId);
+  const decisionWorkspace =
+    currentPhase === "decision" && currentPlayerWorkspace && "militaryWorkspace" in currentPlayerWorkspace
+      ? (currentPlayerWorkspace as DecisionPlayerPhaseWorkspace)
+      : null;
+  const buildings = buildBuildingDefs(currentPhase, currentPlayerState, countryId, decisionWorkspace);
   const mapImage = MAP_IMAGE_BY_COUNTRY[countryId] ?? MAP_IMAGE_BY_COUNTRY.britain;
 
   const activeBuilding = buildings.find((b) => b.id === activeModalId) ?? null;
@@ -140,10 +152,13 @@ function buildBuildingDefs(
   phase: GamePhase | null,
   playerState: PlayerState | null,
   countryId: string,
+  decisionWorkspace: DecisionPlayerPhaseWorkspace | null = null,
 ): MapBuildingDef[] {
   if (!playerState) return [];
 
   const pos = POSITIONS_BY_COUNTRY[countryId] ?? DEFAULT_POSITIONS;
+  const budgetPools = decisionWorkspace?.budgetPools ?? playerState.budgetPools;
+  const militaryPoints = decisionWorkspace?.militaryWorkspace.militaryPoints ?? playerState.militaryPoints;
 
   if (phase === "decision") {
     return [
@@ -151,7 +166,7 @@ function buildBuildingDefs(
         id: "factory",
         label: "工业区",
         subtitle: "工厂决策",
-        metric: `预算 ${playerState.budgetPools.factory}`,
+        metric: `预算 ${budgetPools.factory}`,
         x: pos.factory.x,
         y: pos.factory.y,
       },
@@ -159,7 +174,7 @@ function buildBuildingDefs(
         id: "domestic",
         label: "市民广场",
         subtitle: "国民消费",
-        metric: `预算 ${playerState.budgetPools.domesticMarket}`,
+        metric: `消费池 ${budgetPools.domesticMarket}`,
         x: pos.domestic.x,
         y: pos.domestic.y,
       },
@@ -167,7 +182,7 @@ function buildBuildingDefs(
         id: "government",
         label: "议会厅",
         subtitle: "政府政策",
-        metric: `预算 ${playerState.budgetPools.governmentFiscal}`,
+        metric: `预算 ${budgetPools.governmentFiscal}`,
         x: pos.government.x,
         y: pos.government.y,
       },
@@ -175,7 +190,7 @@ function buildBuildingDefs(
         id: "military",
         label: "军事要塞",
         subtitle: "军事行动",
-        metric: `军力 ${playerState.militaryPoints}`,
+        metric: `军力 ${militaryPoints}`,
         x: pos.military.x,
         y: pos.military.y,
       },
@@ -183,7 +198,7 @@ function buildBuildingDefs(
         id: "research",
         label: "研究院",
         subtitle: "科学研究",
-        metric: `科技 ${playerState?.techPoints ?? 0}`,
+        metric: "政府财政研究",
         x: pos.research.x,
         y: pos.research.y,
       },

@@ -288,6 +288,39 @@ describe("GamePage", () => {
     expect(screen.queryByTestId("game-submit-button")).not.toBeInTheDocument();
   });
 
+  it("uses final archive wording during the last settlement countdown", () => {
+    mockUseGameRuntime.mockReturnValue({
+      runtimeState: createRuntimeState({
+        game: {
+          gameId: "game-1",
+          roomCode: "ROOM01",
+          currentRound: 15,
+          totalRounds: 15,
+          currentPhase: "settlement",
+          isFinished: false,
+          activeSnapshotId: "snapshot-final-settlement",
+        },
+        snapshot: createGameSnapshot({
+          snapshotId: "snapshot-final-settlement",
+          phase: "settlement",
+          round: 15,
+          phaseDeadlineAt: null,
+        }),
+        secondsRemaining: 10,
+        canSubmitCurrentPhase: false,
+      }),
+      isLoadingContext: false,
+      loadError: null,
+      settlementTargetPath: null,
+      updateSubmissionStatusByPlayerId: mockUpdateSubmissionStatusByPlayerId,
+    });
+
+    renderGamePage();
+
+    expect(screen.getAllByText(/10 秒后进入终局档案/).length).toBeGreaterThan(0);
+    expect(document.body.textContent).not.toContain("10 秒后进入下一回合");
+  });
+
   it("redirects to the settlement route after finalResult is ready", async () => {
     mockUseGameRuntime.mockReturnValue({
       runtimeState: createRuntimeState({

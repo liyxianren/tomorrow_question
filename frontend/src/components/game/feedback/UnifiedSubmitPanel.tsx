@@ -15,6 +15,7 @@ import type { GamePhase, PlayerSubmissionStatus } from "../../../types";
 type UnifiedSubmitPanelProps = {
   gameId: string;
   phase: GamePhase;
+  roundNo: number;
   playerId: string;
   draftPayload: object;
   canSubmit: boolean;
@@ -28,6 +29,12 @@ type SubmitErrorState = {
   message: string;
   detailReason: string | null;
   rejectedActions: SubmitErrorRejection[];
+};
+
+type LocalStatusState = {
+  phase: GamePhase;
+  roundNo: number;
+  statusByPlayerId: Record<string, PlayerSubmissionStatus>;
 };
 
 function formatSubmitError(error: unknown): SubmitErrorState {
@@ -68,6 +75,7 @@ function resolveButtonLabel({
 export function UnifiedSubmitPanel({
   gameId,
   phase,
+  roundNo,
   playerId,
   draftPayload,
   canSubmit,
@@ -77,22 +85,25 @@ export function UnifiedSubmitPanel({
 }: UnifiedSubmitPanelProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<SubmitErrorState | null>(null);
-  const [localStatusByPlayerId, setLocalStatusByPlayerId] = useState<
-    Record<string, PlayerSubmissionStatus> | null
-  >(null);
+  const [localStatus, setLocalStatus] = useState<LocalStatusState | null>(null);
 
   useEffect(() => {
     setIsSubmitting(false);
     setSubmitError(null);
-    setLocalStatusByPlayerId(null);
-  }, [gameId, phase, playerId]);
+    setLocalStatus(null);
+  }, [gameId, phase, roundNo, playerId]);
 
   const effectiveStatusByPlayerId = useMemo(() => {
-    if (localStatusByPlayerId && Object.keys(localStatusByPlayerId).length > 0) {
-      return localStatusByPlayerId;
+    if (
+      localStatus &&
+      localStatus.phase === phase &&
+      localStatus.roundNo === roundNo &&
+      Object.keys(localStatus.statusByPlayerId).length > 0
+    ) {
+      return localStatus.statusByPlayerId;
     }
     return submissionStatusByPlayerId ?? {};
-  }, [localStatusByPlayerId, submissionStatusByPlayerId]);
+  }, [localStatus, phase, roundNo, submissionStatusByPlayerId]);
 
   const currentStatus = effectiveStatusByPlayerId[playerId] ?? submissionStatus;
   const hasSubmitted = currentStatus === "submitted" || currentStatus === "timeout_auto_submitted";
@@ -106,7 +117,11 @@ export function UnifiedSubmitPanel({
     setIsSubmitting(true);
     try {
       const response = await submitPhase(gameId, phase, draftPayload);
-      setLocalStatusByPlayerId(response.submissionStatus);
+      setLocalStatus({
+        phase: response.phase,
+        roundNo: response.roundNo,
+        statusByPlayerId: response.submissionStatus,
+      });
       onSubmitted?.(response);
     } catch (error) {
       setSubmitError(formatSubmitError(error));

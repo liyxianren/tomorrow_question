@@ -106,7 +106,6 @@ export function buildDecisionCardDemoViewModel({
         governmentFiscal: workspace.budgetPools.governmentFiscal - spendSummary.governmentSpend,
       },
       ratioPreview,
-      techPoints: governmentPointPreview.techPoints,
       militaryPoints: governmentPointPreview.militaryPoints,
     },
     variants: DECISION_CARD_DEMO_VARIANTS,

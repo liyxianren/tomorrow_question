@@ -13,6 +13,7 @@ import {
   getDecisionStepLabel,
   getDecisionStepReviewLabel,
   getUncheckedDecisionSteps,
+  hasDecisionStepContent,
   type DecisionFlowState,
   type DecisionStepId,
 } from "./decisionFlow";
@@ -23,6 +24,7 @@ import {
   calculateDecisionSpendSummary as calculateDecisionSpendSummaryFromDraft,
   calculateRatioPreview as calculateRatioPreviewFromDraft,
 } from "../decisionShared";
+import type { DecisionPhaseDraft } from "../forms";
 import { getCountryLabel } from "../labels";
 
 type RailMetric = {
@@ -117,7 +119,7 @@ export function createGameWorkbenchViewModel({
   phaseHeader: PhaseHeaderViewModel;
 } {
   return {
-    topWorkflow: createTopWorkflowViewModel(currentPhase, decisionFlowState, draftPayload),
+    topWorkflow: createTopWorkflowViewModel(currentPhase, decisionFlowState, draftPayload, currentPlayerWorkspace),
     resourceStrip: createResourceStripViewModel({
       currentPhase,
       currentPlayerState,
@@ -154,22 +156,34 @@ function createTopWorkflowViewModel(
   currentPhase: GamePhase | null,
   decisionFlowState: DecisionFlowState,
   draftPayload: Record<string, unknown>,
+  currentPlayerWorkspace: PlayerPhaseWorkspace | null,
 ): TopWorkflowViewModel {
   if (currentPhase !== "decision") {
     return null;
   }
 
   const draft = normalizeDecisionDraft(draftPayload);
+  const contentContext = getDecisionContentContext(currentPlayerWorkspace);
   return {
     steps: DECISION_STEP_ORDER.map((step) => {
-      const hasDraftContent = hasDecisionStepContent(draft, step);
+      const hasDraftContent = hasDecisionStepContent(draft, step, contentContext);
+      const reviewState = decisionFlowState.stepReviewStateByStep[step];
       return {
         id: step,
         label: getDecisionStepLabel(step),
-        statusLabel: hasDraftContent ? "已决策" : "未决策",
+        statusLabel: hasDraftContent ? "已决策" : getDecisionStepReviewLabel(reviewState),
         isActive: decisionFlowState.activeStep === step,
       };
     }),
+  };
+}
+
+function getDecisionContentContext(currentPlayerWorkspace: PlayerPhaseWorkspace | null) {
+  if (!currentPlayerWorkspace || !("techTree" in currentPlayerWorkspace)) {
+    return {};
+  }
+  return {
+    activeResearch: currentPlayerWorkspace.techTree.activeResearch,
   };
 }
 
@@ -190,21 +204,26 @@ function createResourceStripViewModel({
     return null;
   }
 
+  const decisionWorkspace =
+    currentPhase === "decision" && currentPlayerWorkspace && "militaryWorkspace" in currentPlayerWorkspace
+      ? (currentPlayerWorkspace as DecisionPlayerPhaseWorkspace)
+      : null;
+  const visibleBudgetPools = decisionWorkspace?.budgetPools ?? currentPlayerState.budgetPools;
   const metrics: ResourceStripMetric[] = [
-    { label: "国内消费市场", value: currentPlayerState.budgetPools.domesticMarket },
-    { label: "工厂", value: currentPlayerState.budgetPools.factory },
-    { label: "政府财政", value: currentPlayerState.budgetPools.governmentFiscal },
+    { label: "消费池", value: visibleBudgetPools.domesticMarket },
+    { label: "工厂", value: visibleBudgetPools.factory },
+    { label: "政府财政", value: visibleBudgetPools.governmentFiscal },
   ];
 
   if (currentPhase === "decision" && currentPlayerWorkspace && "militaryWorkspace" in currentPlayerWorkspace) {
     const spendSummary = calculateDecisionSpendSummary(currentPlayerWorkspace as DecisionPlayerPhaseWorkspace, draftPayload);
-    if (spendSummary.factorySpend > currentPlayerState.budgetPools.factory) {
+    if (spendSummary.factorySpend > visibleBudgetPools.factory) {
       metrics[1].tone = "warning";
     }
-    if (spendSummary.domesticSpend > currentPlayerState.budgetPools.domesticMarket) {
+    if (spendSummary.domesticSpend > visibleBudgetPools.domesticMarket) {
       metrics[0].tone = "warning";
     }
-    if (spendSummary.governmentSpend > currentPlayerState.budgetPools.governmentFiscal) {
+    if (spendSummary.governmentSpend > visibleBudgetPools.governmentFiscal) {
       metrics[2].tone = "warning";
     }
   }
@@ -247,21 +266,32 @@ function createLeftRailViewModel({
     ? rankingStandings.find((entry) => entry.playerId === currentPlayerId) ?? null
     : null;
   const leader = rankingStandings[0] ?? null;
+  const researchFacilities = currentPlayerWorkspace && "techTree" in currentPlayerWorkspace
+    ? currentPlayerWorkspace.techTree.researchFacilities
+    : null;
+  const decisionWorkspace =
+    currentPhase === "decision" && currentPlayerWorkspace && "militaryWorkspace" in currentPlayerWorkspace
+      ? (currentPlayerWorkspace as DecisionPlayerPhaseWorkspace)
+      : null;
+  const visibleBudgetPools = decisionWorkspace?.budgetPools ?? currentPlayerState?.budgetPools;
+  const visibleMilitaryPoints = decisionWorkspace?.militaryWorkspace.militaryPoints ?? currentPlayerState?.militaryPoints;
 
   return {
     title: "国家仪表盘",
     cards: [
       {
         eyebrow: "当前资源",
-        title: "三池与点数",
+        title: "三池与军事",
         tone: "accent",
         metrics: currentPlayerState
           ? [
-              { label: "国内消费市场", value: currentPlayerState.budgetPools.domesticMarket },
-              { label: "工厂", value: currentPlayerState.budgetPools.factory },
-              { label: "政府财政", value: currentPlayerState.budgetPools.governmentFiscal },
-              { label: "科技点", value: currentPlayerState.techPoints },
-              { label: "军事点", value: currentPlayerState.militaryPoints },
+              { label: "国内消费市场", value: visibleBudgetPools?.domesticMarket ?? currentPlayerState.budgetPools.domesticMarket },
+              { label: "工厂", value: visibleBudgetPools?.factory ?? currentPlayerState.budgetPools.factory },
+              { label: "政府财政", value: visibleBudgetPools?.governmentFiscal ?? currentPlayerState.budgetPools.governmentFiscal },
+              { label: "军事点", value: visibleMilitaryPoints ?? currentPlayerState.militaryPoints },
+              ...(researchFacilities !== null
+                ? [{ label: "研究设施", value: researchFacilities }]
+                : []),
             ]
           : [],
         lines: buildCurrentResourceLines({
@@ -307,7 +337,11 @@ function createAssistRailViewModel({
   draftPayload: Record<string, unknown>;
   decisionFlowState: DecisionFlowState;
 }): AssistRailViewModel {
-  const uncheckedDecisionSteps = currentPhase === "decision" ? getUncheckedDecisionSteps(decisionFlowState) : [];
+  const decisionDraft = currentPhase === "decision" ? normalizeDecisionDraft(draftPayload) : null;
+  const contentContext = getDecisionContentContext(currentPlayerWorkspace);
+  const uncheckedDecisionSteps = currentPhase === "decision" && decisionDraft
+    ? getUncheckedDecisionSteps(decisionFlowState, decisionDraft, contentContext)
+    : [];
   const uncheckedDecisionStepLabels = uncheckedDecisionSteps.map((step) => getDecisionStepLabel(step));
   const validationLines = buildValidationLines({
     currentPhase,
@@ -323,7 +357,7 @@ function createAssistRailViewModel({
       eyebrow: "步骤检查",
       title: "步骤检查清单",
       tone: uncheckedDecisionStepLabels.length > 0 ? "warning" : "default",
-      lines: buildChecklistLines(currentPhase, decisionFlowState, draftPayload),
+      lines: buildChecklistLines(currentPhase, decisionFlowState, draftPayload, currentPlayerWorkspace),
     },
     blocking: blockingLines.length > 0
       ? {
@@ -430,7 +464,7 @@ function buildCurrentResourceLines({
     const draft = normalizeDecisionDraft(draftPayload);
     if (decisionFlowState.activeStep === "factory") {
       const lines = [
-        `工厂 · 剩余 ${currentPlayerState.budgetPools.factory - spendSummary.factorySpend}`,
+        `工厂 · 剩余 ${workspace.budgetPools.factory - spendSummary.factorySpend}`,
       ];
       const phase1 = workspace.phase1Economy;
       if (phase1) {
@@ -438,41 +472,35 @@ function buildCurrentResourceLines({
         const assignments = rawAssignments?.rawMaterialAssignments ?? {};
         const totalAssigned = Object.values(assignments).reduce((s, v) => s + v, 0);
         lines.push(`原材料 ${phase1.rawMaterials} · 已分配 ${totalAssigned}`);
-        lines.push(`库存 ${phase1.goodsInventory} · 国内需求 ${phase1.domesticDemand}`);
+        lines.push(`库存 ${phase1.goodsInventory} · 国内需求 ${formatNumber(phase1.domesticDemand)}`);
       }
       return lines;
     }
 
     if (decisionFlowState.activeStep === "domestic") {
       return [
-        `消费 · 剩余 ${currentPlayerState.budgetPools.domesticMarket - spendSummary.domesticSpend}`,
+        `消费池 · 剩余 ${workspace.budgetPools.domesticMarket - spendSummary.domesticSpend}`,
         `已选动作 ${getDomesticActionCount(draftPayload)} 项`,
       ];
     }
 
     if (decisionFlowState.activeStep === "military") {
       return [
-        `军事 · 财政剩余 ${currentPlayerState.budgetPools.governmentFiscal - spendSummary.governmentSpend}`,
+        `军事 · 财政剩余 ${workspace.budgetPools.governmentFiscal - spendSummary.governmentSpend}`,
         `军事动作 ${draft.militaryPlan.militaryActions.length} 次 / 建交 ${draft.militaryPlan.diplomacyActions.length} 项`,
         `海外承接预览 ${workspace.militaryWorkspace.overseasCapacity}`,
       ];
     }
 
     return [
-      `政府 · 剩余 ${currentPlayerState.budgetPools.governmentFiscal - spendSummary.governmentSpend}`,
+      `政府 · 剩余 ${workspace.budgetPools.governmentFiscal - spendSummary.governmentSpend}`,
       `比例预告 ${formatRatio(calculateRatioPreview(workspace, draftPayload))}`,
     ];
   }
 
   if (currentPhase === "market" && "sellableInventory" in currentPlayerWorkspace) {
     const workspace = currentPlayerWorkspace as MarketPlayerPhaseWorkspace;
-    const saleOrders = getSaleOrders(draftPayload);
-    const domesticAllocated = saleOrders
-      .filter((item) => item.market === "domestic")
-      .reduce((sum, item) => sum + item.quantity, 0);
-    const overseasAllocated = saleOrders
-      .filter((item) => item.market === "overseas")
-      .reduce((sum, item) => sum + item.quantity, 0);
+    const { domesticAllocated, overseasAllocated } = getMarketAllocationTotals(draftPayload);
 
     return [
       `国内承接剩余 ${Math.max(workspace.domesticMarketCapacity - domesticAllocated, 0)}`,
@@ -487,13 +515,16 @@ function buildChecklistLines(
   currentPhase: GamePhase | null,
   decisionFlowState: DecisionFlowState,
   draftPayload: Record<string, unknown>,
+  currentPlayerWorkspace: PlayerPhaseWorkspace | null = null,
 ): string[] {
   if (currentPhase === "decision") {
     const draft = normalizeDecisionDraft(draftPayload);
+    const contentContext = getDecisionContentContext(currentPlayerWorkspace);
     return DECISION_STEP_ORDER.map((step) => {
-      const decided = hasDecisionStepContent(draft, step);
-      const status = decided ? "已决策" : "未决策";
-      const summary = getDecisionStepCompletionSummary(draft, step);
+      const decided = hasDecisionStepContent(draft, step, contentContext);
+      const reviewState = decisionFlowState.stepReviewStateByStep[step];
+      const status = decided ? "已决策" : getDecisionStepReviewLabel(reviewState);
+      const summary = getDecisionStepCompletionSummary(draft, step, contentContext);
       return `${getDecisionStepLabel(step)} · ${status} · ${summary}`;
     });
   }
@@ -575,14 +606,15 @@ function buildValidationLines({
     const lines: string[] = [];
     const spendSummary = calculateDecisionSpendSummary(currentPlayerWorkspace, draftPayload);
     const draft = normalizeDecisionDraft(draftPayload);
-    if (spendSummary.factorySpend > currentPlayerState.budgetPools.factory) {
-      lines.push(`工厂计划消耗 ${spendSummary.factorySpend}，超过工厂预算 ${currentPlayerState.budgetPools.factory}。`);
+    const budgetPools = currentPlayerWorkspace.budgetPools;
+    if (spendSummary.factorySpend > budgetPools.factory) {
+      lines.push(`工厂计划消耗 ${spendSummary.factorySpend}，超过工厂预算 ${budgetPools.factory}。`);
     }
-    if (spendSummary.domesticSpend > currentPlayerState.budgetPools.domesticMarket) {
-      lines.push(`内需动作消耗 ${spendSummary.domesticSpend}，超过国内消费市场预算 ${currentPlayerState.budgetPools.domesticMarket}。`);
+    if (spendSummary.domesticSpend > budgetPools.domesticMarket) {
+      lines.push(`内需动作消耗 ${spendSummary.domesticSpend}，超过国内消费市场预算 ${budgetPools.domesticMarket}。`);
     }
-    if (spendSummary.governmentSpend > currentPlayerState.budgetPools.governmentFiscal) {
-      lines.push(`政府动作消耗 ${spendSummary.governmentSpend}，超过政府财政预算 ${currentPlayerState.budgetPools.governmentFiscal}。`);
+    if (spendSummary.governmentSpend > budgetPools.governmentFiscal) {
+      lines.push(`政府动作消耗 ${spendSummary.governmentSpend}，超过政府财政预算 ${budgetPools.governmentFiscal}。`);
     }
     const phase1 = currentPlayerWorkspace.phase1Economy;
     if (phase1) {
@@ -633,12 +665,7 @@ function buildValidationLines({
 
   if (currentPhase === "market" && "sellableInventory" in currentPlayerWorkspace) {
     const lines: string[] = [];
-    const domesticAllocated = getSaleOrders(draftPayload)
-      .filter((item) => item.market === "domestic")
-      .reduce((sum, item) => sum + item.quantity, 0);
-    const overseasAllocated = getSaleOrders(draftPayload)
-      .filter((item) => item.market === "overseas")
-      .reduce((sum, item) => sum + item.quantity, 0);
+    const { domesticAllocated, overseasAllocated, totalAllocated, usesPhase1Market } = getMarketAllocationTotals(draftPayload);
 
     if (domesticAllocated > currentPlayerWorkspace.domesticMarketCapacity) {
       lines.push(`国内卖量 ${domesticAllocated} 超过承接能力 ${currentPlayerWorkspace.domesticMarketCapacity}。`);
@@ -646,12 +673,25 @@ function buildValidationLines({
     if (overseasAllocated > currentPlayerWorkspace.overseasMarketCapacity) {
       lines.push(`海外卖量 ${overseasAllocated} 超过承接能力 ${currentPlayerWorkspace.overseasMarketCapacity}。`);
     }
-    for (const inventory of currentPlayerWorkspace.sellableInventory) {
-      const allocated = getSaleOrders(draftPayload)
-        .filter((item) => item.goodsId === inventory.goodsId)
-        .reduce((sum, item) => sum + item.quantity, 0);
-      if (allocated > inventory.quantity) {
-        lines.push(`${inventory.label} 已分配 ${allocated}，超过库存 ${inventory.quantity}。`);
+    if (usesPhase1Market) {
+      const goodsAvailable = currentPlayerWorkspace.phase1GoodsAvailable
+        ?? currentPlayerWorkspace.phase1Economy?.goodsInventory
+        ?? 0;
+      const domesticDemand = currentPlayerWorkspace.phase1Economy?.domesticDemand ?? goodsAvailable;
+      if (domesticAllocated > domesticDemand) {
+        lines.push(`国内卖量 ${domesticAllocated} 超过本轮需求 ${domesticDemand}。`);
+      }
+      if (totalAllocated > goodsAvailable) {
+        lines.push(`总卖量 ${totalAllocated} 超过库存 ${goodsAvailable}。`);
+      }
+    } else {
+      for (const inventory of currentPlayerWorkspace.sellableInventory) {
+        const allocated = getSaleOrders(draftPayload)
+          .filter((item) => item.goodsId === inventory.goodsId)
+          .reduce((sum, item) => sum + item.quantity, 0);
+        if (allocated > inventory.quantity) {
+          lines.push(`${inventory.label} 已分配 ${allocated}，超过库存 ${inventory.quantity}。`);
+        }
       }
     }
 
@@ -696,13 +736,14 @@ function buildDraftSummaryLines(phase: GamePhase | null, draftPayload: Record<st
   return lines;
 }
 
-function normalizeDecisionDraft(draftPayload: Record<string, unknown>) {
+function normalizeDecisionDraft(draftPayload: Record<string, unknown>): DecisionPhaseDraft {
   const draft = draftPayload as {
     factoryPlan?: {
       productionOrders?: Array<{ goodsId: string; quantity: number }>;
       expansionOrders?: Array<{ routeId: string; quantity: number }>;
       upgradeOrders?: Array<{ routeId: string; quantity: number }>;
       newFactoryOrders?: Array<{ routeId: string; quantity: number }>;
+      factoryActions?: Array<{ actionId: string }>;
     };
     domesticMarketPlan?: {
       domesticMarketActions?: Array<{ actionId: string }>;
@@ -711,17 +752,27 @@ function normalizeDecisionDraft(draftPayload: Record<string, unknown>) {
       pointPurchases?: Array<{ pointType: "tech" | "military"; quantity: number }>;
       strategySelections?: Array<{ actionId: string }>;
       techResearch?: Array<{ techId: string }>;
+      adminPurchases?: number;
     };
     militaryPlan?: {
       unlockColonization?: boolean;
       militaryActions?: Array<{ actionId: string }>;
       diplomacyActions?: Array<{ actionId: string }>;
       colonizationActions?: Array<{ targetRegionId: string }>;
+      navalDeployment?: Record<string, number>;
+      conquestActions?: Array<{ regionId: string; infantry: number; artillery: number }>;
+      lootingActions?: Array<{ regionId: string; resourceType: string }>;
+    };
+    talentPlan?: {
+      talentUnlocks?: Array<{ nodeId: string }>;
     };
     abilitySelection?: {
       abilityId?: string;
       targetIdeology?: string;
     };
+    reforms?: string[];
+    activatePolicies?: string[];
+    deactivatePolicies?: string[];
     phase1Production?: {
       rawMaterialAssignments?: Record<string, number>;
     };
@@ -744,6 +795,7 @@ function normalizeDecisionDraft(draftPayload: Record<string, unknown>) {
       expansionOrders: draft.factoryPlan?.expansionOrders ?? [],
       upgradeOrders: draft.factoryPlan?.upgradeOrders ?? [],
       newFactoryOrders: draft.factoryPlan?.newFactoryOrders ?? [],
+      factoryActions: draft.factoryPlan?.factoryActions ?? [],
     },
     domesticMarketPlan: {
       domesticMarketActions: draft.domesticMarketPlan?.domesticMarketActions ?? [],
@@ -752,6 +804,7 @@ function normalizeDecisionDraft(draftPayload: Record<string, unknown>) {
       pointPurchases: draft.governmentPlan?.pointPurchases ?? [],
       strategySelections: draft.governmentPlan?.strategySelections ?? [],
       techResearch: draft.governmentPlan?.techResearch ?? [],
+      adminPurchases: draft.governmentPlan?.adminPurchases ?? 0,
     },
     militaryPlan: {
       unlockColonization: draft.militaryPlan?.unlockColonization ?? false,
@@ -763,47 +816,16 @@ function normalizeDecisionDraft(draftPayload: Record<string, unknown>) {
       lootingActions: draft.militaryPlan?.lootingActions ?? [],
     },
     abilitySelection,
+    talentPlan: {
+      talentUnlocks: draft.talentPlan?.talentUnlocks ?? [],
+    },
+    reforms: draft.reforms ?? [],
+    activatePolicies: draft.activatePolicies ?? [],
+    deactivatePolicies: draft.deactivatePolicies ?? [],
     phase1Production: {
       rawMaterialAssignments: draft.phase1Production?.rawMaterialAssignments ?? {},
     },
   };
-}
-
-function hasDecisionStepContent(
-  draft: ReturnType<typeof normalizeDecisionDraft>,
-  step: DecisionStepId,
-): boolean {
-  if (step === "factory") {
-    const hasPhase1 = Object.keys(draft.phase1Production.rawMaterialAssignments).length > 0
-      && Object.values(draft.phase1Production.rawMaterialAssignments).some((v) => v > 0);
-    return (
-      hasPhase1 ||
-      draft.factoryPlan.productionOrders.some((o) => o.quantity > 0) ||
-      draft.factoryPlan.expansionOrders.some((o) => o.quantity > 0) ||
-      draft.factoryPlan.upgradeOrders.some((o) => o.quantity > 0) ||
-      draft.factoryPlan.newFactoryOrders.some((o) => o.quantity > 0)
-    );
-  }
-  if (step === "domestic") {
-    return draft.domesticMarketPlan.domesticMarketActions.length > 0;
-  }
-  if (step === "military") {
-    return (
-      draft.militaryPlan.unlockColonization
-      || draft.militaryPlan.militaryActions.length > 0
-      || draft.militaryPlan.diplomacyActions.length > 0
-      || draft.militaryPlan.colonizationActions.length > 0
-    );
-  }
-  if (step === "research") {
-    return draft.governmentPlan.techResearch.length > 0;
-  }
-  return (
-    draft.governmentPlan.pointPurchases.length > 0
-    || draft.governmentPlan.strategySelections.length > 0
-    || draft.governmentPlan.techResearch.length > 0
-    || Boolean(draft.abilitySelection?.abilityId)
-  );
 }
 
 function calculateDecisionSpendSummary(
@@ -883,12 +905,62 @@ function getSaleOrders(draftPayload: Record<string, unknown>): Array<{
     : [];
 }
 
+function getMarketAllocationTotals(draftPayload: Record<string, unknown>): {
+  domesticAllocated: number;
+  overseasAllocated: number;
+  totalAllocated: number;
+  usesPhase1Market: boolean;
+} {
+  const phase1Market = draftPayload.phase1Market as {
+    domesticAllocation?: unknown;
+    externalAllocations?: Array<{ marketId?: unknown; quantity?: unknown }>;
+  } | undefined;
+
+  if (phase1Market && typeof phase1Market === "object") {
+    const domesticAllocated = toSafeQuantity(phase1Market.domesticAllocation);
+    const overseasAllocated = Array.isArray(phase1Market.externalAllocations)
+      ? phase1Market.externalAllocations.reduce((sum, item) => sum + toSafeQuantity(item.quantity), 0)
+      : 0;
+    return {
+      domesticAllocated,
+      overseasAllocated,
+      totalAllocated: domesticAllocated + overseasAllocated,
+      usesPhase1Market: true,
+    };
+  }
+
+  const saleOrders = getSaleOrders(draftPayload);
+  const domesticAllocated = saleOrders
+    .filter((item) => item.market === "domestic")
+    .reduce((sum, item) => sum + item.quantity, 0);
+  const overseasAllocated = saleOrders
+    .filter((item) => item.market === "overseas")
+    .reduce((sum, item) => sum + item.quantity, 0);
+  return {
+    domesticAllocated,
+    overseasAllocated,
+    totalAllocated: domesticAllocated + overseasAllocated,
+    usesPhase1Market: false,
+  };
+}
+
+function toSafeQuantity(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.max(0, Math.floor(value))
+    : 0;
+}
+
 function formatRatio(ratio: {
   domesticMarket: number;
   factory: number;
   governmentFiscal: number;
 }): string {
   return `${ratio.domesticMarket} / ${ratio.factory} / ${ratio.governmentFiscal}`;
+}
+
+function formatNumber(value: number): string {
+  if (!Number.isFinite(value)) return "0";
+  return `${Math.round(value * 100) / 100}`;
 }
 
 function isIdeologyKey(value: unknown): value is IdeologyKey {

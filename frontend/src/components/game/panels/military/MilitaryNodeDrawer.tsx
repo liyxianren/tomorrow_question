@@ -66,8 +66,8 @@ type RegionDrawerProps = {
   colonizationSelected: boolean;
   conquestEntry: ConquestActionSelection | null;
   lootedSet: Set<string>;
-  maxInfantryByPoints: number;
-  maxArtilleryByBudget: number;
+  maxInfantryAvailable: number;
+  maxArtilleryAvailable: number;
   onToggleDiplomacy: (actionId: string, checked: boolean) => void;
   onColonize: (regionId: string) => void;
   onCancelColonize: (regionId: string) => void;
@@ -189,8 +189,8 @@ function RegionDrawer({
   colonizationSelected,
   conquestEntry,
   lootedSet,
-  maxInfantryByPoints,
-  maxArtilleryByBudget,
+  maxInfantryAvailable,
+  maxArtilleryAvailable,
   onToggleDiplomacy,
   onColonize,
   onCancelColonize,
@@ -351,6 +351,9 @@ function RegionDrawer({
                     }}
                   />
                 </div>
+                <div className="mnd__indep-hint">
+                  供需失衡会提高独立倾向，守备会抵消；掠夺额外 +2。
+                </div>
               </div>
             )}
 
@@ -383,7 +386,7 @@ function RegionDrawer({
                   })}
                 </div>
                 <div className="mnd__loot-hint">
-                  ⚠️ 掠夺会增加殖民地独立倾向 (+2)
+                  掠夺会增加殖民地独立倾向 (+2)
                 </div>
               </div>
             )}
@@ -397,7 +400,7 @@ function RegionDrawer({
           >
             <div className="mnd__section-label">⚔️ 征服</div>
             <div className="mnd__conquest-row">
-              <span className="mnd__conquest-label">步兵: {infantry} (消耗 {infantry * 10} 军事点)</span>
+              <span className="mnd__conquest-label">步兵: {infantry} / {maxInfantryAvailable}（投入已有部队）</span>
               <button
                 aria-label={`减少${opt.regionLabel}步兵`}
                 className="mnd__btn"
@@ -409,12 +412,12 @@ function RegionDrawer({
                 aria-label={`增加${opt.regionLabel}步兵`}
                 className="mnd__btn"
                 type="button"
-                disabled={infantry >= maxInfantryByPoints}
+                disabled={infantry >= maxInfantryAvailable}
                 onClick={() => onConquestChange(opt.regionId, infantry + 1, artillery)}
               >+</button>
             </div>
             <div className="mnd__conquest-row">
-              <span className="mnd__conquest-label">炮兵: {artillery} (消耗 {artillery * 16} 政府财政)</span>
+              <span className="mnd__conquest-label">炮兵: {artillery} / {maxArtilleryAvailable}（投入已有部队）</span>
               <button
                 aria-label={`减少${opt.regionLabel}炮兵`}
                 className="mnd__btn"
@@ -426,7 +429,7 @@ function RegionDrawer({
                 aria-label={`增加${opt.regionLabel}炮兵`}
                 className="mnd__btn"
                 type="button"
-                disabled={artillery >= maxArtilleryByBudget}
+                disabled={artillery >= maxArtilleryAvailable}
                 onClick={() => onConquestChange(opt.regionId, infantry, artillery + 1)}
               >+</button>
             </div>

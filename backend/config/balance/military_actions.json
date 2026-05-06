@@ -2,47 +2,43 @@
   "militaryActions": {
     "recruit_infantry": {
       "label": "征募步兵",
-      "budgetPoolCost": 2,
-      "militaryPointCost": 0,
+      "budgetPoolCost": 0,
+      "militaryPointCost": 1,
       "maxPerRound": 3,
       "effects": {
-        "militaryPointsDelta": 1,
         "armyDelta": {"infantry": 1}
       },
-      "description": "征募步兵部队，增加军事点和步兵单位。"
+      "description": "消耗军事点征募步兵部队。"
     },
     "train_artillery": {
       "label": "训练炮兵",
-      "budgetPoolCost": 16,
-      "militaryPointCost": 0,
+      "budgetPoolCost": 0,
+      "militaryPointCost": 2,
       "maxPerRound": 2,
       "effects": {
-        "militaryPointsDelta": 2,
         "armyDelta": {"artillery": 1}
       },
-      "description": "训练重型炮兵，增加军事点和炮兵单位。"
+      "description": "消耗军事点训练重型炮兵。"
     },
     "naval_drill": {
       "label": "海军演练",
-      "budgetPoolCost": 4,
-      "militaryPointCost": 0,
+      "budgetPoolCost": 0,
+      "militaryPointCost": 1,
       "maxPerRound": 2,
       "effects": {
-        "militaryPointsDelta": 1,
         "overseasMarketCapacityDelta": 1
       },
-      "description": "开展海军演练，提升军事点并扩展海外市场承接力。"
+      "description": "消耗军事点开展海军演练，扩展本轮海外市场承接力。"
     },
     "build_fleet": {
       "label": "建造舰队",
-      "budgetPoolCost": 50,
-      "militaryPointCost": 0,
+      "budgetPoolCost": 0,
+      "militaryPointCost": 3,
       "maxPerRound": 1,
       "effects": {
-        "navyDelta": {"fleets": 1},
-        "militaryPointsDelta": 1
+        "navyDelta": {"fleets": 1}
       },
-      "description": "建造新舰队，增强海军力量。"
+      "description": "消耗军事点建造新舰队，增强海军封锁能力。"
     }
   },
   "diplomacyActions": {

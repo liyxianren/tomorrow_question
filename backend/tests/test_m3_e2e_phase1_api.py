@@ -384,7 +384,7 @@ class Phase1MarketE2ETests(_Phase1ApiTestCase):
         response = self.client.post(
             "/api/v1/games/game-1/phases/market/submit",
             json={
-                "payload": _market_payload_with_phase1({"domesticAllocation": 10})
+                "payload": _market_payload_with_phase1({"domesticAllocation": 8})
             },
             headers={"X-Session-Id": "session-1"},
         )
@@ -393,7 +393,7 @@ class Phase1MarketE2ETests(_Phase1ApiTestCase):
         persisted = self._load_persisted_payload(
             phase=GamePhase.MARKET, player_id="player-1"
         )
-        self.assertEqual(persisted["phase1Market"]["domesticAllocation"], 10)
+        self.assertEqual(persisted["phase1Market"]["domesticAllocation"], 8)
 
         snapshot = self._load_snapshot()
         turn_inputs = self._load_turn_inputs(phase=GamePhase.MARKET)
@@ -441,7 +441,7 @@ class Phase1SettlementE2ETests(_Phase1ApiTestCase):
             },  # domestic capacity = 4
             budget_pools={
                 "domesticMarket": 80,  # equilibrium = 80 / 8 = 10
-                "factory": 0,
+                "factory": 4,
                 "governmentFiscal": 0,
             },
         )
@@ -468,6 +468,7 @@ class Phase1SettlementE2ETests(_Phase1ApiTestCase):
         self.assertEqual(prussia.phase1_economy.goods_inventory, 4)
         # Prussia initial 25 raw materials, 4 consumed by handicraft assignment.
         self.assertEqual(prussia.phase1_economy.raw_materials, 21)
+        self.assertEqual(prussia.budget_pools["factory"], 0)
 
         # Persist the resolved snapshot and advance to MARKET so the API
         # accepts the next submission.
@@ -491,12 +492,12 @@ class Phase1SettlementE2ETests(_Phase1ApiTestCase):
         )
         snapshot = market_resolution.updated_snapshot
         prussia = self._player(snapshot, "player-3")
-        # demand = 8, supply = 4, equilibrium = 80/8 = 10 capped to 8;
-        # shortage 4/8=0.5 raises raw price to 12 but cap clamps it to 8.
-        # sold = min(4, 4, 8, capacity 4) = 4. revenue = 4 * 8 = 32.
-        self.assertEqual(prussia.phase1_economy.market_metrics["finalPrice"], 8.0)
+        # demand = 8, supply = 4, equilibrium = 80/8 = 10;
+        # shortage 4/8=0.5 keeps the final price at 10 under the configured cap.
+        # sold = min(4, 4, 8, capacity 4) = 4. revenue = 4 * 10 = 40.
+        self.assertEqual(prussia.phase1_economy.market_metrics["finalPrice"], 10.0)
         self.assertEqual(prussia.phase1_economy.market_metrics["soldQuantity"], 4.0)
-        self.assertEqual(prussia.national_income, 32)
+        self.assertEqual(prussia.national_income, 40)
 
         # ---- Settlement phase: 5:3:2 split applies. ----
         # Zero out Prussia's incidental state so the settlement assertion is
@@ -512,17 +513,17 @@ class Phase1SettlementE2ETests(_Phase1ApiTestCase):
             snapshot=snapshot, turn_inputs=[]
         )
         prussia = self._player(settlement_resolution.updated_snapshot, "player-3")
-        # 32 → 50% / 30% / 20% = int(16) / int(9.6)=9 / 32-16-9=7 into the legacy
-        # budget pools. Then 40% consumption drain: domesticMarket int(16 * 0.6) = 9.
-        self.assertEqual(prussia.budget_pools["domesticMarket"], 9)
-        self.assertEqual(prussia.budget_pools["factory"], 9)
-        self.assertEqual(prussia.budget_pools["governmentFiscal"], 7)
+        # 40 → 50% / 30% / 20% = int(20) / int(12) / 8 into the legacy
+        # budget pools. Then 40% consumption drain: domesticMarket int(20 * 0.6) = 12.
+        self.assertEqual(prussia.budget_pools["domesticMarket"], 12)
+        self.assertEqual(prussia.budget_pools["factory"], 12)
+        self.assertEqual(prussia.budget_pools["governmentFiscal"], 8)
         # Sum of deltas equals national income minus the consumption-pool drain.
         self.assertEqual(
             prussia.budget_pools["domesticMarket"]
             + prussia.budget_pools["factory"]
             + prussia.budget_pools["governmentFiscal"],
-            25,
+            32,
         )
 
 

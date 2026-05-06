@@ -1,8 +1,10 @@
 import type {
   ApiErrorCode,
+  BudgetPools,
   DecisionSubmission,
   GamePhase,
   MarketSubmission,
+  Phase1EconomyWorkspace,
 } from "../../types";
 
 const SUBMIT_ERROR_CODE_LABELS: Partial<Record<ApiErrorCode, string>> = {
@@ -29,6 +31,9 @@ const INVALID_SUBMISSION_MESSAGE_PATTERNS: ReadonlyArray<{
   { match: /^Diplomacy target (\S+) has already been established/i, translate: (m) => `区域 ${m[1]} 已建交，本轮不能重复提交。` },
   { match: /^Diplomacy target (\S+) is duplicated/i, translate: (m) => `区域 ${m[1]} 在本次提交中重复。` },
   { match: /^Domestic action (\S+) requires required technology/i, translate: (m) => `国民消费动作 ${m[1]} 需要前置科技。` },
+  { match: /^Factory action (\S+) requires required technology/i, translate: (m) => `工厂调度 ${m[1]} 需要前置科技。` },
+  { match: /^Factory action (\S+) is duplicated/i, translate: (m) => `工厂调度 ${m[1]} 重复提交。` },
+  { match: /^Unknown factory action: (\S+)/i, translate: (m) => `未知工厂调度：${m[1]}。` },
   { match: /^Expansion route (\S+) is not unlocked/i, translate: (m) => `生产线 ${m[1]} 尚未解锁，无法扩张。` },
   { match: /^Upgrade route (\S+) requires route technology/i, translate: (m) => `生产线 ${m[1]} 需要先研究升级科技。` },
   { match: /^Upgrade route (\S+) has no available source route capacity/i, translate: (m) => `生产线 ${m[1]} 没有可升级的源产能。` },
@@ -37,6 +42,9 @@ const INVALID_SUBMISSION_MESSAGE_PATTERNS: ReadonlyArray<{
   { match: /^Overseas market region (\S+) is not accessible/i, translate: (m) => `海外区域 ${m[1]} 当前不可访问。` },
   { match: /^Overseas market region (\S+) is invalid/i, translate: (m) => `海外区域 ${m[1]} 无效。` },
   { match: /^Overseas market sale order requires regionId/i, translate: () => "海外销售指令缺少区域。" },
+  { match: /^Domestic market allocation \((\d+)\) exceeds domestic market capacity \((\d+)\)/i, translate: (m) => `国内投放 ${m[1]} 超过本轮承接能力 ${m[2]}。` },
+  { match: /^Domestic market allocation \((\d+)\) exceeds domestic demand \((\d+)\)/i, translate: (m) => `国内投放 ${m[1]} 超过本轮需求 ${m[2]}。` },
+  { match: /^Domestic market allocation \((\d+)\) exceeds available goods inventory \((\d+)\)/i, translate: (m) => `国内投放 ${m[1]} 超过库存 ${m[2]}。` },
   { match: /^The current phase deadline has already passed/i, translate: () => "提交截止时间已过。" },
   { match: /^The player has already submitted/i, translate: () => "你已提交过本阶段。" },
   { match: /^Settlement is a system phase/i, translate: () => "结算阶段不接受玩家提交。" },
@@ -125,6 +133,7 @@ export function createInitialPhaseDraft(phase: GamePhase): PhaseDraft {
           expansionOrders: [],
           upgradeOrders: [],
           newFactoryOrders: [],
+          factoryActions: [],
         },
         domesticMarketPlan: {
           domesticMarketActions: [],
@@ -172,4 +181,41 @@ export function buildDecisionSubmission(draft: DecisionPhaseDraft): Record<strin
     ...draft,
     ...(techId ? { researchTarget: techId } : {}),
   };
+}
+
+export function createDefaultPhase1ProductionDraft(
+  workspace: {
+    phase1Economy?: Phase1EconomyWorkspace;
+    budgetPools?: Pick<BudgetPools, "factory">;
+  } | null | undefined,
+): Phase1ProductionDraft | undefined {
+  const phase1 = workspace?.phase1Economy;
+  if (!phase1 || phase1.rawMaterials <= 0) {
+    return undefined;
+  }
+
+  let remainingRawMaterials = Math.min(
+    Math.max(0, Math.floor(phase1.rawMaterials)),
+    Math.max(0, Math.floor(workspace?.budgetPools?.factory ?? phase1.rawMaterials)),
+  );
+  const rawMaterialAssignments: Record<string, number> = {};
+  const modesByEfficiency = [...phase1.productionModes]
+    .filter((mode) => mode.isAvailable && mode.outputRatio > 0 && mode.currentCapacity > 0)
+    .sort((a, b) => b.outputRatio - a.outputRatio);
+
+  for (const mode of modesByEfficiency) {
+    if (remainingRawMaterials <= 0) {
+      break;
+    }
+    const capacity = Math.max(0, Math.floor(mode.currentCapacity));
+    const assigned = Math.min(capacity, remainingRawMaterials);
+    if (assigned > 0) {
+      rawMaterialAssignments[mode.mode] = assigned;
+      remainingRawMaterials -= assigned;
+    }
+  }
+
+  return Object.keys(rawMaterialAssignments).length > 0
+    ? { rawMaterialAssignments }
+    : undefined;
 }

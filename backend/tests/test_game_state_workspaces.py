@@ -172,7 +172,32 @@ class GameStateWorkspaceTests(unittest.TestCase):
         self.assertIn("description", trade_agreement)
         self.assertIn("效果", trade_agreement["description"], "description should include effect summary")
 
-        self.assertEqual(gov["pointPurchaseCosts"], {"tech": 2, "military": 10})
+        self.assertEqual(gov["pointPurchaseCosts"], {"tech": 2, "military": 6})
+
+    def test_decision_workspace_previews_active_event_effects(self) -> None:
+        snapshot = build_snapshot()
+        britain = next(p for p in snapshot.player_states if p.player_id == "player-1")
+        britain.budget_pools["governmentFiscal"] = 10
+        britain.military_points = 0
+        snapshot.active_events = [
+            {
+                "eventId": "test_event",
+                "label": "测试事件",
+                "effects": {
+                    "governmentFiscalBudgetDelta": -2,
+                    "domesticMarketCapacityDelta": 2,
+                    "militaryPointsDelta": 1,
+                },
+            }
+        ]
+
+        workspace = build_decision_player_workspace(snapshot, britain)
+
+        self.assertEqual(workspace["budgetPools"]["governmentFiscal"], 8)
+        self.assertEqual(workspace["domesticMarketCapacity"], 10)
+        self.assertEqual(workspace["militaryWorkspace"]["militaryPoints"], 1)
+        self.assertEqual(britain.budget_pools["governmentFiscal"], 10, "workspace preview must not mutate snapshot state")
+        self.assertEqual(britain.military_points, 0, "workspace preview must not consume event effects early")
 
     def test_decision_workspace_marks_region_colonizable_after_unlock_and_diplomacy(self) -> None:
         snapshot = build_snapshot()

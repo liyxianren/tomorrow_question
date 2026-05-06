@@ -3,11 +3,11 @@
 Military System API E2E Test — 明日之问
 
 Tests:
-1. recruit_infantry: costs budgetPoolCost=2 from governmentFiscal, gives militaryPointsDelta=1
-2. train_artillery: costs budgetPoolCost=16, gives militaryPointsDelta=2
-3. naval_drill: costs budgetPoolCost=4, gives militaryPointsDelta=1 + overseasMarketCapacityDelta=1
-4. build_fleet: costs budgetPoolCost=50, gives navyDelta.fleets=1 + militaryPointsDelta=1
-5. unlockColonization: costs colonizationUnlockCost=10 from governmentFiscal
+1. recruit_infantry: costs militaryPointCost=1, gives armyDelta.infantry=1
+2. train_artillery: costs militaryPointCost=2, gives armyDelta.artillery=1
+3. naval_drill: costs militaryPointCost=1, gives overseasMarketCapacityDelta=1
+4. build_fleet: costs militaryPointCost=3, gives navyDelta.fleets=1
+5. unlockColonization: costs colonizationUnlockCost from governmentFiscal
 6. colonization after unlock + diplomacy
 7. Multiple recruit_infantry in one round (maxPerRound=3)
 8. Insufficient budget rejection
@@ -104,6 +104,7 @@ def build_decision_payload(
     research_target=None,
     talent_unlocks=None,
     admin_purchases=0,
+    point_purchases=None,
     reforms=None,
 ) -> dict:
     """Build a minimal decision submission payload."""
@@ -120,7 +121,7 @@ def build_decision_payload(
             ],
         },
         "governmentPlan": {
-            "pointPurchases": [],
+            "pointPurchases": point_purchases or [],
             "strategySelections": [],
             "techResearch": [],
             "adminPurchases": admin_purchases,
@@ -232,13 +233,18 @@ def test_snapshot_check():
 
 
 def test_recruit_infantry():
-    """recruit_infantry: costs 2 govFiscal, gives +1 militaryPoint."""
+    """recruit_infantry: costs 1 militaryPoint, gives +1 infantry."""
     print("\n=== TEST: recruit_infantry ===")
     ctx = setup_game()
     state = get_my_state(ctx)
     gov_before = state["budgetPools"]["governmentFiscal"]
     mp_before = state["militaryPoints"]
-    print(f"  Before: govFiscal={gov_before}, mp={mp_before}")
+    infantry_before = state.get("army", {}).get("infantry", 0)
+    print(f"  Before: govFiscal={gov_before}, mp={mp_before}, infantry={infantry_before}")
+
+    if mp_before < 1:
+        print(f"  ⚠️ SKIP: militaryPoints={mp_before} < 1")
+        return
 
     payload = build_decision_payload(military_actions=["recruit_infantry"])
     ctx = full_cycle(ctx, payload)
@@ -246,10 +252,12 @@ def test_recruit_infantry():
     state2 = get_my_state(ctx)
     mp_after = state2["militaryPoints"]
     gov_after = state2["budgetPools"]["governmentFiscal"]
-    print(f"  After:  govFiscal={gov_after}, mp={mp_after}")
+    infantry_after = state2.get("army", {}).get("infantry", 0)
+    print(f"  After:  govFiscal={gov_after}, mp={mp_after}, infantry={infantry_after}")
 
-    assert mp_after == mp_before + 1, f"Expected mp={mp_before+1}, got {mp_after}"
-    print("  ✅ PASS: recruit_infantry gives +1 mp")
+    assert mp_after == mp_before - 1, f"Expected mp={mp_before-1}, got {mp_after}"
+    assert infantry_after == infantry_before + 1, f"Expected infantry={infantry_before+1}, got {infantry_after}"
+    print("  ✅ PASS: recruit_infantry spends 1 mp and gives +1 infantry")
 
 
 def test_multiple_recruit_infantry():
@@ -259,7 +267,12 @@ def test_multiple_recruit_infantry():
     state = get_my_state(ctx)
     mp_before = state["militaryPoints"]
     gov = state["budgetPools"]["governmentFiscal"]
-    print(f"  Before: govFiscal={gov}, mp={mp_before}")
+    infantry_before = state.get("army", {}).get("infantry", 0)
+    print(f"  Before: govFiscal={gov}, mp={mp_before}, infantry={infantry_before}")
+
+    if mp_before < 3:
+        print(f"  ⚠️ SKIP: militaryPoints={mp_before} < 3")
+        return
 
     payload = build_decision_payload(
         military_actions=["recruit_infantry", "recruit_infantry", "recruit_infantry"]
@@ -268,10 +281,12 @@ def test_multiple_recruit_infantry():
 
     state2 = get_my_state(ctx)
     mp_after = state2["militaryPoints"]
-    print(f"  After:  mp={mp_after}")
+    infantry_after = state2.get("army", {}).get("infantry", 0)
+    print(f"  After:  mp={mp_after}, infantry={infantry_after}")
 
-    assert mp_after == mp_before + 3, f"Expected mp={mp_before+3}, got {mp_after}"
-    print("  ✅ PASS: 3x recruit_infantry = +3 mp")
+    assert mp_after == mp_before - 3, f"Expected mp={mp_before-3}, got {mp_after}"
+    assert infantry_after == infantry_before + 3, f"Expected infantry={infantry_before+3}, got {infantry_after}"
+    print("  ✅ PASS: 3x recruit_infantry spends 3 mp and gives +3 infantry")
 
 
 def test_recruit_budget_overflow():
@@ -294,16 +309,17 @@ def test_recruit_budget_overflow():
 
 
 def test_train_artillery():
-    """train_artillery: costs 16, gives +2 mp."""
+    """train_artillery: costs 2 militaryPoints, gives +1 artillery."""
     print("\n=== TEST: train_artillery ===")
     ctx = setup_game()
     state = get_my_state(ctx)
     gov = state["budgetPools"]["governmentFiscal"]
     mp_before = state["militaryPoints"]
-    print(f"  Before: govFiscal={gov}, mp={mp_before}")
+    artillery_before = state.get("army", {}).get("artillery", 0)
+    print(f"  Before: govFiscal={gov}, mp={mp_before}, artillery={artillery_before}")
 
-    if gov < 16:
-        print(f"  ⚠️ SKIP: govFiscal={gov} < 16")
+    if mp_before < 2:
+        print(f"  ⚠️ SKIP: militaryPoints={mp_before} < 2")
         return
 
     payload = build_decision_payload(military_actions=["train_artillery"])
@@ -311,14 +327,16 @@ def test_train_artillery():
 
     state2 = get_my_state(ctx)
     mp_after = state2["militaryPoints"]
-    print(f"  After:  mp={mp_after}")
+    artillery_after = state2.get("army", {}).get("artillery", 0)
+    print(f"  After:  mp={mp_after}, artillery={artillery_after}")
 
-    assert mp_after == mp_before + 2, f"Expected mp={mp_before+2}, got {mp_after}"
-    print("  ✅ PASS: train_artillery gives +2 mp")
+    assert mp_after == mp_before - 2, f"Expected mp={mp_before-2}, got {mp_after}"
+    assert artillery_after == artillery_before + 1, f"Expected artillery={artillery_before+1}, got {artillery_after}"
+    print("  ✅ PASS: train_artillery spends 2 mp and gives +1 artillery")
 
 
 def test_naval_drill():
-    """naval_drill: costs 4, gives +1 mp."""
+    """naval_drill: costs 1 militaryPoint, expands overseas capacity."""
     print("\n=== TEST: naval_drill ===")
     ctx = setup_game()
     state = get_my_state(ctx)
@@ -326,8 +344,8 @@ def test_naval_drill():
     mp_before = state["militaryPoints"]
     print(f"  Before: govFiscal={gov}, mp={mp_before}")
 
-    if gov < 4:
-        print(f"  ⚠️ SKIP: govFiscal={gov} < 4")
+    if mp_before < 1:
+        print(f"  ⚠️ SKIP: militaryPoints={mp_before} < 1")
         return
 
     payload = build_decision_payload(military_actions=["naval_drill"])
@@ -337,12 +355,12 @@ def test_naval_drill():
     mp_after = state2["militaryPoints"]
     print(f"  After:  mp={mp_after}")
 
-    assert mp_after == mp_before + 1, f"Expected mp={mp_before+1}, got {mp_after}"
-    print("  ✅ PASS: naval_drill gives +1 mp")
+    assert mp_after == mp_before - 1, f"Expected mp={mp_before-1}, got {mp_after}"
+    print("  ✅ PASS: naval_drill spends 1 mp")
 
 
 def test_build_fleet():
-    """build_fleet: costs 50, gives +1 fleet +1 mp."""
+    """build_fleet: costs 3 military points, gives +1 fleet."""
     print("\n=== TEST: build_fleet ===")
     ctx = setup_game()
     state = get_my_state(ctx)
@@ -351,8 +369,8 @@ def test_build_fleet():
     fleets_before = state["navy"]["fleets"]
     print(f"  Before: govFiscal={gov}, mp={mp_before}, fleets={fleets_before}")
 
-    if gov < 50:
-        print(f"  ⚠️ SKIP: govFiscal={gov} < 50")
+    if mp_before < 3:
+        print(f"  ⚠️ SKIP: militaryPoints={mp_before} < 3")
         return
 
     payload = build_decision_payload(military_actions=["build_fleet"])
@@ -363,13 +381,13 @@ def test_build_fleet():
     fleets_after = state2["navy"]["fleets"]
     print(f"  After:  mp={mp_after}, fleets={fleets_after}")
 
-    assert mp_after == mp_before + 1, f"Expected mp={mp_before+1}, got {mp_after}"
+    assert mp_after == mp_before - 3, f"Expected mp={mp_before-3}, got {mp_after}"
     assert fleets_after == fleets_before + 1, f"Expected fleets={fleets_before+1}, got {fleets_after}"
-    print("  ✅ PASS: build_fleet gives +1 fleet +1 mp")
+    print("  ✅ PASS: build_fleet spends 3 mp and gives +1 fleet")
 
 
 def test_unlock_colonization():
-    """unlockColonization costs 10 govFiscal. Test unlock alone (no diplomacy)."""
+    """unlockColonization costs government fiscal. Test unlock alone (no diplomacy)."""
     print("\n=== TEST: unlockColonization ===")
     ctx = setup_game()
     state = get_my_state(ctx)
@@ -402,7 +420,14 @@ def test_military_diplomacy_combined():
     mp_before = state["militaryPoints"]
     print(f"  Before: govFiscal={gov}, mp={mp_before}")
 
-    # recruit(2) + establish_americas(3) = 5 total
+    if mp_before < 1:
+        print(f"  ⚠️ SKIP: militaryPoints={mp_before} < 1")
+        return
+    if gov < 3:
+        print(f"  ⚠️ SKIP: govFiscal={gov} < 3")
+        return
+
+    # recruit spends 1 military point; establish_americas spends government fiscal.
     payload = build_decision_payload(
         military_actions=["recruit_infantry"],
         diplomacy_actions=["establish_americas"],
@@ -414,13 +439,13 @@ def test_military_diplomacy_combined():
     diplo = state2.get("establishedDiplomacy", [])
     print(f"  After:  mp={mp_after}, diplomacy={diplo}")
 
-    assert mp_after == mp_before + 1, f"Expected mp={mp_before+1}, got {mp_after}"
+    assert mp_after == mp_before - 1, f"Expected mp={mp_before-1}, got {mp_after}"
     assert "americas" in diplo, "Expected americas in diplomacy"
     print("  ✅ PASS: military + diplomacy combined")
 
 
 def test_colonization_full_flow():
-    """Full colonization: round1 unlock → round2 diplomacy+recruit → round3 colonize."""
+    """Full colonization: round1 unlock → round2 diplomacy+buy military points → round3 colonize."""
     print("\n=== TEST: colonization full flow (multi-round) ===")
     ctx = setup_game()
     state = get_my_state(ctx)
@@ -447,15 +472,14 @@ def test_colonization_full_flow():
         print("  ❌ FAIL: Colonization not unlocked after round 1")
         return
 
-    # Round 2: establish diplomacy + recruit infantry to build mp
-    # diplomacy(3) + recruit*3(6) = 9
-    if gov_r2 < 9:
-        # Just do diplomacy if budget is tight
+    # Round 2: establish diplomacy and, if budget allows, buy military points for colonization.
+    if gov_r2 < 13:
+        # Just do diplomacy if budget is tight.
         payload2 = build_decision_payload(diplomacy_actions=["establish_americas"])
     else:
         payload2 = build_decision_payload(
             diplomacy_actions=["establish_americas"],
-            military_actions=["recruit_infantry", "recruit_infantry", "recruit_infantry"],
+            point_purchases=[{"pointType": "military", "quantity": 1}],
         )
     ctx = full_cycle(ctx, payload2)
 
@@ -469,8 +493,8 @@ def test_colonization_full_flow():
         print("  ❌ FAIL: Americas diplomacy not established")
         return
 
-    # Round 3: colonize americas (needs 3 mp)
-    if mp_r3 >= 3:
+    # Round 3: colonize americas (current balance needs 2 mp)
+    if mp_r3 >= 2:
         payload3 = build_decision_payload(
             colonization_actions=[{"targetRegionId": "americas"}],
         )
@@ -495,9 +519,9 @@ def test_colonization_full_flow():
             print(f"  Round {round_no3}: mp={state4.get('militaryPoints', '?')}")
             print("  ✅ PASS (partial): colonization submitted; verify via region state")
     else:
-        # Need one more round of recruit
+        # Need one more round of military point purchase.
         payload3 = build_decision_payload(
-            military_actions=["recruit_infantry", "recruit_infantry", "recruit_infantry"],
+            point_purchases=[{"pointType": "military", "quantity": 1}],
         )
         ctx = full_cycle(ctx, payload3)
         state4 = get_my_state(ctx)
@@ -505,7 +529,7 @@ def test_colonization_full_flow():
         round_no3 = ctx["activeGame"].get("currentRound", "?")
         print(f"  Round {round_no3}: mp={mp_r4} (recruiting more)")
 
-        if mp_r4 >= 3:
+        if mp_r4 >= 2:
             payload4 = build_decision_payload(
                 colonization_actions=[{"targetRegionId": "americas"}],
             )

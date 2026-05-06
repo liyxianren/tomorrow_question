@@ -12,14 +12,14 @@
 | # | 测试项 | 结果 | 说明 |
 |---|--------|------|------|
 | 1 | 快照可读性 | ✅ | govFiscal=10, mp=1, army=0, navy=1fleet |
-| 2 | recruit_infantry ×1 | ✅ | 消耗2 govFiscal, +1 mp |
-| 3 | recruit_infantry ×3 | ✅ | 消耗6 govFiscal, +3 mp (maxPerRound=3) |
+| 2 | recruit_infantry ×1 | ✅ | 消耗1 mp, +1 infantry |
+| 3 | recruit_infantry ×3 | ✅ | 消耗3 mp, +3 infantry (maxPerRound=3) |
 | 4 | recruit_infantry ×50 | ✅ | 服务端验证拒绝 400: "exceeds maxPerRound" |
-| 5 | train_artillery | ⚠️ SKIP | govFiscal=10 < 16 (成本不足) |
-| 6 | naval_drill | ✅ | 消耗4 govFiscal, +1 mp |
-| 7 | build_fleet | ⚠️ SKIP | govFiscal=10 < 50 (成本不足) |
-| 8 | unlockColonization | ✅ | 消耗10 govFiscal, colonizationUnlocked=True |
-| 9 | 军事+外交组合 | ✅ | recruit(2)+americas(3)=5, mp+1, diplo+americas |
+| 5 | train_artillery | ⚠️ SKIP | 初始 mp=1 < 2 |
+| 6 | naval_drill | ✅ | 消耗1 mp, +1 overseas capacity |
+| 7 | build_fleet | ⚠️ SKIP | 初始 mp=1 < 3 |
+| 8 | unlockColonization | ✅ | 消耗 colonizationUnlockCost 政府财政, colonizationUnlocked=True |
+| 9 | 军事+外交组合 | ✅ | recruit 消耗 mp；americas 建交消耗政府财政 |
 | 10 | 重复外交 | ✅ | 服务端验证拒绝 400: "duplicated" |
 | 11 | 无效行动ID | ✅ | 服务端验证拒绝 400: "Unknown military action" |
 | 12 | 殖民全流程 (4回合) | ✅ | unlock→diplo+recruit→recruit→colonize americas |
@@ -44,12 +44,12 @@
 **修复** (commit 41e82c9):
 1. 在 `_apply_military_plan` 中添加 unlockColonization 处理:
    - 检查 `military_plan.get("unlockColonization")`
-   - 扣除 `colonization_unlock_cost` (10) 从 governmentFiscal
+   - 扣除 `colonization_unlock_cost` 从 governmentFiscal
    - 设置 `player_state.colonization_unlocked = True`
 
 2. 新增 `_apply_colonization_actions()` 函数:
    - 前置条件: `colonization_unlocked=True`, 外交建交, 路线可达
-   - 消耗: `colonizationMilitaryPointCost` (3 mp)
+   - 消耗: `colonizationMilitaryPointCost` mp
    - 限制: `maxColonizationsPerRound` (1)
    - 效果: 设置 `region.controller`, `region.access_level = COLONY`
 
@@ -61,7 +61,7 @@
 | 超过 maxPerRound | 400 拒绝: "exceeds maxPerRound" |
 | 重复外交目标 | 400 拒绝: "duplicated" |
 | 已建交区域再建交 | 400 拒绝: "already been established" |
-| 预算不足 | 决策阶段静默跳过 (不报错) |
+| 政府财政或军事点不足 | 提交验证拒绝；规则执行阶段也会防御性跳过 |
 
 ### 初始配置 (Britain)
 
@@ -77,29 +77,28 @@
 
 ### 军事行动成本
 
-| 行动 | govFiscal成本 | 效果 | maxPerRound |
-|------|---------------|------|-------------|
-| recruit_infantry | 2 | +1 mp | 3 |
-| train_artillery | 16 | +2 mp | 2 |
-| naval_drill | 4 | +1 mp, +1 omc | 2 |
-| build_fleet | 50 | +1 fleet, +1 mp | 1 |
-| unlockColonization | 10 | unlock flag | 1 |
-| establish_americas | 3 | +americas diplo | 1 |
+| 行动 | 资源成本 | 效果 | maxPerRound |
+|------|----------|------|-------------|
+| recruit_infantry | 1 mp | +1 infantry | 3 |
+| train_artillery | 2 mp | +1 artillery | 2 |
+| naval_drill | 1 mp | +1 omc | 2 |
+| build_fleet | 3 mp | +1 fleet | 1 |
+| unlockColonization | governmentFiscal: colonizationUnlockCost | unlock flag | 1 |
+| establish_americas | governmentFiscal: 3 | +americas diplo | 1 |
 
 ---
 
 ## 殖民全流程时序
 
 ```
-Round 1: unlockColonization (10 fiscal) → colonizationUnlocked=True
-Round 2: establish_americas (3) + recruit×3 (6) = 9 fiscal → diplo+americas, mp+3
-Round 3: recruit×3 (6) → mp+3 (总计 mp=4+初始)
-Round 4: colonize americas (3 mp) → americas.controller = britain
+Round 1: unlockColonization (fiscal) + establish_americas (fiscal) → colonizationUnlocked=True, diplo+americas
+Round 2: 通过政府财政购买军事点，或等待其它政府策略获得军事点
+Round 3: colonize americas (mp) → americas.controller = britain
 ```
 
 注意: 需要多回合因为:
-- 初始 govFiscal=10 不够同时 unlock(10) + diplomacy(3)
-- 每回合结算会增加收入 (生产→销售→分配)
+- 初始 militaryPoints=1，通常不足以直接殖民
+- 每回合结算会增加收入，政府财政可按 10:1 购买军事点
 
 ---
 

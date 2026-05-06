@@ -59,12 +59,11 @@ function calculateNonResearchSpendByPool(
   workspace: DecisionPlayerPhaseWorkspace,
   draft: PhaseDraftByPhase["decision"],
 ): BudgetPools {
-  // TODO: Legacy 1.0 factory spend — uses productionOptions/expansionOptions/upgradeOptions/newFactoryOptions
-  // In 2.0 mode (phase1Economy), factoryPlan orders may be empty; spend comes from phase1Production instead
   const productionSpend = draft.factoryPlan.productionOrders.reduce((sum, item) => {
     const option = workspace.productionOptions.find((candidate) => candidate.goodsId === item.goodsId);
     return sum + item.quantity * (option?.unitBudgetCost ?? 0);
   }, 0);
+  const phase1ProductionSpend = calculatePhase1ProductionSpend(workspace, draft);
   const expansionSpend = draft.factoryPlan.expansionOrders.reduce((sum, item) => {
     const option = workspace.expansionOptions.find((candidate) => candidate.routeId === item.routeId);
     return sum + item.quantity * (option?.unitBudgetCost ?? 0);
@@ -77,6 +76,21 @@ function calculateNonResearchSpendByPool(
     const option = workspace.newFactoryOptions.find((candidate) => candidate.routeId === item.routeId);
     return sum + item.quantity * (option?.unitBudgetCost ?? 0);
   }, 0);
+  const factoryActionSpend = (draft.factoryPlan.factoryActions ?? []).reduce((sum, selection) => {
+    const action = workspace.factoryActions?.find((item) => item.actionId === selection.actionId);
+    if (!action) return sum;
+    return sum + action.cost - getNumericEffect(action.effects, "factoryBudgetDelta");
+  }, 0);
+  const factoryActionDomesticBudgetDelta = (draft.factoryPlan.factoryActions ?? []).reduce((sum, selection) => {
+    const action = workspace.factoryActions?.find((item) => item.actionId === selection.actionId);
+    return sum + getNumericEffect(action?.effects, "domesticMarketBudgetDelta");
+  }, 0);
+  const factoryActionGovernmentBudgetDelta = (draft.factoryPlan.factoryActions ?? []).reduce((sum, selection) => {
+    const action = workspace.factoryActions?.find((item) => item.actionId === selection.actionId);
+    return sum
+      + getNumericEffect(action?.effects, "governmentFiscalBudgetDelta")
+      + getNumericEffect(action?.effects, "governmentFiscalDelta");
+  }, 0);
   const domesticSpend = draft.domesticMarketPlan.domesticMarketActions.reduce((sum, selection) => {
     const action = workspace.domesticMarketActions.find((item) => item.actionId === selection.actionId);
     return sum + (action?.cost ?? 0);
@@ -84,13 +98,18 @@ function calculateNonResearchSpendByPool(
   const governmentPurchaseSpend = draft.governmentPlan.pointPurchases.reduce((sum, purchase) => {
     return sum + purchase.quantity * workspace.governmentActions.pointPurchaseCosts[purchase.pointType];
   }, 0);
+  const governmentAdminSpend = Math.max(0, draft.governmentPlan.adminPurchases ?? 0)
+    * (workspace.governmentReforms?.adminPurchaseCost ?? 0);
   const governmentStrategySpend = draft.governmentPlan.strategySelections.reduce((sum, selection) => {
     const action = workspace.governmentActions.strategies.find((item) => item.actionId === selection.actionId);
     return sum + (action?.cost ?? 0);
   }, 0);
-  const militaryActionSpend = draft.militaryPlan.militaryActions.reduce((sum, selection) => {
-    const action = workspace.militaryWorkspace.availableMilitaryActions.find((item) => item.actionId === selection.actionId);
-    return sum + (action?.cost ?? 0);
+  const policyActivationSpend = (draft.activatePolicies ?? []).reduce((sum, policyId) => {
+    const policy = workspace.governmentReforms?.availablePolicies.find((item) => item.policyId === policyId);
+    if (!policy || policy.isActive) {
+      return sum;
+    }
+    return sum + policy.budgetCost;
   }, 0);
   const diplomacySpend = draft.militaryPlan.diplomacyActions.reduce((sum, selection) => {
     const action = workspace.militaryWorkspace.availableDiplomacyActions.find((item) => item.actionId === selection.actionId);
@@ -100,10 +119,58 @@ function calculateNonResearchSpendByPool(
     ? (workspace.militaryWorkspace.colonizationCapability.unlockCost ?? 0)
     : 0;
   return {
-    domesticMarket: domesticSpend,
-    factory: productionSpend + expansionSpend + upgradeSpend + newFactorySpend,
-    governmentFiscal: governmentPurchaseSpend + governmentStrategySpend + militaryActionSpend + diplomacySpend + colonizationSpend,
+    domesticMarket: domesticSpend - factoryActionDomesticBudgetDelta,
+    factory: productionSpend + phase1ProductionSpend + expansionSpend + upgradeSpend + newFactorySpend + factoryActionSpend,
+    governmentFiscal: (
+      governmentPurchaseSpend
+      + governmentAdminSpend
+      + governmentStrategySpend
+      + policyActivationSpend
+      + diplomacySpend
+      + colonizationSpend
+      - factoryActionGovernmentBudgetDelta
+    ),
   };
+}
+
+export function calculatePhase1ProductionSpend(
+  workspace: DecisionPlayerPhaseWorkspace,
+  draft: PhaseDraftByPhase["decision"],
+): number {
+  const unitCost = workspace.productionOptions.find((option) => option.goodsId === "phase1_goods")?.unitBudgetCost ?? 1;
+  const assignments = draft.phase1Production?.rawMaterialAssignments ?? {};
+  const phase1 = workspace.phase1Economy;
+  if (!phase1 || phase1.productionModes.length === 0) {
+    return Object.values(assignments).reduce((sum, quantity) => {
+      return sum + Math.max(0, Math.floor(Number.isFinite(quantity) ? quantity : 0)) * unitCost;
+    }, 0);
+  }
+
+  const rawMaterials = Math.max(0, phase1.rawMaterials + sumSelectedFactoryActionEffect(workspace, draft, "rawMaterialsDelta"));
+  let remainingRawMaterials = rawMaterials;
+  let remainingCapacity = Math.max(
+    0,
+    phase1.productionModes
+      .filter((mode) => mode.isAvailable && mode.mode !== "idle")
+      .reduce((sum, mode) => sum + Math.max(0, mode.currentCapacity), 0)
+      + sumSelectedFactoryActionEffect(workspace, draft, "phase1ProductionRawCapacityDelta"),
+  );
+  let rawUsed = 0;
+
+  for (const mode of phase1.productionModes.filter((item) => item.mode !== "idle")) {
+    const requested = Math.max(0, Math.floor(assignments[mode.mode] ?? 0));
+    const capped = Math.min(
+      requested,
+      Math.max(0, mode.currentCapacity),
+      remainingRawMaterials,
+      remainingCapacity,
+    );
+    rawUsed += capped;
+    remainingRawMaterials -= capped;
+    remainingCapacity -= capped;
+  }
+
+  return rawUsed * unitCost;
 }
 
 export function calculateDecisionSpendSummary(
@@ -134,13 +201,18 @@ export function calculateGovernmentSpendBreakdown(
   const governmentPurchaseSpend = draft.governmentPlan.pointPurchases.reduce((sum, purchase) => {
     return sum + purchase.quantity * workspace.governmentActions.pointPurchaseCosts[purchase.pointType];
   }, 0);
+  const governmentAdminSpend = Math.max(0, draft.governmentPlan.adminPurchases ?? 0)
+    * (workspace.governmentReforms?.adminPurchaseCost ?? 0);
   const governmentStrategySpend = draft.governmentPlan.strategySelections.reduce((sum, selection) => {
     const action = workspace.governmentActions.strategies.find((item) => item.actionId === selection.actionId);
     return sum + (action?.cost ?? 0);
   }, 0);
-  const militaryActionSpend = draft.militaryPlan.militaryActions.reduce((sum, selection) => {
-    const action = workspace.militaryWorkspace.availableMilitaryActions.find((item) => item.actionId === selection.actionId);
-    return sum + (action?.cost ?? 0);
+  const policyActivationSpend = (draft.activatePolicies ?? []).reduce((sum, policyId) => {
+    const policy = workspace.governmentReforms?.availablePolicies.find((item) => item.policyId === policyId);
+    if (!policy || policy.isActive) {
+      return sum;
+    }
+    return sum + policy.budgetCost;
   }, 0);
   const diplomacySpend = draft.militaryPlan.diplomacyActions.reduce((sum, selection) => {
     const action = workspace.militaryWorkspace.availableDiplomacyActions.find((item) => item.actionId === selection.actionId);
@@ -150,8 +222,8 @@ export function calculateGovernmentSpendBreakdown(
     ? (workspace.militaryWorkspace.colonizationCapability.unlockCost ?? 0)
     : 0;
 
-  const government = governmentPurchaseSpend + governmentStrategySpend;
-  const military = militaryActionSpend + diplomacySpend + colonizationSpend;
+  const government = governmentPurchaseSpend + governmentAdminSpend + governmentStrategySpend + policyActivationSpend;
+  const military = diplomacySpend + colonizationSpend;
   return {
     total: government + military,
     government,
@@ -211,9 +283,6 @@ export function buildGovernmentActionDescription(
   action: DecisionPlayerPhaseWorkspace["governmentActions"]["strategies"][number],
 ): string {
   const parts = [action.description ?? "执行后会改变国家结构。"];
-  if ((action.techPointDelta ?? 0) !== 0) {
-    parts.push(`科技点 ${formatSignedValue(action.techPointDelta ?? 0)}`);
-  }
   if ((action.militaryPointDelta ?? 0) !== 0) {
     parts.push(`军事点 ${formatSignedValue(action.militaryPointDelta ?? 0)}`);
   }
@@ -229,11 +298,12 @@ export function buildMilitaryActionDescription(
     | DecisionPlayerPhaseWorkspace["militaryWorkspace"]["availableDiplomacyActions"][number],
 ): string {
   const parts = [action.description ?? "执行后会改变当前海外扩张态势。"];
-  parts.push(`消耗政府财政 ${action.cost}。`);
   if ("maxPerRound" in action) {
+    parts.push(`消耗军事点 ${action.cost}。`);
     parts.push(`本轮上限 ${action.maxPerRound} 次。`);
   }
   if ("targetRegionLabel" in action) {
+    parts.push(`消耗政府财政 ${action.cost}。`);
     parts.push(`目标区域：${action.targetRegionLabel}。`);
   }
   return parts.join(" ");
@@ -293,6 +363,15 @@ export function calculateGovernmentPointPreview(
     }
     techPoints = Math.max(0, techPoints - (action.techPointCost ?? 0) + (action.techPointDelta ?? 0));
     militaryPoints = Math.max(0, militaryPoints - (action.militaryPointCost ?? 0) + (action.militaryPointDelta ?? 0));
+  }
+
+  for (const selection of draft.factoryPlan.factoryActions ?? []) {
+    const action = workspace.factoryActions?.find((item) => item.actionId === selection.actionId);
+    if (!action) {
+      continue;
+    }
+    techPoints = Math.max(0, techPoints + getNumericEffect(action.effects, "techPointsDelta"));
+    militaryPoints = Math.max(0, militaryPoints + getNumericEffect(action.effects, "militaryPointsDelta"));
   }
 
   return {
@@ -363,7 +442,8 @@ export function getTechResearchLockedReason(
     return null;
   }
 
-  const missingPrerequisites = (tech.prerequisites ?? [])
+  const prerequisites = "prerequisites" in tech ? tech.prerequisites : [];
+  const missingPrerequisites = prerequisites
     .filter((prerequisite) => !preview.unlockedTechIds.has(prerequisite))
     .map((prerequisite) => flattenTechTree(workspace.techTree).find((candidate) => candidate.techId === prerequisite)?.label ?? prerequisite);
 
@@ -371,8 +451,10 @@ export function getTechResearchLockedReason(
     return `前置：${missingPrerequisites.join("、")}`;
   }
 
-  if ("budgetPool" in tech && "budgetCost" in tech && tech.budgetCost > 0 && preview.remainingBudgets[tech.budgetPool as keyof BudgetPools] < tech.budgetCost) {
-    return `${getBudgetPoolLabel(tech.budgetPool)}不足`;
+  const budgetPool = "budgetPool" in tech ? tech.budgetPool : undefined;
+  const budgetCost = "budgetCost" in tech ? tech.budgetCost : undefined;
+  if (budgetPool && typeof budgetCost === "number" && budgetCost > 0 && preview.remainingBudgets[budgetPool as keyof BudgetPools] < budgetCost) {
+    return `${getBudgetPoolLabel(budgetPool)}不足`;
   }
 
   return null;
@@ -384,12 +466,15 @@ export function buildTechResearchDescription(
   workspace: DecisionPlayerPhaseWorkspace,
   queued: boolean,
 ): string {
-  const budgetLabel = ("budgetCost" in tech && tech.budgetCost > 0)
-    ? `消耗 ${tech.budgetCost} ${getBudgetPoolLabel("budgetPool" in tech ? tech.budgetPool : "governmentFiscal")}。`
+  const budgetPool = "budgetPool" in tech ? tech.budgetPool : undefined;
+  const budgetCost = "budgetCost" in tech ? tech.budgetCost : undefined;
+  const budgetLabel = (typeof budgetCost === "number" && budgetCost > 0)
+    ? `消耗 ${budgetCost} ${getBudgetPoolLabel(budgetPool ?? "governmentFiscal")}。`
     : "通过研究设施推进。";
   const parts = [budgetLabel];
-  if ((tech.prerequisites ?? []).length > 0) {
-    const labels = (tech.prerequisites ?? []).map((prerequisite) => {
+  const prerequisites = "prerequisites" in tech ? tech.prerequisites : [];
+  if (prerequisites.length > 0) {
+    const labels = prerequisites.map((prerequisite) => {
       return flattenTechTree(workspace.techTree).find((candidate) => candidate.techId === prerequisite)?.label ?? prerequisite;
     });
     parts.push(`前置：${labels.join("、")}。`);
@@ -413,15 +498,19 @@ export function buildTechUnlockSummary(
   workspace: DecisionPlayerPhaseWorkspace,
 ): string {
   const parts: string[] = [];
-  if ("unlocksGoods" in tech && tech.unlocksGoods?.length > 0) {
-    parts.push(`商品：${tech.unlocksGoods.map(getGoodsLabel).join("、")}`);
+  const unlocksGoods = "unlocksGoods" in tech ? tech.unlocksGoods ?? [] : [];
+  const unlocksRoutes = "unlocksRoutes" in tech ? tech.unlocksRoutes ?? [] : [];
+  const unlocksActions = "unlocksActions" in tech ? tech.unlocksActions ?? [] : [];
+  if (unlocksGoods.length > 0) {
+    parts.push(`商品：${unlocksGoods.map(getGoodsLabel).join("、")}`);
   }
-  if ("unlocksRoutes" in tech && tech.unlocksRoutes?.length > 0) {
-    parts.push(`路线：${tech.unlocksRoutes.map(getRouteLabel).join("、")}`);
+  if (unlocksRoutes.length > 0) {
+    parts.push(`路线：${unlocksRoutes.map(getRouteLabel).join("、")}`);
   }
-  if ("unlocksActions" in tech && tech.unlocksActions?.length > 0) {
-    const actionLabels = tech.unlocksActions.map((actionId) => {
+  if (unlocksActions.length > 0) {
+    const actionLabels = unlocksActions.map((actionId) => {
       return workspace.domesticMarketActions.find((action) => action.actionId === actionId)?.label
+        ?? workspace.factoryActions?.find((action) => action.actionId === actionId)?.label
         ?? workspace.governmentActions.strategies.find((action) => action.actionId === actionId)?.label
         ?? actionId;
     });
@@ -431,7 +520,7 @@ export function buildTechUnlockSummary(
 }
 
 export function formatRatio(ratio: IncomeAllocationRatio): string {
-  return `${ratio.domesticMarket} / ${ratio.factory} / ${ratio.governmentFiscal}`;
+  return `${formatRatioValue(ratio.domesticMarket)} / ${formatRatioValue(ratio.factory)} / ${formatRatioValue(ratio.governmentFiscal)}`;
 }
 
 export function formatSignedValue(value: number): string {
@@ -465,19 +554,33 @@ function roundRatioValue(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
+function formatRatioValue(value: number): string {
+  if (!Number.isFinite(value)) {
+    return "0";
+  }
+  const rounded = Math.round(value * 100) / 100;
+  return Number.isInteger(rounded) ? `${rounded}` : `${rounded}`;
+}
+
 const EFFECT_LABELS: Record<string, string> = {
   handicraftCapacityDelta: "手工业产能",
   domesticMarketCapacityDelta: "国内容量",
   domesticPriceBonusDelta: "国内价格",
   overseasMarketCapacityDelta: "海外容量",
   overseasPriceBonusDelta: "海外价格",
-  techPointsDelta: "科技点",
   militaryPointsDelta: "军事点",
   controlledRegionsDelta: "控制区域",
   factoryBudgetDelta: "工厂预算",
   governmentFiscalBudgetDelta: "政府预算",
   domesticMarketBudgetDelta: "国内预算",
   productionOutputMultiplier: "产出倍率",
+  rawMaterialsPerTurnDelta: "每回合原材料",
+  factoryUpgradeCostReductionPercent: "升级成本",
+  factoryExpansionCostReductionPercent: "扩产成本",
+  newFactoryCostReductionPercent: "新建成本",
+  phase1ProductionOutputBonusPercent: "生产产出",
+  rawMaterialsDelta: "原材料",
+  phase1ProductionRawCapacityDelta: "投料上限",
 };
 
 const TEMPORARY_EFFECT_KEYS = new Set([
@@ -485,6 +588,21 @@ const TEMPORARY_EFFECT_KEYS = new Set([
   "domesticPriceBonusDelta",
   "overseasMarketCapacityDelta",
   "overseasPriceBonusDelta",
+  "phase1ProductionRawCapacityDelta",
+  "productionOutputMultiplier",
+]);
+
+const PERCENT_EFFECT_KEYS = new Set([
+  "factoryUpgradeCostReductionPercent",
+  "factoryExpansionCostReductionPercent",
+  "newFactoryCostReductionPercent",
+  "phase1ProductionOutputBonusPercent",
+]);
+
+const COST_REDUCTION_EFFECT_KEYS = new Set([
+  "factoryUpgradeCostReductionPercent",
+  "factoryExpansionCostReductionPercent",
+  "newFactoryCostReductionPercent",
 ]);
 
 const NESTED_EFFECT_LABELS: Record<string, Record<string, string>> = {
@@ -511,7 +629,14 @@ export function buildEffectMetrics(
       if (!label) continue;
       const tone = value > 0 ? "positive" : value < 0 ? "negative" : undefined;
       const temporary = TEMPORARY_EFFECT_KEYS.has(key);
-      metrics.push({ label, value: formatSignedValue(value), tone, temporary });
+      const displayValue = key === "productionOutputMultiplier"
+        ? `x${value}`
+        : PERCENT_EFFECT_KEYS.has(key)
+        ? COST_REDUCTION_EFFECT_KEYS.has(key)
+          ? `-${Math.abs(value)}%`
+          : `${value > 0 ? "+" : ""}${value}%`
+        : formatSignedValue(value);
+      metrics.push({ label, value: displayValue, tone, temporary });
     } else if (typeof value === "object" && value !== null) {
       const nestedLabels = NESTED_EFFECT_LABELS[key];
       if (!nestedLabels) continue;
@@ -525,4 +650,23 @@ export function buildEffectMetrics(
   }
 
   return metrics;
+}
+
+function getNumericEffect(
+  effects: Record<string, number | Record<string, number>> | undefined,
+  key: string,
+): number {
+  const value = effects?.[key];
+  return typeof value === "number" ? value : 0;
+}
+
+function sumSelectedFactoryActionEffect(
+  workspace: DecisionPlayerPhaseWorkspace,
+  draft: PhaseDraftByPhase["decision"],
+  effectKey: string,
+): number {
+  return (draft.factoryPlan.factoryActions ?? []).reduce((sum, selection) => {
+    const action = workspace.factoryActions?.find((item) => item.actionId === selection.actionId);
+    return sum + getNumericEffect(action?.effects, effectKey);
+  }, 0);
 }

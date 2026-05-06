@@ -173,11 +173,16 @@ class NewFactoryOrderPayload(TypedDict):
     quantity: int
 
 
+class FactoryActionSelectionPayload(TypedDict):
+    actionId: str
+
+
 class FactoryPlanPayload(TypedDict):
     productionOrders: list[ProductionOrderPayload]
     expansionOrders: list[ExpansionOrderPayload]
     upgradeOrders: list[UpgradeOrderPayload]
     newFactoryOrders: list[NewFactoryOrderPayload]
+    factoryActions: NotRequired[list[FactoryActionSelectionPayload]]
 
 
 class DomesticMarketActionSelectionPayload(TypedDict):

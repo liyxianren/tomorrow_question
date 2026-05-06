@@ -258,6 +258,104 @@ describe("SettlementPage", () => {
     expect(screen.getByTestId("settlement-log-group-economy")).toHaveTextContent("经济与财政");
   });
 
+  it("localizes raw backend settlement logs before rendering the final timeline", () => {
+    const finalResult = createFinalResult();
+    finalResult.finalLogs = [
+      {
+        gameId: "game-15",
+        roundNo: 15,
+        phase: "settlement",
+        kind: "settlement.resolved",
+        message: "france completed national income allocation.",
+        details: {},
+        createdAt: "2026-03-30T13:58:00Z",
+      },
+      {
+        gameId: "game-15",
+        roundNo: 15,
+        phase: "settlement",
+        kind: "settlement.phase_resolved",
+        message: "settlement settled.",
+        details: {},
+        createdAt: "2026-03-30T14:00:00Z",
+      },
+    ];
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: "/settlement/game-15",
+            state: { result: finalResult, roomCode: "ROOM15" },
+          },
+        ]}
+      >
+        <Routes>
+          <Route element={<SettlementPage />} path="/settlement/:gameId" />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("settlement-final-logs")).toHaveTextContent("法国完成第 15 回合财政分配。");
+    expect(screen.getByTestId("settlement-final-logs")).toHaveTextContent("终局财政结算已完成。");
+    expect(screen.queryByText("france completed national income allocation.")).not.toBeInTheDocument();
+    expect(screen.queryByText("settlement settled.")).not.toBeInTheDocument();
+  });
+
+  it("prioritizes player military and strategic logs before routine economy logs", () => {
+    const finalResult = createFinalResult();
+    finalResult.finalLogs = [
+      {
+        gameId: "game-15",
+        roundNo: 15,
+        phase: "settlement",
+        kind: "settlement.resolved",
+        message: "法国完成财政结算。",
+        details: { playerId: "player-2" },
+        createdAt: "2026-03-30T13:58:00Z",
+      },
+      {
+        gameId: "game-15",
+        roundNo: 12,
+        phase: "decision",
+        kind: "military.naval_blockade",
+        message: "英国部署舰队封锁北大西洋。",
+        details: { playerId: "player-1" },
+        createdAt: "2026-03-30T13:20:00Z",
+      },
+      {
+        gameId: "game-15",
+        roundNo: 15,
+        phase: null,
+        kind: "final_result",
+        message: "大英帝国取得最终胜利。",
+        details: {},
+        createdAt: "2026-03-30T14:00:00Z",
+      },
+    ];
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: "/settlement/game-15",
+            state: { result: finalResult, roomCode: "ROOM15" },
+          },
+        ]}
+      >
+        <Routes>
+          <Route element={<SettlementPage />} path="/settlement/:gameId" />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const timelineText = screen.getByTestId("settlement-final-logs").textContent ?? "";
+    expect(timelineText.indexOf("英国部署舰队封锁北大西洋。")).toBeGreaterThanOrEqual(0);
+    expect(timelineText.indexOf("英国部署舰队封锁北大西洋。")).toBeLessThan(
+      timelineText.indexOf("法国完成财政结算。"),
+    );
+  });
+
   it("collapses long log messages by default and toggles on click", () => {
     const finalResult = createFinalResult();
     const longMessage = "这是一段非常详尽的复盘信息，".repeat(8);

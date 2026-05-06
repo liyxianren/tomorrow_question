@@ -44,39 +44,39 @@
     },
     "nodes": {
       "ind_basic_metallurgy": {
-        "label": "基础冶金",
+        "label": "工坊整顿",
         "branch": "industry",
         "techPointCost": 1,
-        "description": "掌握基础冶金工艺，提升手工业基础产能。",
+        "description": "整顿分散工坊和账房流程，稳定扩大早期手工业产能。",
         "permanentEffects": { "handicraftCapacityDelta": 1 }
       },
       "ind_process_improvement": {
-        "label": "工艺改良",
+        "label": "原料调度",
         "branch": "industry",
         "techPointCost": 2,
-        "description": "改进生产流程，降低工厂运营成本。",
-        "permanentEffects": { "factoryBudgetDelta": 4 }
+        "description": "建立原料调拨和仓储制度，每回合获得更多可投产原材料，并保留少量工厂预算余量。",
+        "permanentEffects": { "rawMaterialsPerTurnDelta": 3, "factoryBudgetDelta": 4 }
       },
       "ind_standardization": {
-        "label": "标准化生产",
+        "label": "标准化零件",
         "branch": "industry",
         "techPointCost": 3,
-        "description": "推行标准化生产体系，显著扩大手工业产能。",
-        "permanentEffects": { "handicraftCapacityDelta": 2 }
+        "description": "推行标准化零件和工序，让产线改造更便宜，同时扩大基础产能。",
+        "permanentEffects": { "handicraftCapacityDelta": 2, "factoryUpgradeCostReductionPercent": 20 }
       },
       "ind_steam_mastery": {
-        "label": "蒸汽动力精通",
+        "label": "轮班制度",
         "branch": "industry",
         "techPointCost": 4,
-        "description": "精通蒸汽动力技术，全面提升工业生产效率。",
-        "permanentEffects": { "factoryBudgetDelta": 6, "handicraftCapacityDelta": 1 }
+        "description": "建立稳定轮班和维护班组，提高既有产线的实际产出，并继续扩充基础产能。",
+        "permanentEffects": { "factoryBudgetDelta": 6, "handicraftCapacityDelta": 1, "phase1ProductionOutputBonusPercent": 10 }
       },
       "ind_industrial_revolution": {
-        "label": "工业大革命",
+        "label": "工业综合体",
         "branch": "industry",
         "techPointCost": 5,
-        "description": "引领工业革命，手工业产能和工厂预算获得颠覆性提升。",
-        "permanentEffects": { "handicraftCapacityDelta": 4, "factoryBudgetDelta": 8 }
+        "description": "形成完整工业综合体，新厂建设更便宜，原料供给和工厂预算同步增强。",
+        "permanentEffects": { "handicraftCapacityDelta": 4, "factoryBudgetDelta": 8, "rawMaterialsPerTurnDelta": 5, "newFactoryCostReductionPercent": 15 }
       },
       "civ_market_research": {
         "label": "市场调研",

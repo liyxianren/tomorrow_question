@@ -43,7 +43,7 @@
       "unitOutput": 1,
       "domesticReferencePrice": 5,
       "overseasBasePrice": 6,
-      "demandThreshold": 30,
+      "demandThreshold": 40,
       "priceFloor": 2,
       "priceCeiling": 12,
       "overseasPriceCeiling": 24,

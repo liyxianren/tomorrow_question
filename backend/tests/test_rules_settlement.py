@@ -9,8 +9,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from app.contracts.enums import CountryCode, GamePhase
+from app.modules.balance_config import get_balance_config
 from app.modules.game_state.factory import create_game, create_initial_snapshot
 from app.modules.game_state.models import GameSnapshot, PlayerState
+from app.modules.rules.decision import _apply_policy_plan
 from app.modules.rules.settlement import resolve_settlement_phase
 
 
@@ -77,6 +79,50 @@ class SettlementRulesTests(unittest.TestCase):
         self.assertEqual(updated_britain.budget_pools, {"domesticMarket": 4, "factory": 5, "governmentFiscal": 4})
         self.assertEqual(summary_card["colonyIncome"], 5)
         self.assertEqual(generated_log["details"]["colonyIncome"], 5)
+
+    def test_settlement_uses_current_income_allocation_ratio(self) -> None:
+        snapshot = build_snapshot()
+        britain = get_player(snapshot, "player-1")
+        britain.national_income = 16
+        britain.cumulative_national_income = 20
+        britain.budget_pools = {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
+        britain.income_allocation_ratio = {
+            "domesticMarket": 6.0,
+            "factory": 3.0,
+            "governmentFiscal": 1.0,
+        }
+
+        resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
+        updated_britain = get_player(resolution.updated_snapshot, "player-1")
+        summary_card = next(card for card in resolution.summary["summaryCards"] if card["playerId"] == "player-1")
+
+        # 6:3:1 of 16 -> 9 / 4 / 3, then domesticMarket drains by 40%.
+        self.assertEqual(summary_card["budgetAllocation"], {"domesticMarket": 9, "factory": 4, "governmentFiscal": 3})
+        self.assertEqual(updated_britain.budget_pools, {"domesticMarket": 5, "factory": 4, "governmentFiscal": 3})
+
+    def test_activated_tax_policy_affects_this_settlement_without_consuming_admin_capacity(self) -> None:
+        snapshot = build_snapshot()
+        britain = get_player(snapshot, "player-1")
+        britain.national_income = 16
+        britain.budget_pools = {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
+        britain.administration_capacity = 1
+        britain.ideology_levels = {"liberalism": 0, "egalitarianism": 9, "nationalism": 0}
+
+        _apply_policy_plan(
+            britain,
+            {"activatePolicies": ["lower_consumption_tax"]},
+            get_balance_config(),
+        )
+        self.assertEqual(britain.income_allocation_ratio["domesticMarket"], 6.0)
+        self.assertEqual(britain.income_allocation_ratio["governmentFiscal"], 1.0)
+
+        resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
+        updated_britain = get_player(resolution.updated_snapshot, "player-1")
+
+        self.assertIn("lower_consumption_tax", updated_britain.active_policies)
+        self.assertEqual(updated_britain.administration_capacity, 1)
+        self.assertEqual(updated_britain.budget_pools, {"domesticMarket": 5, "factory": 4, "governmentFiscal": 3})
+        self.assertEqual(updated_britain.ideology_levels["egalitarianism"], 9)
 
 
 if __name__ == "__main__":

@@ -46,7 +46,7 @@
         "asia_pacific"
       ],
       "initialRawMaterials": 25,
-      "rawMaterialsPerTurn": 12
+      "rawMaterialsPerTurn": 2
     },
     "france": {
       "budgetPools": {
@@ -94,7 +94,7 @@
         "africa"
       ],
       "initialRawMaterials": 25,
-      "rawMaterialsPerTurn": 12
+      "rawMaterialsPerTurn": 2
     },
     "prussia": {
       "budgetPools": {
@@ -142,7 +142,7 @@
         "americas"
       ],
       "initialRawMaterials": 25,
-      "rawMaterialsPerTurn": 12
+      "rawMaterialsPerTurn": 2
     },
     "austria": {
       "budgetPools": {
@@ -190,7 +190,7 @@
         "middle_east"
       ],
       "initialRawMaterials": 25,
-      "rawMaterialsPerTurn": 12
+      "rawMaterialsPerTurn": 2
     },
     "russia": {
       "budgetPools": {
@@ -238,7 +238,7 @@
         "middle_east"
       ],
       "initialRawMaterials": 25,
-      "rawMaterialsPerTurn": 12
+      "rawMaterialsPerTurn": 2
     }
   }
 }

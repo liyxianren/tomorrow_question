@@ -40,82 +40,82 @@ class Phase3ResearchSettlementTests(unittest.TestCase):
         snapshot = build_snapshot()
         balance = get_balance_config()
         britain = get_player(snapshot, "player-1")
-        # voltaic_pile threshold=3, 1 facility, no prior progress -> progress = 2, no roll.
-        britain.active_research = "voltaic_pile"
-        britain.research_facilities = {"electrical": 1}
+        # spinning_jenny threshold=3, 1 facility, no prior progress -> progress = 1, no roll.
+        britain.active_research = "spinning_jenny"
+        britain.research_facilities = {"academy": 1}
 
         _apply_phase3_research_progress(britain, snapshot, balance)
 
-        self.assertEqual(britain.research_progress.get("voltaic_pile"), 2)
-        self.assertNotIn("voltaic_pile", britain.unlocked_techs)
+        self.assertEqual(britain.research_progress.get("spinning_jenny"), 1)
+        self.assertNotIn("spinning_jenny", britain.unlocked_techs)
 
     def test_progress_below_threshold_returns_without_unlock(self) -> None:
         snapshot = build_snapshot()
         balance = get_balance_config()
         britain = get_player(snapshot, "player-1")
-        # voltaic_pile threshold=3, prior progress 0 + 1 facility×2 = 2 < 3.
-        britain.active_research = "voltaic_pile"
-        britain.research_progress = {"voltaic_pile": 0}
-        britain.research_facilities = {"electrical": 1}
+        # spinning_jenny threshold=3, prior progress 0 + 1 facility×1 = 1 < 3.
+        britain.active_research = "spinning_jenny"
+        britain.research_progress = {"spinning_jenny": 0}
+        britain.research_facilities = {"academy": 1}
 
         with patch("app.modules.rules.settlement.random.randint") as mock_roll:
             _apply_phase3_research_progress(britain, snapshot, balance)
             mock_roll.assert_not_called()
 
-        self.assertEqual(britain.research_progress.get("voltaic_pile"), 2)
-        self.assertNotIn("voltaic_pile", britain.unlocked_techs)
-        self.assertEqual(britain.breakthrough_attempts.get("voltaic_pile", 0), 0)
+        self.assertEqual(britain.research_progress.get("spinning_jenny"), 1)
+        self.assertNotIn("spinning_jenny", britain.unlocked_techs)
+        self.assertEqual(britain.breakthrough_attempts.get("spinning_jenny", 0), 0)
 
     def test_successful_breakthrough_unlocks_and_clears_progress(self) -> None:
         snapshot = build_snapshot()
         balance = get_balance_config()
         britain = get_player(snapshot, "player-1")
-        # leyden_jar threshold=2, prior 0 + 1 facility×2 = 2 >= 2.
-        britain.active_research = "leyden_jar"
-        britain.research_progress = {"leyden_jar": 0}
-        britain.research_facilities = {"electrical": 1}
+        # spinning_jenny threshold=3, prior 2 + 1 facility×1 = 3 >= 3.
+        britain.active_research = "spinning_jenny"
+        britain.research_progress = {"spinning_jenny": 2}
+        britain.research_facilities = {"academy": 1}
 
         with patch("app.modules.rules.settlement.random.randint", return_value=10):
             _apply_phase3_research_progress(britain, snapshot, balance)
 
-        self.assertIn("leyden_jar", britain.unlocked_techs)
-        self.assertEqual(britain.research_progress.get("leyden_jar"), 0)
-        self.assertNotIn("leyden_jar", britain.breakthrough_attempts)
+        self.assertIn("spinning_jenny", britain.unlocked_techs)
+        self.assertEqual(britain.research_progress.get("spinning_jenny"), 0)
+        self.assertNotIn("spinning_jenny", britain.breakthrough_attempts)
         self.assertIsNone(britain.active_research)
 
     def test_failed_breakthrough_keeps_progress_and_increments_attempts(self) -> None:
         snapshot = build_snapshot()
         balance = get_balance_config()
         britain = get_player(snapshot, "player-1")
-        # leyden_jar threshold=2, prior 0 + 1 facility×2 = 2 >= 2, roll fails.
-        britain.active_research = "leyden_jar"
-        britain.research_progress = {"leyden_jar": 0}
-        britain.research_facilities = {"electrical": 1}
+        # spinning_jenny threshold=3, prior 2 + 1 facility×1 = 3 >= 3, roll fails.
+        britain.active_research = "spinning_jenny"
+        britain.research_progress = {"spinning_jenny": 2}
+        britain.research_facilities = {"academy": 1}
 
         with patch("app.modules.rules.settlement.random.randint", return_value=1):
             _apply_phase3_research_progress(britain, snapshot, balance)
 
-        self.assertNotIn("leyden_jar", britain.unlocked_techs)
-        self.assertEqual(britain.research_progress.get("leyden_jar"), 2)
-        self.assertEqual(britain.breakthrough_attempts.get("leyden_jar"), 1)
+        self.assertNotIn("spinning_jenny", britain.unlocked_techs)
+        self.assertEqual(britain.research_progress.get("spinning_jenny"), 3)
+        self.assertEqual(britain.breakthrough_attempts.get("spinning_jenny"), 1)
 
     def test_soft_pity_lowers_effective_threshold(self) -> None:
         snapshot = build_snapshot()
         balance = get_balance_config()
         britain = get_player(snapshot, "player-1")
-        # voltaic_pile threshold=4, attempts=2 -> effective=2.
+        # lathe threshold=4, attempts=2 -> effective=2.
         # progress 1 + 1 facility = 2 >= 2, roll=2 succeeds (2 >= 2).
-        britain.active_research = "voltaic_pile"
-        britain.research_progress = {"voltaic_pile": 1}
-        britain.breakthrough_attempts = {"voltaic_pile": 2}
-        britain.research_facilities = {"electrical": 1}
+        britain.active_research = "lathe"
+        britain.research_progress = {"lathe": 1}
+        britain.breakthrough_attempts = {"lathe": 2}
+        britain.research_facilities = {"academy": 1}
 
         with patch("app.modules.rules.settlement.random.randint", return_value=2):
             _apply_phase3_research_progress(britain, snapshot, balance)
 
-        self.assertIn("voltaic_pile", britain.unlocked_techs)
-        self.assertEqual(britain.research_progress.get("voltaic_pile"), 0)
-        self.assertNotIn("voltaic_pile", britain.breakthrough_attempts)
+        self.assertIn("lathe", britain.unlocked_techs)
+        self.assertEqual(britain.research_progress.get("lathe"), 0)
+        self.assertNotIn("lathe", britain.breakthrough_attempts)
         self.assertIsNone(britain.active_research)
 
     def test_direct_unlock_when_other_player_already_discovered(self) -> None:
@@ -123,21 +123,21 @@ class Phase3ResearchSettlementTests(unittest.TestCase):
         balance = get_balance_config()
         britain = get_player(snapshot, "player-1")
         france = get_player(snapshot, "player-2")
-        # voltaic_pile threshold=3, France already unlocked it.
-        france.unlocked_techs.append("voltaic_pile")
-        # Britain accumulates progress=5+2=7 >= 2*3=6, direct-unlock without dice.
-        britain.active_research = "voltaic_pile"
-        britain.research_progress = {"voltaic_pile": 5}
-        britain.research_facilities = {"electrical": 1}
+        # lathe threshold=4, France already unlocked it.
+        france.unlocked_techs.append("lathe")
+        # Britain accumulates progress=7+1=8 >= 2*4=8, direct-unlock without dice.
+        britain.active_research = "lathe"
+        britain.research_progress = {"lathe": 7}
+        britain.research_facilities = {"academy": 1}
 
         with patch("app.modules.rules.settlement.random.randint") as mock_roll:
             _apply_phase3_research_progress(britain, snapshot, balance)
             mock_roll.assert_not_called()
 
-        self.assertIn("voltaic_pile", britain.unlocked_techs)
-        # Direct-unlock consumes 2*threshold=6 from 7, leaving 1.
-        self.assertEqual(britain.research_progress.get("voltaic_pile"), 1)
-        self.assertNotIn("voltaic_pile", britain.breakthrough_attempts)
+        self.assertIn("lathe", britain.unlocked_techs)
+        # Direct-unlock consumes 2*threshold=8 from 8, leaving 0.
+        self.assertEqual(britain.research_progress.get("lathe"), 0)
+        self.assertNotIn("lathe", britain.breakthrough_attempts)
         self.assertIsNone(britain.active_research)
 
     def test_no_active_research_is_noop(self) -> None:
@@ -145,7 +145,7 @@ class Phase3ResearchSettlementTests(unittest.TestCase):
         balance = get_balance_config()
         britain = get_player(snapshot, "player-1")
         britain.active_research = None
-        britain.research_facilities = {"electrical": 5}
+        britain.research_facilities = {"academy": 5}
 
         with patch("app.modules.rules.settlement.random.randint") as mock_roll:
             _apply_phase3_research_progress(britain, snapshot, balance)
@@ -158,33 +158,33 @@ class Phase3ResearchSettlementTests(unittest.TestCase):
         snapshot = build_snapshot()
         balance = get_balance_config()
         britain = get_player(snapshot, "player-1")
-        # power_generation threshold=4, 1 facility×2 = 2 < 4, no roll.
+        # power_generation threshold=6, 1 facility×1 = 1 < 6, no roll.
         britain.active_research = "power_generation"
-        britain.research_facilities = {"electrical": 1}
+        britain.research_facilities = {"academy": 1}
 
         with patch("app.modules.rules.settlement.random.randint") as mock_roll:
             _apply_phase3_research_progress(britain, snapshot, balance)
             mock_roll.assert_not_called()
 
-        self.assertEqual(britain.research_progress.get("power_generation"), 2)
+        self.assertEqual(britain.research_progress.get("power_generation"), 1)
         self.assertNotIn("power_generation", britain.unlocked_techs)
 
     def test_max_pity_effective_threshold_one_guarantees_success(self) -> None:
         snapshot = build_snapshot()
         balance = get_balance_config()
         britain = get_player(snapshot, "player-1")
-        # leyden_jar threshold=3, attempts=5 -> effective = max(1, 3-5) = 1.
+        # spinning_jenny threshold=3, attempts=5 -> effective = max(1, 3-5) = 1.
         # progress 0 + 1 facility = 1 >= 1, roll=1 succeeds (1 >= 1).
-        britain.active_research = "leyden_jar"
-        britain.breakthrough_attempts = {"leyden_jar": 5}
-        britain.research_facilities = {"electrical": 1}
+        britain.active_research = "spinning_jenny"
+        britain.breakthrough_attempts = {"spinning_jenny": 5}
+        britain.research_facilities = {"academy": 1}
 
         with patch("app.modules.rules.settlement.random.randint", return_value=1):
             _apply_phase3_research_progress(britain, snapshot, balance)
 
-        self.assertIn("leyden_jar", britain.unlocked_techs)
-        self.assertEqual(britain.research_progress.get("leyden_jar"), 0)
-        self.assertNotIn("leyden_jar", britain.breakthrough_attempts)
+        self.assertIn("spinning_jenny", britain.unlocked_techs)
+        self.assertEqual(britain.research_progress.get("spinning_jenny"), 0)
+        self.assertNotIn("spinning_jenny", britain.breakthrough_attempts)
         self.assertIsNone(britain.active_research)
 
 

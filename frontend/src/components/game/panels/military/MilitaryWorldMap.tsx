@@ -29,19 +29,19 @@ const GOODS_LABELS: Record<string, string> = {
 };
 
 const OCEAN_POSITIONS: Record<string, { left: string; top: string }> = {
-  north_atlantic: { left: "25%", top: "25%" },
-  south_atlantic: { left: "28%", top: "55%" },
-  mediterranean: { left: "48%", top: "30%" },
-  indian_ocean: { left: "60%", top: "55%" },
-  pacific: { left: "75%", top: "45%" },
+  north_atlantic: { left: "31%", top: "33%" },
+  south_atlantic: { left: "31%", top: "61%" },
+  mediterranean: { left: "48%", top: "42%" },
+  indian_ocean: { left: "65%", top: "67%" },
+  pacific: { left: "86%", top: "55%" },
 };
 
 const REGION_POSITIONS: Record<string, { left: string; top: string }> = {
-  europe: { left: "45%", top: "20%" },
-  americas: { left: "15%", top: "50%" },
-  africa: { left: "48%", top: "60%" },
-  middle_east: { left: "58%", top: "42%" },
-  asia_pacific: { left: "75%", top: "50%" },
+  europe: { left: "47%", top: "26%" },
+  americas: { left: "15%", top: "47%" },
+  africa: { left: "48%", top: "61%" },
+  middle_east: { left: "58%", top: "43%" },
+  asia_pacific: { left: "78%", top: "49%" },
 };
 
 export type MapSelection = { type: "ocean" | "region"; id: string } | null;
@@ -55,6 +55,7 @@ export interface MilitaryWorldMapProps {
   selectedNode: MapSelection;
   totalFleets: number;
   remainingFleets: number;
+  oceanControlThreshold: number;
   onPinSelect: (selection: MapSelection) => void;
   onNavalDeploymentChange: (nodeId: string, count: number) => void;
 }
@@ -64,9 +65,11 @@ export function MilitaryWorldMap({
   regionAccessStatus,
   colonizationOptions,
   navalDeployment,
+  myCountry,
   selectedNode,
   totalFleets,
   remainingFleets,
+  oceanControlThreshold,
   onPinSelect,
   onNavalDeploymentChange,
 }: MilitaryWorldMapProps) {
@@ -75,13 +78,14 @@ export function MilitaryWorldMap({
 
   return (
     <div className="mwm">
-      <img className="mwm__bg" src="/images/world-map-placeholder.svg" alt="" aria-hidden />
+      <img className="mwm__bg" src="/images/military-world-map.png" alt="" aria-hidden />
 
       {oceanNodes.map((node) => {
         const pos = OCEAN_POSITIONS[node.nodeId];
         if (!pos) return null;
         const draftCount = navalDeployment[node.nodeId];
         const myFleet = typeof draftCount === "number" ? draftCount : node.myFleet;
+        const previewNode = previewOceanNode(node, myCountry, myFleet, oceanControlThreshold);
         const label = OCEAN_NODE_LABELS[node.nodeId] ?? node.nodeId;
         const isSelected = selectedNode?.type === "ocean" && selectedNode?.id === node.nodeId;
         const isOpen = isSelected;
@@ -104,11 +108,11 @@ export function MilitaryWorldMap({
             <span className="mwm-pin__head">
               <span className="mwm-pin__icon">🌊</span>
               <span className="mwm-pin__label">
-                {label}{node.isBlockaded ? " 🚫" : ""}
+                {label}{previewNode.isBlockaded ? " 🚫" : ""}
               </span>
             </span>
             <span className="mwm-pin__sub">
-              舰队 {myFleet}{node.controller ? ` · ${node.controller}` : ""}
+              舰队 {myFleet}{previewNode.controller ? ` · ${previewNode.controller}` : ""}
             </span>
             <span
               className="mwm-pin__buttons"
@@ -179,4 +183,31 @@ export function MilitaryWorldMap({
       )}
     </div>
   );
+}
+
+function previewOceanNode(
+  node: OceanNodeOption,
+  myCountry: CountryCode,
+  myFleet: number,
+  controlThreshold: number,
+): OceanNodeOption {
+  const navyByCountry = { ...(node.navyByCountry ?? {}) };
+  if (myFleet > 0) {
+    navyByCountry[myCountry] = myFleet;
+  } else {
+    delete navyByCountry[myCountry];
+  }
+  const ranked = Object.entries(navyByCountry)
+    .filter(([country, count]) => country && count > 0)
+    .sort(([, a], [, b]) => b - a);
+  const [topCountry, topCount] = ranked[0] ?? [null, 0];
+  const runnerUpCount = ranked[1]?.[1] ?? 0;
+  const controller = topCountry && topCount >= controlThreshold && topCount > runnerUpCount ? topCountry : null;
+  return {
+    ...node,
+    myFleet,
+    navyByCountry,
+    controller,
+    isBlockaded: controller !== null,
+  };
 }

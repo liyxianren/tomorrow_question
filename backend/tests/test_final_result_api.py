@@ -196,6 +196,17 @@ class FinalResultApiTests(unittest.TestCase):
                 "createdAt": "2026-03-29T12:12:00+00:00",
             }
         )
+        GameLogRepository(connection).save(
+            {
+                "gameId": "game-1",
+                "roundNo": 15,
+                "phase": GamePhase.SETTLEMENT,
+                "kind": "settlement.resolved",
+                "message": "britain completed national income allocation.",
+                "details": {"playerId": "player-1"},
+                "createdAt": "2026-03-29T12:12:01+00:00",
+            }
+        )
         connection.close()
 
     def test_final_result_returns_structured_ranking_and_logs_for_room_member(self) -> None:
@@ -213,6 +224,11 @@ class FinalResultApiTests(unittest.TestCase):
         self.assertEqual(payload["data"]["finalRanking"][0]["cumulativeNationalIncome"], 88)
         self.assertEqual(payload["data"]["finalRanking"][0]["tieBreak"]["budgetPoolsTotal"], 35)
         self.assertGreaterEqual(len(payload["data"]["finalLogs"]), 1)
+        log_messages = [entry["message"] for entry in payload["data"]["finalLogs"]]
+        self.assertIn("终局财政结算已完成。", log_messages)
+        self.assertIn("英国完成第 15 回合财政分配。", log_messages)
+        self.assertNotIn("settlement settled.", log_messages)
+        self.assertNotIn("britain completed national income allocation.", log_messages)
 
     def test_final_result_rejects_invalid_session(self) -> None:
         self.seed_finished_game()

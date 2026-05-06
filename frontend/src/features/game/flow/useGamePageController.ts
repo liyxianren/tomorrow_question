@@ -5,7 +5,12 @@ import {
   createInitialDecisionFlowState,
   type DecisionFlowState,
 } from "./decisionFlow";
-import { createInitialPhaseDraft, buildDecisionSubmission, type PhaseDraftByPhase } from "../forms";
+import {
+  buildDecisionSubmission,
+  createDefaultPhase1ProductionDraft,
+  createInitialPhaseDraft,
+  type PhaseDraftByPhase,
+} from "../forms";
 import type { GameRuntimeState } from "../runtime/types";
 
 import { createGameFlowState, createPhaseActionStatusViewModel, type PhaseActionStatusViewModel } from "./gameFlow";
@@ -53,6 +58,10 @@ export function useGamePageController({
     isLoadingContext,
     settlementTargetPath,
   });
+  const currentPlayerPhaseWorkspace =
+    flowState.currentPlayerId && flowState.currentSnapshot
+      ? flowState.currentSnapshot.phaseWorkspace?.players?.[flowState.currentPlayerId] ?? null
+      : null;
   const phaseActionStatus = createPhaseActionStatusViewModel({
     currentPhase,
     flowState,
@@ -69,13 +78,38 @@ export function useGamePageController({
   // eslint-disable-next-line react-hooks/exhaustive-deps -- only reset drafts when phase changes, not on every snapshot update
   }, [currentPhase]);
 
+  useEffect(() => {
+    if (
+      currentPhase !== "decision" ||
+      !currentPlayerPhaseWorkspace ||
+      !("militaryWorkspace" in currentPlayerPhaseWorkspace)
+    ) {
+      return;
+    }
+
+    const phase1Production = createDefaultPhase1ProductionDraft(currentPlayerPhaseWorkspace);
+    if (!phase1Production) {
+      return;
+    }
+
+    setDrafts((previous) => {
+      if (previous.decision.phase1Production !== undefined) {
+        return previous;
+      }
+      return {
+        ...previous,
+        decision: {
+          ...previous.decision,
+          phase1Production,
+        },
+      };
+    });
+  }, [currentPhase, currentPlayerPhaseWorkspace]);
+
   return {
     currentPhase,
     currentPlayerId: flowState.currentPlayerId,
-    currentPlayerPhaseWorkspace:
-      flowState.currentPlayerId && flowState.currentSnapshot
-        ? flowState.currentSnapshot.phaseWorkspace?.players?.[flowState.currentPlayerId] ?? null
-        : null,
+    currentPlayerPhaseWorkspace,
     currentPlayerState: flowState.currentPlayerState,
     draftPayload: currentPhase === "decision"
       ? buildDecisionSubmission(drafts.decision)

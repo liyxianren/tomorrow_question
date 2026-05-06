@@ -155,7 +155,18 @@ export function applyGameSnapshotSync(
 export function applySubmissionStatusUpdate(
   state: GameRuntimeState,
   submissionStatusByPlayerId: GameRuntimeState["submissionStatusByPlayerId"],
+  scope?: { phase: GamePhase; roundNo: number },
 ): GameRuntimeState {
+  if (
+    scope &&
+    (
+      state.snapshot?.phase !== scope.phase ||
+      state.snapshot.round !== scope.roundNo
+    )
+  ) {
+    return state;
+  }
+
   return withDerivedState({
     ...state,
     submissionStatusByPlayerId,

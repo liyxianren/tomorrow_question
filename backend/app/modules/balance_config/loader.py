@@ -520,6 +520,10 @@ def _build_decision_actions_config(payload: dict[str, Any]) -> DecisionActionsBa
             payload.get("domesticMarketActions"),
             "decision_actions.domesticMarketActions",
         ),
+        factory_actions=_build_action_mapping(
+            payload.get("factoryActions", {}),
+            "decision_actions.factoryActions",
+        ),
         government_actions=_build_action_mapping(payload.get("governmentActions"), "decision_actions.governmentActions"),
     )
 
@@ -624,6 +628,7 @@ def _build_reforms_config(
                     reform.get("adminCost"),
                     f"reforms.reforms.{path_key}[{index}].adminCost",
                 ),
+                description=str(reform.get("description") or ""),
                 effects=_require_dict(
                     reform.get("effects", {}),
                     f"reforms.reforms.{path_key}[{index}].effects",

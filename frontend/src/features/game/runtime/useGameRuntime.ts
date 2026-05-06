@@ -54,7 +54,10 @@ type UseGameRuntimeResult = {
   isLoadingContext: boolean;
   loadError: string | null;
   settlementTargetPath: string | null;
-  updateSubmissionStatusByPlayerId: (submissionStatusByPlayerId: Record<string, PlayerSubmissionStatus>) => void;
+  updateSubmissionStatusByPlayerId: (
+    submissionStatusByPlayerId: Record<string, PlayerSubmissionStatus>,
+    scope?: { phase: GamePhase; roundNo: number },
+  ) => void;
   forceReconcile: () => void;
 };
 
@@ -383,9 +386,6 @@ export function useGameRuntime({
     }
 
     const recoveryKey = `${runtimeState.snapshot.snapshotId}:${runtimeState.snapshot.phase}`;
-    if (deadlineRecoveryKeyRef.current === recoveryKey) {
-      return;
-    }
     deadlineRecoveryKeyRef.current = recoveryKey;
 
     let disposed = false;
@@ -401,7 +401,20 @@ export function useGameRuntime({
           return;
         }
 
-        setRuntimeState((previous) => createRecoveredGameRuntimeState(restored, previous));
+        const activeGame = restored.activeGame;
+        const nextSnapshot = restored.activeSnapshot;
+        setRuntimeState((previous) => {
+          const previousSnapshot = previous.snapshot;
+          const shouldApply =
+            activeGame.isFinished !== previous.game?.isFinished ||
+            nextSnapshot.snapshotId !== previousSnapshot?.snapshotId ||
+            nextSnapshot.round !== previousSnapshot?.round ||
+            nextSnapshot.phase !== previousSnapshot?.phase;
+
+          return shouldApply
+            ? createRecoveredGameRuntimeState(restored, previous)
+            : previous;
+        });
       } catch {
         if (!disposed) {
           deadlineRecoveryKeyRef.current = null;
@@ -410,9 +423,16 @@ export function useGameRuntime({
     }
 
     void recoverAfterDeadline();
+    const timerId = window.setInterval(() => {
+      void recoverAfterDeadline();
+    }, 1000);
 
     return () => {
       disposed = true;
+      window.clearInterval(timerId);
+      if (deadlineRecoveryKeyRef.current === recoveryKey) {
+        deadlineRecoveryKeyRef.current = null;
+      }
     };
   }, [
     routeGameId,
@@ -490,8 +510,8 @@ export function useGameRuntime({
     isLoadingContext,
     loadError,
     settlementTargetPath,
-    updateSubmissionStatusByPlayerId(submissionStatusByPlayerId) {
-      setRuntimeState((previous) => applySubmissionStatusUpdate(previous, submissionStatusByPlayerId));
+    updateSubmissionStatusByPlayerId(submissionStatusByPlayerId, scope) {
+      setRuntimeState((previous) => applySubmissionStatusUpdate(previous, submissionStatusByPlayerId, scope));
     },
     forceReconcile() {
       restoreSessionContext()

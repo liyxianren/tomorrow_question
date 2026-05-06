@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { buildDecisionSubmission, createInitialPhaseDraft } from "./forms";
+import {
+  buildDecisionSubmission,
+  createDefaultPhase1ProductionDraft,
+  createInitialPhaseDraft,
+} from "./forms";
+import { toggleTechResearchSelection } from "./decisionDrafts";
+import { createDecisionPlayerWorkspace } from "../../test/gameSnapshotFixtures";
 
 describe("createInitialPhaseDraft", () => {
   it("creates the decision draft shape required by the 2.0 contract", () => {
@@ -10,6 +16,7 @@ describe("createInitialPhaseDraft", () => {
         expansionOrders: [],
         upgradeOrders: [],
         newFactoryOrders: [],
+        factoryActions: [],
       },
       domesticMarketPlan: {
         domesticMarketActions: [],
@@ -96,5 +103,133 @@ describe("buildDecisionSubmission", () => {
     const result = buildDecisionSubmission(draft);
 
     expect(result.researchTarget).toBe("steam_engine");
+  });
+});
+
+describe("toggleTechResearchSelection", () => {
+  it("keeps research target selection single-choice", () => {
+    const draft = createInitialPhaseDraft("decision");
+
+    const first = toggleTechResearchSelection(draft, "leyden_jar", true);
+    const second = toggleTechResearchSelection(first, "spinning_jenny", true);
+
+    expect(second.governmentPlan.techResearch).toEqual([{ techId: "spinning_jenny" }]);
+  });
+
+  it("clears the selected research target when toggled off", () => {
+    const draft = createInitialPhaseDraft("decision");
+    const selected = toggleTechResearchSelection(draft, "leyden_jar", true);
+
+    expect(toggleTechResearchSelection(selected, "leyden_jar", false).governmentPlan.techResearch).toEqual([]);
+  });
+});
+
+describe("createDefaultPhase1ProductionDraft", () => {
+  it("allocates raw materials to available production modes by output efficiency", () => {
+    const workspace = createDecisionPlayerWorkspace({
+      phase1Economy: {
+        capacityByMode: {
+          idle: 0,
+          handicraft: 3,
+          mechanized: 2,
+          steam: 0,
+          electrified: 0,
+        },
+        rawMaterials: 4,
+        goodsInventory: 0,
+        productionModes: [
+          {
+            mode: "handicraft",
+            label: "手工业",
+            inputRatio: 1,
+            outputRatio: 1,
+            demandCoefficient: 2,
+            buildCost: 12,
+            upgradeCost: 0,
+            currentCapacity: 3,
+            requiredTech: null,
+            isAvailable: true,
+          },
+          {
+            mode: "mechanized",
+            label: "机械化",
+            inputRatio: 1,
+            outputRatio: 2,
+            demandCoefficient: 3,
+            buildCost: 20,
+            upgradeCost: 10,
+            currentCapacity: 2,
+            requiredTech: null,
+            isAvailable: true,
+          },
+        ],
+        domesticDemand: 0,
+        equilibriumPrice: 0,
+        domesticPricePreview: 0,
+        investmentPool: 0,
+        incomeAllocationRatio: {},
+        marketMetrics: {},
+      },
+    });
+
+    expect(createDefaultPhase1ProductionDraft(workspace)).toEqual({
+      rawMaterialAssignments: {
+        mechanized: 2,
+        handicraft: 2,
+      },
+    });
+  });
+
+  it("returns undefined when no raw material can be assigned", () => {
+    expect(
+      createDefaultPhase1ProductionDraft(createDecisionPlayerWorkspace()),
+    ).toBeUndefined();
+  });
+
+  it("does not auto-assign more raw materials than the factory budget can pay for", () => {
+    const workspace = createDecisionPlayerWorkspace({
+      budgetPools: {
+        domesticMarket: 0,
+        factory: 2,
+        governmentFiscal: 0,
+      },
+      phase1Economy: {
+        capacityByMode: {
+          idle: 0,
+          handicraft: 8,
+          mechanized: 0,
+          steam: 0,
+          electrified: 0,
+        },
+        rawMaterials: 8,
+        goodsInventory: 0,
+        productionModes: [
+          {
+            mode: "handicraft",
+            label: "手工业",
+            inputRatio: 1,
+            outputRatio: 1,
+            demandCoefficient: 2,
+            buildCost: 12,
+            upgradeCost: 0,
+            currentCapacity: 8,
+            requiredTech: null,
+            isAvailable: true,
+          },
+        ],
+        domesticDemand: 0,
+        equilibriumPrice: 0,
+        domesticPricePreview: 0,
+        investmentPool: 0,
+        incomeAllocationRatio: {},
+        marketMetrics: {},
+      },
+    });
+
+    expect(createDefaultPhase1ProductionDraft(workspace)).toEqual({
+      rawMaterialAssignments: {
+        handicraft: 2,
+      },
+    });
   });
 });

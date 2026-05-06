@@ -25,19 +25,16 @@ describe("decisionCardDemo adapter", () => {
     expect(viewModel.locations.factory.sections.map((section) => section.id)).toEqual([
       "production",
       "construction",
-      "factory-tech",
       "locked-goods",
     ]);
     expect(viewModel.locations.domestic.sections.map((section) => section.id)).toEqual([
       "domestic-actions",
-      "domestic-tech",
     ]);
     expect(viewModel.locations.government.sections.map((section) => section.id)).toEqual([
-      "government-points",
       "government-strategy",
-      "government-tech",
       "government-ability",
     ]);
+    expect(viewModel.locations.research.sections.map((section) => section.id)).toContain("research-facility");
   });
 
   it("keeps live workspace values and reflects draft-driven budget and ratio previews", () => {
@@ -79,7 +76,7 @@ describe("decisionCardDemo adapter", () => {
     ).toBe(true);
   });
 
-  it("applies queued research to the matching budget pool without draining tech points", () => {
+  it("keeps selected research targets out of budget point previews", () => {
     const seedScenario = createSeedDecisionCardDemoScenario();
     const scenario = createDecisionCardDemoScenario({
       source: "live",
@@ -103,8 +100,8 @@ describe("decisionCardDemo adapter", () => {
       scenario,
     });
 
-    expect(viewModel.summary.remainingBudgets.domesticMarket).toBe(4);
-    expect(viewModel.summary.techPoints).toBe(10);
+    expect(viewModel.summary.remainingBudgets.domesticMarket).toBe(10);
+    expect(viewModel.locations.research.summaryPills).toContain("本轮已选目标");
   });
 
   it("localizes ratio delta badges in government strategy cards", () => {
@@ -120,7 +117,7 @@ describe("decisionCardDemo adapter", () => {
     ).toContain("内需 -0.2 / 政府 +0.2");
   });
 
-  it("locks factory production and construction cards when queued research exhausts the factory budget", () => {
+  it("does not lock factory production when a research target is selected", () => {
     const scenario = createSeedDecisionCardDemoScenario();
     const draft = {
       ...createInitialPhaseDraft("decision"),
@@ -138,16 +135,8 @@ describe("decisionCardDemo adapter", () => {
     });
     const factoryCards = viewModel.locations.factory.sections.flatMap((section) => section.cards);
 
-    expect(factoryCards.find((card) => card.id === "production-grain")?.lockedReason).toBe("工厂预算不足");
-    expect(factoryCards.find((card) => card.id === "production-grain")?.control).toMatchObject({
-      kind: "quantity",
-      max: 0,
-    });
-    expect(factoryCards.find((card) => card.id === "expansion-handicraft")?.lockedReason).toBe("工厂预算不足");
-    expect(factoryCards.find((card) => card.id === "expansion-handicraft")?.control).toMatchObject({
-      kind: "confirm",
-      disabled: true,
-    });
+    expect(factoryCards.find((card) => card.id === "production-grain")?.lockedReason).toBeNull();
+    expect(factoryCards.find((card) => card.id === "expansion-handicraft")?.lockedReason).not.toBe("工厂预算不足");
   });
 
   it("locks shared handicraft capacity after one batch is already allocated", () => {
@@ -176,7 +165,7 @@ describe("decisionCardDemo adapter", () => {
     });
   });
 
-  it("locks domestic actions when queued research has already consumed the remaining domestic budget", () => {
+  it("does not lock domestic actions when a research target is selected", () => {
     const scenario = createSeedDecisionCardDemoScenario();
     const draft = {
       ...createInitialPhaseDraft("decision"),
@@ -194,10 +183,10 @@ describe("decisionCardDemo adapter", () => {
     });
     const domesticCards = viewModel.locations.domestic.sections.flatMap((section) => section.cards);
 
-    expect(domesticCards.find((card) => card.id === "domestic-rural_development")?.lockedReason).toBe("国内预算不足");
+    expect(domesticCards.find((card) => card.id === "domestic-rural_development")?.lockedReason).toBeNull();
     expect(domesticCards.find((card) => card.id === "domestic-rural_development")?.control).toMatchObject({
       kind: "toggle",
-      disabled: true,
+      disabled: false,
     });
   });
 });

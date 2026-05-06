@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { DecisionPlayerPhaseWorkspace, IdeologyKey } from "../../../types";
 import type { PhaseDraftByPhase } from "../../../features/game/forms";
 import type { DecisionActionCardEffect } from "./shared/DecisionActionCard";
@@ -6,13 +7,17 @@ import { DecisionActionCard } from "./shared/DecisionActionCard";
 import { buildEffectMetrics } from "../../../features/game/decisionShared";
 import "./GovernmentPanel.css";
 
-const REFORM_PATH_LABELS: Record<"freedom" | "equality" | "national", string> = {
+type ReformPath = "freedom" | "equality" | "national";
+
+const REFORM_PATHS: ReformPath[] = ["freedom", "equality", "national"];
+
+const REFORM_PATH_LABELS: Record<ReformPath, string> = {
   freedom: "自由之路",
   equality: "平等之路",
   national: "民族之路",
 };
 
-const REFORM_PATH_ICONS: Record<"freedom" | "equality" | "national", string> = {
+const REFORM_PATH_ICONS: Record<ReformPath, string> = {
   freedom: "🗽",
   equality: "⚖️",
   national: "🛡️",
@@ -32,15 +37,138 @@ const IDEOLOGY_LABELS: Record<IdeologyKey, string> = {
   nationalism: "民族主义",
 };
 
+const ALLOCATION_LABELS: Record<string, string> = {
+  consumption: "国民消费",
+  domesticMarket: "国民消费",
+  fiscal: "政府财政",
+  governmentFiscal: "政府财政",
+  factory: "工厂预算",
+};
+
+type IdeologyMilestone = {
+  level: number;
+  label: string;
+  effects?: Record<string, unknown>;
+  penalty?: Record<string, unknown>;
+};
+
+const DEFAULT_IDEOLOGY_MILESTONES: Record<IdeologyKey, IdeologyMilestone[]> = {
+  liberalism: [
+    { level: 3, label: "贸易许可", effects: { factoryBudgetDelta: 2 } },
+    { level: 5, label: "产业自由化", effects: { domesticPriceBonusDelta: 1 } },
+    { level: 7, label: "工业议会", effects: { techPointsDelta: 1 } },
+    {
+      level: 10,
+      label: "代议制国家",
+      effects: { domesticMarketCapacityDelta: 3 },
+      penalty: { governmentFiscalBudgetDelta: -3 },
+    },
+  ],
+  egalitarianism: [
+    { level: 3, label: "劳工保护", effects: { domesticMarketCapacityDelta: 1 } },
+    { level: 5, label: "公共教育", effects: { techPointsDelta: 1 } },
+    { level: 7, label: "社会保障", effects: { domesticMarketCapacityDelta: 2 } },
+    {
+      level: 10,
+      label: "社会国家",
+      effects: { domesticPriceBonusDelta: 3 },
+      penalty: { factoryBudgetDelta: -3 },
+    },
+  ],
+  nationalism: [
+    { level: 3, label: "国防动员", effects: { militaryPointsDelta: 1 } },
+    { level: 5, label: "关税同盟", effects: { overseasMarketCapacityDelta: 1 } },
+    { level: 7, label: "殖民扩张", effects: { overseasPriceBonusDelta: 1 } },
+    {
+      level: 10,
+      label: "帝国主义",
+      effects: { controlledRegionsDelta: 2 },
+      penalty: { domesticMarketCapacityDelta: -2 },
+    },
+  ],
+};
+
+const POLICY_EFFECT_FALLBACKS: Record<string, Record<string, unknown>> = {
+  raise_consumption_tax: {
+    ratioDelta: { consumption: -1.0, fiscal: 1.0 },
+    ideologyDelta: { egalitarianism: 1 },
+  },
+  lower_consumption_tax: {
+    ratioDelta: { consumption: 1.0, fiscal: -1.0 },
+    ideologyDelta: { egalitarianism: -1 },
+  },
+  expand_army: { militaryPointsDelta: 1 },
+  reduce_army: { militaryPointsDelta: -1, fiscalRefund: 5 },
+  expand_administration: { administrationCapacityDelta: 1 },
+};
+
+const REFORM_DESCRIPTION_FALLBACKS: Record<string, string> = {
+  constitution: "以宪法约束国家权力，降低三类激进思潮，减少革命风险。",
+  stock_market: "建立资本市场和股份融资框架；当前不会立刻给预算或点数，主要作为自由路线的早期制度基础。",
+  parliament: "建立议会程序，开放请愿与国会系政策空间，让后续政策能通过制度渠道处理。",
+  patent_system: "保护发明和技术产权，为私人研发与工业升级政策提供制度基础。",
+  representative_state: "完成代议制转型，大幅缓和三类思潮压力，降低接近革命阈值的风险。",
+  universal_suffrage: "扩大选举权，提高大众政治参与和民族动员；会推高民族主义压力。",
+  trust_system: "扶持大型企业集团，把收入分配推向工厂并降低升级成本，但会显著激化平等主义。",
+  social_relief: "建立救济制度，作为平等路线基础；当前不会立刻给预算或点数，主要铺垫福利与再分配改革。",
+  eight_hour_day: "限制工时以缓和劳工激进情绪，但全品类产能下降，短期工业能力会受损。",
+  social_redistribution: "建立再分配制度，解锁资本税相关政策，后续可调节财政与阶级压力。",
+  labor_union: "承认工会组织，形成劳资谈判渠道；当前不会立刻给预算或点数，主要铺垫平等路线深化。",
+  soviet_state: "转向苏维埃国家形态，锁定平等路线，并排斥自由与民族终局路线。",
+  collective_farms: "推动农业集体化，大幅降低升级成本，但会刺激自由主义反弹。",
+  planned_economy: "改为计划经济，锁定收入分配到国民消费与政府财政，牺牲工厂预算并刺激自由主义。",
+  compulsory_education: "建立义务教育体系，作为长期研发和国家治理能力的制度基础。",
+  state_media: "建设国家媒体机器，解锁政治鼓动类政策，用于主动调节思潮。",
+  modern_customs: "建立现代海关体系，解锁贸易开闭政策，用于控制海外贸易和收入结构。",
+  keynesianism: "建立国家干预经济框架，解锁以工代赈等政策，用财政稳定内需和就业。",
+  fascist_state: "转向法西斯国家形态，压低民族主义革命压力，同时封锁自由和平等终局路线。",
+  total_mobilization: "建立全民动员体制，作为民族路线后期军事化基础；当前不会立刻给预算或点数。",
+  secret_police: "建立秘密警察体系，作为压制与控制思潮的后期制度基础；当前不会立刻给预算或点数。",
+};
+
+function formatSigned(delta: number): string {
+  return `${delta > 0 ? "+" : ""}${delta}`;
+}
+
+function formatShortfall(cost: number, remaining: number): string {
+  return `还差 ${Math.max(0, cost - remaining)} 财政`;
+}
+
+function buildPurchaseEffects(
+  quantity: number,
+  cost: number,
+  pointLabel: string,
+): DecisionActionCardEffect[] {
+  if (quantity <= 0) return [];
+  return [
+    { label: "政府财政", value: `-${quantity * cost}` },
+    { label: pointLabel, value: `+${quantity}` },
+  ];
+}
+
+function stripGeneratedEffectSummary(description: string | undefined): string | undefined {
+  if (!description) return description;
+  return description.replace(/\s*效果：.*。$/, "");
+}
+
+function resolveReformDescription(
+  reform: { reformId: string; description?: string; path: ReformPath },
+): string {
+  return reform.description
+    || REFORM_DESCRIPTION_FALLBACKS[reform.reformId]
+    || `${REFORM_PATH_LABELS[reform.path]}改革。当前暂无额外说明。`;
+}
+
 function projectIdeologyAfterReform(
   current: Record<string, number>,
   effects: Record<string, unknown>,
+  maxLevel = 10,
 ): Record<string, number> {
   const projected: Record<string, number> = { ...current };
   const delta = effects.ideologyDelta as Record<string, number> | undefined;
   if (delta) {
     for (const [key, val] of Object.entries(delta)) {
-      projected[key] = (projected[key] ?? 0) + val;
+      projected[key] = Math.max(0, Math.min(maxLevel, (projected[key] ?? 0) + val));
     }
   }
   return projected;
@@ -56,7 +184,7 @@ function formatReformEffects(
   if (ideologyDelta) {
     for (const [key, delta] of Object.entries(ideologyDelta)) {
       const label = IDEOLOGY_LABELS[key as IdeologyKey] ?? key;
-      tags.push(`${label} ${delta > 0 ? "+" : ""}${delta}`);
+      tags.push(`${label}思潮 ${formatSigned(delta)}`);
     }
   }
 
@@ -64,14 +192,14 @@ function formatReformEffects(
   if (ratioDelta) {
     const names: Record<string, string> = {
       factory: "工厂",
-      consumption: "国内市场",
+      consumption: "国民消费",
       fiscal: "政府财政",
-      domesticMarket: "国内",
-      governmentFiscal: "政府",
+      domesticMarket: "国民消费",
+      governmentFiscal: "政府财政",
     };
     for (const [key, delta] of Object.entries(ratioDelta)) {
       const label = names[key] ?? key;
-      tags.push(`${label}分配 ${delta > 0 ? "+" : ""}${delta}`);
+      tags.push(`${label}分配 ${formatSigned(delta)}`);
     }
   }
 
@@ -99,13 +227,6 @@ function formatReformEffects(
     }
   }
 
-  const permanent = effects.permanent as Record<string, unknown> | undefined;
-  if (permanent) {
-    if (permanent.techPointsPerTurn !== undefined) {
-      tags.push(`每回合 +${permanent.techPointsPerTurn} 科技点`);
-    }
-  }
-
   if (unlocksPolicies.length > 0) {
     tags.push(`解锁 ${unlocksPolicies.length} 项政策`);
   }
@@ -114,11 +235,11 @@ function formatReformEffects(
 }
 
 const RATIO_NAME_MAP: Record<string, string> = {
-  domesticMarket: "国内",
-  governmentFiscal: "政府",
-  factory: "工厂",
-  consumption: "消费",
-  fiscal: "财政",
+  domesticMarket: "国民消费",
+  governmentFiscal: "政府财政",
+  factory: "工厂预算",
+  consumption: "国民消费",
+  fiscal: "政府财政",
 };
 
 function formatStrategyEffects(
@@ -127,17 +248,16 @@ function formatStrategyEffects(
   const effects: DecisionActionCardEffect[] = [];
 
   if (strategy.effects) {
-    effects.push(...buildEffectMetrics(strategy.effects));
+    effects.push(...buildEffectMetrics(strategy.effects).filter((effect) => effect.label !== "科技点"));
   }
 
   if (strategy.ratioDelta) {
     const parts = Object.entries(strategy.ratioDelta).map(([key, delta]) => {
       const label = RATIO_NAME_MAP[key] ?? key;
-      const sign = delta > 0 ? "+" : "";
-      return `${label} ${sign}${delta}`;
+      return `${label} ${formatSigned(delta)}`;
     });
     if (parts.length > 0) {
-      effects.push({ label: `分配偏移：${parts.join(", ")}`, value: "", temporary: true });
+      effects.push({ label: "收入分配", value: parts.join("，"), temporary: true });
     }
   }
 
@@ -145,50 +265,89 @@ function formatStrategyEffects(
 }
 
 function formatPolicyEffects(
-  policy: { effects?: Record<string, unknown>; adminCostPerTurn: number; budgetCost: number },
+  policy: { policyId: string; effects?: Record<string, unknown>; adminCostPerTurn: number; budgetCost: number },
+  revolutionThreshold: number,
 ): DecisionActionCardEffect[] {
   const effects: DecisionActionCardEffect[] = [];
 
-  if (!policy.effects) return effects;
+  const e = policy.effects ?? POLICY_EFFECT_FALLBACKS[policy.policyId];
+  if (!e) return effects;
 
-  const e = policy.effects;
   const ratioDelta = e.ratioDelta as Record<string, number> | undefined;
   if (ratioDelta) {
-    const names: Record<string, string> = { consumption: "消费池", fiscal: "财政池", factory: "工厂池", domesticMarket: "国内", governmentFiscal: "政府" };
-    for (const [key, delta] of Object.entries(ratioDelta)) {
-      effects.push({ label: `${names[key] ?? key}分配 ${delta > 0 ? "+" : ""}${delta}`, value: "" });
+    const parts = Object.entries(ratioDelta).map(([key, delta]) => {
+      const label = ALLOCATION_LABELS[key] ?? key;
+      return `${label} ${formatSigned(delta)}`;
+    });
+    if (parts.length > 0) {
+      effects.push({ label: "每回合收入分配", value: parts.join("，") });
     }
   }
 
   const ideologyDelta = e.ideologyDelta as Record<string, number> | undefined;
   if (ideologyDelta) {
-    for (const [key, delta] of Object.entries(ideologyDelta)) {
-      effects.push({ label: `${IDEOLOGY_LABELS[key as IdeologyKey] ?? key}思潮 ${delta > 0 ? "+" : ""}${delta}`, value: "" });
+    const parts = Object.entries(ideologyDelta).map(([key, delta]) => {
+      const label = IDEOLOGY_LABELS[key as IdeologyKey] ?? key;
+      return `${label} ${formatSigned(delta)}`;
+    });
+    if (parts.length > 0) {
+      effects.push({ label: "思潮压力", value: `${parts.join("，")}（${revolutionThreshold} 最高警戒）` });
     }
   }
 
   if (e.militaryPointsDelta !== undefined) {
     const delta = e.militaryPointsDelta as number;
-    effects.push({ label: `军事点数 ${delta > 0 ? "+" : ""}${delta}`, value: "" });
+    effects.push({ label: "结算后每回合军事点", value: formatSigned(delta) });
   }
 
   if (e.fiscalRefund !== undefined) {
-    effects.push({ label: `返还政府财政 ${e.fiscalRefund}`, value: "" });
+    effects.push({ label: "政府财政", value: `+${e.fiscalRefund}` });
   }
 
   if (e.administrationCapacityDelta !== undefined) {
     const delta = e.administrationCapacityDelta as number;
-    effects.push({ label: `行政力上限 ${delta > 0 ? "+" : ""}${delta}`, value: "" });
-  }
-
-  const permanent = e.permanent as Record<string, unknown> | undefined;
-  if (permanent) {
-    if (permanent.techPointsPerTurn !== undefined) {
-      effects.push({ label: `每回合 +${permanent.techPointsPerTurn} 科技点`, value: "" });
-    }
+    effects.push({ label: "行政力上限", value: formatSigned(delta) });
   }
 
   return effects;
+}
+
+function formatMilestoneSummary(milestone: IdeologyMilestone): string {
+  const effectMetrics = buildEffectMetrics(
+    milestone.effects as Record<string, number | Record<string, number>> | undefined,
+  )
+    .filter((effect) => effect.label !== "科技点")
+    .map((effect) => `${effect.label} ${effect.value}`);
+  const penaltyMetrics = buildEffectMetrics(
+    milestone.penalty as Record<string, number | Record<string, number>> | undefined,
+  ).map((effect) => `${effect.label} ${effect.value}`);
+  const parts = [...effectMetrics, ...penaltyMetrics.map((text) => `代价 ${text}`)];
+  return parts.length > 0 ? parts.join("，") : "阶段效果";
+}
+
+function getNextIdeologyMilestone(
+  milestones: IdeologyMilestone[] | undefined,
+  currentLevel: number,
+): IdeologyMilestone | null {
+  return [...(milestones ?? [])]
+    .sort((a, b) => a.level - b.level)
+    .find((milestone) => milestone.level > currentLevel) ?? null;
+}
+
+function formatMilestoneTitle(milestones: IdeologyMilestone[] | undefined): string {
+  if (!milestones || milestones.length === 0) return "暂无阶段效果配置";
+  return [...milestones]
+    .sort((a, b) => a.level - b.level)
+    .map((milestone) => `${milestone.level}：${milestone.label}（${formatMilestoneSummary(milestone)}）`)
+    .join("\n");
+}
+
+function resolveIdeologyMilestones(
+  configured: Record<string, IdeologyMilestone[]> | undefined,
+  key: IdeologyKey,
+): IdeologyMilestone[] {
+  const milestones = configured?.[key];
+  return milestones && milestones.length > 0 ? milestones : DEFAULT_IDEOLOGY_MILESTONES[key];
 }
 
 export interface GovernmentPanelProps {
@@ -196,11 +355,12 @@ export interface GovernmentPanelProps {
   draft: PhaseDraftByPhase["decision"];
   remainingGovernmentBudget: number;
   onAdminPurchase: (quantity: number) => void;
-  onTechPurchase: (quantity: number) => void;
   onMilitaryPurchase: (quantity: number) => void;
   onEnactReform: (reformId: string, queued: boolean) => void;
   onTogglePolicy: (policyId: string, active: boolean) => void;
   onToggleStrategy: (actionId: string, checked: boolean) => void;
+  onToggleAbility?: (checked: boolean) => void;
+  onAbilityTargetChange?: (ideology: IdeologyKey) => void;
 }
 
 export function GovernmentPanel({
@@ -208,12 +368,14 @@ export function GovernmentPanel({
   draft,
   remainingGovernmentBudget,
   onAdminPurchase,
-  onTechPurchase,
   onMilitaryPurchase,
   onEnactReform,
   onTogglePolicy,
   onToggleStrategy,
+  onToggleAbility,
+  onAbilityTargetChange,
 }: GovernmentPanelProps) {
+  const [activeReformPath, setActiveReformPath] = useState<ReformPath>("freedom");
   const reforms = workspace.governmentReforms;
   if (!reforms) {
     return (
@@ -237,6 +399,11 @@ export function GovernmentPanel({
   const queuedStrategyIds = new Set(
     (draft.governmentPlan.strategySelections ?? []).map((selection) => selection.actionId),
   );
+  const ability = workspace.nationalAbility;
+  const abilitySelected = Boolean(ability && draft.abilitySelection?.abilityId === ability.abilityId);
+  const abilityTarget = IDEOLOGY_KEYS.includes(draft.abilitySelection?.targetIdeology as IdeologyKey)
+    ? draft.abilitySelection?.targetIdeology as IdeologyKey
+    : "liberalism";
 
   const queuedReformAdminCost = reforms.availableReforms
     .filter((reform) => queuedReformIds.has(reform.reformId))
@@ -248,11 +415,12 @@ export function GovernmentPanel({
       return policy.isActive;
     })
     .reduce((sum, policy) => sum + policy.adminCostPerTurn, 0);
-  const projectedAdmin =
+  const rawProjectedAdmin =
     reforms.administrationCapacity
     + queuedAdminPurchases
     - queuedReformAdminCost
     - projectedActivePolicyUpkeep;
+  const projectedAdmin = Math.max(0, rawProjectedAdmin);
 
   const isPolicyActiveAfter = (policyId: string, currentlyActive: boolean): boolean => {
     if (queuedActivateIds.has(policyId)) return true;
@@ -260,7 +428,7 @@ export function GovernmentPanel({
     return currentlyActive;
   };
 
-  const reformsByPath: Record<"freedom" | "equality" | "national", typeof reforms.availableReforms> = {
+  const reformsByPath: Record<ReformPath, typeof reforms.availableReforms> = {
     freedom: [],
     equality: [],
     national: [],
@@ -268,21 +436,17 @@ export function GovernmentPanel({
   for (const reform of reforms.availableReforms) {
     reformsByPath[reform.path].push(reform);
   }
+  const activeReformList = reformsByPath[activeReformPath];
 
   const activePolicies = reforms.availablePolicies.filter((policy) => policy.isActive);
   const inactivePolicies = reforms.availablePolicies.filter((policy) => !policy.isActive);
 
-  const canBuyAdmin = remainingGovernmentBudget >= adminCost;
+  const canBuyAdmin = adminCost > 0 && remainingGovernmentBudget >= adminCost;
 
   const pointPurchaseCosts = workspace.governmentActions?.pointPurchaseCosts ?? { tech: 0, military: 0 };
-  const techCost = pointPurchaseCosts.tech;
   const militaryCost = pointPurchaseCosts.military;
-  const queuedTechPurchases = draft.governmentPlan.pointPurchases.find((p) => p.pointType === "tech")?.quantity ?? 0;
   const queuedMilitaryPurchases = draft.governmentPlan.pointPurchases.find((p) => p.pointType === "military")?.quantity ?? 0;
-  const pointSpend = queuedTechPurchases * techCost + queuedMilitaryPurchases * militaryCost;
-  const budgetAfterPointSpend = remainingGovernmentBudget - pointSpend;
-  const canBuyTech = remainingGovernmentBudget >= techCost;
-  const canBuyMilitary = remainingGovernmentBudget >= militaryCost;
+  const canBuyMilitary = militaryCost > 0 && remainingGovernmentBudget >= militaryCost;
 
   return (
     <section className="government-panel" data-testid="government-panel">
@@ -305,16 +469,17 @@ export function GovernmentPanel({
         🧭 思潮信号
         <span
           className="government-section-hint"
-          title={`任一意识形态达到 ${reforms.revolutionThreshold} 将触发革命`}
+          title={`任一意识形态达到 ${reforms.revolutionThreshold} 会进入最高警戒阶段；革命机制尚未开放。`}
         >
-          （达到 {reforms.revolutionThreshold} 触发革命）
+          （{reforms.revolutionThreshold} 为最高警戒）
         </span>
       </h4>
       <div className="government-stats">
         {IDEOLOGY_KEYS.map((key) => {
           const meta = IDEOLOGY_META[key];
-          const level = reforms.ideologyLevels[key] ?? 0;
-          const isCritical = level >= reforms.revolutionThreshold;
+          const rawLevel = reforms.ideologyLevels[key] ?? 0;
+          const level = Math.min(rawLevel, reforms.revolutionThreshold);
+          const isCritical = rawLevel >= reforms.revolutionThreshold;
           return (
             <div
               key={key}
@@ -330,105 +495,155 @@ export function GovernmentPanel({
           );
         })}
       </div>
-
-      {/* ── 改革路径（三列对比） ── */}
-      <div className="gov-reform-tracks">
-        {(["freedom", "equality", "national"] as const).map((path) => {
-          const list = reformsByPath[path];
+      <div className="government-ideology-guide" aria-label="思潮阶段效果">
+        {IDEOLOGY_KEYS.map((key) => {
+          const meta = IDEOLOGY_META[key];
+          const rawLevel = reforms.ideologyLevels[key] ?? 0;
+          const level = Math.min(rawLevel, reforms.revolutionThreshold);
+          const milestones = resolveIdeologyMilestones(
+            reforms.ideologyMilestones as Record<string, IdeologyMilestone[]> | undefined,
+            key,
+          );
+          const nextMilestone = getNextIdeologyMilestone(milestones, level);
           return (
-            <div key={path} className="gov-reform-track">
-              <h4 className="government-section-label gov-reform-track__header">
-                {REFORM_PATH_ICONS[path]} {REFORM_PATH_LABELS[path]}
-              </h4>
-              <div className="government-actions gov-reform-track__list">
-                {list.length === 0 ? (
-                  <p className="gov-reform-track__empty">暂无可选改革</p>
-                ) : list.map((reform) => {
-                const queued = queuedReformIds.has(reform.reformId);
-                const overCapacity = !queued && projectedAdmin < reform.adminCost;
-                const lockedReason = reform.isCompleted
-                  ? "已实施"
-                  : reform.isBlocked
-                    ? "路径已封锁"
-                    : overCapacity
-                      ? "行政力不足"
-                      : null;
-                const isDisabled = reform.isCompleted || reform.isBlocked;
-                const reformEffects = (reform.effects ?? {}) as Record<string, unknown>;
-                const projectedIdeology = projectIdeologyAfterReform(
-                  reforms.ideologyLevels,
-                  reformEffects,
-                );
-                const triggeringIdeologies = reform.isCompleted
-                  ? []
-                  : IDEOLOGY_KEYS.filter(
-                      (key) => (projectedIdeology[key] ?? 0) >= reforms.revolutionThreshold,
-                    );
-                const wouldTriggerRevolution = triggeringIdeologies.length > 0;
-                const productionCapacityDelta = reformEffects.productionCapacityDelta as
-                  | Record<string, number>
-                  | undefined;
-                const globalProductionPenalty =
-                  productionCapacityDelta?.all !== undefined && productionCapacityDelta.all < 0
-                    ? productionCapacityDelta.all
-                    : null;
-                const effectTags = formatReformEffects(
-                  reformEffects,
-                  reform.unlocksPolicies ?? [],
-                );
-                const status = wouldTriggerRevolution
-                  ? "danger"
-                  : queued
-                    ? "selected"
-                    : lockedReason
-                      ? "disabled"
-                      : "available";
-                const warningNode = wouldTriggerRevolution || globalProductionPenalty !== null ? (
-                  <>
-                    {wouldTriggerRevolution && (
-                      <span data-testid={`reform-revolution-warning-${reform.reformId}`}>
-                        ⚠️ 实施将触发革命：
-                        {triggeringIdeologies
-                          .map(
-                            (key) =>
-                              `${IDEOLOGY_LABELS[key]} ${reforms.ideologyLevels[key] ?? 0}→${projectedIdeology[key]} ≥ ${reforms.revolutionThreshold}`,
-                          )
-                          .join("，")}
-                      </span>
-                    )}
-                    {globalProductionPenalty !== null && (
-                      <span style={{ display: "block", marginTop: wouldTriggerRevolution ? 4 : 0 }}>
-                        ⚠️ 全局产能 {globalProductionPenalty}
-                      </span>
-                    )}
-                  </>
-                ) : null;
-                return (
-                  <DecisionActionCard
-                    key={reform.reformId}
-                    icon={wouldTriggerRevolution ? "⚠️" : REFORM_PATH_ICONS[path]}
-                    title={reform.label}
-                    costLabel={`消耗 ${reform.adminCost} 行政力`}
-                    description={`${REFORM_PATH_LABELS[path]} · 实施后永久改变国家结构。`}
-                    warning={warningNode}
-                    effects={effectTags.map((tag) => ({ label: tag, value: "" }))}
-                    status={status}
-                    statusText={queued ? "✓ 已排队" : lockedReason ?? "可实施"}
-                    control={{
-                      kind: "toggle",
-                      checked: queued,
-                      onChange: (next) => onEnactReform(reform.reformId, next),
-                      label: reform.isCompleted ? "已实施" : queued ? "撤回" : "实施",
-                      ariaLabel: `实施改革：${reform.label}`,
-                      disabled: isDisabled || (!queued && lockedReason !== null),
-                    }}
-                  />
-                );
-              })}
+            <div
+              key={key}
+              className="government-ideology-guide__item"
+              title={formatMilestoneTitle(milestones)}
+            >
+              <div className="government-ideology-guide__head">
+                <span>{meta.icon} {meta.label}</span>
+                <span>{level}/{reforms.revolutionThreshold}</span>
               </div>
+              <p>
+                {nextMilestone
+                  ? `下一阶 ${nextMilestone.level}：${nextMilestone.label} · ${formatMilestoneSummary(nextMilestone)}`
+                  : `已到最高阶段，后续革命机制尚未开放`}
+              </p>
             </div>
           );
         })}
+      </div>
+
+      {/* ── 改革路径 ── */}
+      <div className="gov-reform-workbench">
+        <div className="gov-reform-workbench__header">
+          <div>
+            <h4 className="government-section-label">🧭 改革路径</h4>
+            <p className="government-section-note">
+              本轮行政余量 {projectedAdmin} · 最高警戒 {reforms.revolutionThreshold}
+              {rawProjectedAdmin < 0 ? " · 政策占用超出行政力" : ""}
+            </p>
+          </div>
+          <div className="gov-reform-tabs" role="tablist" aria-label="改革路径">
+            {REFORM_PATHS.map((path) => {
+              const isActive = path === activeReformPath;
+              return (
+                <button
+                  key={path}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  className={`gov-reform-tab${isActive ? " gov-reform-tab--active" : ""}`}
+                  onClick={() => setActiveReformPath(path)}
+                >
+                  <span aria-hidden="true">{REFORM_PATH_ICONS[path]}</span>
+                  <span>{REFORM_PATH_LABELS[path]}</span>
+                  <span className="gov-reform-tab__count">{reformsByPath[path].length}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="government-actions gov-reform-list">
+          {activeReformList.length === 0 ? (
+            <p className="gov-reform-track__empty">暂无可选改革</p>
+          ) : activeReformList.map((reform) => {
+            const path = reform.path;
+            const queued = queuedReformIds.has(reform.reformId);
+            const overCapacity = !queued && projectedAdmin < reform.adminCost;
+            const lockedReason = reform.isCompleted
+              ? "已实施"
+              : reform.isBlocked
+                ? "路径已封锁"
+                : overCapacity
+                  ? "行政力不足"
+                  : null;
+            const isDisabled = reform.isCompleted || reform.isBlocked;
+            const reformEffects = (reform.effects ?? {}) as Record<string, unknown>;
+            const projectedIdeology = projectIdeologyAfterReform(
+              reforms.ideologyLevels,
+              reformEffects,
+              reforms.revolutionThreshold,
+            );
+            const criticalIdeologies = reform.isCompleted
+              ? []
+              : IDEOLOGY_KEYS.filter(
+                  (key) => (projectedIdeology[key] ?? 0) >= reforms.revolutionThreshold,
+                );
+            const wouldReachCritical = criticalIdeologies.length > 0;
+            const productionCapacityDelta = reformEffects.productionCapacityDelta as
+              | Record<string, number>
+              | undefined;
+            const globalProductionPenalty =
+              productionCapacityDelta?.all !== undefined && productionCapacityDelta.all < 0
+                ? productionCapacityDelta.all
+                : null;
+            const effectTags = formatReformEffects(
+              reformEffects,
+              reform.unlocksPolicies ?? [],
+            );
+            const status = wouldReachCritical
+              ? "danger"
+              : queued
+                ? "selected"
+                : lockedReason
+                  ? "disabled"
+                  : "available";
+            const warningNode = wouldReachCritical || globalProductionPenalty !== null ? (
+              <>
+                {wouldReachCritical && (
+                  <span data-testid={`reform-revolution-warning-${reform.reformId}`}>
+                    ⚠️ 实施后进入最高警戒：
+                    {criticalIdeologies
+                      .map(
+                        (key) =>
+                          `${IDEOLOGY_LABELS[key]} ${reforms.ideologyLevels[key] ?? 0}→${projectedIdeology[key]} ≥ ${reforms.revolutionThreshold}`,
+                      )
+                      .join("，")}
+                  </span>
+                )}
+                {globalProductionPenalty !== null && (
+                  <span style={{ display: "block", marginTop: wouldReachCritical ? 4 : 0 }}>
+                    ⚠️ 全局产能 {globalProductionPenalty}
+                  </span>
+                )}
+              </>
+            ) : null;
+            return (
+              <DecisionActionCard
+                key={reform.reformId}
+                icon={wouldReachCritical ? "⚠️" : REFORM_PATH_ICONS[path]}
+                title={reform.label}
+                costLabel={`消耗 ${reform.adminCost} 行政力`}
+                description={resolveReformDescription(reform)}
+                warning={warningNode}
+                effects={effectTags.map((tag) => ({ label: tag, value: "" }))}
+                status={status}
+                statusText={queued ? "✓ 已排队" : lockedReason ?? "可实施"}
+                control={{
+                  kind: "toggle",
+                  checked: queued,
+                  onChange: (next) => onEnactReform(reform.reformId, next),
+                  label: reform.isCompleted ? "已实施" : queued ? "撤回" : "实施",
+                  ariaLabel: `实施改革：${reform.label}`,
+                  disabled: isDisabled || (!queued && lockedReason !== null),
+                }}
+              />
+            );
+          })}
+        </div>
       </div>
 
       {/* ── 政策与策略 二分布局 ── */}
@@ -441,22 +656,26 @@ export function GovernmentPanel({
               <div className="government-actions">
                 {activePolicies.map((policy) => {
                   const active = isPolicyActiveAfter(policy.policyId, policy.isActive);
+                  const restoreLockedReason = !active && projectedAdmin < policy.adminCostPerTurn
+                    ? "行政力不足"
+                    : null;
                   return (
                     <DecisionActionCard
                       key={policy.policyId}
                       icon="📋"
                       title={policy.label}
-                      costLabel={`消耗 ${policy.adminCostPerTurn} 行政力/回合`}
+                      costLabel={`占用 ${policy.adminCostPerTurn} 行政力/回合`}
                       description={policy.description}
-                      effects={formatPolicyEffects(policy)}
-                      status={active ? "selected" : "available"}
-                      statusText={`每回合消耗 ${policy.adminCostPerTurn} 行政力`}
+                      effects={formatPolicyEffects(policy, reforms.revolutionThreshold)}
+                      status={active ? "selected" : restoreLockedReason ? "disabled" : "available"}
+                      statusText={active ? `每回合消耗 ${policy.adminCostPerTurn} 行政力` : restoreLockedReason ?? "本轮停用"}
                       control={{
                         kind: "toggle",
                         checked: active,
                         onChange: (next) => onTogglePolicy(policy.policyId, next),
                         label: active ? "停用" : "恢复",
                         ariaLabel: `${active ? "停用政策" : "恢复政策"}：${policy.label}`,
+                        disabled: restoreLockedReason !== null,
                       }}
                     />
                   );
@@ -478,12 +697,9 @@ export function GovernmentPanel({
             <DecisionActionCard
               icon="📜"
               title="购买行政力"
-              costLabel={`${adminCost}/点`}
-              description="动用政府财政扩张文官系统，立刻获得行政力以推进改革或维系政策。"
-              effects={[
-                { label: "已购", value: `${queuedAdminPurchases} 点` },
-                { label: "本轮花费", value: `${queuedAdminPurchases * adminCost} 财政` },
-              ]}
+              costLabel={`${adminCost} 财政/行政力`}
+              description="把政府财政转为本轮行政力，用来推进改革或维持政策。"
+              effects={buildPurchaseEffects(queuedAdminPurchases, adminCost, "行政力")}
               status={
                 queuedAdminPurchases > 0
                   ? "selected"
@@ -493,10 +709,10 @@ export function GovernmentPanel({
               }
               statusText={
                 queuedAdminPurchases > 0
-                  ? `✓ 本轮 -${queuedAdminPurchases * adminCost} 财政 / +${queuedAdminPurchases} 行政力`
+                  ? `本轮：财政 -${queuedAdminPurchases * adminCost}，行政力 +${queuedAdminPurchases}`
                   : !canBuyAdmin
-                    ? "财政不足"
-                    : "可购买"
+                    ? formatShortfall(adminCost, remainingGovernmentBudget)
+                    : "可兑换"
               }
               control={{
                 kind: "stepper",
@@ -512,56 +728,17 @@ export function GovernmentPanel({
           </div>
 
           {/* 点数购买 */}
-          {(techCost > 0 || militaryCost > 0) && (
+          {militaryCost > 0 && (
             <>
               <h4 className="government-section-label">🎫 点数购买</h4>
               <div className="government-actions">
-                {techCost > 0 && (
-                  <DecisionActionCard
-                    icon="🔬"
-                    title="购买科技点"
-                    costLabel={`${techCost}/点`}
-                    description="使用政府财政购买科技点数，用于研究和天赋解锁。"
-                    effects={[
-                      { label: "已购", value: `${queuedTechPurchases} 点` },
-                      { label: "本轮花费", value: `${queuedTechPurchases * techCost} 财政` },
-                    ]}
-                    status={
-                      queuedTechPurchases > 0
-                        ? "selected"
-                        : !canBuyTech
-                          ? "disabled"
-                          : "available"
-                    }
-                    statusText={
-                      queuedTechPurchases > 0
-                        ? `✓ 本轮 -${queuedTechPurchases * techCost} 财政 / +${queuedTechPurchases} 科技点`
-                        : !canBuyTech
-                          ? "财政不足"
-                          : "可购买"
-                    }
-                    control={{
-                      kind: "stepper",
-                      value: queuedTechPurchases,
-                      min: 0,
-                      max: techCost > 0 ? Math.floor((remainingGovernmentBudget + queuedTechPurchases * techCost) / techCost) : 0,
-                      onChange: onTechPurchase,
-                      incrementAriaLabel: "增加科技点购买",
-                      decrementAriaLabel: "减少科技点购买",
-                      incrementDisabled: !canBuyTech,
-                    }}
-                  />
-                )}
                 {militaryCost > 0 && (
                   <DecisionActionCard
                     icon="⚔️"
                     title="购买军事点"
-                    costLabel={`${militaryCost}/点`}
-                    description="使用政府财政购买军事点数，用于军事行动。"
-                    effects={[
-                      { label: "已购", value: `${queuedMilitaryPurchases} 点` },
-                      { label: "本轮花费", value: `${queuedMilitaryPurchases * militaryCost} 财政` },
-                    ]}
+                    costLabel={`${militaryCost} 财政/军事点`}
+                    description="把财政转成军事点，提交后可用于招募、舰队和要塞行动。"
+                    effects={buildPurchaseEffects(queuedMilitaryPurchases, militaryCost, "军事点")}
                     status={
                       queuedMilitaryPurchases > 0
                         ? "selected"
@@ -571,10 +748,10 @@ export function GovernmentPanel({
                     }
                     statusText={
                       queuedMilitaryPurchases > 0
-                        ? `✓ 本轮 -${queuedMilitaryPurchases * militaryCost} 财政 / +${queuedMilitaryPurchases} 军事点`
+                        ? `本轮：财政 -${queuedMilitaryPurchases * militaryCost}，军事点 +${queuedMilitaryPurchases}`
                         : !canBuyMilitary
-                          ? "财政不足"
-                          : "可购买"
+                          ? formatShortfall(militaryCost, remainingGovernmentBudget)
+                          : "可兑换"
                     }
                     control={{
                       kind: "stepper",
@@ -592,6 +769,61 @@ export function GovernmentPanel({
             </>
           )}
 
+          {/* 国家能力 */}
+          {ability && (
+            <>
+              <h4 className="government-section-label">🎴 国家能力</h4>
+              <div className="government-actions">
+                <DecisionActionCard
+                  icon="🎴"
+                  title={ability.label}
+                  costLabel="国家能力"
+                  description={ability.description}
+                  effects={ability.requiresTargetIdeology ? [{ label: "需要选择意识形态目标", value: "" }] : [{ label: "即时生效", value: "" }]}
+                  status={
+                    abilitySelected
+                      ? "selected"
+                      : !ability.isAvailable
+                        ? "disabled"
+                        : "available"
+                  }
+                  statusText={
+                    abilitySelected
+                      ? "✓ 本轮启用"
+                      : !ability.isAvailable
+                        ? "本局已使用"
+                        : "可启用"
+                  }
+                  control={{
+                    kind: "toggle",
+                    checked: abilitySelected,
+                    onChange: (next) => onToggleAbility?.(next),
+                    label: abilitySelected ? "撤回" : "启用",
+                    ariaLabel: `启用国家能力：${ability.label}`,
+                    disabled: !ability.isAvailable || !onToggleAbility,
+                  }}
+                >
+                  {ability.requiresTargetIdeology && abilitySelected ? (
+                    <div className="government-ability-targets" role="radiogroup" aria-label={`${ability.label} 目标意识形态`}>
+                      {IDEOLOGY_KEYS.map((key) => (
+                        <label key={key} className="government-ability-target">
+                          <input
+                            type="radio"
+                            name={`ability-target-${ability.abilityId}`}
+                            checked={abilityTarget === key}
+                            aria-label={`${ability.label} ${IDEOLOGY_LABELS[key]}`}
+                            onChange={() => onAbilityTargetChange?.(key)}
+                          />
+                          <span>{IDEOLOGY_META[key].icon} {IDEOLOGY_LABELS[key]}</span>
+                        </label>
+                      ))}
+                    </div>
+                  ) : null}
+                </DecisionActionCard>
+              </div>
+            </>
+          )}
+
           {/* 政策（可激活） */}
           {inactivePolicies.length > 0 && (
             <>
@@ -599,27 +831,36 @@ export function GovernmentPanel({
               <div className="government-actions">
                 {inactivePolicies.map((policy) => {
                   const active = isPolicyActiveAfter(policy.policyId, policy.isActive);
+                  const policyBudgetCost = policy.budgetCost;
+                  const budgetLockedReason = !active && policyBudgetCost > 0 && remainingGovernmentBudget < policyBudgetCost
+                    ? "财政不足"
+                    : null;
+                  const adminLockedReason = !active && projectedAdmin < policy.adminCostPerTurn
+                    ? "行政力不足"
+                    : null;
                   const lockedReason = !policy.isUnlocked
                     ? policy.requiresReform
                       ? `需改革：${policy.requiresReform}`
                       : "未解锁"
-                    : null;
+                    : budgetLockedReason ?? adminLockedReason;
                   const isDisabled = lockedReason !== null && !active;
                   const status = active ? "selected" : lockedReason ? "disabled" : "available";
-                  const effects = formatPolicyEffects(policy);
-                  if (policy.budgetCost > 0) {
-                    effects.unshift({ label: `花费 ${policy.budgetCost} 政府财政`, value: "" });
-                  }
-                  if (lockedReason) {
-                    effects.push({ label: lockedReason, value: "" });
-                  }
+                  const effects = formatPolicyEffects(policy, reforms.revolutionThreshold);
                   return (
                     <DecisionActionCard
                       key={policy.policyId}
                       icon="🆕"
                       title={policy.label}
-                      costLabel={`消耗 ${policy.adminCostPerTurn} 行政力/回合`}
-                      description={policy.description}
+                      costLabel={
+                        policyBudgetCost > 0
+                          ? `${policyBudgetCost} 财政 · 占 ${policy.adminCostPerTurn} 行政力/回合`
+                          : `占 ${policy.adminCostPerTurn} 行政力/回合`
+                      }
+                      description={
+                        policy.effects?.militaryPointsDelta !== undefined
+                          ? `${policy.description} 效果从本回合结算后开始，不会立刻增加本轮军事行动点。`
+                          : policy.description
+                      }
                       effects={effects}
                       status={status}
                       statusText={active ? "✓ 本轮激活" : lockedReason ?? "可激活"}
@@ -655,7 +896,7 @@ export function GovernmentPanel({
                       icon="🎯"
                       title={strategy.label}
                       costLabel={`${strategy.cost} 财政`}
-                      description={strategy.description ?? undefined}
+                      description={stripGeneratedEffectSummary(strategy.description ?? undefined)}
                       effects={formatStrategyEffects(strategy)}
                       status={status}
                       statusText={queued ? "✓ 本轮执行" : lockedReason ?? "可选"}

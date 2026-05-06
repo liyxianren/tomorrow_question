@@ -67,6 +67,23 @@ export function setRouteDecisionOrderQuantity(
   };
 }
 
+export function toggleFactoryActionSelection(
+  draft: PhaseDraftByPhase["decision"],
+  actionId: string,
+  checked: boolean,
+): PhaseDraftByPhase["decision"] {
+  const remainingActions = (draft.factoryPlan.factoryActions ?? []).filter((item) => item.actionId !== actionId);
+  const nextActions = checked ? [...remainingActions, { actionId }] : remainingActions;
+
+  return {
+    ...draft,
+    factoryPlan: {
+      ...draft.factoryPlan,
+      factoryActions: nextActions,
+    },
+  };
+}
+
 export function toggleDomesticMarketActionSelection(
   draft: PhaseDraftByPhase["decision"],
   actionId: string,
@@ -141,14 +158,11 @@ export function toggleTechResearchSelection(
   techId: string,
   checked: boolean,
 ): PhaseDraftByPhase["decision"] {
-  const remainingTechs = draft.governmentPlan.techResearch.filter((item) => item.techId !== techId);
-  const nextTechs = checked ? [...remainingTechs, { techId }] : remainingTechs;
-
   return {
     ...draft,
     governmentPlan: {
       ...draft.governmentPlan,
-      techResearch: nextTechs,
+      techResearch: checked ? [{ techId }] : draft.governmentPlan.techResearch.filter((item) => item.techId !== techId),
     },
   };
 }
@@ -278,11 +292,7 @@ export function setNavalDeployment(
   const next = normalizeQuantity(count);
   const current = draft.militaryPlan.navalDeployment ?? {};
   const nextDeployment: Record<string, number> = { ...current };
-  if (next > 0) {
-    nextDeployment[nodeId] = next;
-  } else {
-    delete nextDeployment[nodeId];
-  }
+  nextDeployment[nodeId] = next;
   return {
     ...draft,
     militaryPlan: {

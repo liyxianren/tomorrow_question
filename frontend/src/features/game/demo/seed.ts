@@ -53,10 +53,10 @@ export const AUSTRIA_DECISION_DEMO_WORKSPACE: DecisionPlayerPhaseWorkspace = {
     {
       actionId: "luxury_promotion",
       cost: 12,
-      description: "培育高端消费市场，大幅提高国内商品收购价格。",
+      description: "培育高端消费市场，提高国内商品收购价格。",
       label: "奢侈品推广",
       lockedReason: "需要研究「消费社会」",
-      effects: { domesticPriceBonusDelta: 4 },
+      effects: { domesticPriceBonusDelta: 2 },
     },
   ],
   expansionOptions: [
@@ -71,7 +71,7 @@ export const AUSTRIA_DECISION_DEMO_WORKSPACE: DecisionPlayerPhaseWorkspace = {
   ],
   governmentActions: {
     pointPurchaseCosts: {
-      military: 10,
+      military: 6,
       tech: 2,
     },
     strategies: [
@@ -123,7 +123,7 @@ export const AUSTRIA_DECISION_DEMO_WORKSPACE: DecisionPlayerPhaseWorkspace = {
       {
         actionId: "industrial_policy",
         cost: 12,
-        description: "推动产业升级，提升国内外商品附加值，获得科技点数。",
+        description: "推动产业升级，提升国内外商品附加值。",
         label: "产业政策",
         lockedReason: "需要研究「行政改革」",
         militaryPointCost: 0,
@@ -139,7 +139,7 @@ export const AUSTRIA_DECISION_DEMO_WORKSPACE: DecisionPlayerPhaseWorkspace = {
       {
         actionId: "naval_modernization",
         cost: 14,
-        description: "推动海军升级，大幅强化海外投射能力，获得科技点数。",
+        description: "推动海军升级，大幅强化海外投射能力。",
         label: "海军现代化",
         lockedReason: "需要研究「帝国体制」",
         militaryPointCost: 0,
@@ -179,6 +179,7 @@ export const AUSTRIA_DECISION_DEMO_WORKSPACE: DecisionPlayerPhaseWorkspace = {
         lockReason: null,
         isDiplomacyEstablished: false,
         acceptedGoods: ["rubber", "cotton", "minerals"],
+        priceMultiplier: 1,
         isColonized: false,
         controller: null,
       },
@@ -190,6 +191,7 @@ export const AUSTRIA_DECISION_DEMO_WORKSPACE: DecisionPlayerPhaseWorkspace = {
         lockReason: null,
         isDiplomacyEstablished: false,
         acceptedGoods: ["oil", "tea"],
+        priceMultiplier: 1,
         isColonized: false,
         controller: null,
       },
@@ -201,6 +203,7 @@ export const AUSTRIA_DECISION_DEMO_WORKSPACE: DecisionPlayerPhaseWorkspace = {
         lockReason: null,
         isDiplomacyEstablished: false,
         acceptedGoods: ["steel", "coal"],
+        priceMultiplier: 1,
         isColonized: false,
         controller: null,
       },
@@ -218,26 +221,26 @@ export const AUSTRIA_DECISION_DEMO_WORKSPACE: DecisionPlayerPhaseWorkspace = {
       {
         actionId: "naval_drill",
         label: "海军演练",
-        cost: 6,
+        cost: 1,
         maxPerRound: 2,
-        description: "开展海军演练，提升军事点并扩展海外市场承接力。",
-        effects: { militaryPointsDelta: 1, overseasMarketCapacityDelta: 1 },
+        description: "消耗军事点开展海军演练，扩展本轮海外市场承接力。",
+        effects: { overseasMarketCapacityDelta: 1 },
       },
       {
         actionId: "recruit_infantry",
         label: "征募步兵",
-        cost: 4,
+        cost: 1,
         maxPerRound: 3,
-        description: "征募步兵部队，增加军事影响力。",
-        effects: { militaryPointsDelta: 1 },
+        description: "消耗军事点征募步兵部队。",
+        effects: { armyDelta: { infantry: 1 } },
       },
       {
         actionId: "train_artillery",
         label: "训练炮兵",
-        cost: 8,
+        cost: 2,
         maxPerRound: 1,
-        description: "训练重型炮兵，快速提升军事力量。",
-        effects: { militaryPointsDelta: 2 },
+        description: "消耗军事点训练重型炮兵。",
+        effects: { armyDelta: { artillery: 1 } },
       },
       {
         actionId: "colonial_expedition",
@@ -278,9 +281,9 @@ export const AUSTRIA_DECISION_DEMO_WORKSPACE: DecisionPlayerPhaseWorkspace = {
         nodes: [
           {
             nodeId: "ind_basic_metallurgy",
-            label: "基础冶金",
+            label: "工坊整顿",
             techPointCost: 1,
-            description: "掌握基础冶金工艺，提升手工业基础产能。 效果：手工业产能 +1。",
+            description: "整顿分散工坊和账房流程，稳定扩大早期手工业产能。 效果：手工业产能 +1。",
             permanentEffects: { handicraftCapacityDelta: 1 },
             isUnlocked: false,
             canUnlock: true,
@@ -306,6 +309,24 @@ export const AUSTRIA_DECISION_DEMO_WORKSPACE: DecisionPlayerPhaseWorkspace = {
       routeId: "handicraft",
       routeLabel: "手工业",
       unitBudgetCost: 12,
+    },
+  ],
+  factoryActions: [
+    {
+      actionId: "factory_tax_contracting",
+      label: "财政承包",
+      cost: 0,
+      description: "抽调工人与账房支援财政征收，本回合投料上限 -2，政府预算 +4。",
+      lockedReason: null,
+      effects: { phase1ProductionRawCapacityDelta: -2, governmentFiscalBudgetDelta: 4 },
+    },
+    {
+      actionId: "factory_raw_procurement",
+      label: "原料统购",
+      cost: 3,
+      description: "由工厂直接组织原料采购，立刻补充原材料。",
+      lockedReason: null,
+      effects: { rawMaterialsDelta: 4 },
     },
   ],
   productionOptions: [
@@ -508,16 +529,5 @@ export const AUSTRIA_DECISION_DEMO_WORKSPACE: DecisionPlayerPhaseWorkspace = {
     progressPerFacility: 2,
     activeResearch: null,
   },
-  upgradeOptions: [
-    {
-      capacityDelta: 1,
-      lockedReason: "需要研究「珍妮纺织机」",
-      maxQuantity: 0,
-      routeId: "mechanized",
-      routeLabel: "机械化",
-      sourceRouteId: "handicraft",
-      sourceRouteLabel: "手工业",
-      unitBudgetCost: 10,
-    },
-  ],
+  upgradeOptions: [],
 };

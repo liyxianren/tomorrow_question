@@ -187,6 +187,12 @@
   height: 100%;
 }
 
+.mnd__indep-hint {
+  font-size: 11px;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
+  line-height: 1.35;
+}
+
 .mnd__garrison {
   font-size: 12px;
   color: var(--game-text-secondary, rgba(255, 255, 255, 0.78));
@@ -281,6 +287,11 @@
 
 .mwm-stage {
   position: relative;
+  min-height: min(64vh, 680px);
+}
+
+.mwm-stage .mwm {
+  min-height: min(64vh, 680px);
 }
 
 .mnd-overlay {
@@ -294,4 +305,15 @@
 
 .mnd-overlay > .mnd {
   pointer-events: auto;
+}
+
+@media (max-width: 760px) {
+  .mwm-stage,
+  .mwm-stage .mwm {
+    min-height: 360px;
+  }
+
+  .mnd-overlay {
+    width: min(340px, 78%);
+  }
 }

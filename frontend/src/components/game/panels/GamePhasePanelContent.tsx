@@ -16,6 +16,7 @@ import {
   clearDecisionStepDraft,
   getDecisionStepLabel,
   getDecisionStepReviewLabel,
+  hasDecisionStepContent,
   getNextDecisionStep,
   getPreviousDecisionStep,
   markDecisionStepDirty,
@@ -27,6 +28,7 @@ import {
   addMilitaryActionSelection,
   removeColonizationAction,
   removeMilitaryActionSelection,
+  setAbilitySelectionTarget,
   setAdminPurchases,
   setPointPurchase,
   setColonizationUnlockSelection,
@@ -36,8 +38,10 @@ import {
   setRouteDecisionOrderQuantity,
   toggleDiplomacyActionSelection,
   toggleDomesticMarketActionSelection,
+  toggleFactoryActionSelection,
   toggleGovernmentStrategySelection,
   toggleLootingAction,
+  toggleNationalAbilitySelection,
   togglePolicyQueue,
   toggleReformQueue,
   toggleTechResearchSelection,
@@ -46,15 +50,22 @@ import {
   buildMilitaryActionDescription,
   buildRegionAccessDescription,
   calculateDecisionSpendSummary,
+  calculateGovernmentPointPreview,
   formatRatio,
   getRegionAccessLevelLabel,
 } from "../../../features/game/decisionShared";
+import {
+  MIN_SURPLUS_PRICE_RATIO,
+  SHORTAGE_PRICE_DAMPING,
+  SURPLUS_PRICE_DAMPING,
+} from "../../../constants/priceCurves";
 import type {
   DecisionPlayerPhaseWorkspace,
   GamePhase,
   MarketPlayerPhaseWorkspace,
   PlayerPhaseWorkspace,
   PlayerState,
+  RegionAccessStatus,
   SettlementPlayerPhaseWorkspace,
 } from "../../../types";
 import type { PhaseDraftByPhase } from "../../../features/game/forms";
@@ -76,6 +87,7 @@ type GamePhasePanelContentProps = {
   onDraftsChange: Dispatch<SetStateAction<PhaseDraftState>>;
   onComplete?: () => void;
   secondsRemaining?: number | null;
+  isFinalRoundSettlement?: boolean;
 };
 
 // All game phase panel styles are in CSS classes (gp-*) defined in styles.css
@@ -90,6 +102,7 @@ export function GamePhasePanelContent({
   onDraftsChange,
   onComplete,
   secondsRemaining,
+  isFinalRoundSettlement = false,
 }: GamePhasePanelContentProps) {
   if (!currentPhase || !currentPlayerWorkspace) {
     return (
@@ -134,6 +147,7 @@ export function GamePhasePanelContent({
     case "settlement":
       return (
         <SettlementWorkbench
+          isFinalRound={isFinalRoundSettlement}
           playerState={currentPlayerState}
           workspace={currentPlayerWorkspace as SettlementPlayerPhaseWorkspace}
           secondsRemaining={secondsRemaining ?? null}
@@ -161,6 +175,11 @@ export function DecisionWorkbench({
 }) {
   const activeStep = decisionFlowState.activeStep;
   const activeStepReviewState = decisionFlowState.stepReviewStateByStep[activeStep];
+  const stepContentContext = { activeResearch: workspace.techTree.activeResearch };
+  const activeStepHasContent = hasDecisionStepContent(draft, activeStep, stepContentContext);
+  const activeStepStatusLabel = activeStepHasContent
+    ? "已决策"
+    : getDecisionStepReviewLabel(activeStepReviewState);
 
   function handleStepSwitch(step: DecisionStepId) {
     onDecisionFlowChange((previous) => setDecisionActiveStep(previous, step));
@@ -173,6 +192,23 @@ export function DecisionWorkbench({
   function handleStepNoOp() {
     onChange(clearDecisionStepDraft(draft, activeStep));
     onDecisionFlowChange((previous) => markDecisionStepReviewed(previous, activeStep, "no_op"));
+  }
+
+  function markEmptyActiveStepOnForward(previous: DecisionFlowState) {
+    const reviewState = previous.stepReviewStateByStep[activeStep];
+    if (activeStepHasContent || (reviewState !== "unreviewed" && reviewState !== "needs_recheck")) {
+      return previous;
+    }
+    return markDecisionStepReviewed(previous, activeStep, "no_op");
+  }
+
+  function handleForwardStepSwitch(step: DecisionStepId) {
+    onDecisionFlowChange((previous) => setDecisionActiveStep(markEmptyActiveStepOnForward(previous), step));
+  }
+
+  function handleDecisionComplete() {
+    onDecisionFlowChange((previous) => markEmptyActiveStepOnForward(previous));
+    onComplete?.();
   }
 
   function handleDraftChange(step: DecisionStepId, nextDraft: PhaseDraftByPhase["decision"]) {
@@ -205,6 +241,9 @@ export function DecisionWorkbench({
                   : "newFactoryOrders";
             handleDraftChange("factory", setRouteDecisionOrderQuantity(draft, field, routeId, quantity));
           }}
+          onFactoryActionToggle={(actionId, checked) => {
+            handleDraftChange("factory", toggleFactoryActionSelection(draft, actionId, checked));
+          }}
           onTechnologyToggle={(techId, checked) => {
             handleDraftChange("factory", toggleTechResearchSelection(draft, techId, checked));
           }}
@@ -232,9 +271,6 @@ export function DecisionWorkbench({
           onAdminPurchase={(quantity) => {
             handleDraftChange("government", setAdminPurchases(draft, quantity));
           }}
-          onTechPurchase={(quantity) => {
-            handleDraftChange("government", setPointPurchase(draft, "tech", quantity));
-          }}
           onMilitaryPurchase={(quantity) => {
             handleDraftChange("government", setPointPurchase(draft, "military", quantity));
           }}
@@ -246,6 +282,14 @@ export function DecisionWorkbench({
           }}
           onToggleStrategy={(actionId, checked) => {
             handleDraftChange("government", toggleGovernmentStrategySelection(draft, actionId, checked));
+          }}
+          onToggleAbility={(checked) => {
+            if (!workspace.nationalAbility) return;
+            handleDraftChange("government", toggleNationalAbilitySelection(draft, workspace.nationalAbility, checked));
+          }}
+          onAbilityTargetChange={(ideology) => {
+            if (!workspace.nationalAbility) return;
+            handleDraftChange("government", setAbilitySelectionTarget(draft, workspace.nationalAbility.abilityId, ideology));
           }}
         />
       ) : activeStep === "military" ? (
@@ -268,19 +312,20 @@ export function DecisionWorkbench({
           techTree={workspace.techTree}
           selectedTechIds={new Set(draft.governmentPlan.techResearch.map((t) => t.techId))}
           onToggleTech={(techId, checked) => handleDraftChange("research", toggleTechResearchSelection(draft, techId, checked))}
-          onBuildResearchFacility={() => handleDraftChange("research", toggleGovernmentStrategySelection(draft, "expand_research", true))}
-          canAffordResearchFacility={workspace.budgetPools.governmentFiscal - spendSummary.governmentSpend >= 12}
+          onToggleResearchFacility={(checked) => handleDraftChange("research", toggleGovernmentStrategySelection(draft, "expand_research", checked))}
+          remainingGovernmentBudget={workspace.budgetPools.governmentFiscal - spendSummary.governmentSpend}
           isResearchFacilitySelected={draft.governmentPlan.strategySelections.some((s) => s.actionId === "expand_research")}
         />
       ) : null}
       <DecisionStepFooter
         activeStep={activeStep}
-        activeStepReviewState={activeStepReviewState}
+        activeStepStatusLabel={activeStepStatusLabel}
         nextStep={nextStep}
-        onComplete={onComplete}
+        onComplete={handleDecisionComplete}
         onMarkChecked={handleStepChecked}
         onMarkNoOp={handleStepNoOp}
-        onStepChange={handleStepSwitch}
+        onNextStepChange={handleForwardStepSwitch}
+        onPreviousStepChange={handleStepSwitch}
         previousStep={previousStep}
       />
     </section>
@@ -300,6 +345,17 @@ export function MilitaryDecisionStep({
 }) {
   const militaryWorkspace = workspace.militaryWorkspace;
   const remainingBudget = workspace.budgetPools.governmentFiscal - currentSpend;
+  const availableMilitaryPoints = calculateGovernmentPointPreview(workspace, draft).militaryPoints;
+  const selectedMilitaryPointSpend = draft.militaryPlan.militaryActions.reduce((sum, selection) => {
+    const action = militaryWorkspace.availableMilitaryActions.find((item) => item.actionId === selection.actionId);
+    return sum + (action?.cost ?? 0);
+  }, 0);
+  const selectedColonizationPointSpend = draft.militaryPlan.colonizationActions.length
+    * militaryWorkspace.colonizationCapability.militaryPointCost;
+  const remainingMilitaryPoints = Math.max(
+    0,
+    availableMilitaryPoints - selectedMilitaryPointSpend - selectedColonizationPointSpend,
+  );
   const navalActions = militaryWorkspace.availableMilitaryActions.filter((action) => action.actionId === "naval_drill");
   const armyActions = militaryWorkspace.availableMilitaryActions.filter((action) => (
     action.actionId === "recruit_infantry" || action.actionId === "train_artillery"
@@ -317,7 +373,7 @@ export function MilitaryDecisionStep({
     if (selectedCount >= maxPerRound) {
       return false;
     }
-    return remainingBudget >= cost;
+    return remainingMilitaryPoints >= cost;
   }
 
   return (
@@ -330,7 +386,8 @@ export function MilitaryDecisionStep({
           </div>
           <div className="gp-step-header__pills">
             <span className="gp-step-pill">财政剩余 <strong>{remainingBudget}</strong></span>
-            <span className="gp-step-pill">军事点 <strong>{militaryWorkspace.militaryPoints}</strong></span>
+            <span className="gp-step-pill">军事点可用 <strong>{availableMilitaryPoints}</strong></span>
+            <span className="gp-step-pill">军事点余量 <strong>{remainingMilitaryPoints}</strong></span>
             <span className="gp-step-pill">海外承接 <strong>{militaryWorkspace.overseasCapacity}</strong></span>
             <span className="gp-step-pill">已建交 <strong>{militaryWorkspace.establishedDiplomacy.length}</strong> 区</span>
           </div>
@@ -460,19 +517,21 @@ export function MilitaryDecisionStep({
 
 function DecisionStepFooter({
   activeStep,
-  activeStepReviewState,
+  activeStepStatusLabel,
   previousStep,
   nextStep,
-  onStepChange,
+  onNextStepChange,
+  onPreviousStepChange,
   onMarkChecked,
   onMarkNoOp,
   onComplete,
 }: {
   activeStep: DecisionStepId;
-  activeStepReviewState: DecisionFlowState["stepReviewStateByStep"][DecisionStepId];
+  activeStepStatusLabel: string;
   previousStep: DecisionStepId | null;
   nextStep: DecisionStepId | null;
-  onStepChange: (step: DecisionStepId) => void;
+  onNextStepChange: (step: DecisionStepId) => void;
+  onPreviousStepChange: (step: DecisionStepId) => void;
   onMarkChecked: () => void;
   onMarkNoOp: () => void;
   onComplete?: () => void;
@@ -481,13 +540,22 @@ function DecisionStepFooter({
     <article className="decision-command-deck__footer">
       <div className="gp-footer-actions" style={{ display: "flex", alignItems: "center", gap: 12, width: "100%" }}>
         {previousStep ? (
-          <button className="gp-btn" onClick={() => onStepChange(previousStep)} type="button">
+          <button className="gp-btn" onClick={() => onPreviousStepChange(previousStep)} type="button">
             上一步：{getDecisionStepLabel(previousStep)}
           </button>
         ) : null}
         <div className="decision-command-deck__footer-spacer" />
+        <span className="gp-step-desc" data-testid="decision-step-footer-status" style={{ margin: 0 }}>
+          {activeStepStatusLabel}
+        </span>
+        <button className="gp-btn" onClick={onMarkNoOp} type="button">
+          本步跳过
+        </button>
+        <button className="gp-btn" onClick={onMarkChecked} type="button">
+          已检查
+        </button>
         {nextStep ? (
-          <button className="gp-btn gp-btn--primary" onClick={() => onStepChange(nextStep)} type="button">
+          <button className="gp-btn gp-btn--primary" onClick={() => onNextStepChange(nextStep)} type="button">
             下一步：{getDecisionStepLabel(nextStep)}
           </button>
         ) : (
@@ -504,13 +572,18 @@ export function MarketWorkbench({
   workspace,
   draft,
   onChange,
+  readOnly = false,
 }: {
   workspace: MarketPlayerPhaseWorkspace;
   playerState: PlayerState | null;
   draft: PhaseDraftByPhase["market"];
   onChange: (value: PhaseDraftByPhase["market"]) => void;
+  readOnly?: boolean;
 }) {
   function handlePhase1AllocationChange(domesticAllocation: number) {
+    if (readOnly) {
+      return;
+    }
     const previous = draft.phase1Market ?? {
       domesticAllocation: 0,
       externalAllocations: [],
@@ -525,6 +598,9 @@ export function MarketWorkbench({
   }
 
   function handlePhase1ExternalChange(marketId: string, quantity: number) {
+    if (readOnly) {
+      return;
+    }
     const previous = draft.phase1Market ?? {
       domesticAllocation: 0,
       externalAllocations: [],
@@ -552,12 +628,30 @@ export function MarketWorkbench({
     (sum, item) => sum + Math.max(0, item.quantity),
     0,
   );
+  const domesticLimit = phase1Economy
+    ? Math.floor(Math.max(0, Math.min(
+        phase1GoodsInventory - externalTotal,
+        phase1Economy.domesticDemand ?? phase1GoodsInventory,
+        workspace.domesticMarketCapacity,
+      )))
+    : phase1GoodsInventory;
+  const displayDomesticAllocation = clampMarketQuantity(
+    phase1Draft.domesticAllocation,
+    0,
+    domesticLimit,
+  );
   const estimatedRevenue = phase1Economy
     ? calculatePhase1Revenue(
-        phase1Draft.domesticAllocation,
-        externalTotal,
+        displayDomesticAllocation,
+        phase1Draft.externalAllocations,
+        workspace.regionAccessStatus ?? [],
+        workspace.overseasMarketCapacity,
         phase1Economy.domesticDemand ?? 0,
         phase1Economy.equilibriumPrice ?? 0,
+        phase1Economy.domesticPriceBonus ?? 0,
+        phase1Economy.overseasPriceBonus ?? 0,
+        phase1Economy.domesticPriceCeiling ?? 8,
+        phase1Economy.overseasPriceCeiling ?? 24,
       )
     : 0;
 
@@ -572,7 +666,7 @@ export function MarketWorkbench({
           <div className="gp-step-header__pills">
             <span className="gp-step-pill">商品库存 <strong>{phase1GoodsInventory}</strong></span>
             <span className="gp-step-pill">预计收入 <strong>{estimatedRevenue}</strong></span>
-            <span className="gp-step-pill">国内投放 <strong>{phase1Draft.domesticAllocation}</strong></span>
+            <span className="gp-step-pill">国内投放 <strong>{displayDomesticAllocation}</strong></span>
             <span className="gp-step-pill">海外投放 <strong>{externalTotal}</strong></span>
           </div>
         </div>
@@ -582,12 +676,15 @@ export function MarketWorkbench({
         <Phase1MarketPanel
           phase1Economy={phase1Economy}
           goodsInventory={phase1GoodsInventory}
+          domesticMarketCapacity={workspace.domesticMarketCapacity}
+          overseasMarketCapacity={workspace.overseasMarketCapacity}
           budgetPools={workspace.budgetPools}
           regionAccessStatus={workspace.regionAccessStatus ?? []}
           draftAllocation={phase1Draft.domesticAllocation}
           externalAllocations={phase1Draft.externalAllocations}
           onAllocationChange={handlePhase1AllocationChange}
           onExternalAllocationChange={handlePhase1ExternalChange}
+          readOnly={readOnly}
         />
       ) : null}
     </section>
@@ -598,14 +695,25 @@ export function SettlementWorkbench({
   workspace,
   playerState,
   secondsRemaining,
+  isFinalRound = false,
 }: {
   workspace: SettlementPlayerPhaseWorkspace;
   playerState: PlayerState | null;
   secondsRemaining: number | null;
+  isFinalRound?: boolean;
 }) {
+  const marketIncome = workspace.marketIncome ?? (workspace.domesticSalesRevenue + workspace.overseasSalesRevenue);
+  const colonyIncome = workspace.colonyIncome ?? Math.max(0, workspace.nationalIncome - marketIncome);
+  const projectedCumulativeIncome =
+    (playerState?.cumulativeNationalIncome ?? 0) + Math.max(0, workspace.nationalIncome);
+  const consumptionPoolAfterAllocation = workspace.phase1Economy?.poolDeltaPreview
+    ? (workspace.phase1Economy.consumptionPool ?? 0) + Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)
+    : 0;
+  const consumptionPoolAfterDrain = Math.round(consumptionPoolAfterAllocation * 0.6);
+
   return (
     <section data-testid="settlement-workbench" className="gp-section">
-      <SettlementCountdownBanner secondsRemaining={secondsRemaining} />
+      <SettlementCountdownBanner isFinalRound={isFinalRound} secondsRemaining={secondsRemaining} />
       <article className="gp-card gp-card--primary">
         <div>
           <p className="gp-step-eyebrow">财政结算台</p>
@@ -615,10 +723,21 @@ export function SettlementWorkbench({
         <div className="gp-grid">
           <MetricCard hint="当回合国内市场形成的销售额。" label="本回合国内销售额" value={`${workspace.domesticSalesRevenue} 财政`} />
           <MetricCard hint="当回合海外市场形成的销售额。" label="本回合海外销售额" value={`${workspace.overseasSalesRevenue} 财政`} />
-          <MetricCard hint="财政结算前的国家收入总额。" label="本回合国家收入" value={`${workspace.nationalIncome} 财政`} />
+          {colonyIncome > 0 ? (
+            <MetricCard hint="已控制殖民地在本次财政结算中追加的收入。" label="殖民地收入" value={`${colonyIncome} 财政`} />
+          ) : null}
+          <MetricCard
+            hint={colonyIncome > 0 ? "市场销售收入与殖民地收入合计。" : "本回合市场销售收入合计。"}
+            label="本回合国家收入"
+            value={`${workspace.nationalIncome} 财政`}
+          />
           <MetricCard hint="国内 / 工厂 / 政府财政。" label="下一轮收入分配比例" value={formatRatio(workspace.nextRatio)} />
-          <MetricCard hint="终局主指标。" label="累计国家收入" value={`${playerState?.cumulativeNationalIncome ?? 0} 财政`} />
-          <MetricCard hint="结算完成后会进入下一轮国家决策。" label="当前国家" value={getCountryLabel(workspace.countryCode)} />
+          <MetricCard hint="终局主指标，包含本回合结算收入。" label="结算后累计收入" value={`${projectedCumulativeIncome} 财政`} />
+          <MetricCard
+            hint={isFinalRound ? "结算完成后进入终局档案。" : "结算完成后会进入下一轮国家决策。"}
+            label="当前国家"
+            value={getCountryLabel(workspace.countryCode)}
+          />
         </div>
       </article>
       <article className="gp-card">
@@ -633,13 +752,13 @@ export function SettlementWorkbench({
         <article className="gp-card">
           <h3 style={{ margin: 0 }}>💰 消费池变化</h3>
           <p className="gp-step-desc" style={{ marginTop: 4 }}>
-            上期余额 {workspace.phase1Economy.consumptionPool} 财政 + 新增 {Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)} 财政 = {workspace.phase1Economy.consumptionPool + Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)} 财政
-            ，经过 30% 自然消费后结余 {Math.round((workspace.phase1Economy.consumptionPool + workspace.phase1Economy.poolDeltaPreview.consumption) * 0.7)} 财政
+            上期余额 {workspace.phase1Economy.consumptionPool} 财政 + 新增 {Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)} 财政 = {consumptionPoolAfterAllocation} 财政
+            ，经过 40% 自然消费后结余 {consumptionPoolAfterDrain} 财政
           </p>
           <div className="gp-grid">
             <MetricCard hint="上一轮消费池余额。" label="上期余额" value={`${workspace.phase1Economy.consumptionPool} 财政`} />
-            <MetricCard hint="本回合收入按 5:3:2 分配到消费池的部分。" label="新增分配" value={`${Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)} 财政`} />
-            <MetricCard hint="经过自然消费后的最终消费池。" label="结余" value={`${Math.round((workspace.phase1Economy.consumptionPool + workspace.phase1Economy.poolDeltaPreview.consumption) * 0.7)} 财政`} />
+            <MetricCard hint={`本回合收入按当前 ${formatRatio(workspace.nextRatio)} 分配到消费池的部分。`} label="新增分配" value={`${Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)} 财政`} />
+            <MetricCard hint="经过自然消费后的最终消费池。" label="结余" value={`${consumptionPoolAfterDrain} 财政`} />
           </div>
         </article>
       )}
@@ -647,14 +766,21 @@ export function SettlementWorkbench({
   );
 }
 
-function SettlementCountdownBanner({ secondsRemaining }: { secondsRemaining: number | null }) {
+function SettlementCountdownBanner({
+  secondsRemaining,
+  isFinalRound,
+}: {
+  secondsRemaining: number | null;
+  isFinalRound: boolean;
+}) {
   if (secondsRemaining === null) {
     return null;
   }
 
+  const targetLabel = isFinalRound ? "终局档案" : "下一回合";
   const message = secondsRemaining > 0
-    ? `${secondsRemaining} 秒后进入下一回合…`
-    : "进入下一回合…";
+    ? `${secondsRemaining} 秒后进入${targetLabel}…`
+    : `进入${targetLabel}…`;
 
   return (
     <article
@@ -1056,12 +1182,78 @@ function GovernmentReformPanel({
 
 function calculatePhase1Revenue(
   domesticAllocation: number,
-  externalAllocation: number,
+  externalAllocations: Array<{ marketId: string; quantity: number }>,
+  regionAccessStatus: RegionAccessStatus[],
+  overseasMarketCapacity: number,
   demand: number,
   equilibriumPrice: number,
+  domesticPriceBonus: number,
+  overseasPriceBonus: number,
+  domesticPriceCeiling: number,
+  overseasPriceCeiling: number,
 ): number {
   const domesticSold = Math.min(domesticAllocation, demand);
-  return domesticSold * equilibriumPrice + externalAllocation * Math.round(equilibriumPrice * 1.2);
+  const domesticPrice = calculateDomesticMarketPrice(
+    domesticAllocation,
+    demand,
+    equilibriumPrice,
+    domesticPriceBonus,
+    domesticPriceCeiling,
+  );
+  const domesticRevenue = Math.floor(domesticSold * domesticPrice);
+  let remainingOverseasCapacity = Math.max(0, overseasMarketCapacity);
+  const externalRevenue = externalAllocations.reduce((sum, allocation) => {
+    if (remainingOverseasCapacity <= 0) {
+      return sum;
+    }
+    const region = regionAccessStatus.find((item) => item.regionId === allocation.marketId);
+    const multiplier = region?.priceMultiplier ?? 1;
+    const sold = Math.min(Math.max(0, allocation.quantity), remainingOverseasCapacity);
+    remainingOverseasCapacity -= sold;
+    return sum + sold * calculateOverseasMarketPrice(
+      equilibriumPrice,
+      multiplier,
+      overseasPriceBonus,
+      overseasPriceCeiling,
+    );
+  }, 0);
+  return domesticRevenue + externalRevenue;
+}
+
+function calculateDomesticMarketPrice(
+  allocation: number,
+  demand: number,
+  equilibriumPrice: number,
+  domesticPriceBonus: number,
+  domesticPriceCeiling: number,
+): number {
+  if (allocation <= 0 || demand <= 0) {
+    return 0;
+  }
+  const ratio = allocation / demand;
+  let price = equilibriumPrice;
+  if (ratio < 1) {
+    price = equilibriumPrice * (1 + (1 - ratio) * SHORTAGE_PRICE_DAMPING);
+  } else if (ratio > 1) {
+    price = equilibriumPrice * Math.max(MIN_SURPLUS_PRICE_RATIO, 1 - (ratio - 1) * SURPLUS_PRICE_DAMPING);
+  }
+  return Math.max(1, Math.min(domesticPriceCeiling, price + domesticPriceBonus));
+}
+
+function calculateOverseasMarketPrice(
+  equilibriumPrice: number,
+  multiplier: number,
+  overseasPriceBonus: number,
+  overseasPriceCeiling: number,
+): number {
+  return Math.max(1, Math.min(overseasPriceCeiling, Math.floor(equilibriumPrice * multiplier) + overseasPriceBonus));
+}
+
+function clampMarketQuantity(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) {
+    return min;
+  }
+  return Math.max(min, Math.min(max, Math.floor(value)));
 }
 
 

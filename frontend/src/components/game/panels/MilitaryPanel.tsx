@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { DecisionPlayerPhaseWorkspace } from "../../../types";
 import type { PhaseDraftByPhase } from "../../../features/game/forms";
-import { buildEffectMetrics } from "../../../features/game/decisionShared";
+import { buildEffectMetrics, calculateGovernmentPointPreview } from "../../../features/game/decisionShared";
 import { DecisionStatStrip } from "./shared/DecisionStatStrip";
 import { DecisionActionCard } from "./shared/DecisionActionCard";
 import { MilitaryWorldMap, type MapSelection } from "./military/MilitaryWorldMap";
@@ -63,11 +63,23 @@ export function MilitaryPanel({
   const totalFleets = mil.navy.fleets ?? 0;
   const oceanNodes = mil.oceanNodes ?? [];
   const navalDeployment = draft.militaryPlan.navalDeployment ?? {};
+  const selectedFleetDelta = sumSelectedFleetDelta(mil.availableMilitaryActions, draft);
+  const effectiveTotalFleets = Math.max(0, totalFleets + selectedFleetDelta);
+  const availableMilitaryPoints = calculateGovernmentPointPreview(workspace, draft).militaryPoints;
+  const selectedMilitaryPointSpend = draft.militaryPlan.militaryActions.reduce((sum, selection) => {
+    const action = mil.availableMilitaryActions.find((item) => item.actionId === selection.actionId);
+    return sum + (action?.cost ?? 0);
+  }, 0);
+  const selectedColonizationPointSpend = draft.militaryPlan.colonizationActions.length * capability.militaryPointCost;
+  const remainingMilitaryPoints = Math.max(
+    0,
+    availableMilitaryPoints - selectedMilitaryPointSpend - selectedColonizationPointSpend,
+  );
   const totalDeployed = oceanNodes.reduce((sum, node) => {
     const draftCount = navalDeployment[node.nodeId];
     return sum + (typeof draftCount === "number" ? draftCount : node.myFleet);
   }, 0);
-  const remainingFleets = Math.max(0, totalFleets - totalDeployed);
+  const remainingFleets = Math.max(0, effectiveTotalFleets - totalDeployed);
 
   const conquestActions = draft.militaryPlan.conquestActions ?? [];
   const lootingActions = draft.militaryPlan.lootingActions ?? [];
@@ -76,8 +88,8 @@ export function MilitaryPanel({
     mil.availableDiplomacyActions.map((a) => [a.targetRegion, a]),
   );
   const conquestByRegion = new Map(conquestActions.map((a) => [a.regionId, a]));
-  const maxInfantryByPoints = Math.floor(mil.militaryPoints / 10);
-  const maxArtilleryByBudget = Math.floor(remainingGovernmentBudget / 16);
+  const maxInfantryAvailable = Math.max(0, Math.floor(mil.army.infantry ?? 0));
+  const maxArtilleryAvailable = Math.max(0, Math.floor(mil.army.artillery ?? 0));
 
   const [selectedNode, setSelectedNode] = useState<MapSelection>(null);
 
@@ -85,17 +97,20 @@ export function MilitaryPanel({
     <div className="military-panel" data-testid="military-panel">
       <div className="military-panel__header">
         <h3 className="military-panel__title">⚔️ 军事要塞</h3>
-        <span className="military-panel__budget">财政 {remainingGovernmentBudget}</span>
+        <span className="military-panel__budget">军事点余量 {remainingMilitaryPoints}</span>
       </div>
 
       <DecisionStatStrip
         items={[
-          { icon: "⚔️", value: mil.militaryPoints, label: "军事点" },
-          { icon: "⛵", value: mil.navy.fleets ?? 0, label: "舰队" },
+          { icon: "⚔️", value: availableMilitaryPoints, label: "军事点" },
+          { icon: "⛵", value: selectedFleetDelta > 0 ? `${totalFleets}+${selectedFleetDelta}` : totalFleets, label: "可调度舰队" },
           { icon: "🌍", value: mil.overseasCapacity, label: "海外承接" },
           { icon: "🏳️", value: mil.establishedDiplomacy.length, label: "已建交" },
         ]}
       />
+      <p className="military-panel__rule-note">
+        舰队可调度 = 现有舰队 + 本轮已选建造舰队 - 地图已部署舰队；海域控制需要在该航线达到门槛且数量领先。殖民地控制不提供舰队，只影响市场权限、收入与排名比较。
+      </p>
 
       <h4 className="military-section-label">🌐 世界地图</h4>
       <div className="mwm-stage">
@@ -106,8 +121,9 @@ export function MilitaryPanel({
           navalDeployment={navalDeployment}
           myCountry={workspace.countryCode}
           selectedNode={selectedNode}
-          totalFleets={totalFleets}
+          totalFleets={effectiveTotalFleets}
           remainingFleets={remainingFleets}
+          oceanControlThreshold={mil.oceanControlThreshold ?? 2}
           onPinSelect={setSelectedNode}
           onNavalDeploymentChange={onNavalDeploymentChange}
         />
@@ -141,13 +157,13 @@ export function MilitaryPanel({
                 capability={capability}
                 previewIsUnlocked={previewIsUnlocked}
                 previewHasDiplomacy={previewHasDiplomacy}
-                militaryPoints={mil.militaryPoints}
+                militaryPoints={remainingMilitaryPoints}
                 remainingGovernmentBudget={remainingGovernmentBudget}
                 colonizationSelected={colonizationSelected}
                 conquestEntry={conquestEntry}
                 lootedSet={lootedSet}
-                maxInfantryByPoints={maxInfantryByPoints}
-                maxArtilleryByBudget={maxArtilleryByBudget}
+                maxInfantryAvailable={maxInfantryAvailable}
+                maxArtilleryAvailable={maxArtilleryAvailable}
                 onToggleDiplomacy={onToggleDiplomacy}
                 onColonize={onColonize}
                 onCancelColonize={onCancelColonize}
@@ -159,6 +175,12 @@ export function MilitaryPanel({
           {oceanNodes.map((node) => {
             const draftCount = navalDeployment[node.nodeId];
             const myFleet = typeof draftCount === "number" ? draftCount : node.myFleet;
+            const previewNode = createOceanNodeDeploymentPreview(
+              node,
+              workspace.countryCode,
+              myFleet,
+              mil.oceanControlThreshold ?? 2,
+            );
             const isOpen = selectedNode?.type === "ocean" && selectedNode?.id === node.nodeId;
             return (
               <MilitaryNodeDrawer
@@ -167,7 +189,7 @@ export function MilitaryPanel({
                 nodeId={node.nodeId}
                 open={isOpen}
                 onClose={() => setSelectedNode(null)}
-                oceanNode={node}
+                oceanNode={previewNode}
                 myFleet={myFleet}
                 remainingFleets={remainingFleets}
                 myCountry={workspace.countryCode}
@@ -218,7 +240,7 @@ export function MilitaryPanel({
       <div className="military-actions">
         {mil.availableMilitaryActions.map((action) => {
           const count = getCount(action.actionId);
-          const canAdd = count < action.maxPerRound && remainingGovernmentBudget >= action.cost;
+          const canAdd = count < action.maxPerRound && remainingMilitaryPoints >= action.cost;
           const effectMetrics = buildEffectMetrics(action.effects);
           const status = count > 0
             ? "selected"
@@ -254,4 +276,50 @@ export function MilitaryPanel({
       </div>
     </div>
   );
+}
+
+function sumSelectedFleetDelta(
+  actions: DecisionPlayerPhaseWorkspace["militaryWorkspace"]["availableMilitaryActions"],
+  draft: PhaseDraftByPhase["decision"],
+): number {
+  return draft.militaryPlan.militaryActions.reduce((sum, selection) => {
+    const action = actions.find((item) => item.actionId === selection.actionId);
+    const navyDelta = action?.effects?.navyDelta;
+    if (!navyDelta || typeof navyDelta !== "object" || !("fleets" in navyDelta)) {
+      return sum;
+    }
+    const fleets = (navyDelta as Record<string, unknown>).fleets;
+    return sum + (typeof fleets === "number" ? fleets : 0);
+  }, 0);
+}
+
+function createOceanNodeDeploymentPreview(
+  node: NonNullable<DecisionPlayerPhaseWorkspace["militaryWorkspace"]["oceanNodes"]>[number],
+  myCountry: DecisionPlayerPhaseWorkspace["countryCode"],
+  myFleet: number,
+  controlThreshold: number,
+) {
+  const navyByCountry = { ...(node.navyByCountry ?? {}) };
+  if (myFleet > 0) {
+    navyByCountry[myCountry] = myFleet;
+  } else {
+    delete navyByCountry[myCountry];
+  }
+
+  const ranked = Object.entries(navyByCountry)
+    .filter(([, count]) => count > 0)
+    .sort(([, a], [, b]) => b - a);
+  const [topCountry, topCount] = ranked[0] ?? [null, 0];
+  const runnerUpCount = ranked[1]?.[1] ?? 0;
+  const controller = topCountry && topCount >= controlThreshold && topCount > runnerUpCount
+    ? topCountry
+    : null;
+
+  return {
+    ...node,
+    myFleet,
+    navyByCountry,
+    controller,
+    isBlockaded: controller !== null,
+  };
 }

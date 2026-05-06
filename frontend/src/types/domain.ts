@@ -171,11 +171,16 @@ export interface NewFactoryOrder {
   quantity: number;
 }
 
+export interface FactoryActionSelection {
+  actionId: string;
+}
+
 export interface FactoryPlan {
   productionOrders: ProductionOrder[];
   expansionOrders: ExpansionOrder[];
   upgradeOrders: UpgradeOrder[];
   newFactoryOrders: NewFactoryOrder[];
+  factoryActions?: FactoryActionSelection[];
 }
 
 export interface DomesticMarketActionSelection {
@@ -486,7 +491,7 @@ export interface Phase1ProductionMode {
   buildCost: number | null;
   upgradeCost: number | null;
   currentCapacity: number;
-  requiredTech: string | null;
+  requiredTech: string | string[] | null;
   isAvailable: boolean;
 }
 
@@ -497,8 +502,17 @@ export interface Phase1EconomyWorkspace {
   productionModes: Phase1ProductionMode[];
   domesticDemand: number;
   equilibriumPrice: number;
+  domesticBasePricePreview?: number;
+  domesticPriceBeforeCap?: number;
   domesticPricePreview: number;
+  domesticPriceCapReached?: boolean;
+  marketPriceDrift?: number;
+  domesticPriceBonus?: number;
+  overseasPriceBonus?: number;
+  domesticPriceCeiling?: number;
+  overseasPriceCeiling?: number;
   investmentPool: number;
+  rawMaterialsPerTurn?: number;
   incomeAllocationRatio: Record<string, number>;
   marketMetrics: Record<string, number>;
   poolDeltaPreview?: {
@@ -513,6 +527,8 @@ export interface DecisionPlayerPhaseWorkspace {
   countryCode: CountryCode;
   countryLabel: string;
   budgetPools: BudgetPools;
+  domesticMarketCapacity?: number;
+  overseasMarketCapacity?: number;
   incomeAllocationRatio: IncomeAllocationRatio;
   techPoints: number;
   militaryPoints: number;
@@ -521,6 +537,7 @@ export interface DecisionPlayerPhaseWorkspace {
   expansionOptions: FactoryExpansionOption[];
   upgradeOptions: FactoryUpgradeOption[];
   newFactoryOptions: FactoryNewFactoryOption[];
+  factoryActions?: DecisionActionOption[];
   activeEvents: ActiveEvent[];
   nationalAbility: NationalAbility | null;
   techTree: TechTreeData;
@@ -539,6 +556,7 @@ export interface DecisionPlayerPhaseWorkspace {
     controlledRegions: number;
     establishedDiplomacy: string[];
     overseasCapacity: number;
+    oceanControlThreshold?: number;
     regionAccessStatus: RegionAccessStatus[];
     availableMilitaryActions: MilitaryActionOption[];
     availableDiplomacyActions: DiplomacyActionOption[];
@@ -560,6 +578,7 @@ export interface ReformOption {
   path: "freedom" | "equality" | "national";
   label: string;
   adminCost: number;
+  description?: string;
   isCompleted: boolean;
   isBlocked: boolean;
   effects: Record<string, unknown>;
@@ -572,9 +591,17 @@ export interface PolicyOption {
   adminCostPerTurn: number;
   budgetCost: number;
   description: string;
+  effects?: Record<string, unknown>;
   isActive: boolean;
   requiresReform: string | null;
   isUnlocked: boolean;
+}
+
+export interface IdeologyMilestoneOption {
+  level: number;
+  label: string;
+  effects?: Record<string, unknown>;
+  penalty?: Record<string, unknown>;
 }
 
 export interface GovernmentReformsWorkspace {
@@ -587,6 +614,7 @@ export interface GovernmentReformsWorkspace {
   ideologyMax: number;
   revolutionThreshold: number;
   terminalReformsByIdeology: Record<string, string>;
+  ideologyMilestones?: Record<string, IdeologyMilestoneOption[]>;
   availableReforms: ReformOption[];
   availablePolicies: PolicyOption[];
 }
@@ -627,6 +655,8 @@ export interface SettlementPlayerPhaseWorkspace {
   countryLabel: string;
   domesticSalesRevenue: number;
   overseasSalesRevenue: number;
+  marketIncome?: number;
+  colonyIncome?: number;
   nationalIncome: number;
   budgetAllocation: BudgetPools;
   nextRatio: IncomeAllocationRatio;

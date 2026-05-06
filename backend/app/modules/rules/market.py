@@ -8,7 +8,7 @@ from app.modules.game_state.market_access import (
     resolve_domestic_market_capacity,
     resolve_overseas_market_capacity,
 )
-from app.modules.game_state.factory_economy import domestic_reference_price, overseas_reference_price
+from app.modules.game_state.effects import get_effect_bonus
 
 from .common import RuleResolution, clone_snapshot, default_market_submission_payload, index_turn_inputs
 from .phase1_economy import (
@@ -86,22 +86,21 @@ def _apply_phase1_market(
     demand = calculate_domestic_demand(capacity_by_mode)
     consumption_pool = Decimal(int(player_state.budget_pools.get("domesticMarket", 0)))
     available_inventory = int(player_state.phase1_economy.goods_inventory)
-    supply = Decimal(available_inventory)
+    original_inventory = available_inventory
+    supply = Decimal(original_inventory)
 
     equilibrium_price = calculate_equilibrium_price(
         consumption_pool=consumption_pool, demand=demand
     )
+    goods_config = balance.production.goods.get(PHASE1_GOODS_KEY)
+    domestic_price_ceiling = int(goods_config.price_ceiling) if goods_config is not None else 8
+    overseas_price_ceiling = int(goods_config.overseas_price_ceiling) if goods_config is not None else 24
+    domestic_price_bonus = Decimal(int(get_effect_bonus(player_state, "domesticPriceBonus")))
+    overseas_price_bonus = int(get_effect_bonus(player_state, "overseasPriceBonus"))
     # Apply cross-round price drift from settlement adjustments.
     price_drift = int(getattr(snapshot, "market_price_adjustments", {}).get("phase1_goods", 0))
     if price_drift:
         equilibrium_price = max(Decimal("1"), equilibrium_price + Decimal(str(price_drift)))
-    final_price = calculate_domestic_price(
-        equilibrium_price=equilibrium_price,
-        supply=supply,
-        demand=demand,
-        minimum_price=1,
-    )
-
     domestic_request = max(0, int(phase1_market.get("domesticAllocation", 0) or 0))
     domestic_capacity = max(0, int(resolve_domestic_market_capacity(player_state)))
     sold_domestic_d = min(
@@ -110,6 +109,15 @@ def _apply_phase1_market(
         demand,
         Decimal(domestic_capacity),
     )
+    price_supply = sold_domestic_d if domestic_request > 0 else supply
+    base_final_price = calculate_domestic_price(
+        equilibrium_price=equilibrium_price,
+        supply=price_supply,
+        demand=demand,
+        minimum_price=1,
+        maximum_price=domestic_price_ceiling,
+    )
+    final_price = min(Decimal(domestic_price_ceiling), max(Decimal("1"), base_final_price + domestic_price_bonus))
     sold_domestic = int(sold_domestic_d)
     available_inventory -= sold_domestic
     domestic_revenue_d = sold_domestic_d * final_price
@@ -144,7 +152,8 @@ def _apply_phase1_market(
             continue
         region_blueprint = balance.regions.region_blueprints.get(region_id)
         multiplier = float(region_blueprint.price_multiplier) if region_blueprint else 1.0
-        overseas_unit_price = int(Decimal(str(equilibrium_price)) * Decimal(str(multiplier)))
+        overseas_unit_price = int(Decimal(str(equilibrium_price)) * Decimal(str(multiplier))) + overseas_price_bonus
+        overseas_unit_price = max(1, min(overseas_price_ceiling, overseas_unit_price))
         revenue = int(Decimal(sold) * Decimal(str(overseas_unit_price)))
         overseas_revenue += revenue
         sold_overseas += sold

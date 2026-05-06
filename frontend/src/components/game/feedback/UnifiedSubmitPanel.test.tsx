@@ -49,6 +49,7 @@ describe("UnifiedSubmitPanel", () => {
         gameId="game-1"
         phase="decision"
         playerId="player-1"
+        roundNo={3}
         submissionStatus="pending"
       />,
     );
@@ -128,6 +129,7 @@ describe("UnifiedSubmitPanel", () => {
         gameId="game-1"
         phase="market"
         playerId="player-1"
+        roundNo={3}
         submissionStatus="pending"
       />,
     );
@@ -138,6 +140,70 @@ describe("UnifiedSubmitPanel", () => {
     expect(await screen.findByText("提交截止时间已过。")).toBeInTheDocument();
   });
 
+  it("does not reuse a stale local submission response after the phase changes", async () => {
+    let resolveRequest: ((value: SubmitPhaseResponse) => void) | null = null;
+
+    vi.mocked(submitPhase).mockImplementationOnce(
+      () =>
+        new Promise<SubmitPhaseResponse>((resolve) => {
+          resolveRequest = resolve;
+        }),
+    );
+
+    const { rerender } = render(
+      <UnifiedSubmitPanel
+        canSubmit
+        draftPayload={{ factoryPlan: { productionOrders: [] } }}
+        gameId="game-1"
+        phase="decision"
+        playerId="player-1"
+        roundNo={3}
+        submissionStatus="pending"
+      />,
+    );
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "确认提交" }));
+
+    rerender(
+      <UnifiedSubmitPanel
+        canSubmit
+        draftPayload={{ saleOrders: [] }}
+        gameId="game-1"
+        phase="market"
+        playerId="player-1"
+        roundNo={3}
+        submissionStatus="pending"
+      />,
+    );
+
+    resolveRequest!({
+      submission: {
+        gameId: "game-1",
+        roundNo: 3,
+        phase: "decision",
+        playerId: "player-1",
+        submissionStatus: "submitted",
+        payload: { factoryPlan: { productionOrders: [] } },
+        submittedAt: "2026-03-30T12:00:00Z",
+        isTimeoutGenerated: false,
+      },
+      submissionStatus: {
+        "player-1": "submitted",
+        "player-2": "submitted",
+      },
+      phase: "decision",
+      roundNo: 3,
+      allSubmitted: true,
+      settlementTriggered: true,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "确认提交" })).not.toBeDisabled();
+      expect(screen.queryByText("已提交")).not.toBeInTheDocument();
+    });
+  });
+
   it("shows the non-submittable state without calling the service", () => {
     render(
       <UnifiedSubmitPanel
@@ -146,6 +212,7 @@ describe("UnifiedSubmitPanel", () => {
         gameId="game-1"
         phase="market"
         playerId="player-1"
+        roundNo={3}
         submissionStatus="pending"
       />,
     );

@@ -257,7 +257,7 @@ class ProductionUpgradeChainE2E(unittest.TestCase):
             snapshot = self._play_round(
                 snapshot,
                 {"session-1": _decision_payload(research_target=tech_id)},
-                {"session-1": 10},
+                {"session-1": 0},
             )
             britain = self._player(snapshot, "player-1")
             if tech_id in britain.unlocked_techs:
@@ -296,13 +296,15 @@ class ProductionUpgradeChainE2E(unittest.TestCase):
                 build_orders=[{"routeId": "handicraft", "quantity": 5}],
                 research_target="spinning_jenny",
             )},
-            {"session-1": 10},
+            {"session-1": 0},
         )
         britain = self._player(snapshot, "player-1")
         hc_capacity = britain.phase1_economy.capacity_by_mode.get("handicraft", 0)
         self.assertGreaterEqual(hc_capacity, 5, "Should have built handicraft factories")
-        self.assertEqual(britain.active_research, "spinning_jenny",
-                         "Active research should be set to spinning_jenny")
+        self.assertTrue(
+            britain.active_research == "spinning_jenny" or "spinning_jenny" in britain.unlocked_techs,
+            "spinning_jenny should be active or already unlocked after settlement",
+        )
 
         # ── Research spinning_jenny (threshold=2, 3 facilities = 6 progress/turn) ──
         snapshot, ok = self._try_research_tech(snapshot, "spinning_jenny")
@@ -313,9 +315,9 @@ class ProductionUpgradeChainE2E(unittest.TestCase):
             snapshot,
             {"session-1": _decision_payload(
                 upgrade_orders=[{"routeId": "mechanized", "quantity": 3}],
-                research_target="bessemer_process",
+                research_target="lathe",
             )},
-            {"session-1": 10},
+            {"session-1": 0},
         )
         britain = self._player(snapshot, "player-1")
         mech_capacity = britain.phase1_economy.capacity_by_mode.get("mechanized", 0)
@@ -325,17 +327,13 @@ class ProductionUpgradeChainE2E(unittest.TestCase):
         self.assertLessEqual(hc_after, hc_capacity - 3,
                              "Handicraft capacity should decrease when upgrading")
 
-        # ── Research bessemer_process (steam chain, threshold=2) ──
-        snapshot, ok = self._try_research_tech(snapshot, "bessemer_process")
-        self.assertTrue(ok, "bessemer_process should be researched")
-
-        # ── Research watt_engine (steam chain, threshold=3, needs bessemer_process) ──
-        snapshot, ok = self._try_research_tech(snapshot, "watt_engine")
-        self.assertTrue(ok, "watt_engine should be researched")
-
-        # ── Research lathe (mechanical chain, threshold=3, needs spinning_jenny) ──
+        # ── Research lathe (industrialization chain, needs spinning_jenny) ──
         snapshot, ok = self._try_research_tech(snapshot, "lathe")
         self.assertTrue(ok, "lathe should be researched")
+
+        # ── Research watt_engine (industrialization chain, needs lathe) ──
+        snapshot, ok = self._try_research_tech(snapshot, "watt_engine")
+        self.assertTrue(ok, "watt_engine should be researched")
 
         # ── Upgrade mechanized → steam ──
         snapshot = self._play_round(
@@ -343,21 +341,17 @@ class ProductionUpgradeChainE2E(unittest.TestCase):
             {"session-1": _decision_payload(
                 upgrade_orders=[{"routeId": "steam", "quantity": 2}],
             )},
-            {"session-1": 10},
+            {"session-1": 0},
         )
         britain = self._player(snapshot, "player-1")
         steam_capacity = britain.phase1_economy.capacity_by_mode.get("steam", 0)
         self.assertGreaterEqual(steam_capacity, 2,
                                 "Should have upgraded to steam capacity")
 
-        # ── Research for electrified: leyden_jar → voltaic_pile → power_generation ──
-        for tech_id in ["leyden_jar", "voltaic_pile", "power_generation"]:
+        # ── Research for electrified: power_generation → combustion_engine ──
+        for tech_id in ["power_generation", "combustion_engine"]:
             snapshot, ok = self._try_research_tech(snapshot, tech_id)
             self.assertTrue(ok, f"{tech_id} should be researched")
-
-        # ── Research combustion_engine (steam chain, threshold=4, needs watt_engine) ──
-        snapshot, ok = self._try_research_tech(snapshot, "combustion_engine")
-        self.assertTrue(ok, "combustion_engine should be researched")
 
         # ── Upgrade steam → electrified ──
         snapshot = self._play_round(
@@ -365,7 +359,7 @@ class ProductionUpgradeChainE2E(unittest.TestCase):
             {"session-1": _decision_payload(
                 upgrade_orders=[{"routeId": "electrified", "quantity": 1}],
             )},
-            {"session-1": 10},
+            {"session-1": 0},
         )
         britain = self._player(snapshot, "player-1")
         elec_capacity = britain.phase1_economy.capacity_by_mode.get("electrified", 0)
@@ -379,7 +373,7 @@ class ProductionUpgradeChainE2E(unittest.TestCase):
         self.assertGreater(cap.get("electrified", 0), 0, "Must have electrified capacity")
 
     def test_upgrade_blocked_without_tech(self):
-        """Upgrading to mechanized without spinning_jenny should be silently ignored."""
+        """Upgrading to mechanized without spinning_jenny is rejected at submission."""
         self.seed_active_game()
         snapshot = self._load_snapshot()
         britain = self._player(snapshot, "player-1")
@@ -389,16 +383,13 @@ class ProductionUpgradeChainE2E(unittest.TestCase):
         britain.phase1_economy.raw_materials = 50
         self._save_snapshot(snapshot)
 
-        snapshot = self._play_round(
-            snapshot,
-            {"session-1": _decision_payload(
+        self._submit_api(
+            "session-1",
+            _decision_payload(
                 upgrade_orders=[{"routeId": "mechanized", "quantity": 3}],
-            )},
-            {"session-1": 10},
+            ),
+            expected_status=400,
         )
-        britain = self._player(snapshot, "player-1")
-        mech = britain.phase1_economy.capacity_by_mode.get("mechanized", 0)
-        self.assertEqual(mech, 0, "Should NOT upgrade to mechanized without spinning_jenny")
 
     def test_upgrade_blocked_wrong_source(self):
         """Upgrading from wrong source (handicraft→steam) is rejected at submission.
@@ -585,7 +576,7 @@ class ProductionUpgradeChainE2E(unittest.TestCase):
             {"session-1": _decision_payload(
                 upgrade_orders=[{"routeId": "mechanized", "quantity": 5}],
             )},
-            {"session-1": 10},
+            {"session-1": 0},
         )
         britain = self._player(snapshot, "player-1")
         mech = britain.phase1_economy.capacity_by_mode.get("mechanized", 0)

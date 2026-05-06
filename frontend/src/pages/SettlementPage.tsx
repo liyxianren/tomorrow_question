@@ -5,11 +5,12 @@ import { GameLeftRail } from "../components/game/layout/GameLeftRail";
 import { GamePageShell } from "../components/game/layout/GamePageShell";
 import { PhaseHeaderBar } from "../components/game/layout/PhaseHeaderBar";
 import { createSettlementPageState } from "../features/game/flow/settlementFlow";
+import { getCountryLabel } from "../features/game/panelGlossary";
 import type { GameFinishedPayload } from "../features/game/runtime/types";
 import { fetchFinalResult } from "../services/game";
 import type { GameLog } from "../types/domain";
 
-const LOG_CATEGORY_ORDER = ["final", "events", "economy", "military", "diplomacy", "decision", "other"] as const;
+const LOG_CATEGORY_ORDER = ["final", "military", "diplomacy", "decision", "events", "economy", "other"] as const;
 type LogCategory = (typeof LOG_CATEGORY_ORDER)[number];
 
 const LOG_CATEGORY_META: Record<LogCategory, { label: string; emoji: string }> = {
@@ -106,8 +107,13 @@ export function SettlementPage({ result, roomCode }: SettlementPageProps) {
     routeState,
   });
   const finalLogs = useMemo(() => resolvedResult?.finalLogs ?? [], [resolvedResult]);
+  const leaderPlayerId = pageState.rankingRows[0]?.playerId ?? null;
+  const timelineLogs = useMemo(
+    () => prioritizeFinalLogs(finalLogs, leaderPlayerId),
+    [finalLogs, leaderPlayerId],
+  );
 
-  const groupedLogs = useMemo(() => groupLogsByCategory(finalLogs), [finalLogs]);
+  const groupedLogs = useMemo(() => groupLogsByCategory(timelineLogs), [timelineLogs]);
   const leaderIncome = pageState.rankingRows[0]?.cumulativeNationalIncome ?? null;
   const runnerUpIncome = pageState.rankingRows[1]?.cumulativeNationalIncome ?? null;
 
@@ -312,7 +318,7 @@ function groupLogsByCategory(logs: GameLog[]): GroupedLogSection[] {
     const entry: GroupedLogEntry = {
       key: `${log.kind}-${log.createdAt ?? index}`,
       label: log.phase ? formatPhaseLabel(log.phase) : LOG_CATEGORY_META[category].label,
-      message: log.message,
+      message: sanitizeFinalLogMessage(log.message, log.roundNo, log.phase),
       meta: formatLogMeta(log.roundNo, log.createdAt),
     };
     const list = buckets.get(category) ?? [];
@@ -323,6 +329,65 @@ function groupLogsByCategory(logs: GameLog[]): GroupedLogSection[] {
   return LOG_CATEGORY_ORDER
     .filter((cat) => buckets.has(cat))
     .map((category) => ({ category, entries: buckets.get(category) ?? [] }));
+}
+
+function prioritizeFinalLogs(logs: GameLog[], leaderPlayerId: string | null): GameLog[] {
+  return [...logs].sort((a, b) => {
+    const priorityDelta = getFinalLogPriority(b, leaderPlayerId) - getFinalLogPriority(a, leaderPlayerId);
+    if (priorityDelta !== 0) {
+      return priorityDelta;
+    }
+
+    const roundDelta = (b.roundNo ?? 0) - (a.roundNo ?? 0);
+    if (roundDelta !== 0) {
+      return roundDelta;
+    }
+
+    return getLogTimeValue(b.createdAt) - getLogTimeValue(a.createdAt);
+  });
+}
+
+function getFinalLogPriority(log: GameLog, leaderPlayerId: string | null): number {
+  const category = categorizeLogKind(log.kind);
+  const detailsPlayerId = typeof log.details?.playerId === "string" ? log.details.playerId : null;
+  let score = 0;
+
+  if (detailsPlayerId && leaderPlayerId && detailsPlayerId === leaderPlayerId) {
+    score += 80;
+  }
+
+  switch (category) {
+    case "final":
+      score += 100;
+      break;
+    case "military":
+      score += 70;
+      break;
+    case "diplomacy":
+      score += 60;
+      break;
+    case "decision":
+      score += 55;
+      break;
+    case "events":
+      score += 50;
+      break;
+    case "economy":
+      score += log.kind === "settlement.resolved" ? 20 : 35;
+      break;
+    default:
+      score += 10;
+  }
+
+  return score;
+}
+
+function getLogTimeValue(createdAt: string | null): number {
+  if (!createdAt) {
+    return 0;
+  }
+  const value = Date.parse(createdAt);
+  return Number.isFinite(value) ? value : 0;
 }
 
 function formatPhaseLabel(phase: string): string {
@@ -336,6 +401,27 @@ function formatPhaseLabel(phase: string): string {
     default:
       return phase;
   }
+}
+
+function sanitizeFinalLogMessage(message: string, roundNo: number, phase: string | null): string {
+  const trimmed = message.trim();
+  if (trimmed.includes("completed national income allocation")) {
+    const countryKey = trimmed.split(" ", 1)[0];
+    return `${getCountryLabel(countryKey)}完成第 ${roundNo} 回合财政分配。`;
+  }
+  if (trimmed === "settlement settled.") {
+    return "终局财政结算已完成。";
+  }
+  if (trimmed === "market settled.") {
+    return "市场出售阶段已完成。";
+  }
+  if (trimmed === "decision settled.") {
+    return "国家决策阶段已完成。";
+  }
+  if (trimmed.endsWith(" settled.") && phase) {
+    return `${formatPhaseLabel(phase)}阶段已完成。`;
+  }
+  return message;
 }
 
 function formatLogMeta(roundNo: number, createdAt: string | null): string {

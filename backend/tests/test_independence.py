@@ -77,6 +77,24 @@ class IndependenceProgressionTests(unittest.TestCase):
         self.assertEqual(region.independence, 3)
         self.assertEqual(region.controller, "britain")
 
+    def test_empty_market_supply_does_not_create_passive_revolt_pressure(self) -> None:
+        snapshot = build_snapshot()
+        balance = get_balance_config()
+        setup_colony(
+            snapshot,
+            independence=8,
+            garrison={},
+            market_supply={},
+            resource_limit={"cotton": 4, "grain": 4},
+        )
+
+        logs = _apply_independence_progression(snapshot, balance, looted_regions=set())
+
+        region = get_region(snapshot, "americas")
+        self.assertEqual(region.independence, 8)
+        self.assertEqual(region.controller, "britain")
+        self.assertEqual(logs, [])
+
     def test_mild_market_imbalance_increases_independence_by_one(self) -> None:
         snapshot = build_snapshot()
         balance = get_balance_config()
@@ -92,6 +110,24 @@ class IndependenceProgressionTests(unittest.TestCase):
 
         region = get_region(snapshot, "americas")
         self.assertEqual(region.independence, 3)
+        self.assertEqual(region.market_supply, {})
+
+    def test_market_supply_only_counts_for_current_settlement(self) -> None:
+        snapshot = build_snapshot()
+        balance = get_balance_config()
+        setup_colony(
+            snapshot,
+            independence=2,
+            garrison={},
+            market_supply={"foo": 30},
+            resource_limit={"foo": 10},
+        )
+
+        _apply_independence_progression(snapshot, balance, looted_regions=set())
+        _apply_independence_progression(snapshot, balance, looted_regions=set())
+
+        region = get_region(snapshot, "americas")
+        self.assertEqual(region.independence, 4)
 
     def test_severe_market_imbalance_increases_independence_by_two(self) -> None:
         snapshot = build_snapshot()

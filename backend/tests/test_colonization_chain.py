@@ -91,29 +91,28 @@ def full_chain_payload(
 
 
 class ColonizationFullChainSingleTurnTest(unittest.TestCase):
-    """Test: unlock + diplomacy + recruit + colonize + loot all in one turn."""
+    """Test: unlock + diplomacy + colonize + loot all in one turn."""
 
     def test_full_chain_single_turn_americas(self) -> None:
-        """Britain (budget=10, mp=1): recruit→unlock→diplomacy→colonize in one turn."""
+        """Britain with enough mp: unlock→diplomacy→colonize in one turn."""
         snapshot = build_snapshot()
         britain = get_player(snapshot, "player-1")
         balance = get_balance_config()
+        colonization_mp_cost = int(balance.military.colonization_military_point_cost)
+        unlock_cost = int(balance.military.colonization_unlock_cost)
+        britain.military_points = colonization_mp_cost
 
-        # Britain initial: govFiscal=10, militaryPoints=1
+        # Britain initial: govFiscal=10; set mp to exactly the colonization cost.
         self.assertEqual(britain.budget_pools["governmentFiscal"], 10)
-        self.assertEqual(britain.military_points, 1)
+        self.assertEqual(britain.military_points, colonization_mp_cost)
 
-        # Processing order: militaryActions → diplomacy → unlock → colonization
-        # recruit_infantry (2 govFiscal, +1 mp) → budget=8, mp=2
-        # establish_americas (3 govFiscal) → budget=5
-        # unlock (5 govFiscal) → budget=0, unlocked=True
-        # colonize americas (2 mp) → mp=0, americas conquered
+        # Processing order: diplomacy → unlock → colonization
+        # establish_americas (3 govFiscal), unlock (balance cost), colonize (mp cost).
         resolution = resolve_decision_phase(
             snapshot=snapshot,
             turn_inputs=[build_turn_input(
                 "player-1",
                 full_chain_payload(
-                    military_actions=["recruit_infantry"],
                     diplomacy_actions=["establish_americas"],
                     unlock_colonization=True,
                     colonization_actions=[{"targetRegionId": "americas"}],
@@ -126,7 +125,7 @@ class ColonizationFullChainSingleTurnTest(unittest.TestCase):
 
         self.assertTrue(updated.colonization_unlocked, "colonization should be unlocked")
         self.assertIn("americas", updated.established_diplomacy, "diplomacy with americas")
-        self.assertEqual(updated.budget_pools["governmentFiscal"], 0, "budget fully spent")
+        self.assertEqual(updated.budget_pools["governmentFiscal"], 10 - 3 - unlock_cost)
         self.assertEqual(updated.military_points, 0, "all mp spent on colonization")
         self.assertEqual(americas.controller, "britain", "americas should be british colony")
         self.assertEqual(americas.access_level, RegionAccessLevel.COLONY)
@@ -136,14 +135,14 @@ class ColonizationFullChainSingleTurnTest(unittest.TestCase):
         snapshot = build_snapshot()
         britain = get_player(snapshot, "player-1")
         americas = get_region(snapshot, "americas")
+        britain.military_points = int(get_balance_config().military.colonization_military_point_cost)
 
-        # Turn 1: unlock + diplomacy + recruit + colonize
+        # Turn 1: unlock + diplomacy + colonize
         resolution1 = resolve_decision_phase(
             snapshot=snapshot,
             turn_inputs=[build_turn_input(
                 "player-1",
                 full_chain_payload(
-                    military_actions=["recruit_infantry"],
                     diplomacy_actions=["establish_americas"],
                     unlock_colonization=True,
                     colonization_actions=[{"targetRegionId": "americas"}],
@@ -208,6 +207,7 @@ class ColonizationMultiRegionTest(unittest.TestCase):
         snapshot = build_snapshot()
         britain = get_player(snapshot, "player-1")
         balance = get_balance_config()
+        britain.military_points = int(balance.military.colonization_military_point_cost)
 
         # Unlock + diplomacy + colonize africa in one turn
         resolution = resolve_decision_phase(
@@ -215,7 +215,6 @@ class ColonizationMultiRegionTest(unittest.TestCase):
             turn_inputs=[build_turn_input(
                 "player-1",
                 full_chain_payload(
-                    military_actions=["recruit_infantry"],
                     diplomacy_actions=["establish_africa"],
                     unlock_colonization=True,
                     colonization_actions=[{"targetRegionId": "africa"}],

@@ -306,8 +306,9 @@ class GameStateModelTests(unittest.TestCase):
         restored_workspace = restored.to_payload()["phaseWorkspace"]["players"]["player-britain"]
 
         self.assertIn("productionOptions", restored_workspace)
-        self.assertNotIn("factoryActions", restored_workspace)
+        self.assertIn("factoryActions", restored_workspace)
         self.assertTrue(isinstance(restored_workspace["productionOptions"], list))
+        self.assertTrue(isinstance(restored_workspace["factoryActions"], list))
 
 
 if __name__ == "__main__":

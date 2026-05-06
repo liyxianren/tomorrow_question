@@ -238,11 +238,9 @@ export function DecisionCardDemoPage() {
           <p>剩余预算</p>
         </article>
         <article className="decision-demo__summary-card">
-          <span>政府点数</span>
-          <strong>
-            T {viewModel.summary.techPoints} / M {viewModel.summary.militaryPoints}
-          </strong>
-          <p>科技 / 军事</p>
+          <span>军事储备</span>
+          <strong>{viewModel.summary.militaryPoints}</strong>
+          <p>可用军事点</p>
         </article>
       </section>
 
