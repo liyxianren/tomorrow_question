@@ -18,6 +18,7 @@ _PRODUCTION_NEW_FACTORY_KEYS = ("handicraft", "mechanized", "steam", "electrifie
 _PRODUCTION_UPGRADE_KEYS = ("mechanized", "steam", "electrified")
 _COUNTRY_KEYS = ("britain", "france", "prussia", "austria", "russia")
 _IDEOLOGY_KEYS = ("liberalism", "egalitarianism", "nationalism")
+_JSON_SUFFIX = ".json"
 
 
 class _ValidationError(ValueError):
@@ -80,6 +81,7 @@ def get_settings():
                 for ideology in _IDEOLOGY_KEYS
             },
         },
+        "numericConfig": _build_numeric_config_payload(config_dir),
     }
     return ok_response(payload)
 
@@ -96,6 +98,7 @@ def update_settings():
         global_in = _validate_dict(body.get("global", {}), "global")
         regions_in = _validate_dict(body.get("regions", {}), "regions")
         government_in = _validate_dict(body.get("government", {}), "government")
+        numeric_config_in = _validate_dict(body.get("numericConfig", {}), "numericConfig")
 
         new_factory = _validate_int_map(
             production_in.get("newFactoryCosts", {}),
@@ -164,6 +167,10 @@ def update_settings():
                     f"government.naturalShiftRules.{ideology}.lowThreshold",
                 ),
             }
+        numeric_updates = _validate_numeric_config_updates(
+            numeric_config_in,
+            config_dir=_config_dir(),
+        )
     except _ValidationError as exc:
         return error_response(ErrorCode.INVALID_SUBMISSION, str(exc), 400)
 
@@ -209,6 +216,8 @@ def update_settings():
         rule_block["lowThreshold"] = values["lowThreshold"]
     _write_json(politics_path, politics_data)
 
+    _apply_numeric_config_updates(config_dir=config_dir, updates=numeric_updates)
+
     _load_balance_config_cached.cache_clear()
 
     return ok_response({"updated": True})
@@ -227,6 +236,165 @@ def _read_json(path: Path) -> dict[str, Any]:
 
 def _write_json(path: Path, data: dict[str, Any]) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def _build_numeric_config_payload(config_dir: Path) -> dict[str, list[dict[str, Any]]]:
+    payload: dict[str, list[dict[str, Any]]] = {}
+    for path in sorted(config_dir.glob(f"*{_JSON_SUFFIX}")):
+        data = _read_json(path)
+        entries: list[dict[str, Any]] = []
+        _collect_numeric_entries(data, [], entries)
+        payload[path.name] = entries
+    return payload
+
+
+def _collect_numeric_entries(
+    value: Any,
+    path: list[str | int],
+    entries: list[dict[str, Any]],
+) -> None:
+    if isinstance(value, bool):
+        return
+    if isinstance(value, (int, float)):
+        entries.append(
+            {
+                "path": list(path),
+                "pathLabel": _format_numeric_path(path),
+                "value": value,
+            }
+        )
+        return
+    if isinstance(value, dict):
+        for key, child in value.items():
+            _collect_numeric_entries(child, [*path, str(key)], entries)
+        return
+    if isinstance(value, list):
+        for index, child in enumerate(value):
+            _collect_numeric_entries(child, [*path, index], entries)
+
+
+def _format_numeric_path(path: list[str | int]) -> str:
+    label = ""
+    for segment in path:
+        if isinstance(segment, int):
+            label += f"[{segment}]"
+        else:
+            label = segment if not label else f"{label}.{segment}"
+    return label
+
+
+def _validate_numeric_config_updates(
+    value: dict[str, Any],
+    *,
+    config_dir: Path,
+) -> dict[str, list[dict[str, Any]]]:
+    allowed_files = {path.name for path in config_dir.glob(f"*{_JSON_SUFFIX}")}
+    result: dict[str, list[dict[str, Any]]] = {}
+    for file_name, raw_entries in value.items():
+        if file_name not in allowed_files:
+            raise _ValidationError(f"numericConfig.{file_name} is not a recognized config file.")
+        if not isinstance(raw_entries, list):
+            raise _ValidationError(f"numericConfig.{file_name} must be a list.")
+        file_payload = _read_json(config_dir / str(file_name))
+        entries: list[dict[str, Any]] = []
+        for index, raw_entry in enumerate(raw_entries):
+            entry = _validate_dict(raw_entry, f"numericConfig.{file_name}[{index}]")
+            raw_path = entry.get("path")
+            if not isinstance(raw_path, list) or not raw_path:
+                raise _ValidationError(f"numericConfig.{file_name}[{index}].path must be a non-empty list.")
+            path: list[str | int] = []
+            for path_index, segment in enumerate(raw_path):
+                if isinstance(segment, bool) or not isinstance(segment, (str, int)):
+                    raise _ValidationError(
+                        f"numericConfig.{file_name}[{index}].path[{path_index}] must be a string or integer."
+                    )
+                path.append(segment)
+            raw_value = entry.get("value")
+            if isinstance(raw_value, bool) or not isinstance(raw_value, (int, float)):
+                raise _ValidationError(f"numericConfig.{file_name}[{index}].value must be a number.")
+            existing = _get_value_at_path(
+                file_payload,
+                path,
+                f"numericConfig.{file_name}[{index}]",
+            )
+            coerced_value = _coerce_numeric_value(
+                raw_value,
+                existing,
+                f"numericConfig.{file_name}[{index}]",
+            )
+            entries.append({"path": path, "value": coerced_value})
+        result[str(file_name)] = entries
+    return result
+
+
+def _apply_numeric_config_updates(
+    *,
+    config_dir: Path,
+    updates: dict[str, list[dict[str, Any]]],
+) -> None:
+    for file_name, entries in updates.items():
+        if not entries:
+            continue
+        path = config_dir / file_name
+        data = _read_json(path)
+        for entry in entries:
+            _set_numeric_value(data, entry["path"], entry["value"], f"numericConfig.{file_name}")
+        _write_json(path, data)
+
+
+def _set_numeric_value(
+    data: Any,
+    path: list[str | int],
+    raw_value: int | float,
+    field_name: str,
+) -> None:
+    target = data
+    for segment in path[:-1]:
+        if isinstance(segment, int):
+            if not isinstance(target, list) or segment < 0 or segment >= len(target):
+                raise _ValidationError(f"{field_name}.{_format_numeric_path(path)} does not exist.")
+            target = target[segment]
+        else:
+            if not isinstance(target, dict) or segment not in target:
+                raise _ValidationError(f"{field_name}.{_format_numeric_path(path)} does not exist.")
+            target = target[segment]
+
+    final_segment = path[-1]
+    if isinstance(final_segment, int):
+        if not isinstance(target, list) or final_segment < 0 or final_segment >= len(target):
+            raise _ValidationError(f"{field_name}.{_format_numeric_path(path)} does not exist.")
+        existing = target[final_segment]
+        target[final_segment] = _coerce_numeric_value(raw_value, existing, field_name)
+        return
+
+    if not isinstance(target, dict) or final_segment not in target:
+        raise _ValidationError(f"{field_name}.{_format_numeric_path(path)} does not exist.")
+    existing = target[final_segment]
+    target[final_segment] = _coerce_numeric_value(raw_value, existing, field_name)
+
+
+def _get_value_at_path(data: Any, path: list[str | int], field_name: str) -> Any:
+    target = data
+    for segment in path:
+        if isinstance(segment, int):
+            if not isinstance(target, list) or segment < 0 or segment >= len(target):
+                raise _ValidationError(f"{field_name}.path does not exist.")
+            target = target[segment]
+        else:
+            if not isinstance(target, dict) or segment not in target:
+                raise _ValidationError(f"{field_name}.path does not exist.")
+            target = target[segment]
+    return target
+
+
+def _coerce_numeric_value(raw_value: int | float, existing: Any, field_name: str) -> int | float:
+    if isinstance(existing, bool) or not isinstance(existing, (int, float)):
+        raise _ValidationError(f"{field_name} target is not numeric.")
+    if isinstance(existing, int):
+        if float(raw_value) % 1 != 0:
+            raise _ValidationError(f"{field_name} target expects an integer.")
+        return int(raw_value)
+    return float(raw_value)
 
 
 def _validate_dict(value: Any, field_name: str) -> dict[str, Any]:

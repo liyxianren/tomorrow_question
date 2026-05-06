@@ -8,6 +8,14 @@ import { apiRequest } from "../services/http";
 
 type IdeologyShiftRule = { highThreshold: number; lowThreshold: number };
 
+type NumericPathSegment = string | number;
+
+type NumericConfigEntry = {
+  path: NumericPathSegment[];
+  pathLabel: string;
+  value: number;
+};
+
 type SettingsPayload = {
   production: {
     newFactoryCosts: Record<string, number>;
@@ -22,6 +30,7 @@ type SettingsPayload = {
     ideologyMax: number;
     naturalShiftRules: Record<string, IdeologyShiftRule>;
   };
+  numericConfig: Record<string, NumericConfigEntry[]>;
 };
 
 type SaveStatus =
@@ -60,6 +69,49 @@ const IDEOLOGY_LABELS: Array<{ key: string; label: string }> = [
   { key: "egalitarianism", label: "平等主义" },
   { key: "nationalism", label: "民族主义" },
 ];
+
+const CONFIG_FILE_LABELS: Record<string, string> = {
+  "abilities.json": "国家能力",
+  "countries.json": "国家初始值",
+  "decision_actions.json": "行动 / 政策",
+  "events.json": "事件",
+  "global.json": "全局",
+  "market.json": "市场",
+  "military.json": "军事",
+  "military_actions.json": "军事行动",
+  "politics.json": "政治 / 思潮",
+  "production.json": "生产",
+  "reforms.json": "改革",
+  "regions.json": "区域",
+  "research_actions.json": "天赋树",
+  "technology.json": "科技树",
+};
+
+const COVERED_NUMERIC_PATHS = new Set<string>([
+  ...PRODUCTION_LEVELS.map(({ key }) => numericPathKey("production.json", ["newFactoryCosts", key])),
+  ...Array.from(UPGRADABLE_LEVELS).map((key) => numericPathKey("production.json", ["upgradeCosts", key])),
+  ...COUNTRY_LABELS.flatMap(({ key }) => [
+    numericPathKey("countries.json", ["countries", key, "initialRawMaterials"]),
+    numericPathKey("countries.json", ["countries", key, "rawMaterialsPerTurn"]),
+  ]),
+  numericPathKey("global.json", ["baseIncomePerRound"]),
+  ...Object.keys(REGION_LABELS).map((key, index) => numericPathKey("regions.json", ["regions", index, "priceMultiplier"])),
+  numericPathKey("politics.json", ["administrationCost"]),
+  numericPathKey("politics.json", ["ideologyMin"]),
+  numericPathKey("politics.json", ["ideologyMax"]),
+  ...IDEOLOGY_LABELS.flatMap(({ key }) => [
+    numericPathKey("politics.json", ["naturalShiftRules", key, "highThreshold"]),
+    numericPathKey("politics.json", ["naturalShiftRules", key, "lowThreshold"]),
+  ]),
+]);
+
+function numericPathKey(fileName: string, path: NumericPathSegment[]): string {
+  return `${fileName}:${JSON.stringify(path)}`;
+}
+
+function isCoveredNumericEntry(fileName: string, entry: NumericConfigEntry): boolean {
+  return COVERED_NUMERIC_PATHS.has(numericPathKey(fileName, entry.path));
+}
 
 
 export function SettingsPage() {
@@ -175,10 +227,35 @@ export function SettingsPage() {
     });
   };
 
+  const updateNumericEntry = (fileName: string, path: NumericPathSegment[], value: number) => {
+    const entries = data.numericConfig[fileName] ?? [];
+    setData({
+      ...data,
+      numericConfig: {
+        ...data.numericConfig,
+        [fileName]: entries.map((entry) =>
+          JSON.stringify(entry.path) === JSON.stringify(path)
+            ? { ...entry, value }
+            : entry,
+        ),
+      },
+    });
+  };
+
+  const buildSavePayload = (): SettingsPayload => ({
+    ...data,
+    numericConfig: Object.fromEntries(
+      Object.entries(data.numericConfig).map(([fileName, entries]) => [
+        fileName,
+        entries.filter((entry) => !isCoveredNumericEntry(fileName, entry)),
+      ]),
+    ),
+  });
+
   const handleSave = async () => {
     setStatus({ kind: "saving" });
     try {
-      await apiRequest("/api/v1/settings", { method: "POST", body: data });
+      await apiRequest("/api/v1/settings", { method: "POST", body: buildSavePayload() });
       setStatus({ kind: "success", message: "保存成功" });
     } catch (error: unknown) {
       setStatus({
@@ -192,8 +269,8 @@ export function SettingsPage() {
     <PageShell className="settings-page" width="wide">
       <SectionCard
         eyebrow="参数面板"
-        title="生产 & 市场配置"
-        description="编辑后保存会写回 backend/config/balance/*.json 并清空配置缓存。"
+        title="数值配置"
+        description="上方是常用平衡项；底部“全部 JSON 数值”会自动列出配置文件里的其余数字。保存后写回 backend/config/balance/*.json 并清空配置缓存。"
       >
         <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
           <PrimaryButton
@@ -406,6 +483,56 @@ export function SettingsPage() {
             })}
           </tbody>
         </table>
+      </SectionCard>
+
+      <SectionCard
+        title="全部 JSON 数值"
+        eyebrow="balance/*.json"
+        description="这里列出未在上方常用面板中单独展示的全部数值。路径即对应 JSON 文件中的位置；修改后点击顶部保存即可生效。"
+      >
+        {Object.entries(data.numericConfig).map(([fileName, entries]) => {
+          const visibleEntries = entries.filter((entry) => !isCoveredNumericEntry(fileName, entry));
+          if (visibleEntries.length === 0) {
+            return null;
+          }
+          return (
+            <div key={fileName} style={{ marginBottom: "24px" }}>
+              <h3 style={{ marginBottom: "10px", fontSize: 18 }}>
+                {CONFIG_FILE_LABELS[fileName] ?? fileName}
+                <span style={{ marginLeft: 8, color: "#888", fontSize: 13, fontFamily: "var(--font-sans)" }}>
+                  {fileName}
+                </span>
+              </h3>
+              <table className="settings-table">
+                <thead>
+                  <tr>
+                    <th>配置路径</th>
+                    <th>数值</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleEntries.map((entry) => (
+                    <tr key={`${fileName}:${entry.pathLabel}`}>
+                      <td>
+                        <code>{entry.pathLabel}</code>
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          step={Number.isInteger(entry.value) ? 1 : 0.1}
+                          value={entry.value}
+                          onChange={(event) =>
+                            updateNumericEntry(fileName, entry.path, Number(event.target.value))
+                          }
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        })}
       </SectionCard>
     </PageShell>
   );
