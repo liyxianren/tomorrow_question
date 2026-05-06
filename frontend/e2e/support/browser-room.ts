@@ -46,7 +46,7 @@ export async function gotoLobby(page: Page): Promise<void> {
   await expect(homeEntry).toBeVisible();
   await homeEntry.click();
   await expect(page).toHaveURL(/\/lobby$/);
-  await expect(page.getByRole("heading", { name: "先确认身份，再创建或加入房间" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "创建或加入一局" })).toBeVisible();
 }
 
 export async function enterIdentity(page: Page, nickname: string): Promise<void> {
@@ -56,6 +56,15 @@ export async function enterIdentity(page: Page, nickname: string): Promise<void>
 
 export async function createRoomFromLobby(page: Page): Promise<void> {
   await page.getByTestId("lobby-create-room-button").click();
+}
+
+export async function fillBotsFromRoom(page: Page): Promise<void> {
+  const fillBotsButton = page.getByTestId("room-fill-bots-button");
+
+  await expect(fillBotsButton).toBeVisible();
+  if (await fillBotsButton.isEnabled()) {
+    await fillBotsButton.click();
+  }
 }
 
 export async function joinRoomFromLobby(page: Page, roomCode: string): Promise<void> {

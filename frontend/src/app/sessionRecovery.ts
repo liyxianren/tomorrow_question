@@ -19,6 +19,7 @@ export type RoomRouteState = {
 };
 
 export type SessionBootstrapRouteState = RoomRouteState;
+type SessionRestoreResponse = Partial<SessionContextResponse> & Pick<SessionContextResponse, "session">;
 
 export function getStoredSessionId(): string | null {
   return getRecoverableSessionId();
@@ -61,10 +62,18 @@ export async function restoreSessionContext(): Promise<SessionContextResponse | 
   }
 
   try {
-    const restored = await hydrateActiveGameContext(await apiRequest<SessionContextResponse>("/api/v1/sessions/restore", {
+    const restoredResponse = await apiRequest<SessionRestoreResponse>("/api/v1/sessions/restore", {
       method: "POST",
       sessionId,
-    }));
+    });
+    if (!restoredResponse.room) {
+      clearSessionId();
+      clearStoredProfileSession();
+      setLastActiveGameId(null);
+      return null;
+    }
+
+    const restored = await hydrateActiveGameContext(restoredResponse as SessionContextResponse);
     setSessionId(restored.session.sessionId);
     bindStoredProfileSession(restored.session.sessionId);
     rememberRecentRoomCode(restored.room.roomCode);

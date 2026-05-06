@@ -1,83 +1,59 @@
 import { IdentityGateForm } from "../components/lobby/IdentityGateForm";
-import { LobbyRecoveryCard } from "../components/lobby/LobbyRecoveryCard";
-import { bodyTextStyle, heroCardStyle, pageStackStyle } from "../components/lobby/styles";
 import { useIdentityGateController } from "../features/lobby/flow/useIdentityGateController";
-import { getStoredProfile } from "../features/lobby/flow/identityStorage";
-import { buildRecoverableSessionViewModel } from "../features/lobby/flow/viewModel";
+import "./IdentityPage.css";
 
 
 type IdentityPageProps = {
   onIdentityConfirmed?: () => void;
+  onCancel?: () => void;
+  canCancel?: boolean;
 };
 
-export function IdentityPage({ onIdentityConfirmed }: IdentityPageProps) {
+export function IdentityPage({ onIdentityConfirmed, onCancel, canCancel = false }: IdentityPageProps) {
   const {
     nickname,
     profileId,
-    storedSessionId,
-    pendingAction,
     message,
     setNickname,
     handleContinue,
-    handleRestore,
-    handleClearStoredSession,
     handleClearIdentity,
   } = useIdentityGateController({
     onIdentityConfirmed,
   });
-  const storedProfile = getStoredProfile();
-  const recoveryCard = buildRecoverableSessionViewModel({
-    profile:
-      storedProfile && storedProfile.profileId === profileId
-        ? storedProfile
-        : storedProfile
-          ? { ...storedProfile, displayName: nickname.trim() || storedProfile.displayName }
-          : null,
-    storedSessionId,
-    isBusy: pendingAction === "restore",
-  });
 
   return (
     <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 30,
-        display: "grid",
-        placeItems: "center",
-        padding: 24,
-        background: "rgba(11, 8, 6, 0.76)",
-        backdropFilter: "blur(12px)",
-      }}
+      className="identity-gate-overlay"
     >
       <section
         aria-labelledby="identity-gate-title"
         aria-modal="true"
+        className="identity-gate-modal"
         data-testid="identity-gate-modal"
         role="dialog"
-        style={{
-          width: "min(880px, calc(100vw - 32px))",
-          ...heroCardStyle,
-        }}
       >
-        <div style={pageStackStyle}>
-          <h2 id="identity-gate-title" style={{ margin: 0, fontSize: 32, fontFamily: "var(--font-serif)", color: "var(--color-accent-strong)", borderBottom: "1px solid rgba(212, 175, 55, 0.25)", paddingBottom: 16 }}>先确认你的显示昵称</h2>
-          <p style={bodyTextStyle}>这个昵称会作为你在这台设备上的默认身份，用来创建房间、加入房间和恢复上次进度。</p>
+        <div className="identity-gate-modal__scene" aria-hidden="true">
+          <div className="identity-gate-modal__scene-copy">
+            <p>进入大厅前</p>
+            <strong>确认你的桌边席位</strong>
+          </div>
+        </div>
 
+        <div className="identity-gate-modal__form">
+          <div>
+            <p className="panel__eyebrow">本机身份</p>
+            <h2 id="identity-gate-title">显示昵称</h2>
+            <p>这个名字会显示在房间成员列表和对局中。</p>
+          </div>
           <IdentityGateForm
+            canCancel={canCancel}
             message={message?.text ?? null}
             nickname={nickname}
+            onCancel={onCancel}
             onContinue={handleContinue}
             onNicknameChange={setNickname}
             onClearIdentity={handleClearIdentity}
             profileId={profileId}
-          />
-
-          <LobbyRecoveryCard
-            viewModel={recoveryCard}
-            isBusy={pendingAction === "restore"}
-            onClear={handleClearStoredSession}
-            onRestore={handleRestore}
           />
         </div>
       </section>

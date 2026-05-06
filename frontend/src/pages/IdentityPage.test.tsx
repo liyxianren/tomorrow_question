@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiRequestError } from "../services/http";
 import { LOCAL_PROFILE_STORAGE_KEY } from "../features/lobby/flow/identityStorage";
 
 import { IdentityPage } from "./IdentityPage";
@@ -63,7 +62,7 @@ describe("IdentityPage", () => {
     await userEvent.click(screen.getByTestId("identity-continue-button"));
 
     expect(screen.getByTestId("identity-gate-modal")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "署名与印章" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "显示昵称" })).toBeInTheDocument();
     expect(screen.getByTestId("identity-status-message")).toHaveTextContent("请先填写你想在本局使用的显示姓名。");
   });
 
@@ -82,7 +81,7 @@ describe("IdentityPage", () => {
     expect(router.state.location.pathname).toBe("/");
   });
 
-  it("keeps the local profile when the previous session can no longer be restored", async () => {
+  it("keeps saved-progress controls out of the nickname confirmation modal", async () => {
     mockGetSessionId.mockReturnValue(null);
     window.localStorage.setItem(
       LOCAL_PROFILE_STORAGE_KEY,
@@ -93,14 +92,11 @@ describe("IdentityPage", () => {
         updatedAt: "2026-03-30T10:00:00.000Z",
       }),
     );
-    mockApiRequest.mockRejectedValue(new ApiRequestError("会话已失效", 401, "INVALID_SESSION"));
 
     renderIdentityPage();
 
-    await userEvent.click(screen.getByTestId("lobby-restore-button"));
-
-    expect(mockClearSessionId).toHaveBeenCalledTimes(1);
-    expect(screen.getByTestId("identity-status-message")).toHaveTextContent("没能找回你上次离开的进度，但当前身份仍然保留。");
+    expect(screen.queryByTestId("lobby-restore-button")).not.toBeInTheDocument();
+    expect(screen.queryByText("继续上次会话")).not.toBeInTheDocument();
     expect(screen.getByTestId("identity-profile-id")).toHaveTextContent("profile-restore01");
   });
 });

@@ -1,0 +1,209 @@
+.identity-gate-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(5, 7, 10, 0.78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.identity-gate-overlay .panel__eyebrow {
+  margin: 0 0 8px;
+}
+
+.identity-gate-modal {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.82fr) minmax(0, 1fr);
+  width: min(900px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  border: 1px solid rgba(234, 206, 143, 0.24);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(16, 20, 28, 0.98), rgba(7, 10, 15, 0.98));
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.62), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.identity-gate-modal h2,
+.identity-gate-modal h3 {
+  letter-spacing: 0;
+}
+
+.identity-gate-modal__scene {
+  position: relative;
+  display: flex;
+  min-height: 480px;
+  align-items: flex-end;
+  padding: 24px;
+  background:
+    linear-gradient(180deg, rgba(8, 10, 14, 0.02) 0%, rgba(8, 10, 14, 0.84) 100%),
+    url("/lobby-bg.png") center center / cover no-repeat;
+}
+
+.identity-gate-modal__scene-copy {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 16px;
+  border: 1px solid rgba(234, 206, 143, 0.18);
+  border-radius: 8px;
+  background: rgba(6, 9, 14, 0.66);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.identity-gate-modal__scene-copy p {
+  color: rgba(255, 226, 157, 0.82);
+  font-size: 13px;
+}
+
+.identity-gate-modal__scene-copy strong {
+  color: #fff3dc;
+  font-family: var(--font-serif);
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.identity-gate-modal__form {
+  display: grid;
+  gap: 20px;
+  align-content: center;
+  padding: 30px;
+}
+
+.identity-gate-modal__form h2 {
+  margin-top: 6px;
+  color: #fff3dc;
+  font-size: 30px;
+  line-height: 1.14;
+}
+
+.identity-gate-modal__form p {
+  margin-top: 8px;
+  color: rgba(244, 239, 230, 0.68);
+  line-height: 1.65;
+}
+
+.identity-gate-form {
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+  border: 1px solid rgba(234, 206, 143, 0.16);
+  border-radius: 8px;
+  background: rgba(8, 12, 18, 0.72);
+}
+
+.identity-gate-form__header {
+  display: grid;
+  gap: 8px;
+}
+
+.identity-gate-form__header h3 {
+  color: #f6ead0;
+  font-size: 20px;
+}
+
+.identity-gate-form__header p {
+  margin: 0;
+  color: rgba(244, 239, 230, 0.62);
+  font-size: 14px;
+}
+
+.identity-gate-form__body {
+  display: grid;
+  gap: 14px;
+}
+
+.identity-gate-form label {
+  display: grid;
+  gap: 6px;
+  color: rgba(244, 239, 230, 0.7);
+  font-size: 13px;
+}
+
+.identity-gate-form__profile,
+.identity-gate-form__status {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid rgba(234, 206, 143, 0.12);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.identity-gate-form__profile strong {
+  color: #f6ead0;
+  font-size: 13px;
+}
+
+.identity-gate-form__profile span {
+  overflow-wrap: anywhere;
+}
+
+.identity-gate-form__actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.identity-gate-form__button {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  padding: 11px 14px;
+  border: 1px solid rgba(234, 206, 143, 0.26);
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.identity-gate-form__button--primary {
+  background: linear-gradient(135deg, #fff0b8 0%, #d5a33d 100%);
+  color: #171107;
+}
+
+.identity-gate-form__button--secondary {
+  background: rgba(26, 34, 45, 0.78);
+  color: #ffe29d;
+}
+
+.identity-gate-form__status {
+  color: rgba(244, 239, 230, 0.68);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.identity-gate-form__clear {
+  width: fit-content;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  color: rgba(255, 202, 184, 0.72);
+  font-size: 13px;
+  text-align: left;
+}
+
+.identity-gate-form__clear:hover {
+  color: #ffcab8;
+}
+
+@media (max-width: 760px) {
+  .identity-gate-overlay {
+    padding: 16px;
+  }
+
+  .identity-gate-modal {
+    grid-template-columns: 1fr;
+    width: min(520px, calc(100vw - 24px));
+  }
+
+  .identity-gate-modal__scene {
+    min-height: 160px;
+  }
+
+  .identity-gate-modal__form {
+    padding: 22px;
+  }
+}

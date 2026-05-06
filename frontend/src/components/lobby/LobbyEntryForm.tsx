@@ -1,13 +1,5 @@
 import {
-  actionRowStyle,
-  bodyTextStyle,
-  createButtonStyle,
   fieldStyle,
-  helperTextStyle,
-  infoGridStyle,
-  sectionCardStyle,
-  sectionTitleStyle,
-  subCardStyle,
 } from "./styles";
 import type {
   InviteEntryViewModel,
@@ -42,52 +34,28 @@ export function LobbyEntryForm({
   const resolvedViewModel = viewModel ?? buildLobbyPrimaryActionViewModel();
 
   return (
-    <section className="panel" style={sectionCardStyle}>
-      <p className="panel__eyebrow">开始这一局</p>
-      <div
-        style={{
-          display: "grid",
-          gap: 24,
-          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-          alignItems: "stretch",
-        }}
-      >
-        <article
-          style={{
-            ...subCardStyle,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            padding: 36,
-            background: "linear-gradient(145deg, rgba(35, 42, 53, 0.7) 0%, rgba(14, 18, 26, 0.9) 100%)",
-            border: "1px solid rgba(212, 175, 55, 0.25)",
-            boxShadow: "inset 0 0 60px rgba(0,0,0,0.4), 0 12px 24px rgba(0,0,0,0.3)",
-          }}
-        >
+    <section aria-label="创建和房间码入口" className="lobby-entry">
+      <div className="lobby-entry__header">
+        <p>备用入口</p>
+        <h2>没有可加入房间？</h2>
+      </div>
+      <div className="lobby-entry__grid">
+        <article className="lobby-action-card lobby-action-card--create">
           <div>
-            <h2 style={{ ...sectionTitleStyle, color: "#fceb9c", display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ display: "inline-block", width: 8, height: 8, background: "#fceb9c", borderRadius: "50%", boxShadow: "0 0 10px #fceb9c" }} />
+            <span className="lobby-action-card__tag">创建房间</span>
+            <h2>
               {resolvedViewModel.createTitle}
             </h2>
-            <p style={{ ...bodyTextStyle, marginTop: 16 }}>{resolvedViewModel.createDescription}</p>
+            <p>{resolvedViewModel.createDescription}</p>
           </div>
           
-          <div style={{ marginTop: 32 }}>
+          <div className="lobby-action-card__footer">
             <button
+              className="lobby-action-button lobby-action-button--primary"
               data-testid="lobby-create-room-button"
               disabled={isBusy}
               onClick={onCreateRoom}
-              style={{
-                ...createButtonStyle({
-                  variant: "primary",
-                  active: pendingAction === "create",
-                }),
-                width: "100%",
-                padding: "16px 32px",
-                fontSize: 18,
-                letterSpacing: "0.15em",
-                boxShadow: "0 12px 32px rgba(212, 175, 55, 0.2), inset 0 2px 0 rgba(255,255,255,0.4)",
-              }}
+              data-active={pendingAction === "create" ? "true" : "false"}
               type="button"
             >
               {pendingAction === "create" ? "创建房间中..." : "创建房间"}
@@ -95,45 +63,26 @@ export function LobbyEntryForm({
           </div>
         </article>
 
-        <article
-          style={{
-            ...subCardStyle,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            height: "100%",
-            padding: 36,
-            gap: 24,
-            background: "rgba(8, 10, 15, 0.8)",
-            border: "1px solid rgba(80, 95, 120, 0.3)",
-            boxShadow: "inset 0 0 30px rgba(0,0,0,0.6)",
-          }}
-        >
-          <div style={{ display: "grid", gap: 20, minHeight: 0 }}>
-            <h2 style={{ ...sectionTitleStyle, fontSize: 22, color: "var(--color-text-muted)" }}>
+        <article className="lobby-action-card lobby-action-card--join">
+          <div className="lobby-action-card__content">
+            <span className="lobby-action-card__tag">房间码</span>
+            <h2>
               {resolvedViewModel.joinTitle}
             </h2>
-            <p style={{ ...bodyTextStyle, fontSize: 13, color: "rgba(255, 255, 255, 0.4)" }}>
+            <p>
               {resolvedViewModel.joinDescription}
             </p>
           </div>
 
           {inviteEntry ? (
-            <div
-              style={{
-                padding: "12px 16px",
-                borderRadius: 12,
-                background: "rgba(242, 195, 122, 0.08)",
-                borderLeft: "3px solid #fceb9c",
-              }}
-            >
-              <p style={{ ...helperTextStyle, color: "#fceb9c" }}>{inviteEntry.description}</p>
+            <div className="lobby-invite-note">
+              <p>{inviteEntry.description}</p>
             </div>
           ) : null}
 
-          <div style={{ ...infoGridStyle, marginTop: 32 }}>
+          <div className="lobby-join-form">
             <label>
-              <span style={{ ...helperTextStyle, letterSpacing: "0.1em", textTransform: "uppercase", fontSize: 11 }}>任务密钥 (Room Code)</span>
+              <span>房间码</span>
               <input
                 aria-label="房间码"
                 autoCapitalize="characters"
@@ -145,7 +94,7 @@ export function LobbyEntryForm({
                 style={{
                   ...fieldStyle,
                   fontFamily: "monospace",
-                  letterSpacing: "0.2em",
+                  letterSpacing: 0,
                   fontSize: 16,
                   textAlign: "center",
                 }}
@@ -153,28 +102,20 @@ export function LobbyEntryForm({
               />
             </label>
 
-            <div style={{ ...actionRowStyle, marginTop: 8 }}>
+            <div>
               <button
+                className="lobby-action-button lobby-action-button--secondary"
                 data-testid="lobby-join-room-button"
                 disabled={isBusy}
                 onClick={onJoinRoom}
-                style={{
-                  ...createButtonStyle({
-                    variant: "secondary",
-                    active: pendingAction === "join",
-                  }),
-                  width: "100%",
-                  background: "rgba(30, 40, 56, 0.5)",
-                  border: "1px solid rgba(80, 95, 120, 0.5)",
-                  color: "var(--color-text-muted)",
-                }}
+                data-active={pendingAction === "join" ? "true" : "false"}
                 type="button"
               >
                 {pendingAction === "join" ? "加入房间中..." : inviteEntry?.joinButtonLabel ?? "加入房间"}
               </button>
             </div>
 
-            <p style={{ ...helperTextStyle, fontSize: 12, opacity: 0.6, marginTop: 8, textAlign: "center" }}>
+            <p className="lobby-join-form__hint">
               输入正确房间码后会直接进入对应房间。
             </p>
           </div>

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import { resolveSessionRoute, restoreSessionContext } from "../../../app/sessionRecovery";
 import { fetchWaitingRooms } from "../../../services/lobby";
-import { apiRequest, setSessionId } from "../../../services/http";
+import { apiRequest, getSessionId, setSessionId } from "../../../services/http";
 import type { SessionContextResponse } from "../../../types";
 import {
   bindStoredProfileSession,
@@ -54,6 +54,7 @@ export function useLobbyFlowController(
   const [waitingRooms, setWaitingRooms] = useState<WaitingRoomCardViewModel[]>([]);
   const [isLoadingWaitingRooms, setLoadingWaitingRooms] = useState(false);
   const [waitingRoomsError, setWaitingRoomsError] = useState<string | null>(null);
+  const [waitingRoomsRefreshToken, setWaitingRoomsRefreshToken] = useState(0);
   const [recoverableBanner, setRecoverableBanner] = useState<RecoverableGameBannerViewModel | null>(null);
   const normalizedRoomCode = useMemo(() => normalizeRoomCode(roomCode), [roomCode]);
   const boundSessionId = profile?.boundSessionId ?? null;
@@ -92,7 +93,7 @@ export function useLobbyFlowController(
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [waitingRoomsRefreshToken]);
 
   useEffect(() => {
     if (!profile?.displayName || !boundSessionId) {
@@ -155,13 +156,14 @@ export function useLobbyFlowController(
     setMessage(null);
 
     try {
+      const existingSessionId = getSessionId() ?? profile.boundSessionId ?? null;
       const response = await apiRequest<SessionContextResponse>("/api/v1/rooms/join", {
         method: "POST",
         body: {
           nickname: profile.displayName,
           roomCode: normalizedTargetRoomCode,
         },
-        sessionId: null,
+        sessionId: existingSessionId,
       });
 
       setMessage(createSuccessMessage("已加入房间，正在进入房间。"));
@@ -208,6 +210,10 @@ export function useLobbyFlowController(
     await joinRoomByCode(targetRoomCode);
   }
 
+  function handleRefreshWaitingRooms(): void {
+    setWaitingRoomsRefreshToken((value) => value + 1);
+  }
+
   return {
     roomCode,
     profile,
@@ -226,5 +232,6 @@ export function useLobbyFlowController(
     handleCreateRoom,
     handleJoinRoom,
     handleJoinWaitingRoom,
+    handleRefreshWaitingRooms,
   };
 }

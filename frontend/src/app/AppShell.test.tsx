@@ -65,21 +65,23 @@ describe("AppShell", () => {
     expect(screen.getByText("Identity Page")).toBeInTheDocument();
   });
 
-  it("keeps the brand shell for the lobby without a route-stage explainer", () => {
-    renderAppShell("/lobby");
+  it("lets the lobby render as the first screen without a separate brand header", () => {
+    const { container } = renderAppShell("/lobby");
 
-    expect(screen.getByRole("heading", { name: "Tomorrow Question" })).toBeInTheDocument();
-    expect(screen.getByText("集结盟友、进入房间、正式开始这一局 19 世纪列强竞逐。")).toBeInTheDocument();
+    expect(container.querySelector(".page-shell--workbench")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Tomorrow Question" })).not.toBeInTheDocument();
+    expect(screen.queryByText("集结盟友、进入房间、正式开始这一局 19 世纪列强竞逐。")).not.toBeInTheDocument();
     expect(screen.queryByText("当前阶段")).not.toBeInTheDocument();
     expect(screen.queryByText("首页 / 大厅 / 房间 / 对局 / 结算")).not.toBeInTheDocument();
     expect(screen.getByText("Lobby Page")).toBeInTheDocument();
   });
 
-  it("switches to a compact task shell for room routes", () => {
-    renderAppShell("/room/ROOM01");
+  it("lets room routes render as a workbench without a separate task shell", () => {
+    const { container } = renderAppShell("/room/ROOM01");
 
-    expect(screen.getByText("房间准备")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "回到大厅" })).toHaveAttribute("href", "/lobby");
+    expect(container.querySelector(".page-shell--workbench")).toBeInTheDocument();
+    expect(screen.queryByText("房间准备")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "回到大厅" })).not.toBeInTheDocument();
     expect(screen.queryByText("当前阶段")).not.toBeInTheDocument();
     expect(screen.queryByText("首页 / 大厅 / 房间 / 对局 / 结算")).not.toBeInTheDocument();
     expect(screen.queryByText("以国家议程、资源调度与联盟博弈推进 19 世纪工业化竞逐。")).not.toBeInTheDocument();

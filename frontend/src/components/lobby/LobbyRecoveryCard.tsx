@@ -51,15 +51,15 @@ export function LobbyRecoveryCard({
 
   return (
     <section
-      aria-label="继续上次会话"
+      aria-label="恢复进度"
       className="panel"
       data-testid="lobby-recovery-card"
       style={sectionCardStyle}
     >
       <p className="panel__eyebrow" style={eyebrowStyle}>
-        上次会话
+        保存进度
       </p>
-      <h2 style={sectionTitleStyle}>继续上次会话</h2>
+      <h2 style={sectionTitleStyle}>恢复进度</h2>
       <p style={bodyTextStyle}>{resolvedViewModel.description}</p>
 
       <div style={infoGridStyle}>

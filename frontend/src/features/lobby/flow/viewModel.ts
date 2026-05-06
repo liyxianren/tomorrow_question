@@ -36,9 +36,15 @@ export type WaitingRoomCardViewModel = {
   roomCode: string;
   hostLabel: string;
   memberCountLabel: string;
+  availableSeatLabel: string;
   readyCountLabel: string;
   selectedCountriesLabel: string;
+  statusLabel: string;
+  activityLabel: string;
+  occupancyPercent: number;
+  memberPreview: string[];
   joinLabel: string;
+  isJoinable: boolean;
 };
 
 export type LobbyPrimaryActionViewModel = {
@@ -84,25 +90,33 @@ function mapRoomStatus(status: string): string {
   }
 }
 
+const COUNTRY_LABEL_BY_CODE: Record<string, string> = {
+  britain: "英国",
+  france: "法国",
+  prussia: "普鲁士",
+  austria: "奥地利",
+  russia: "俄国",
+};
+
 export function buildCurrentIdentityCardViewModel(
   profile: LocalProfile | null,
 ): CurrentIdentityCardViewModel {
   if (!profile) {
     return {
-      displayName: "尚未绑定显示姓名",
-      helperText: "先确认显示姓名后，才能在这台设备上创建房间、加入房间或继续上次会话。",
+      displayName: "尚未设置昵称",
+      helperText: "设置昵称后，才能在这台设备上创建或加入房间。",
       profileIdLabel: "本机识别号",
-      profileIdValue: "确认身份后自动生成",
-      actionLabel: "确认身份",
+      profileIdValue: "保存昵称后自动生成",
+      actionLabel: "设置昵称",
     };
   }
 
   return {
     displayName: profile.displayName,
-    helperText: "这台设备会用这个身份创建房间、加入房间和继续上次会话。",
+    helperText: "创建房间和加入房间时会使用这个昵称。",
     profileIdLabel: "本机识别号",
     profileIdValue: profile.profileId,
-    actionLabel: "更换显示姓名",
+    actionLabel: "修改昵称",
   };
 }
 
@@ -118,13 +132,13 @@ export function buildRecoverableSessionViewModel({
   return {
     profileDisplayName: profile?.displayName ?? "尚未绑定显示姓名",
     profileIdValue: profile?.profileId ?? "确认身份后自动生成",
-    description: "可直接回到原房间或原对局。",
-    sessionStateLabel: storedSessionId ? "已保存的进度" : "当前状态",
+    description: "可回到之前离开的房间或对局。",
+    sessionStateLabel: storedSessionId ? "保存的进度" : "当前状态",
     sessionStateValue: storedSessionId
-      ? `这台设备还记得上次会话：${maskSessionId(storedSessionId)}`
-      : "当前没有可以继续的上次会话。",
-    restoreLabel: isBusy ? "恢复中..." : "恢复上次会话",
-    clearLabel: "清除会话记录",
+      ? `这台设备保存了进度：${maskSessionId(storedSessionId)}`
+      : "当前没有可恢复的进度。",
+    restoreLabel: isBusy ? "恢复中..." : "恢复进度",
+    clearLabel: "清除记录",
     canRestore: Boolean(storedSessionId),
   };
 }
@@ -132,21 +146,41 @@ export function buildRecoverableSessionViewModel({
 export function buildWaitingRoomCardViewModel(
   room: WaitingRoomSummaryResponse,
 ): WaitingRoomCardViewModel {
+  const maxPlayers = Math.max(room.maxPlayers || 5, 1);
+  const memberCount = Math.max(room.memberCount || room.members?.length || 0, 0);
+  const availableSeatCount = Math.max(room.availableSeatCount ?? maxPlayers - memberCount, 0);
+  const readyCount = Math.max(room.readyCount || 0, 0);
+  const selectedCountriesCount = Math.max(room.selectedCountriesCount || 0, 0);
+  const memberPreview = (room.members ?? [])
+    .slice(0, maxPlayers)
+    .map((member) => {
+      const countryLabel = member.selectedCountry ? COUNTRY_LABEL_BY_CODE[member.selectedCountry] : null;
+      return countryLabel ? `${member.nickname} · ${countryLabel}` : member.nickname;
+    })
+    .filter(Boolean);
+  const isJoinable = room.isJoinable ?? (availableSeatCount > 0 && !room.hasActiveGame);
+
   return {
     roomCode: room.roomCode,
-    hostLabel: `房主 ${room.hostNickname}`,
-    memberCountLabel: `${room.memberCount} / ${room.maxPlayers} 人`,
-    readyCountLabel: `${room.readyCount} 人已准备开局`,
-    selectedCountriesLabel: `已选 ${room.selectedCountriesCount} 个国家`,
+    hostLabel: `房主 ${room.hostNickname || "未显示"}`,
+    memberCountLabel: `${memberCount} / ${maxPlayers} 人`,
+    availableSeatLabel: `${availableSeatCount} 个空位`,
+    readyCountLabel: `准备 ${readyCount} / ${memberCount}`,
+    selectedCountriesLabel: `已选 ${selectedCountriesCount} / ${maxPlayers} 个国家`,
+    statusLabel: isJoinable ? "可直接加入" : "暂不可加入",
+    activityLabel: room.lastActivityAt ? "最近有活动" : "等待刷新",
+    occupancyPercent: Math.min(100, Math.round((memberCount / maxPlayers) * 100)),
+    memberPreview: memberPreview.length > 0 ? memberPreview : [room.hostNickname || "等待房主信息"],
     joinLabel: `加入 ${room.roomCode}`,
+    isJoinable,
   };
 }
 
 export function buildLobbyPrimaryActionViewModel(): LobbyPrimaryActionViewModel {
   return {
-    createDescription: "你来当房主。创建后把房间码发给其他玩家，所有人准备完成后会自动开局。",
+    createDescription: "当前没有合适房间时，你可以直接创建一局，再邀请其他玩家加入。",
     createTitle: "创建新房间",
-    joinDescription: "如果朋友已经建好房间，你只需要输入房间码就能直接进入房间。",
+    joinDescription: "如果朋友发来了房间码，可以在这里输入并加入私密房间。",
     joinTitle: "输入房间码加入",
   };
 }
@@ -177,8 +211,8 @@ export function buildRecoverableGameBannerViewModel(
     : `回到房间 ${response.room.roomCode}`;
 
   return {
-    title: "继续上次进度",
-    description: "已为你找回上次离开的进度，可以直接回到原来的房间或对局。",
+    title: "可恢复的进度",
+    description: "已找到之前离开的房间或对局。",
     actionLabel,
     targetPath: target.path,
   };

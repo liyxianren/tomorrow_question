@@ -152,6 +152,19 @@ def remove_bot(room: Room, *, actor_player_id: str, bot_player_id: str) -> RoomM
     return bot_member
 
 
+def remove_member(room: Room, player_id: str) -> RoomMember:
+    if room.status in {RoomStatus.IN_GAME, RoomStatus.FINISHED}:
+        raise RoomError(ErrorCode.ROOM_ALREADY_IN_GAME, "Room members cannot leave after the game has started.")
+    if player_id == room.host_player_id:
+        raise RoomError(ErrorCode.ROOM_ACTION_FORBIDDEN, "The host must disband the room instead of leaving a seat.")
+
+    member = require_member(room, player_id)
+    room.members = [candidate for candidate in room.members if candidate.player_id != player_id]
+    touch_room(room)
+    refresh_room_status(room)
+    return member
+
+
 def set_member_connection_status(room: Room, player_id: str, connection_status: ConnectionStatus) -> RoomMember:
     member = require_member(room, player_id)
     member.connection_status = connection_status

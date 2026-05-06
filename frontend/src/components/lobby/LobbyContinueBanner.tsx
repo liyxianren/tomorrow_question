@@ -2,11 +2,8 @@ import { Link } from "react-router-dom";
 
 import type { RecoverableGameBannerViewModel } from "../../features/lobby/flow/viewModel";
 import {
-  bodyTextStyle,
-  createButtonStyle,
   eyebrowStyle,
   sectionCardStyle,
-  sectionTitleStyle,
 } from "./styles";
 
 
@@ -20,22 +17,24 @@ export function LobbyContinueBanner({ viewModel }: LobbyContinueBannerProps) {
   }
 
   return (
-    <section className="panel" data-testid="lobby-continue-banner" style={sectionCardStyle}>
-      <p className="panel__eyebrow" style={eyebrowStyle}>
-        已保存进度
-      </p>
-      <h2 style={sectionTitleStyle}>继续上次进度</h2>
-      <h3 style={{ marginTop: 12, fontSize: 18 }}>{viewModel.title}</h3>
-      <p style={bodyTextStyle}>{viewModel.description}</p>
-      <p style={{ ...bodyTextStyle, marginTop: 8 }}>你可以直接回到上次离开的房间或对局。</p>
+    <section
+      className="panel lobby-continue-banner"
+      data-testid="lobby-continue-banner"
+      style={{
+        ...sectionCardStyle,
+      }}
+    >
+      <div>
+        <p className="panel__eyebrow" style={eyebrowStyle}>
+          已保存进度
+        </p>
+        <h2>{viewModel.title}</h2>
+        <p>{viewModel.description}</p>
+      </div>
 
-      <div style={{ marginTop: 18 }}>
+      <div>
         <Link
-          style={{
-            ...createButtonStyle({ variant: "primary" }),
-            display: "inline-flex",
-            textDecoration: "none",
-          }}
+          className="lobby-primary-link"
           to={viewModel.targetPath}
         >
           {viewModel.actionLabel}

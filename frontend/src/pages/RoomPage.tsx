@@ -1,13 +1,18 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { CountrySelectionPanel } from "../components/room/CountrySelectionPanel";
 import { RoomHeaderPanel } from "../components/room/RoomHeaderPanel";
 import { RoomMembersPanel } from "../components/room/RoomMembersPanel";
 import { RoomReadyPanel } from "../components/room/RoomReadyPanel";
+import { clearStoredProfileSession } from "../features/lobby/flow/identityStorage";
 import { useRoomFlowController } from "../features/room/flow/useRoomFlowController";
+import { apiRequest, clearSessionId } from "../services/http";
+import "./RoomPage.css";
 
 
 export function RoomPage() {
+  const navigate = useNavigate();
   const {
     pendingAction,
     viewModel,
@@ -18,6 +23,7 @@ export function RoomPage() {
   } = useRoomFlowController();
   const [hasCopiedRoomCode, setHasCopiedRoomCode] = useState(false);
   const [hasCopiedInviteLink, setHasCopiedInviteLink] = useState(false);
+  const [isReturningToLobby, setReturningToLobby] = useState(false);
 
   async function handleCopyRoomCode(): Promise<void> {
     if (!viewModel.header.roomCode) {
@@ -39,43 +45,53 @@ export function RoomPage() {
     setHasCopiedInviteLink(true);
   }
 
+  async function handleReturnToLobby(): Promise<void> {
+    if (!viewModel.header.roomCode) {
+      navigate("/lobby");
+      return;
+    }
+
+    setReturningToLobby(true);
+    try {
+      await apiRequest(`/api/v1/rooms/${viewModel.header.roomCode}/leave`, {
+        method: "POST",
+      });
+    } catch {
+      // Returning to the lobby should still clear stale local recovery state if the room has already closed.
+    } finally {
+      clearSessionId();
+      clearStoredProfileSession();
+      navigate("/lobby");
+      setReturningToLobby(false);
+    }
+  }
+
   return (
-    <div
-      style={{
-        position: "relative",
-        minHeight: "100vh",
-        marginTop: "-32px",
-        padding: "32px 16px",
-        background: "url(/room-bg.png) center center / cover no-repeat fixed",
-      }}
-    >
-      <div
-        style={{
-          position: "absolute",
-          inset: 0, // cover the entire container
-          background: "linear-gradient(180deg, rgba(8, 10, 15, 0.4) 0%, rgba(8, 10, 15, 0.95) 100%)",
-          zIndex: 0,
-        }}
-      />
-      <div style={{ position: "relative", zIndex: 1, maxWidth: 1200, margin: "0 auto", display: "grid", gap: 24 }}>
+    <section className="room-page">
+      <div className="room-page__backdrop" />
+      <div className="room-page__inner">
         <RoomHeaderPanel
           hasCopiedInviteLink={hasCopiedInviteLink}
           hasCopiedRoomCode={hasCopiedRoomCode}
+          isReturningToLobby={isReturningToLobby}
           onCopyInviteLink={handleCopyInviteLink}
           onCopyRoomCode={handleCopyRoomCode}
+          onReturnToLobby={() => {
+            void handleReturnToLobby();
+          }}
           viewModel={viewModel.header}
         />
 
-        <div className="room-layout-grid">
-          <div style={{ display: "grid", gap: 24 }}>
+        <div className="room-page__layout">
+          <main className="room-page__country-stage">
             <CountrySelectionPanel
               isBusy={pendingAction === "country"}
               onSelectCountry={handleSelectCountry}
               slots={viewModel.countrySlots}
             />
-          </div>
+          </main>
           
-          <div style={{ display: "grid", gap: 24 }}>
+          <aside className="room-page__side-rail" aria-label="房间状态和开局操作">
             <RoomMembersPanel
               isBusy={pendingAction === "removeBot"}
               members={viewModel.members}
@@ -88,21 +104,13 @@ export function RoomPage() {
               onToggleReady={handleToggleReady}
               viewModel={viewModel.primaryAction}
             />
-          </div>
+          </aside>
         </div>
 
-        <p
-          data-testid="room-expiry-notice"
-          style={{
-            margin: "8px 0 0",
-            textAlign: "center",
-            fontSize: 12,
-            color: "rgba(255, 255, 255, 0.45)",
-          }}
-        >
+        <p className="room-page__expiry" data-testid="room-expiry-notice">
           房间长时间无活动将自动关闭。
         </p>
       </div>
-    </div>
+    </section>
   );
 }

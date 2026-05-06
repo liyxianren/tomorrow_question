@@ -2,13 +2,9 @@ import type { WaitingRoomCardViewModel } from "../../features/lobby/flow/viewMod
 import {
   bodyTextStyle,
   createBadgeStyle,
-  createButtonStyle,
   eyebrowStyle,
-  helperTextStyle,
-  listStyle,
   sectionCardStyle,
   sectionTitleStyle,
-  subCardStyle,
 } from "./styles";
 
 
@@ -18,6 +14,7 @@ type LobbyWaitingRoomsSectionProps = {
   isLoading: boolean;
   errorMessage: string | null;
   onJoinRoom: (roomCode: string) => void;
+  onRefresh: () => void;
 };
 
 export function LobbyWaitingRoomsSection({
@@ -26,85 +23,76 @@ export function LobbyWaitingRoomsSection({
   isLoading,
   errorMessage,
   onJoinRoom,
+  onRefresh,
 }: LobbyWaitingRoomsSectionProps) {
   let content: JSX.Element;
 
   if (errorMessage) {
     content = (
-      <div style={{ ...subCardStyle, marginTop: 18 }}>
-        <p style={helperTextStyle}>暂时没能读取等待中的房间，请稍后刷新再试。</p>
+      <div className="lobby-waiting-empty lobby-waiting-empty--error">
+        <strong>暂时没能读取房间列表</strong>
+        <p>网络或后端服务可能刚好在刷新。你可以重试，或使用右侧房间码加入。</p>
+        <button className="lobby-secondary-button" onClick={onRefresh} type="button">
+          重新读取
+        </button>
       </div>
     );
   } else if (isLoading && rooms.length === 0) {
     content = (
-      <div style={{ ...subCardStyle, marginTop: 18 }}>
-        <p style={helperTextStyle}>正在查看现在有哪些房间可以加入。</p>
+      <div className="lobby-waiting-empty">
+        <strong>正在读取可加入房间</strong>
+        <p>系统会优先显示人数更多、离开局更近的房间。</p>
       </div>
     );
   } else if (rooms.length === 0) {
     content = (
-      <div style={{ ...subCardStyle, marginTop: 18 }}>
-        <p style={helperTextStyle}>现在还没有等待中的房间。你可以先创建一局，再邀请朋友输入房间码加入。</p>
+      <div className="lobby-waiting-empty">
+        <strong>当前没有公开等待房间</strong>
+        <p>可以直接创建一局，或者让朋友把房间码发给你后从备用入口加入。</p>
       </div>
     );
   } else {
     content = (
-      <div style={listStyle}>
+      <div className="lobby-waiting-list">
         {rooms.map((room) => (
           <article
-            className="panel"
+            className="lobby-waiting-room"
             data-testid={`lobby-waiting-room-${room.roomCode}`}
             key={room.roomCode}
-            style={{
-              padding: 24,
-              borderRadius: 16,
-              background: "linear-gradient(90deg, rgba(22, 30, 26, 0.7) 0%, rgba(14, 18, 16, 0.4) 100%)",
-              border: "1px solid rgba(131, 196, 138, 0.2)",
-              borderLeft: "4px solid #8dac7d",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
-              display: "grid",
-              gap: 16,
-              transition: "transform 0.2s ease, box-shadow 0.2s ease",
-            }}
           >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 12,
-                flexWrap: "wrap",
-              }}
-            >
-              <strong style={{ fontSize: 24, fontFamily: "monospace", color: "#d9f0db", letterSpacing: "0.15em" }}>{room.roomCode}</strong>
-              <span style={createBadgeStyle("success")}>可加入</span>
+            <div className="lobby-waiting-room__head">
+              <div>
+                <strong>{room.roomCode}</strong>
+                <p>{room.hostLabel}</p>
+              </div>
+              <span style={createBadgeStyle(room.isJoinable ? "success" : "neutral")}>{room.statusLabel}</span>
             </div>
 
-            <p style={{ ...helperTextStyle, color: "rgba(255, 255, 255, 0.6)", fontSize: 13 }}>{room.hostLabel}</p>
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-                gap: 12,
-              }}
+              aria-label={`${room.memberCountLabel}，${room.availableSeatLabel}`}
+              className="lobby-waiting-room__meter"
             >
-              <span style={{ ...helperTextStyle, background: "rgba(0,0,0,0.2)", padding: "4px 8px", borderRadius: 4 }}>{room.memberCountLabel}</span>
-              <span style={{ ...helperTextStyle, background: "rgba(0,0,0,0.2)", padding: "4px 8px", borderRadius: 4 }}>{room.readyCountLabel}</span>
-              <span style={{ ...helperTextStyle, background: "rgba(0,0,0,0.2)", padding: "4px 8px", borderRadius: 4 }}>{room.selectedCountriesLabel}</span>
+              <span style={{ width: `${room.occupancyPercent}%` }} />
             </div>
 
-            <div style={{ marginTop: 8 }}>
+            <div className="lobby-waiting-room__stats">
+              <span>{room.memberCountLabel}</span>
+              <span>{room.availableSeatLabel}</span>
+              <span>{room.readyCountLabel}</span>
+              <span>{room.selectedCountriesLabel}</span>
+            </div>
+
+            <div className="lobby-waiting-room__members" aria-label="当前成员">
+              {room.memberPreview.map((member) => (
+                <span key={`${room.roomCode}-${member}`}>{member}</span>
+              ))}
+            </div>
+
+            <div>
               <button
-                disabled={isBusy}
+                className="lobby-action-button lobby-action-button--ready"
+                disabled={isBusy || !room.isJoinable}
                 onClick={() => onJoinRoom(room.roomCode)}
-                style={{
-                  ...createButtonStyle({ variant: "primary" }),
-                  width: "100%",
-                  background: "rgba(131, 196, 138, 0.15)",
-                  border: "1px solid rgba(131, 196, 138, 0.4)",
-                  color: "#d9f0db",
-                  boxShadow: "none",
-                }}
                 type="button"
               >
                 {room.joinLabel}
@@ -118,14 +106,21 @@ export function LobbyWaitingRoomsSection({
 
   return (
     <section
-      aria-label="等待中的房间"
-      className="panel"
+      aria-label="可加入的房间"
+      className="panel lobby-waiting-panel"
       data-testid="lobby-waiting-rooms-panel"
       style={sectionCardStyle}
     >
-      <p className="panel__eyebrow" style={eyebrowStyle}>等待加入的房间</p>
-      <h2 style={sectionTitleStyle}>等待中的房间</h2>
-      <p style={bodyTextStyle}>以下是当前等待中的活跃房间。你可以加入已有房间，或创建新房间邀请朋友。</p>
+      <div className="lobby-waiting-panel__head">
+        <div>
+          <p className="panel__eyebrow" style={eyebrowStyle}>公开房间</p>
+          <h2 style={sectionTitleStyle}>可加入的房间</h2>
+          <p style={bodyTextStyle}>优先加入列表里的房间；只有朋友发来私密房间码时，才需要手动输入。</p>
+        </div>
+        <button className="lobby-secondary-button" disabled={isLoading} onClick={onRefresh} type="button">
+          {isLoading ? "读取中..." : "刷新列表"}
+        </button>
+      </div>
       {content}
     </section>
   );

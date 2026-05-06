@@ -27,7 +27,7 @@ from app.modules.persistence import (
     initialize_database,
 )
 from app.modules.room.selectors import room_to_payload
-from app.modules.room.service import add_member, assign_country, create_room, mark_member_ready, start_game
+from app.modules.room.service import add_member, assign_country, create_room, mark_member_ready, set_member_connection_status, start_game
 from app.modules.session.selectors import session_to_payload
 from app.modules.session.service import create_session, set_selected_country
 
@@ -301,6 +301,29 @@ class RoomSessionApiTests(unittest.TestCase):
         self.assertEqual(payload["data"]["room"]["roomCode"], "ROOM01")
         self.assertEqual(len(payload["data"]["room"]["members"]), 2)
 
+    def test_join_room_with_existing_room_session_restores_member_instead_of_duplicating(self) -> None:
+        self.seed_room()
+        self.update_room(
+            "ROOM01",
+            lambda room: set_member_connection_status(room, "player-1", ConnectionStatus.OFFLINE_RECOVERABLE),
+        )
+
+        response = self.client.post(
+            "/api/v1/rooms/join",
+            json={"nickname": "Ada", "roomCode": "ROOM01"},
+            headers={"X-Session-Id": "session-1"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["data"]["session"]["sessionId"], "session-1")
+        self.assertEqual(payload["data"]["session"]["playerId"], "player-1")
+        members = payload["data"]["room"]["members"]
+        self.assertEqual(len(members), 1)
+        self.assertEqual(members[0]["playerId"], "player-1")
+        self.assertEqual(members[0]["connectionStatus"], ConnectionStatus.ONLINE.value)
+
     def test_join_room_emits_room_updated(self) -> None:
         self.seed_room()
 
@@ -343,6 +366,51 @@ class RoomSessionApiTests(unittest.TestCase):
         payload = response.get_json()
         self.assertFalse(payload["ok"])
         self.assertEqual(payload["error"]["code"], ErrorCode.ROOM_ALREADY_IN_GAME.value)
+
+    def test_host_leave_waiting_room_disbands_room(self) -> None:
+        self.seed_room()
+        self.client.post("/api/v1/rooms/join", json={"nickname": "Linus", "roomCode": "ROOM01"})
+
+        response = self.client.post("/api/v1/rooms/ROOM01/leave", headers={"X-Session-Id": "session-1"})
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertTrue(payload["ok"])
+        self.assertTrue(payload["data"]["disbanded"])
+        self.assertEqual(payload["data"]["removedPlayerId"], "player-1")
+
+        connection = connect_database(self.database_path)
+        initialize_database(connection)
+        self.assertIsNone(RoomRepository(connection).get("ROOM01"))
+        host_session = SessionRepository(connection).get("session-1")
+        self.assertIsNotNone(host_session)
+        self.assertIsNone(host_session["roomCode"])
+        connection.close()
+
+    def test_guest_leave_waiting_room_removes_member_without_disbanding(self) -> None:
+        self.seed_room()
+        join_response = self.client.post("/api/v1/rooms/join", json={"nickname": "Linus", "roomCode": "ROOM01"})
+        guest_session_id = join_response.get_json()["data"]["session"]["sessionId"]
+        guest_player_id = join_response.get_json()["data"]["session"]["playerId"]
+
+        response = self.client.post("/api/v1/rooms/ROOM01/leave", headers={"X-Session-Id": guest_session_id})
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertTrue(payload["ok"])
+        self.assertFalse(payload["data"]["disbanded"])
+        self.assertEqual(payload["data"]["removedPlayerId"], guest_player_id)
+        self.assertEqual([member["playerId"] for member in payload["data"]["room"]["members"]], ["player-1"])
+
+        connection = connect_database(self.database_path)
+        initialize_database(connection)
+        room_payload = RoomRepository(connection).get("ROOM01")
+        self.assertIsNotNone(room_payload)
+        self.assertEqual(room_payload["memberPlayerIds"], ["player-1"])
+        guest_session = SessionRepository(connection).get(guest_session_id)
+        self.assertIsNotNone(guest_session)
+        self.assertIsNone(guest_session["roomCode"])
+        connection.close()
 
     def test_restore_session_returns_room_and_active_game_context_from_header(self) -> None:
         self.seed_room()
@@ -791,18 +859,27 @@ class RoomSessionApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.get_json()
         self.assertTrue(payload["ok"])
+        self.assertEqual(len(payload["data"]), 1)
+        room = payload["data"][0]
+        self.assertEqual(room["roomCode"], "ROOM01")
+        self.assertEqual(room["hostNickname"], "Ada")
+        self.assertEqual(room["memberCount"], 1)
+        self.assertEqual(room["maxPlayers"], 5)
+        self.assertEqual(room["availableSeatCount"], 4)
+        self.assertEqual(room["status"], RoomStatus.WAITING.value)
+        self.assertEqual(room["readyCount"], 0)
+        self.assertEqual(room["selectedCountriesCount"], 0)
+        self.assertFalse(room["hasActiveGame"])
+        self.assertTrue(room["isJoinable"])
+        self.assertIsInstance(room["lastActivityAt"], str)
         self.assertEqual(
-            payload["data"],
+            room["members"],
             [
                 {
-                    "roomCode": "ROOM01",
-                    "hostNickname": "Ada",
-                    "memberCount": 1,
-                    "maxPlayers": 5,
-                    "status": RoomStatus.WAITING.value,
-                    "readyCount": 0,
-                    "selectedCountriesCount": 0,
-                    "hasActiveGame": False,
+                    "nickname": "Ada",
+                    "selectedCountry": None,
+                    "isReady": False,
+                    "memberType": "human",
                 }
             ],
         )
@@ -835,6 +912,30 @@ class RoomSessionApiTests(unittest.TestCase):
         payload = response.get_json()
         self.assertTrue(payload["ok"])
         self.assertEqual([room["roomCode"] for room in payload["data"]], ["WAIT01"])
+
+    def test_waiting_rooms_prioritizes_rooms_closer_to_starting(self) -> None:
+        self.seed_room(room_code="ONE001", host_player_id="player-1", host_session_id="session-1", host_nickname="One")
+        self.seed_room(room_code="THREE1", host_player_id="player-3", host_session_id="session-3", host_nickname="Three")
+        self.seed_room(room_code="TWO001", host_player_id="player-2", host_session_id="session-2", host_nickname="Two")
+
+        self.update_room(
+            "TWO001",
+            lambda room: add_member(room, player_id="player-2b", nickname="Two B"),
+        )
+        self.update_room(
+            "THREE1",
+            lambda room: [
+                add_member(room, player_id="player-3b", nickname="Three B"),
+                add_member(room, player_id="player-3c", nickname="Three C"),
+            ],
+        )
+
+        response = self.client.get("/api/v1/lobby/waiting-rooms")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertTrue(payload["ok"])
+        self.assertEqual([room["roomCode"] for room in payload["data"]], ["THREE1", "TWO001", "ONE001"])
 
     def test_waiting_rooms_counts_ready_and_selected_countries(self) -> None:
         self.seed_room()
@@ -885,10 +986,35 @@ class RoomSessionApiTests(unittest.TestCase):
         self.assertEqual(payload["data"][0]["hostNickname"], "Ada")
         self.assertEqual(payload["data"][0]["memberCount"], 3)
         self.assertEqual(payload["data"][0]["maxPlayers"], 5)
+        self.assertEqual(payload["data"][0]["availableSeatCount"], 2)
         self.assertEqual(payload["data"][0]["status"], RoomStatus.WAITING.value)
         self.assertEqual(payload["data"][0]["readyCount"], 1)
         self.assertEqual(payload["data"][0]["selectedCountriesCount"], 2)
         self.assertFalse(payload["data"][0]["hasActiveGame"])
+        self.assertTrue(payload["data"][0]["isJoinable"])
+        self.assertEqual(
+            payload["data"][0]["members"],
+            [
+                {
+                    "nickname": "Ada",
+                    "selectedCountry": "britain",
+                    "isReady": False,
+                    "memberType": "human",
+                },
+                {
+                    "nickname": "Linus",
+                    "selectedCountry": "france",
+                    "isReady": True,
+                    "memberType": "human",
+                },
+                {
+                    "nickname": "Grace",
+                    "selectedCountry": None,
+                    "isReady": False,
+                    "memberType": "human",
+                },
+            ],
+        )
 
     def test_waiting_rooms_hides_rooms_inactive_for_more_than_three_minutes(self) -> None:
         self.seed_room(room_code="FRESH1", host_player_id="player-f", host_session_id="session-f", host_nickname="Fresh")

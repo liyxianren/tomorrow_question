@@ -15,6 +15,8 @@ const {
   mockRestoreSessionContext,
   mockResolveSessionRoute,
   mockApiRequest,
+  mockClearSessionId,
+  mockClearStoredProfileSession,
   mockConnectSocket,
   mockDisconnectSocket,
   mockSocketEventNames,
@@ -22,6 +24,8 @@ const {
   mockRestoreSessionContext: vi.fn<() => Promise<SessionContextResponse | null>>(),
   mockResolveSessionRoute: vi.fn<(response: SessionContextResponse) => { path: string; state?: unknown }>(),
   mockApiRequest: vi.fn(),
+  mockClearSessionId: vi.fn(),
+  mockClearStoredProfileSession: vi.fn(),
   mockConnectSocket: vi.fn(),
   mockDisconnectSocket: vi.fn(),
   mockSocketEventNames: {
@@ -42,6 +46,18 @@ vi.mock("../services/http", async () => {
   return {
     ...actual,
     apiRequest: mockApiRequest,
+    clearSessionId: mockClearSessionId,
+  };
+});
+
+vi.mock("../features/lobby/flow/identityStorage", async () => {
+  const actual = await vi.importActual<typeof import("../features/lobby/flow/identityStorage")>(
+    "../features/lobby/flow/identityStorage",
+  );
+
+  return {
+    ...actual,
+    clearStoredProfileSession: mockClearStoredProfileSession,
   };
 });
 
@@ -163,6 +179,10 @@ function renderRoomPage(bootstrap = createBootstrap()) {
         path: "/game/:gameId",
         element: <div>game route</div>,
       },
+      {
+        path: "/lobby",
+        element: <div>lobby route</div>,
+      },
     ],
     {
       initialEntries: [
@@ -277,6 +297,42 @@ describe("RoomPage", () => {
     expect(actionPanel as HTMLElement).toHaveTextContent("没有单独的手动开始按钮");
     expect(actionPanel as HTMLElement).toHaveTextContent("你尚未选定国家");
     expect(screen.getByTestId("room-ready-button")).toBeDisabled();
+  });
+
+  it("lets the room page own the return-to-lobby leave action", async () => {
+    const socket = createMockSocket();
+    mockConnectSocket.mockReturnValue(socket);
+    mockApiRequest.mockImplementation(async (path: string) => {
+      if (path === "/api/v1/rooms/ROOM01/context") {
+        return {
+          room: createRoom(),
+          activeGame: null,
+          activeSnapshot: null,
+        };
+      }
+
+      if (path === "/api/v1/rooms/ROOM01/leave") {
+        return {
+          roomCode: "ROOM01",
+          disbanded: true,
+          removedPlayerId: "player-1",
+        };
+      }
+
+      return {};
+    });
+    const router = renderRoomPage();
+
+    await userEvent.click(screen.getByRole("button", { name: "回到大厅" }));
+
+    await waitFor(() => {
+      expect(mockApiRequest).toHaveBeenCalledWith("/api/v1/rooms/ROOM01/leave", {
+        method: "POST",
+      });
+    });
+    expect(mockClearSessionId).toHaveBeenCalled();
+    expect(mockClearStoredProfileSession).toHaveBeenCalled();
+    expect(router.state.location.pathname).toBe("/lobby");
   });
 
   it("reports country selection through the unified flow message without exposing transport details", async () => {

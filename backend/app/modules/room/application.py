@@ -19,6 +19,7 @@ from .service import (
     generate_room_code,
     mark_member_ready,
     remove_bot,
+    remove_member,
     set_member_connection_status,
     touch_room,
 )
@@ -58,9 +59,14 @@ class RoomApplicationService:
             "room": room.to_payload(),
         }
 
-    def join_room_context(self, room_code: str, nickname: str) -> dict[str, object]:
+    def join_room_context(self, room_code: str, nickname: str, session_id: str | None = None) -> dict[str, object]:
         self._prune_inactive_waiting_rooms()
         room = self._require_room(room_code)
+
+        restored_context = self._restore_joining_session(room=room, session_id=session_id)
+        if restored_context is not None:
+            return restored_context
+
         session = create_session(nickname=nickname, room_code=room.room_code)
 
         add_member(room, session.player_id, nickname, ConnectionStatus.ONLINE)
@@ -68,7 +74,68 @@ class RoomApplicationService:
         self.rooms.save(room.to_payload())
         self.sessions.save(session.to_payload())
 
-        joined = self.recovery.get_room_context(room.room_code)
+        return self._build_joined_context(session=session, room_code=room.room_code)
+
+    def leave_room_context(self, room_code: str, session_id: str | None) -> dict[str, object]:
+        self._prune_inactive_waiting_rooms()
+        room = self._require_room(room_code)
+        session = self._require_session(session_id)
+
+        if session.room_code != room.room_code or not room.has_member(session.player_id):
+            raise RoomError(ErrorCode.NOT_ROOM_MEMBER, "Player is not a member of this room.")
+        if room.status not in {RoomStatus.WAITING, RoomStatus.READYING}:
+            raise RoomError(ErrorCode.ROOM_ALREADY_IN_GAME, "Room members cannot leave after the game has started.")
+
+        if session.player_id == room.host_player_id:
+            for session_payload in self.sessions.list_by_room(room.room_code):
+                room_session = PlayerSession.from_payload(session_payload)
+                bind_session_to_room(room_session, None)
+                self.sessions.save(room_session.to_payload(), commit=False)
+            self.rooms.delete(room.room_code, commit=False)
+            self.connection.commit()
+            return {
+                "roomCode": room.room_code,
+                "disbanded": True,
+                "removedPlayerId": session.player_id,
+            }
+
+        removed_member = remove_member(room, session.player_id)
+        bind_session_to_room(session, None)
+        self.rooms.save(room.to_payload(), commit=False)
+        self.sessions.save(session.to_payload(), commit=False)
+        self.connection.commit()
+
+        return {
+            "roomCode": room.room_code,
+            "disbanded": False,
+            "removedPlayerId": removed_member.player_id,
+            "room": room.to_payload(),
+        }
+
+    def _restore_joining_session(self, *, room: Room, session_id: str | None) -> dict[str, object] | None:
+        if session_id is None or not session_id.strip():
+            return None
+
+        session_payload = self.sessions.get(session_id)
+        if session_payload is None:
+            return None
+
+        session = PlayerSession.from_payload(session_payload)
+        if session.room_code != room.room_code or not room.has_member(session.player_id):
+            return None
+
+        connect_session(session)
+        bind_session_to_room(session, room.room_code)
+        set_member_connection_status(room, session.player_id, ConnectionStatus.ONLINE)
+        if room.status in {RoomStatus.WAITING, RoomStatus.READYING}:
+            touch_room(room)
+
+        self.rooms.save(room.to_payload())
+        self.sessions.save(session.to_payload())
+        return self._build_joined_context(session=session, room_code=room.room_code)
+
+    def _build_joined_context(self, *, session: PlayerSession, room_code: str) -> dict[str, object]:
+        joined = self.recovery.get_room_context(room_code)
         if joined is None:
             raise RoomError(ErrorCode.ROOM_NOT_FOUND, "Room could not be found.")
 
@@ -171,7 +238,16 @@ class RoomApplicationService:
         self._prune_inactive_waiting_rooms()
         visible_after = _utc_cutoff_iso(WAITING_ROOM_HIDE_AFTER_SECONDS)
         waiting_rooms = self.rooms.list_waiting_visible(visible_after)
-        return [self._to_waiting_room_card(room_payload) for room_payload in waiting_rooms]
+        cards = [self._to_waiting_room_card(room_payload) for room_payload in waiting_rooms]
+        cards.sort(
+            key=lambda card: (
+                not bool(card["isJoinable"]),
+                -int(card["memberCount"]),
+                -int(card["selectedCountriesCount"]),
+                -int(card["readyCount"]),
+            )
+        )
+        return cards
 
     def _load_existing_room_codes(self) -> set[str]:
         rows = self.connection.execute("SELECT room_code FROM rooms").fetchall()
@@ -204,31 +280,46 @@ class RoomApplicationService:
         selected_countries_count = 0
         host_nickname = ""
         host_player_id = room_payload.get("hostPlayerId")
+        member_summaries: list[dict[str, object]] = []
 
         for member in members:
             if not isinstance(member, dict):
                 continue
             if member.get("isReady"):
                 ready_count += 1
-            if member.get("selectedCountry") is not None:
+            selected_country = member.get("selectedCountry")
+            if selected_country is not None:
                 selected_countries_count += 1
-            if host_nickname:
-                continue
-            if member.get("playerId") != host_player_id:
-                continue
             nickname = member.get("nickname")
-            host_nickname = nickname if isinstance(nickname, str) else ""
+            member_summaries.append(
+                {
+                    "nickname": nickname if isinstance(nickname, str) else "",
+                    "selectedCountry": selected_country if isinstance(selected_country, str) else None,
+                    "isReady": bool(member.get("isReady")),
+                    "memberType": str(member.get("memberType") or "human"),
+                }
+            )
+            if not host_nickname and member.get("playerId") == host_player_id:
+                host_nickname = nickname if isinstance(nickname, str) else ""
 
         status = room_payload.get("status")
+        member_count = len(members)
+        available_seat_count = max(ROOM_CAPACITY - member_count, 0)
+        has_active_game = bool(room_payload.get("currentGameId"))
+        status_value = status.value if isinstance(status, RoomStatus) else str(status or "")
         return {
             "roomCode": room_payload.get("roomCode", ""),
             "hostNickname": host_nickname,
-            "memberCount": len(members),
+            "memberCount": member_count,
             "maxPlayers": ROOM_CAPACITY,
-            "status": status.value if isinstance(status, RoomStatus) else str(status or ""),
+            "availableSeatCount": available_seat_count,
+            "status": status_value,
             "readyCount": ready_count,
             "selectedCountriesCount": selected_countries_count,
-            "hasActiveGame": bool(room_payload.get("currentGameId")),
+            "hasActiveGame": has_active_game,
+            "isJoinable": status_value == RoomStatus.WAITING.value and not has_active_game and available_seat_count > 0,
+            "lastActivityAt": room_payload.get("lastActivityAt"),
+            "members": member_summaries,
         }
 
     def _prune_inactive_waiting_rooms(self) -> None:

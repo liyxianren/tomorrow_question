@@ -323,6 +323,11 @@ class RoomRepository(_BasePayloadRepository):
         self._commit(commit)
         return int(cursor.rowcount or 0)
 
+    def delete(self, room_code: str, *, commit: bool = True) -> int:
+        cursor = self.connection.execute("DELETE FROM rooms WHERE room_code = ?", (room_code,))
+        self._commit(commit)
+        return int(cursor.rowcount or 0)
+
 
 class SessionRepository(_BasePayloadRepository):
     def save(self, session: PlayerSessionPayload, *, commit: bool = True) -> None:
@@ -387,6 +392,19 @@ class SessionRepository(_BasePayloadRepository):
             params = ()
 
         payloads = self._fetch_payloads(sql, params, _normalize_session_payload)
+        return payloads  # type: ignore[return-value]
+
+    def list_by_room(self, room_code: str) -> list[PlayerSessionPayload]:
+        payloads = self._fetch_payloads(
+            """
+            SELECT payload_json
+            FROM sessions
+            WHERE room_code = ?
+            ORDER BY session_id
+            """,
+            (room_code,),
+            _normalize_session_payload,
+        )
         return payloads  # type: ignore[return-value]
 
 

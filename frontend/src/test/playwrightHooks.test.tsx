@@ -179,22 +179,29 @@ describe("Playwright hook contracts", () => {
           isBusy={false}
           isLoading={false}
           onJoinRoom={() => {}}
+          onRefresh={() => {}}
           rooms={[
             {
               roomCode: "ROOM01",
               hostLabel: "房主 Britain",
               memberCountLabel: "2 / 5 人",
-              readyCountLabel: "1 人已准备开局",
-              selectedCountriesLabel: "已选 2 个国家",
+              availableSeatLabel: "3 个空位",
+              readyCountLabel: "准备 1 / 2",
+              selectedCountriesLabel: "已选 2 / 5 个国家",
+              statusLabel: "可直接加入",
+              activityLabel: "最近有活动",
+              occupancyPercent: 40,
+              memberPreview: ["Britain · 英国", "France · 法国"],
               joinLabel: "加入 ROOM01",
+              isJoinable: true,
             },
           ]}
         />
         <MemoryRouter>
           <LobbyContinueBanner
             viewModel={{
-              title: "继续游戏",
-              description: "已为你找回上次离开的进度，可以直接回到原来的房间或对局。",
+              title: "可恢复的进度",
+              description: "已找到之前离开的房间或对局。",
               actionLabel: "回到对局",
               targetPath: "/game/game-1",
             }}
@@ -203,7 +210,7 @@ describe("Playwright hook contracts", () => {
       </>,
     );
 
-    expect(screen.getByTestId("identity-nickname-input")).toHaveAccessibleName("领袖代号");
+    expect(screen.getByTestId("identity-nickname-input")).toHaveAccessibleName("昵称");
     expect(screen.getByTestId("lobby-create-room-button")).toHaveTextContent("创建房间");
     expect(screen.getByTestId("lobby-waiting-room-ROOM01")).toHaveTextContent("加入 ROOM01");
     expect(screen.getByTestId("lobby-continue-banner")).toBeInTheDocument();

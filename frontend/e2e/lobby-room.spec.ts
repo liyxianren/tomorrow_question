@@ -4,6 +4,7 @@ import {
   createPlayerPage,
   createRoomFromLobby,
   enterIdentity,
+  fillBotsFromRoom,
   getRoomCode,
   gotoLobby,
   joinRoomFromLobby,
@@ -24,7 +25,7 @@ test.describe("lobby room flows", () => {
     await gotoLobby(host.page);
     await enterIdentity(host.page, hostNickname);
     await expect(host.page.getByTestId("lobby-waiting-rooms-panel")).toBeVisible();
-    await expect(host.page.getByRole("heading", { name: "等待中的房间" })).toBeVisible();
+    await expect(host.page.getByRole("heading", { name: "可加入的房间" })).toBeVisible();
     await expect(host.page.getByTestId("lobby-create-room-button")).toBeVisible();
     await expect(host.page.getByTestId("lobby-continue-banner")).toHaveCount(0);
     await createRoomFromLobby(host.page);
@@ -45,6 +46,7 @@ test.describe("lobby room flows", () => {
     await waitForMemberCard(host.page, guestNickname);
     await waitForMemberCard(guest.page, hostNickname);
     await waitForMemberCard(guest.page, guestNickname);
+    await fillBotsFromRoom(host.page);
 
     await guest.context.close();
     await host.context.close();
@@ -66,6 +68,7 @@ test.describe("lobby room flows", () => {
     await gotoLobby(restorePage);
     await waitForRoomUrl(restorePage, roomCode);
     await waitForMemberCard(restorePage, nickname);
+    await fillBotsFromRoom(player.page);
 
     await player.context.close();
   });

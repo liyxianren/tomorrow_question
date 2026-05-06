@@ -13,7 +13,7 @@ export const heroCardStyle = {
   position: "relative",
   overflow: "hidden",
   padding: 32,
-  borderRadius: 32,
+  borderRadius: 8,
   border: `1px solid ${borderColor}`,
   background: "rgba(22, 28, 38, 0.6)",
   backdropFilter: "blur(16px)",
@@ -21,11 +21,13 @@ export const heroCardStyle = {
   boxShadow: "0 24px 56px rgba(0, 0, 0, 0.5)",
 } satisfies CSSProperties;
 
-export const sectionCardStyle = {} satisfies CSSProperties;
+export const sectionCardStyle = {
+  borderRadius: 8,
+} satisfies CSSProperties;
 
 export const subCardStyle = {
   padding: 24,
-  borderRadius: 20,
+  borderRadius: 8,
   border: `1px solid rgba(212, 175, 55, 0.12)`,
   background: "rgba(22, 28, 38, 0.5)",
   backdropFilter: "blur(8px)",
@@ -36,8 +38,8 @@ export const subCardStyle = {
 export const eyebrowStyle = {
   margin: 0,
   fontSize: 12,
-  letterSpacing: "0.18em",
-  textTransform: "uppercase",
+  letterSpacing: 0,
+  textTransform: "none",
   color: "rgba(244, 239, 230, 0.58)",
 } satisfies CSSProperties;
 
@@ -79,7 +81,7 @@ export const fieldStyle = {
   width: "100%",
   marginTop: 8,
   padding: "14px 16px",
-  borderRadius: 12,
+  borderRadius: 8,
   border: `1px solid rgba(212, 175, 55, 0.3)`,
   background: "rgba(10, 13, 19, 0.7)",
   color: "#fceb9c",
@@ -116,7 +118,7 @@ export function createButtonStyle({
   if (variant === "primary") {
     return {
       padding: "12px 24px",
-      borderRadius: 999,
+      borderRadius: 8,
       border: "1px solid rgba(255, 215, 0, 0.4)",
       background: active ? "#ffd700" : "linear-gradient(135deg, #fceb9c 0%, var(--color-accent) 100%)",
       color: "#1a1508",
@@ -129,7 +131,7 @@ export function createButtonStyle({
 
   return {
     padding: "12px 24px",
-    borderRadius: 999,
+    borderRadius: 8,
     border: `1px solid ${borderColor}`,
     background: active ? "rgba(212, 175, 55, 0.25)" : "rgba(26, 32, 44, 0.6)",
     color: "var(--color-accent-strong)",
@@ -161,7 +163,7 @@ export function createBadgeStyle(tone: "neutral" | "success" | "error"): CSSProp
     display: "inline-flex",
     alignItems: "center",
     padding: "6px 10px",
-    borderRadius: 999,
+    borderRadius: 8,
     fontSize: 12,
     lineHeight: 1,
     ...tones[tone],

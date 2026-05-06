@@ -60,10 +60,31 @@ def join_room():
     connection = get_db_connection()
 
     try:
-        data = RoomApplicationService(connection).join_room_context(room_code=room_code, nickname=nickname)
+        data = RoomApplicationService(connection).join_room_context(
+            room_code=room_code,
+            nickname=nickname,
+            session_id=get_session_id(),
+        )
     except RoomError as error:
         return _handle_room_error(error)
     _emit_room_update_from_storage(connection=connection, room_code=room_code)
+    return ok_response(data)
+
+
+@api_bp.post("/v1/rooms/<string:room_code>/leave")
+def leave_room(room_code: str):
+    connection = get_db_connection()
+    try:
+        data = RoomApplicationService(connection).leave_room_context(
+            room_code=room_code,
+            session_id=get_session_id(),
+        )
+    except RoomError as error:
+        return _handle_room_error(error)
+
+    updated_room = data.get("room")
+    if isinstance(updated_room, dict):
+        emit_room_updated(socketio=socketio, room=Room.from_payload(updated_room))
     return ok_response(data)
 
 

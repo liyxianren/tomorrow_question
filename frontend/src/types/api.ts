@@ -88,8 +88,19 @@ export interface WaitingRoomSummaryResponse {
   hostNickname: string;
   memberCount: number;
   maxPlayers: number;
+  availableSeatCount: number;
   status: RoomStatus;
   readyCount: number;
   selectedCountriesCount: number;
   hasActiveGame: boolean;
+  isJoinable: boolean;
+  lastActivityAt: string | null;
+  members: WaitingRoomMemberSummaryResponse[];
+}
+
+export interface WaitingRoomMemberSummaryResponse {
+  nickname: string;
+  selectedCountry: string | null;
+  isReady: boolean;
+  memberType: "human" | "bot" | string;
 }
