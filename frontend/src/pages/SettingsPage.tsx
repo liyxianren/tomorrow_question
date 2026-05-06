@@ -13,6 +13,9 @@ type NumericPathSegment = string | number;
 type NumericConfigEntry = {
   path: NumericPathSegment[];
   pathLabel: string;
+  label?: string;
+  contextLabel?: string;
+  fieldLabel?: string;
   value: number;
 };
 
@@ -488,7 +491,7 @@ export function SettingsPage() {
       <SectionCard
         title="全部 JSON 数值"
         eyebrow="balance/*.json"
-        description="这里列出未在上方常用面板中单独展示的全部数值。路径即对应 JSON 文件中的位置；修改后点击顶部保存即可生效。"
+        description="这里列出未在上方常用面板中单独展示的全部数值。中文名称用于理解含义，灰色路径用于定位 JSON 位置；修改后点击顶部保存即可生效。"
       >
         {Object.entries(data.numericConfig).map(([fileName, entries]) => {
           const visibleEntries = entries.filter((entry) => !isCoveredNumericEntry(fileName, entry));
@@ -506,7 +509,7 @@ export function SettingsPage() {
               <table className="settings-table">
                 <thead>
                   <tr>
-                    <th>配置路径</th>
+                    <th>中文名称</th>
                     <th>数值</th>
                   </tr>
                 </thead>
@@ -514,7 +517,10 @@ export function SettingsPage() {
                   {visibleEntries.map((entry) => (
                     <tr key={`${fileName}:${entry.pathLabel}`}>
                       <td>
-                        <code>{entry.pathLabel}</code>
+                        <div style={{ fontWeight: 600 }}>
+                          {entry.label ?? entry.fieldLabel ?? entry.pathLabel}
+                        </div>
+                        <code style={{ color: "#777", fontSize: 12 }}>{entry.pathLabel}</code>
                       </td>
                       <td>
                         <input

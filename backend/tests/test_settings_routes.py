@@ -49,17 +49,18 @@ class SettingsRoutesTests(unittest.TestCase):
         self.assertTrue(payload["ok"])
         numeric_config = payload["data"]["numericConfig"]
 
-        self.assertIn(
-            {
-                "path": ["breakthroughDieSides"],
-                "pathLabel": "breakthroughDieSides",
-                "value": 10,
-            },
-            numeric_config["technology.json"],
+        breakthrough_entry = next(
+            entry
+            for entry in numeric_config["technology.json"]
+            if entry["path"] == ["breakthroughDieSides"]
         )
+        self.assertEqual(breakthrough_entry["pathLabel"], "breakthroughDieSides")
+        self.assertEqual(breakthrough_entry["label"], "科技突破骰子面数")
+        self.assertEqual(breakthrough_entry["value"], 10)
         self.assertTrue(
             any(
                 entry["pathLabel"] == "events[0].roundRange[0]"
+                and "开始回合" in entry["label"]
                 for entry in numeric_config["events.json"]
             )
         )

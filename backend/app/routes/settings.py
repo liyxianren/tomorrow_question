@@ -20,6 +20,181 @@ _COUNTRY_KEYS = ("britain", "france", "prussia", "austria", "russia")
 _IDEOLOGY_KEYS = ("liberalism", "egalitarianism", "nationalism")
 _JSON_SUFFIX = ".json"
 
+_CONTEXT_LABELS: dict[str, str] = {
+    "nationalAbilities": "国家能力",
+    "countries": "国家初始状态",
+    "budgetPools": "预算池",
+    "incomeAllocationRatio": "收入分配比例",
+    "productionCapacity": "生产能力",
+    "goodsStock": "商品库存",
+    "ideologyLevels": "思潮水平",
+    "initialDiplomacy": "初始外交影响力",
+    "domesticMarketActions": "国内市场行动",
+    "factoryActions": "工厂行动",
+    "governmentActions": "政府行动",
+    "regularPolicies": "常规政策",
+    "effects": "效果",
+    "conditions": "触发条件",
+    "globalEffects": "全局效果",
+    "regionGoodsPremiums": "区域商品溢价",
+    "militaryActions": "军事行动",
+    "diplomacyActions": "外交行动",
+    "naturalShiftRules": "思潮自然变化规则",
+    "policyTradeOpen": "贸易开放政策",
+    "reformAdminSupport": "改革行政支持",
+    "reformResearchBonus": "改革研究加成",
+    "milestones": "里程碑",
+    "levels": "生产等级",
+    "outputMultipliers": "产出倍率",
+    "expansionCosts": "扩建成本",
+    "upgradeCosts": "升级成本",
+    "newFactoryCosts": "新建工厂成本",
+    "goods": "商品参数",
+    "reforms": "改革",
+    "regions": "区域",
+    "resourceLimit": "资源上限",
+    "oceanNodes": "海洋节点",
+    "talentTree": "天赋树",
+    "branches": "天赋分支",
+    "nodes": "天赋节点",
+    "permanentEffects": "永久效果",
+    "routeUnlocks": "生产路线解锁",
+    "chains": "科技链",
+    "techs": "科技",
+}
+
+_SEGMENT_LABELS: dict[str, str] = {
+    "britain": "英国",
+    "france": "法国",
+    "prussia": "普鲁士",
+    "austria": "奥地利",
+    "russia": "俄国",
+    "europe": "欧洲",
+    "americas": "美洲",
+    "africa": "非洲",
+    "middle_east": "中东",
+    "asia_pacific": "亚太",
+    "north_atlantic": "北大西洋",
+    "mediterranean": "地中海",
+    "indian_ocean": "印度洋",
+    "pacific": "太平洋",
+    "domesticMarket": "国内市场",
+    "factory": "工厂",
+    "governmentFiscal": "政府财政",
+    "consumption": "消费池",
+    "fiscal": "财政",
+    "idle": "闲置",
+    "handicraft": "手工业",
+    "mechanized": "机械化",
+    "steam": "蒸汽",
+    "electrified": "电气化",
+    "phase1_goods": "统一商品",
+    "grain": "粮食",
+    "cotton": "棉花",
+    "tea": "茶叶",
+    "coal": "煤炭",
+    "minerals": "矿产",
+    "steel": "钢铁",
+    "silk": "丝绸",
+    "oil": "石油",
+    "rubber": "橡胶",
+    "liberalism": "自由主义",
+    "egalitarianism": "平等主义",
+    "nationalism": "民族主义",
+    "industry": "工业分支",
+    "domestic": "国内市场分支",
+    "government": "政府分支",
+    "military": "军事分支",
+    "freedom_path": "自由路线",
+    "equality_path": "平等路线",
+    "national_path": "民族路线",
+    "infantry": "步兵",
+    "artillery": "炮兵",
+    "fleets": "舰队",
+    "academy": "学院",
+    "civil_service": "文官体系",
+    "compulsory_education": "义务教育",
+    "industrialization": "工业化主线",
+}
+
+_FIELD_LABELS: dict[str, str] = {
+    "usesPerGame": "每局可使用次数",
+    "budgetPoolCost": "预算池消耗",
+    "budgetCost": "预算消耗",
+    "adminCost": "行政力消耗",
+    "adminCostPerTurn": "每回合行政力消耗",
+    "militaryPointCost": "军事点消耗",
+    "maxPerRound": "每回合上限",
+    "totalRounds": "总回合数",
+    "phaseDurationSeconds": "阶段持续秒数",
+    "baseIncomePerRound": "每回合保底收入",
+    "baseOverseasCapacity": "基础海外市场容量",
+    "rawMaterialsPerTurn": "每回合原材料增量",
+    "armyUnitCost": "陆军单位成本",
+    "navyUnitCost": "海军单位成本",
+    "oceanControlThreshold": "海域控制阈值",
+    "independenceThreshold": "独立度叛乱阈值",
+    "colonizationUnlockCost": "殖民解锁财政成本",
+    "colonizationMilitaryPointCost": "殖民军事点成本",
+    "colonizationIncomePerColonyPerRound": "每个殖民地每回合收入",
+    "maxColonizationsPerRound": "每回合最大殖民次数",
+    "administrationCost": "购买行政能力价格",
+    "ideologyMin": "思潮最小值",
+    "ideologyMax": "思潮最大值",
+    "revolutionThreshold": "革命阈值",
+    "highThreshold": "高位触发阈值",
+    "lowThreshold": "低位触发阈值",
+    "highShift": "高位自然变化量",
+    "lowShift": "低位自然变化量",
+    "threshold": "阈值",
+    "weight": "事件权重",
+    "value": "数值",
+    "quantity": "数量",
+    "count": "数量",
+    "researchFacilityCost": "研究设施成本",
+    "researchFacilityProgressPerTurn": "研究设施每回合进度",
+    "breakthroughDieSides": "科技突破骰子面数",
+    "techPointCost": "科技点成本",
+    "techPoints": "科技点",
+    "techPointsDelta": "科技点变化",
+    "techPointsPerTurn": "每回合科技点",
+    "militaryPoints": "军事点",
+    "militaryPointsDelta": "军事点变化",
+    "domesticMarketBudgetDelta": "国内市场预算变化",
+    "factoryBudgetDelta": "工厂预算变化",
+    "governmentFiscalBudgetDelta": "政府财政预算变化",
+    "domesticMarketCapacityDelta": "国内市场容量变化",
+    "overseasMarketCapacityDelta": "海外市场容量变化",
+    "domesticPriceBonusDelta": "国内价格加成变化",
+    "overseasPriceBonusDelta": "海外价格加成变化",
+    "phase1ProductionRawCapacityDelta": "原材料加工产能变化",
+    "phase1ProductionOutputBonusPercent": "统一商品产出加成百分比",
+    "productionOutputMultiplier": "生产产出倍率",
+    "rawMaterialsDelta": "原材料变化",
+    "rawMaterialsPerTurnDelta": "每回合原材料变化",
+    "administrationCapacity": "行政能力",
+    "administrationCapacityDelta": "行政能力变化",
+    "controlledRegionsDelta": "控制区域数变化",
+    "factoryUpgradeCostReductionPercent": "工厂升级成本降低百分比",
+    "newFactoryCostReductionPercent": "新建工厂成本降低百分比",
+    "fiscalRefund": "财政返还",
+    "targetIdeologyDelta": "目标思潮变化",
+    "resetIdeologiesTo": "思潮重置值",
+    "all": "全部条件数量",
+    "anyPlayerControlledRegionsAtLeast": "任一玩家控制区域至少",
+    "unitBudgetCost": "单位预算成本",
+    "unitOutput": "单位产出",
+    "domesticReferencePrice": "国内参考价格",
+    "overseasBasePrice": "海外基础价格",
+    "demandThreshold": "需求阈值",
+    "priceFloor": "价格下限",
+    "priceCeiling": "价格上限",
+    "overseasPriceCeiling": "海外价格上限",
+    "priceMultiplier": "价格倍率",
+    "minArmy": "最低陆军要求",
+    "upgradeCostMultiplier": "升级成本倍率",
+}
+
 
 class _ValidationError(ValueError):
     pass
@@ -243,7 +418,7 @@ def _build_numeric_config_payload(config_dir: Path) -> dict[str, list[dict[str, 
     for path in sorted(config_dir.glob(f"*{_JSON_SUFFIX}")):
         data = _read_json(path)
         entries: list[dict[str, Any]] = []
-        _collect_numeric_entries(data, [], entries)
+        _collect_numeric_entries(data, [], entries, [])
         payload[path.name] = entries
     return payload
 
@@ -252,25 +427,106 @@ def _collect_numeric_entries(
     value: Any,
     path: list[str | int],
     entries: list[dict[str, Any]],
+    context_labels: list[str],
 ) -> None:
     if isinstance(value, bool):
         return
     if isinstance(value, (int, float)):
+        field_label = _numeric_field_label(path)
+        context_label = " / ".join(context_labels)
+        label = f"{context_label} - {field_label}" if context_label else field_label
         entries.append(
             {
                 "path": list(path),
                 "pathLabel": _format_numeric_path(path),
+                "label": label,
+                "contextLabel": context_label,
+                "fieldLabel": field_label,
                 "value": value,
             }
         )
         return
     if isinstance(value, dict):
         for key, child in value.items():
-            _collect_numeric_entries(child, [*path, str(key)], entries)
+            child_context = context_labels
+            if not _is_numeric_leaf(child):
+                child_context = _append_context_labels(
+                    context_labels,
+                    _context_labels_for_child(str(key), child),
+                )
+            _collect_numeric_entries(child, [*path, str(key)], entries, child_context)
         return
     if isinstance(value, list):
         for index, child in enumerate(value):
-            _collect_numeric_entries(child, [*path, index], entries)
+            child_context = context_labels
+            if not _is_numeric_leaf(child):
+                child_context = _append_context_labels(
+                    context_labels,
+                    _context_labels_for_list_item(child, index),
+                )
+            _collect_numeric_entries(child, [*path, index], entries, child_context)
+
+
+def _is_numeric_leaf(value: Any) -> bool:
+    return not isinstance(value, bool) and isinstance(value, (int, float))
+
+
+def _append_context_labels(base: list[str], labels: list[str]) -> list[str]:
+    result = list(base)
+    for label in labels:
+        if label and label not in result:
+            result.append(label)
+    return result
+
+
+def _context_labels_for_child(key: str, child: Any) -> list[str]:
+    labels: list[str] = []
+    container_label = _CONTEXT_LABELS.get(key)
+    segment_label = _SEGMENT_LABELS.get(key)
+    object_label = _object_context_label(child)
+
+    if container_label:
+        labels.append(container_label)
+    if segment_label and segment_label != object_label:
+        labels.append(segment_label)
+    if object_label:
+        labels.append(object_label)
+    return labels
+
+
+def _context_labels_for_list_item(child: Any, index: int) -> list[str]:
+    object_label = _object_context_label(child)
+    if object_label:
+        return [object_label]
+    if isinstance(child, dict):
+        return [f"第 {index + 1} 项"]
+    return []
+
+
+def _object_context_label(value: Any) -> str | None:
+    if not isinstance(value, dict):
+        return None
+    for label_key in ("label", "name", "title"):
+        label = value.get(label_key)
+        if isinstance(label, str) and label:
+            return label
+    for id_key in ("regionId", "nodeId", "abilityId", "eventId", "reformId", "id", "branch"):
+        raw_id = value.get(id_key)
+        if isinstance(raw_id, str) and raw_id:
+            return _SEGMENT_LABELS.get(raw_id, raw_id)
+    return None
+
+
+def _numeric_field_label(path: list[str | int]) -> str:
+    if len(path) >= 2 and path[-2] == "roundRange" and path[-1] == 0:
+        return "开始回合"
+    if len(path) >= 2 and path[-2] == "roundRange" and path[-1] == 1:
+        return "结束回合"
+    last = path[-1]
+    if isinstance(last, int):
+        return f"第 {last + 1} 个数值"
+    raw = str(last)
+    return _FIELD_LABELS.get(raw) or _SEGMENT_LABELS.get(raw) or raw
 
 
 def _format_numeric_path(path: list[str | int]) -> str:
