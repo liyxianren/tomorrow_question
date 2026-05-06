@@ -527,6 +527,7 @@ export const AUSTRIA_DECISION_DEMO_WORKSPACE: DecisionPlayerPhaseWorkspace = {
     researchFacilities: 1,
     facilityCost: 10,
     progressPerFacility: 2,
+    breakthroughDieSides: 10,
     activeResearch: null,
   },
   upgradeOptions: [],

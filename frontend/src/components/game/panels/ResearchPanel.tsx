@@ -21,6 +21,7 @@ export function ResearchPanel({
   isResearchFacilitySelected,
 }: ResearchPanelProps) {
   const { chains, researchFacilities, facilityCost, progressPerFacility, activeResearch } = techTree;
+  const breakthroughDieSides = techTree.breakthroughDieSides ?? 10;
   const canAffordResearchFacility = remainingGovernmentBudget >= facilityCost;
 
   const activeTech = activeResearch
@@ -36,6 +37,9 @@ export function ResearchPanel({
   const perTurnProgress = researchFacilities * progressPerFacility;
   const activeEtaTurns = activeTech && perTurnProgress > 0
     ? Math.max(0, Math.ceil((activeTech.effectiveThreshold - activeTech.progress) / perTurnProgress))
+    : null;
+  const activeSuccessChance = activeTech
+    ? formatBreakthroughChance(activeTech.effectiveThreshold, breakthroughDieSides)
     : null;
   const nextPerTurnProgress = (researchFacilities + 1) * progressPerFacility;
 
@@ -82,6 +86,10 @@ export function ResearchPanel({
                     <div className="research-status-card__meta">
                       正在研究会自动确认本步；不更换目标也可以直接提交决策。
                     </div>
+                    <div className="research-status-card__meta">
+                      当前突破判定：1D{breakthroughDieSides} 掷出 {activeTech.effectiveThreshold} 或以上成功
+                      {activeSuccessChance ? `（${activeSuccessChance}）` : ""}。
+                    </div>
                   </>
                 ) : null}
               </>
@@ -90,6 +98,30 @@ export function ResearchPanel({
                 点击右侧科技选择研究目标，提交决策后开始研究
               </div>
             )}
+          </div>
+
+          <div className="research-status-card">
+            <h4 className="research-status-card__heading">突破规则</h4>
+            <div className="research-status-card__metrics">
+              <div className="research-status-card__metric">
+                <span className="research-status-card__metric-label">推进方式</span>
+                <span className="research-status-card__metric-value">
+                  {progressPerFacility}/设施/回合
+                </span>
+              </div>
+              <div className="research-status-card__metric">
+                <span className="research-status-card__metric-label">突破骰</span>
+                <span className="research-status-card__metric-value">
+                  1D{breakthroughDieSides}
+                </span>
+              </div>
+            </div>
+            <div className="research-build-summary">
+              <span>进度达到有效阈值后，在财政结算时尝试突破</span>
+              <span>掷骰结果不低于有效阈值才会解锁</span>
+              <span>失败保留进度，失败次数会让下次有效阈值降低 1，最低为 1</span>
+              <span>若其他国家已发现该科技，进度达到原阈值 2 倍可直接解锁</span>
+            </div>
           </div>
 
           {/* Research Facilities Card */}
@@ -190,6 +222,15 @@ export function ResearchPanel({
       </div>
     </div>
   );
+}
+
+function formatBreakthroughChance(effectiveThreshold: number, dieSides: number): string | null {
+  if (effectiveThreshold <= 0 || dieSides <= 0) {
+    return null;
+  }
+  const successOutcomes = Math.max(0, dieSides - effectiveThreshold + 1);
+  const clamped = Math.min(successOutcomes, dieSides);
+  return `${Math.round((clamped / dieSides) * 100)}% 成功率`;
 }
 
 const CHAIN_META: Record<string, { icon: string; color: string }> = {

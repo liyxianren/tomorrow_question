@@ -240,6 +240,7 @@ export function createDecisionPlayerWorkspace(
       researchFacilities: 1,
       facilityCost: 10,
       progressPerFacility: 2,
+      breakthroughDieSides: 10,
       activeResearch: null,
     },
     domesticMarketActions: [

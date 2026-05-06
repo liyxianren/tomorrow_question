@@ -870,6 +870,7 @@ function buildResearchLocation({
   remainingGovernmentBudget: number;
 }): DecisionLocationViewModel {
   const { chains, researchFacilities, facilityCost, progressPerFacility, activeResearch } = workspace.techTree;
+  const breakthroughDieSides = workspace.techTree.breakthroughDieSides ?? 10;
   const selectedTechIds = new Set(draft.governmentPlan.techResearch.map((item) => item.techId));
   const facilitySelected = draft.governmentPlan.strategySelections.some((selection) => selection.actionId === "expand_research");
   const activeTech = activeResearch
@@ -883,12 +884,13 @@ function buildResearchLocation({
     id: "research-facility",
     title: "建立研究院",
     subtitle: `政府财政 ${facilityCost}`,
-    description: "消耗政府财政建设研究设施。设施越多，当前研究每回合推进越快。",
+    description: "消耗政府财政建设研究设施。设施越多，当前研究每回合推进越快；进度达有效阈值后，结算时掷突破骰。",
     badges: facilitySelected ? ["本轮建设"] : ["长期投入"],
     metrics: [
       { label: "现有设施", value: `${researchFacilities} 所` },
       { label: "当前进度", value: `${perTurnProgress}/回合` },
       { label: "建成后", value: `${plannedPerTurnProgress}/回合` },
+      { label: "突破骰", value: `1D${breakthroughDieSides}` },
     ],
     feedback: facilitySelected ? "已排入本轮政府财政计划。" : undefined,
     lockedReason: !facilitySelected && remainingGovernmentBudget < facilityCost ? "政府财政不足" : null,
@@ -913,7 +915,7 @@ function buildResearchLocation({
     ...chains.map((chain) => ({
       id: `research-chain-${chain.chainId}`,
       title: chain.label,
-      description: "同一回合只能选择一个研究目标。",
+      description: `同一回合只能选择一个研究目标。进度达到有效阈值后，结算掷 1D${breakthroughDieSides}，结果不低于有效阈值才解锁；失败会保留进度并降低下次阈值。`,
       cards: chain.techs.map((tech) => {
         const selected = selectedTechIds.has(tech.techId);
         const progressDisplay = Math.min(tech.progress, tech.effectiveThreshold);
@@ -921,6 +923,7 @@ function buildResearchLocation({
         const progressPercent = tech.effectiveThreshold > 0
           ? Math.min(100, Math.round((progressDisplay / tech.effectiveThreshold) * 100))
           : 0;
+        const breakthroughChance = formatBreakthroughChance(tech.effectiveThreshold, breakthroughDieSides);
         const unlocks = [
           ...(tech.unlocksGoods ?? []),
           ...(tech.unlocksRoutes ?? []),
@@ -952,6 +955,7 @@ function buildResearchLocation({
           metrics: [
             { label: "进度", value: `${progressPercent}%` },
             { label: "阈值", value: tech.effectiveThreshold },
+            { label: "突破", value: breakthroughChance ? `1D${breakthroughDieSides} / ${breakthroughChance}` : `1D${breakthroughDieSides}` },
           ],
           feedback: selected
             ? "提交后将作为研究院目标。"
@@ -998,6 +1002,15 @@ function buildResearchLocation({
     ],
     sections,
   };
+}
+
+function formatBreakthroughChance(effectiveThreshold: number, dieSides: number): string | null {
+  if (effectiveThreshold <= 0 || dieSides <= 0) {
+    return null;
+  }
+  const successOutcomes = Math.max(0, dieSides - effectiveThreshold + 1);
+  const clamped = Math.min(successOutcomes, dieSides);
+  return `${Math.round((clamped / dieSides) * 100)}%`;
 }
 
 function buildProductionCard(

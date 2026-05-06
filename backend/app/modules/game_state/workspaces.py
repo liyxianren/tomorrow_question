@@ -823,6 +823,7 @@ def _build_tech_tree(player: PlayerState) -> dict[str, Any]:
         "researchFacilities": int(sum(player.research_facilities.values())),
         "facilityCost": int(balance.technology.research_facility_cost),
         "progressPerFacility": int(balance.technology.research_facility_progress_per_turn),
+        "breakthroughDieSides": int(balance.technology.breakthrough_die_sides),
         "activeResearch": player.active_research,
     }
 

@@ -466,6 +466,7 @@ export interface TechTreeData {
   researchFacilities: number;
   facilityCost: number;
   progressPerFacility: number;
+  breakthroughDieSides: number;
   activeResearch: string | null;
 }
 
