@@ -2,7 +2,7 @@
 
 .dss {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -10,10 +10,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 7px 11px;
+  border-radius: 8px;
+  background: rgba(20, 27, 36, 0.58);
+  border: 1px solid rgba(226, 232, 240, 0.08);
   font-size: 13px;
   min-height: 36px;
 }
@@ -24,7 +24,7 @@
 }
 
 .dss__value {
-  color: var(--game-text-value, #fceb9c);
+  color: var(--game-text-value, #e8c878);
   font-weight: 600;
   font-size: 14px;
 }

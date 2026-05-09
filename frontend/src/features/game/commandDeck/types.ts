@@ -39,7 +39,6 @@ export type DecisionCardInteraction =
   | { type: "expansion"; routeId: string }
   | { type: "upgrade"; routeId: string }
   | { type: "newFactory"; routeId: string }
-  | { type: "domesticAction"; actionId: string }
   | { type: "governmentStrategy"; actionId: string }
   | { type: "technology"; techId: string }
   | { type: "ability"; abilityId: string }

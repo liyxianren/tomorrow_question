@@ -84,6 +84,7 @@ export function toggleFactoryActionSelection(
   };
 }
 
+// Legacy compatibility helper for drafts created by old clients. Current UI submits market regulation via governmentPlan.strategySelections.
 export function toggleDomesticMarketActionSelection(
   draft: PhaseDraftByPhase["decision"],
   actionId: string,

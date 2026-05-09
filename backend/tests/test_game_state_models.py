@@ -142,25 +142,17 @@ class GameStateModelTests(unittest.TestCase):
             )["routeLabel"],
             "手工业",
         )
-        self.assertEqual(
-            britain_workspace["domesticMarketActions"][0]["lockedReason"],
-            None,
-        )
-        self.assertEqual(
-            next(
-                action
-                for action in britain_workspace["domesticMarketActions"]
-                if action["actionId"] == "consumer_subsidy"
-            )["lockedReason"],
-            "需要研究「市场经济」",
-        )
+        self.assertEqual(britain_workspace["domesticMarketActions"], [])
         self.assertEqual(
             next(
                 action
                 for action in britain_workspace["governmentActions"]["strategies"]
-                if action["actionId"] == "industrial_policy"
+                if action["actionId"] == "consumer_subsidy"
             )["lockedReason"],
-            "需要研究「行政改革」",
+            "需要研究「市场经济」",
+        )
+        self.assertFalse(
+            any(action["actionId"] == "industrial_policy" for action in britain_workspace["governmentActions"]["strategies"])
         )
         self.assertIn("militaryWorkspace", britain_workspace)
         self.assertIn("regionAccessStatus", britain_workspace["militaryWorkspace"])

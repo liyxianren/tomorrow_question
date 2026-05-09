@@ -115,6 +115,9 @@ class MarketPhase1MarketPassthroughTests(unittest.TestCase):
             "phase1Market": {
                 "domesticAllocation": 5,
                 "externalAllocations": [{"marketId": "europe", "quantity": 2}],
+                "externalCompetitionDeployments": [
+                    {"marketId": "europe", "infantry": 1, "artillery": 0}
+                ],
             },
         }
 
@@ -125,6 +128,10 @@ class MarketPhase1MarketPassthroughTests(unittest.TestCase):
         self.assertEqual(
             normalized["phase1Market"]["externalAllocations"],
             [{"marketId": "europe", "quantity": 2}],
+        )
+        self.assertEqual(
+            normalized["phase1Market"]["externalCompetitionDeployments"],
+            [{"marketId": "europe", "infantry": 1, "artillery": 0}],
         )
 
     def test_zero_domestic_allocation_survives(self) -> None:

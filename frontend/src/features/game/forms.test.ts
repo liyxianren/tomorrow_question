@@ -51,6 +51,7 @@ describe("createInitialPhaseDraft", () => {
       phase1Market: {
         domesticAllocation: 0,
         externalAllocations: [],
+        externalCompetitionDeployments: [],
       },
     });
   });

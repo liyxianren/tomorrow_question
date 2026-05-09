@@ -30,7 +30,7 @@ const INVALID_SUBMISSION_MESSAGE_PATTERNS: ReadonlyArray<{
   { match: /^Diplomacy action (\S+) requires required technology/i, translate: (m) => `外交动作 ${m[1]} 需要前置科技。` },
   { match: /^Diplomacy target (\S+) has already been established/i, translate: (m) => `区域 ${m[1]} 已建交，本轮不能重复提交。` },
   { match: /^Diplomacy target (\S+) is duplicated/i, translate: (m) => `区域 ${m[1]} 在本次提交中重复。` },
-  { match: /^Domestic action (\S+) requires required technology/i, translate: (m) => `国民消费动作 ${m[1]} 需要前置科技。` },
+  { match: /^Domestic action (\S+) requires required technology/i, translate: (m) => `旧市场调节动作 ${m[1]} 需要前置科技。` },
   { match: /^Factory action (\S+) requires required technology/i, translate: (m) => `工厂调度 ${m[1]} 需要前置科技。` },
   { match: /^Factory action (\S+) is duplicated/i, translate: (m) => `工厂调度 ${m[1]} 重复提交。` },
   { match: /^Unknown factory action: (\S+)/i, translate: (m) => `未知工厂调度：${m[1]}。` },
@@ -42,6 +42,10 @@ const INVALID_SUBMISSION_MESSAGE_PATTERNS: ReadonlyArray<{
   { match: /^Overseas market region (\S+) is not accessible/i, translate: (m) => `海外区域 ${m[1]} 当前不可访问。` },
   { match: /^Overseas market region (\S+) is invalid/i, translate: (m) => `海外区域 ${m[1]} 无效。` },
   { match: /^Overseas market sale order requires regionId/i, translate: () => "海外销售指令缺少区域。" },
+  { match: /^Overseas competition region (\S+) requires established diplomacy/i, translate: (m) => `海外争夺区域 ${m[1]} 需要先建交。` },
+  { match: /^Overseas competition region (\S+) route is blocked/i, translate: (m) => `海外争夺区域 ${m[1]} 航线被封锁。` },
+  { match: /^Overseas competition region (\S+) is duplicated/i, translate: (m) => `海外争夺区域 ${m[1]} 重复提交。` },
+  { match: /^Overseas competition deployment exceeds available army/i, translate: () => "海外争夺兵力超过可用陆军。" },
   { match: /^Domestic market allocation \((\d+)\) exceeds domestic market capacity \((\d+)\)/i, translate: (m) => `国内投放 ${m[1]} 超过本轮承接能力 ${m[2]}。` },
   { match: /^Domestic market allocation \((\d+)\) exceeds domestic demand \((\d+)\)/i, translate: (m) => `国内投放 ${m[1]} 超过本轮需求 ${m[2]}。` },
   { match: /^Domestic market allocation \((\d+)\) exceeds available goods inventory \((\d+)\)/i, translate: (m) => `国内投放 ${m[1]} 超过库存 ${m[2]}。` },
@@ -166,6 +170,7 @@ export function createInitialPhaseDraft(phase: GamePhase): PhaseDraft {
         phase1Market: {
           domesticAllocation: 0,
           externalAllocations: [],
+          externalCompetitionDeployments: [],
         },
       };
     case "settlement":

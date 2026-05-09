@@ -22,6 +22,7 @@ import {
 } from "../decisionDrafts";
 import {
   calculateDecisionSpendSummary as calculateDecisionSpendSummaryFromDraft,
+  calculateGovernmentFiscalState,
   calculateRatioPreview as calculateRatioPreviewFromDraft,
 } from "../decisionShared";
 import type { DecisionPhaseDraft } from "../forms";
@@ -210,20 +211,21 @@ function createResourceStripViewModel({
       : null;
   const visibleBudgetPools = decisionWorkspace?.budgetPools ?? currentPlayerState.budgetPools;
   const metrics: ResourceStripMetric[] = [
-    { label: "消费池", value: visibleBudgetPools.domesticMarket },
+    { label: "民间购买力", value: visibleBudgetPools.domesticMarket },
     { label: "工厂", value: visibleBudgetPools.factory },
     { label: "政府财政", value: visibleBudgetPools.governmentFiscal },
   ];
 
   if (currentPhase === "decision" && currentPlayerWorkspace && "militaryWorkspace" in currentPlayerWorkspace) {
     const spendSummary = calculateDecisionSpendSummary(currentPlayerWorkspace as DecisionPlayerPhaseWorkspace, draftPayload);
+    const fiscalState = calculateGovernmentFiscalState(currentPlayerWorkspace as DecisionPlayerPhaseWorkspace, normalizeDecisionDraft(draftPayload));
     if (spendSummary.factorySpend > visibleBudgetPools.factory) {
       metrics[1].tone = "warning";
     }
     if (spendSummary.domesticSpend > visibleBudgetPools.domesticMarket) {
       metrics[0].tone = "warning";
     }
-    if (spendSummary.governmentSpend > visibleBudgetPools.governmentFiscal) {
+    if (spendSummary.governmentSpend > visibleBudgetPools.governmentFiscal || fiscalState.baseFiscalSpend > fiscalState.baseGovernmentBudget) {
       metrics[2].tone = "warning";
     }
   }
@@ -281,11 +283,11 @@ function createLeftRailViewModel({
     cards: [
       {
         eyebrow: "当前资源",
-        title: "三池与军事",
+        title: "资源与军事",
         tone: "accent",
         metrics: currentPlayerState
           ? [
-              { label: "国内消费市场", value: visibleBudgetPools?.domesticMarket ?? currentPlayerState.budgetPools.domesticMarket },
+              { label: "民间购买力", value: visibleBudgetPools?.domesticMarket ?? currentPlayerState.budgetPools.domesticMarket },
               { label: "工厂", value: visibleBudgetPools?.factory ?? currentPlayerState.budgetPools.factory },
               { label: "政府财政", value: visibleBudgetPools?.governmentFiscal ?? currentPlayerState.budgetPools.governmentFiscal },
               { label: "军事点", value: visibleMilitaryPoints ?? currentPlayerState.militaryPoints },
@@ -408,7 +410,7 @@ function createPhaseHeaderViewModel({
     return {
       eyebrow: "阶段操作台",
       title: "国家决策",
-      body: "把三池预算转成生产、内需和政府策略，并为下一阶段准备结构条件。",
+      body: "把工厂预算和政府财政转成生产、市场调节和国家治理，并同步内需购买力。",
       pills: [],
     };
   }
@@ -431,7 +433,7 @@ function createPhaseHeaderViewModel({
   return {
     eyebrow: "阶段操作台",
     title: "财政结算",
-    body: "系统将按当前收入分配比例重分三池，并生成下一回合结构起点。",
+    body: "系统将按当前收入分配比例回流到民间购买力、工厂和政府财政，并生成下一回合结构起点。",
     pills: currentPlayerState
       ? [
           `累计国家收入 ${currentPlayerState.cumulativeNationalIncome}`,
@@ -462,6 +464,7 @@ function buildCurrentResourceLines({
     const workspace = currentPlayerWorkspace as DecisionPlayerPhaseWorkspace;
     const spendSummary = calculateDecisionSpendSummary(workspace, draftPayload);
     const draft = normalizeDecisionDraft(draftPayload);
+    const fiscalState = calculateGovernmentFiscalState(workspace, draft);
     if (decisionFlowState.activeStep === "factory") {
       const lines = [
         `工厂 · 剩余 ${workspace.budgetPools.factory - spendSummary.factorySpend}`,
@@ -478,22 +481,60 @@ function buildCurrentResourceLines({
     }
 
     if (decisionFlowState.activeStep === "domestic") {
+      const phase1 = workspace.phase1Economy;
       return [
-        `消费池 · 剩余 ${workspace.budgetPools.domesticMarket - spendSummary.domesticSpend}`,
-        `已选动作 ${getDomesticActionCount(draftPayload)} 项`,
+        `民间购买力 ${workspace.budgetPools.domesticMarket}`,
+        phase1
+          ? `需求 ${formatNumber(phase1.domesticDemand)} · 参考价 ${formatNumber(phase1.domesticPricePreview)}`
+          : "市场预览",
       ];
     }
 
     if (decisionFlowState.activeStep === "military") {
       return [
-        `军事 · 财政剩余 ${workspace.budgetPools.governmentFiscal - spendSummary.governmentSpend}`,
+        `军事 · 基础财政剩余 ${fiscalState.baseGovernmentRemaining}`,
         `军事动作 ${draft.militaryPlan.militaryActions.length} 次 / 建交 ${draft.militaryPlan.diplomacyActions.length} 项`,
         `海外承接预览 ${workspace.militaryWorkspace.overseasCapacity}`,
       ];
     }
 
+    const selectedStrategyIds = new Set(draft.governmentPlan.strategySelections.map((selection) => selection.actionId));
+    const selectedMarketStrategies = workspace.governmentActions.strategies.filter((strategy) =>
+      strategy.actionId !== "expand_research"
+      && selectedStrategyIds.has(strategy.actionId)
+      && (
+        typeof strategy.effects?.domesticMarketCapacityDelta === "number"
+        || typeof strategy.effects?.domesticPriceBonusDelta === "number"
+      ),
+    );
+    const marketCapacityDelta = selectedMarketStrategies.reduce((sum, strategy) => {
+      const value = strategy.effects?.domesticMarketCapacityDelta;
+      return sum + (typeof value === "number" ? value : 0);
+    }, 0);
+    const marketPriceDelta = selectedMarketStrategies.reduce((sum, strategy) => {
+      const value = strategy.effects?.domesticPriceBonusDelta;
+      return sum + (typeof value === "number" ? value : 0);
+    }, 0);
+    const phase1 = workspace.phase1Economy;
+    const projectedMarketCapacity = phase1
+      ? Math.max(0, (workspace.domesticMarketCapacity ?? phase1.domesticDemand) + marketCapacityDelta)
+      : null;
+    const projectedMarketPrice = phase1
+      ? Math.max(
+          1,
+          Math.min(
+            phase1.domesticPriceCeiling ?? 12,
+            (phase1.domesticPriceBeforeCap ?? phase1.domesticPricePreview) + marketPriceDelta,
+          ),
+        )
+      : null;
+    const marketLine = phase1
+      ? `市场 需求 ${formatNumber(phase1.domesticDemand)} · 承接 ${formatNumber(projectedMarketCapacity ?? 0)} · 价 ${formatNumber(projectedMarketPrice ?? 0)}`
+      : "市场数值等待同步";
+
     return [
-      `政府 · 剩余 ${workspace.budgetPools.governmentFiscal - spendSummary.governmentSpend}`,
+      `政府 · 总余量 ${fiscalState.effectiveGovernmentRemaining}（基础 ${fiscalState.baseGovernmentRemaining} / 市场 ${Math.max(0, fiscalState.marketRegulationAllowance - fiscalState.marketRegulationSpend)}）`,
+      marketLine,
       `比例预告 ${formatRatio(calculateRatioPreview(workspace, draftPayload))}`,
     ];
   }
@@ -501,10 +542,11 @@ function buildCurrentResourceLines({
   if (currentPhase === "market" && "sellableInventory" in currentPlayerWorkspace) {
     const workspace = currentPlayerWorkspace as MarketPlayerPhaseWorkspace;
     const { domesticAllocated, overseasAllocated } = getMarketAllocationTotals(draftPayload);
+    const effectiveOverseasCapacity = getEffectiveOverseasCapacityForMarketDraft(draftPayload, workspace);
 
     return [
       `国内承接剩余 ${Math.max(workspace.domesticMarketCapacity - domesticAllocated, 0)}`,
-      `海外承接剩余 ${Math.max(workspace.overseasMarketCapacity - overseasAllocated, 0)}`,
+      `海外承接剩余 ${Math.max(effectiveOverseasCapacity - overseasAllocated, 0)}`,
     ];
   }
 
@@ -607,14 +649,20 @@ function buildValidationLines({
     const spendSummary = calculateDecisionSpendSummary(currentPlayerWorkspace, draftPayload);
     const draft = normalizeDecisionDraft(draftPayload);
     const budgetPools = currentPlayerWorkspace.budgetPools;
+    const fiscalState = calculateGovernmentFiscalState(currentPlayerWorkspace, draft);
     if (spendSummary.factorySpend > budgetPools.factory) {
       lines.push(`工厂计划消耗 ${spendSummary.factorySpend}，超过工厂预算 ${budgetPools.factory}。`);
     }
     if (spendSummary.domesticSpend > budgetPools.domesticMarket) {
-      lines.push(`内需动作消耗 ${spendSummary.domesticSpend}，超过国内消费市场预算 ${budgetPools.domesticMarket}。`);
+      lines.push(`旧版国内市场动作消耗 ${spendSummary.domesticSpend}，超过民间购买力 ${budgetPools.domesticMarket}。`);
     }
     if (spendSummary.governmentSpend > budgetPools.governmentFiscal) {
       lines.push(`政府动作消耗 ${spendSummary.governmentSpend}，超过政府财政预算 ${budgetPools.governmentFiscal}。`);
+    }
+    if (fiscalState.baseFiscalSpend > fiscalState.baseGovernmentBudget) {
+      lines.push(
+        `基础政府财政不足：政务/军事/市场调节溢出需要 ${fiscalState.baseFiscalSpend}，基础财政只有 ${fiscalState.baseGovernmentBudget}。`,
+      );
     }
     const phase1 = currentPlayerWorkspace.phase1Economy;
     if (phase1) {
@@ -666,12 +714,15 @@ function buildValidationLines({
   if (currentPhase === "market" && "sellableInventory" in currentPlayerWorkspace) {
     const lines: string[] = [];
     const { domesticAllocated, overseasAllocated, totalAllocated, usesPhase1Market } = getMarketAllocationTotals(draftPayload);
+    const effectiveOverseasCapacity = usesPhase1Market
+      ? getEffectiveOverseasCapacityForMarketDraft(draftPayload, currentPlayerWorkspace)
+      : currentPlayerWorkspace.overseasMarketCapacity;
 
     if (domesticAllocated > currentPlayerWorkspace.domesticMarketCapacity) {
       lines.push(`国内卖量 ${domesticAllocated} 超过承接能力 ${currentPlayerWorkspace.domesticMarketCapacity}。`);
     }
-    if (overseasAllocated > currentPlayerWorkspace.overseasMarketCapacity) {
-      lines.push(`海外卖量 ${overseasAllocated} 超过承接能力 ${currentPlayerWorkspace.overseasMarketCapacity}。`);
+    if (overseasAllocated > effectiveOverseasCapacity) {
+      lines.push(`海外卖量 ${overseasAllocated} 超过承接能力 ${effectiveOverseasCapacity}。`);
     }
     if (usesPhase1Market) {
       const goodsAvailable = currentPlayerWorkspace.phase1GoodsAvailable
@@ -684,6 +735,11 @@ function buildValidationLines({
       if (totalAllocated > goodsAvailable) {
         lines.push(`总卖量 ${totalAllocated} 超过库存 ${goodsAvailable}。`);
       }
+      const competitionValidationLines = validateMarketCompetitionDraft(
+        draftPayload,
+        currentPlayerWorkspace,
+      );
+      lines.push(...competitionValidationLines);
     } else {
       for (const inventory of currentPlayerWorkspace.sellableInventory) {
         const allocated = getSaleOrders(draftPayload)
@@ -699,6 +755,119 @@ function buildValidationLines({
   }
 
   return ["当前草稿未突破任何硬约束。"];
+}
+
+function getEffectiveOverseasCapacityForMarketDraft(
+  draftPayload: Record<string, unknown>,
+  workspace: MarketPlayerPhaseWorkspace,
+): number {
+  const phase1Market = draftPayload.phase1Market as {
+    externalCompetitionDeployments?: Array<{ marketId?: unknown; infantry?: unknown; artillery?: unknown }>;
+  } | undefined;
+  const deployments = Array.isArray(phase1Market?.externalCompetitionDeployments)
+    ? phase1Market.externalCompetitionDeployments
+    : [];
+  const competition = workspace.overseasCompetition;
+  const infantryPower = Math.max(0, competition?.infantryPower ?? 1);
+  const artilleryPower = Math.max(0, competition?.artilleryPower ?? 2);
+  const minimumPower = Math.max(1, competition?.minimumPower ?? 1);
+  const countedRegions = new Set<string>();
+  const rewardCapacity = deployments.reduce((sum, deployment) => {
+    const marketId = typeof deployment.marketId === "string" ? deployment.marketId : "";
+    if (!marketId || countedRegions.has(marketId)) {
+      return sum;
+    }
+    countedRegions.add(marketId);
+    const region = workspace.regionAccessStatus.find((item) => item.regionId === marketId);
+    if (!region?.canCompete) {
+      return sum;
+    }
+    const power = (
+      toSafeQuantity(deployment.infantry) * infantryPower
+      + toSafeQuantity(deployment.artillery) * artilleryPower
+    );
+    if (power < minimumPower) {
+      return sum;
+    }
+    return sum + Math.max(0, region.competitionRewardCapacityBonus ?? competition?.rewardCapacityBonus ?? 0);
+  }, 0);
+  return Math.max(0, workspace.overseasMarketCapacity + rewardCapacity);
+}
+
+function validateMarketCompetitionDraft(
+  draftPayload: Record<string, unknown>,
+  workspace: MarketPlayerPhaseWorkspace,
+): string[] {
+  const phase1Market = draftPayload.phase1Market as {
+    externalCompetitionDeployments?: Array<{ marketId?: unknown; infantry?: unknown; artillery?: unknown }>;
+  } | undefined;
+  const deployments = Array.isArray(phase1Market?.externalCompetitionDeployments)
+    ? phase1Market.externalCompetitionDeployments
+    : [];
+  if (deployments.length === 0) {
+    return [];
+  }
+
+  const lines: string[] = [];
+  const competition = workspace.overseasCompetition;
+  const availableInfantry = Math.max(0, Math.floor(competition?.availableArmy.infantry ?? 0));
+  const availableArtillery = Math.max(0, Math.floor(competition?.availableArmy.artillery ?? 0));
+  const infantryPower = Math.max(0, competition?.infantryPower ?? 1);
+  const artilleryPower = Math.max(0, competition?.artilleryPower ?? 2);
+  const minimumPower = Math.max(1, competition?.minimumPower ?? 1);
+  const seenRegions = new Set<string>();
+  let totalInfantry = 0;
+  let totalArtillery = 0;
+
+  for (const deployment of deployments) {
+    const marketId = typeof deployment.marketId === "string" ? deployment.marketId : "";
+    if (!marketId) {
+      lines.push("海外争夺缺少目标区域。");
+      continue;
+    }
+    if (seenRegions.has(marketId)) {
+      lines.push(`${marketId} 本轮只能提交一组海外争夺兵力。`);
+      continue;
+    }
+    seenRegions.add(marketId);
+    const infantry = toSafeQuantity(deployment.infantry);
+    const artillery = toSafeQuantity(deployment.artillery);
+    totalInfantry += infantry;
+    totalArtillery += artillery;
+    const region = workspace.regionAccessStatus.find((item) => item.regionId === marketId);
+    if (!region) {
+      lines.push(`${marketId} 不是有效海外区域。`);
+      continue;
+    }
+    if (!region.canCompete) {
+      lines.push(`${region.label} 当前不可争夺：${formatCompetitionLockReason(region.competitionLockedReason)}。`);
+    }
+    const power = infantry * infantryPower + artillery * artilleryPower;
+    if (power < minimumPower) {
+      lines.push(`${region.label} 争夺战力 ${power} 低于最低要求 ${minimumPower}。`);
+    }
+  }
+
+  if (totalInfantry > availableInfantry) {
+    lines.push(`海外争夺步兵 ${totalInfantry} 超过可用 ${availableInfantry}。`);
+  }
+  if (totalArtillery > availableArtillery) {
+    lines.push(`海外争夺炮兵 ${totalArtillery} 超过可用 ${availableArtillery}。`);
+  }
+  return lines;
+}
+
+function formatCompetitionLockReason(reason: string | null | undefined): string {
+  if (reason === "diplomacy_not_established") {
+    return "需要先建交";
+  }
+  if (reason === "route_blocked") {
+    return "航线被封锁";
+  }
+  if (reason === "no_army") {
+    return "没有可投放陆军";
+  }
+  return "暂不可争夺";
 }
 
 function extractBlockingLines(lines: string[]): string[] {
@@ -883,10 +1052,6 @@ function getAllocatedProductionBatchesForRoute(
     productionOptions,
     routeId,
   );
-}
-
-function getDomesticActionCount(draftPayload: Record<string, unknown>): number {
-  return normalizeDecisionDraft(draftPayload).domesticMarketPlan.domesticMarketActions.length;
 }
 
 function getSaleOrders(draftPayload: Record<string, unknown>): Array<{

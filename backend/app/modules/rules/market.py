@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import Any
 
 from app.modules.balance_config import get_balance_config
 from app.modules.game_state.market_access import (
@@ -27,6 +28,11 @@ def resolve_market_phase(*, snapshot, turn_inputs) -> RuleResolution:
     summary_lines: list[str] = []
 
     region_states_by_id = {region.region_id: region for region in updated_snapshot.region_states}
+    competition_rewards_by_player = _resolve_external_market_competitions(
+        snapshot=updated_snapshot,
+        turn_inputs_by_player_id=turn_inputs_by_player_id,
+        balance=balance,
+    )
 
     for player_state in updated_snapshot.player_states:
         submitted = turn_inputs_by_player_id.get(player_state.player_id)
@@ -38,6 +44,7 @@ def resolve_market_phase(*, snapshot, turn_inputs) -> RuleResolution:
             phase1_market,
             region_states_by_id=region_states_by_id,
             snapshot=updated_snapshot,
+            competition_rewards_by_region=competition_rewards_by_player.get(player_state.player_id, {}),
         )
         summary_lines.append(
             f"{player_state.country.value} 本回合国内销售额 {domestic_revenue}，海外销售额 {overseas_revenue}，国家收入 {player_state.national_income}。"
@@ -79,6 +86,7 @@ def _apply_phase1_market(
     *,
     region_states_by_id: dict[str, object],
     snapshot,
+    competition_rewards_by_region: dict[str, dict[str, int]] | None = None,
 ) -> tuple[int, int]:
     """Phase-1 unified market: one good, supply-demand pricing, optional external markets at the same price."""
     balance = get_balance_config()
@@ -126,8 +134,17 @@ def _apply_phase1_market(
     overseas_revenue = 0
     sold_overseas = 0
     overseas_capacity = max(0, int(resolve_overseas_market_capacity(player_state)))
+    rewards_by_region = competition_rewards_by_region or {}
+    competition_capacity_remaining = {
+        region_id: max(0, int(reward.get("capacityBonus", 0)))
+        for region_id, reward in rewards_by_region.items()
+    }
+    competition_price_bonus_by_region = {
+        region_id: max(0, int(reward.get("priceBonus", 0)))
+        for region_id, reward in rewards_by_region.items()
+    }
     for alloc in phase1_market.get("externalAllocations", []) or []:
-        if available_inventory <= 0 or overseas_capacity <= 0:
+        if available_inventory <= 0:
             break
         if not isinstance(alloc, dict):
             continue
@@ -147,18 +164,33 @@ def _apply_phase1_market(
             player_state.country.value, region_id, snapshot, balance
         ):
             continue
-        sold = min(quantity, available_inventory, overseas_capacity)
+        reward_capacity = max(0, int(competition_capacity_remaining.get(region_id, 0)))
+        if overseas_capacity <= 0 and reward_capacity <= 0:
+            continue
+        reward_sold = min(quantity, available_inventory, reward_capacity)
+        shared_sold = min(
+            max(0, quantity - reward_sold),
+            max(0, available_inventory - reward_sold),
+            overseas_capacity,
+        )
+        sold = reward_sold + shared_sold
         if sold <= 0:
             continue
         region_blueprint = balance.regions.region_blueprints.get(region_id)
         multiplier = float(region_blueprint.price_multiplier) if region_blueprint else 1.0
-        overseas_unit_price = int(Decimal(str(equilibrium_price)) * Decimal(str(multiplier))) + overseas_price_bonus
+        competition_price_bonus = int(competition_price_bonus_by_region.get(region_id, 0))
+        overseas_unit_price = (
+            int(Decimal(str(equilibrium_price)) * Decimal(str(multiplier)))
+            + overseas_price_bonus
+            + competition_price_bonus
+        )
         overseas_unit_price = max(1, min(overseas_price_ceiling, overseas_unit_price))
         revenue = int(Decimal(sold) * Decimal(str(overseas_unit_price)))
         overseas_revenue += revenue
         sold_overseas += sold
         available_inventory -= sold
-        overseas_capacity -= sold
+        overseas_capacity -= shared_sold
+        competition_capacity_remaining[region_id] = max(0, reward_capacity - reward_sold)
         region_state.market_supply[PHASE1_GOODS_KEY] = (
             int(region_state.market_supply.get(PHASE1_GOODS_KEY, 0)) + sold
         )
@@ -190,6 +222,88 @@ def _apply_phase1_market(
     player_state.income_summary["nationalIncome"] = player_state.national_income
 
     return domestic_revenue, overseas_revenue
+
+
+def _resolve_external_market_competitions(
+    *,
+    snapshot,
+    turn_inputs_by_player_id: dict[str, Any],
+    balance,
+) -> dict[str, dict[str, dict[str, int]]]:
+    competition = balance.market.overseas_competition
+    minimum_power = int(competition.minimum_power)
+    infantry_power = int(competition.infantry_power)
+    artillery_power = int(competition.artillery_power)
+    region_states_by_id = {region.region_id: region for region in snapshot.region_states}
+    region_attackers: dict[str, list[tuple[Any, int, int, int]]] = {}
+
+    for player_state in snapshot.player_states:
+        submitted = turn_inputs_by_player_id.get(player_state.player_id)
+        payload = dict(submitted.payload) if submitted is not None else default_market_submission_payload()
+        phase1_market = payload.get("phase1Market") or {}
+        deployments = phase1_market.get("externalCompetitionDeployments", []) if isinstance(phase1_market, dict) else []
+        if not isinstance(deployments, list):
+            continue
+
+        remaining_army = {
+            "infantry": max(0, int(player_state.army.get("infantry", 0))),
+            "artillery": max(0, int(player_state.army.get("artillery", 0))),
+        }
+        seen_regions: set[str] = set()
+        for deployment in deployments:
+            if not isinstance(deployment, dict):
+                continue
+            region_id = str(deployment.get("marketId") or "").strip()
+            if not region_id or region_id in seen_regions:
+                continue
+            seen_regions.add(region_id)
+            if region_id not in region_states_by_id:
+                continue
+            if region_id not in player_state.established_diplomacy:
+                continue
+            if not check_route_accessible(player_state.country.value, region_id, snapshot, balance):
+                continue
+
+            infantry = min(
+                max(0, int(deployment.get("infantry", 0) or 0)),
+                remaining_army["infantry"],
+            )
+            artillery = min(
+                max(0, int(deployment.get("artillery", 0) or 0)),
+                remaining_army["artillery"],
+            )
+            power = infantry * infantry_power + artillery * artillery_power
+            if power < minimum_power:
+                continue
+
+            remaining_army["infantry"] -= infantry
+            remaining_army["artillery"] -= artillery
+            region_attackers.setdefault(region_id, []).append(
+                (player_state, infantry, artillery, power)
+            )
+
+    rewards_by_player: dict[str, dict[str, dict[str, int]]] = {}
+    for region_id, attackers in region_attackers.items():
+        if not attackers:
+            continue
+        max_power = max(entry[3] for entry in attackers)
+        winners = [entry for entry in attackers if entry[3] == max_power]
+        if len(winners) != 1:
+            continue
+        winner_player, infantry_used, artillery_used, _ = winners[0]
+        winner_player.army["infantry"] = max(
+            0,
+            int(winner_player.army.get("infantry", 0)) - infantry_used,
+        )
+        winner_player.army["artillery"] = max(
+            0,
+            int(winner_player.army.get("artillery", 0)) - artillery_used,
+        )
+        rewards_by_player.setdefault(winner_player.player_id, {})[region_id] = {
+            "capacityBonus": int(competition.reward_capacity_bonus),
+            "priceBonus": int(competition.reward_price_bonus),
+        }
+    return rewards_by_player
 
 
 def _mirror_phase1_market_metrics(

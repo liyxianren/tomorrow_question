@@ -265,6 +265,63 @@ class StrategySelectionsE2E(unittest.TestCase):
         self.assertLess(britain.budget_pools["governmentFiscal"], 100,
                         "trade_agreement should deduct budget (cost=6)")
 
+    def test_market_regulation_strategy_uses_allowance_before_base_fiscal(self):
+        """Market regulation submitted as strategySelections should use its one-turn allowance first."""
+        self.seed_active_game()
+        snapshot = self._load_snapshot()
+        britain = self._player(snapshot, "player-1")
+        britain.budget_pools["governmentFiscal"] = 100
+        britain.budget_pools["domesticMarket"] = 50
+        self._save_snapshot(snapshot)
+
+        snap = self._submit_decisions_for_all(
+            {"session-1": _decision_payload(strategy_selections=["market_fair"])}
+        )
+        britain = self._player(snap, "player-1")
+
+        self.assertEqual(britain.budget_pools["governmentFiscal"], 100)
+        self.assertEqual(britain.budget_pools["domesticMarket"], 50)
+        self.assertGreaterEqual(
+            int(britain.temporary_effects.get("domesticMarketCapacityBonus", 0)),
+            2,
+        )
+
+    def test_market_regulation_overflow_spends_base_fiscal(self):
+        """Market-regulation cost above the one-turn allowance should spend governmentFiscal."""
+        self.seed_active_game()
+        snapshot = self._load_snapshot()
+        britain = self._player(snapshot, "player-1")
+        britain.budget_pools["governmentFiscal"] = 10
+        britain.budget_pools["domesticMarket"] = 5
+        self._save_snapshot(snapshot)
+
+        snap = self._submit_decisions_for_all(
+            {"session-1": _decision_payload(strategy_selections=["market_fair", "public_works"])}
+        )
+        britain = self._player(snap, "player-1")
+
+        self.assertEqual(britain.budget_pools["governmentFiscal"], 2)
+        self.assertEqual(britain.budget_pools["domesticMarket"], 5)
+
+    def test_market_regulation_strategy_keeps_price_bonus_effect(self):
+        """Price-oriented market regulation should keep the same temporary price effect."""
+        self.seed_active_game()
+        snapshot = self._load_snapshot()
+        britain = self._player(snapshot, "player-1")
+        britain.budget_pools["governmentFiscal"] = 100
+        self._save_snapshot(snapshot)
+
+        snap = self._submit_decisions_for_all(
+            {"session-1": _decision_payload(strategy_selections=["consumer_subsidy"])}
+        )
+        britain = self._player(snap, "player-1")
+
+        self.assertEqual(britain.budget_pools["governmentFiscal"], 100)
+        self.assertGreaterEqual(
+            int(britain.temporary_effects.get("domesticPriceBonus", 0)),
+            1,
+        )
+
     def test_expand_research_builds_research_facility(self):
         """expand_research should spend fiscal budget and add one academy."""
         self.seed_active_game()

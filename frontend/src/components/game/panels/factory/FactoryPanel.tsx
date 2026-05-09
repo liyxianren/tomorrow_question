@@ -11,7 +11,6 @@ import {
   flattenTechTree,
 } from "../../../../features/game/decisionShared";
 import { Phase1ProductionPanel } from "./Phase1ProductionPanel";
-import { DecisionActionCard } from "../shared/DecisionActionCard";
 import "./FactoryPanel.css";
 
 export function FactoryPanel({
@@ -97,7 +96,7 @@ export function FactoryPanel({
                 <span className="factory-section-label__icon">⚙️</span>
                 工厂调度
               </h4>
-              <div className="factory-actions">
+              <div className="factory-command-list">
                 {factoryActions.map((action) => {
                   const selected = selectedFactoryActionIds.has(action.actionId);
                   const isLocked = action.lockedReason !== null;
@@ -105,22 +104,34 @@ export function FactoryPanel({
                   const disabled = isLocked || noBudget;
                   const effects = buildEffectMetrics(action.effects);
                   return (
-                    <DecisionActionCard
+                    <article
                       key={action.actionId}
-                      title={action.label}
-                      costLabel={action.cost > 0 ? `💰${action.cost} 工厂` : "无工厂预算"}
-                      description={isLocked ? `🔒 ${action.lockedReason}` : action.description}
-                      effects={effects}
-                      status={selected ? "selected" : disabled ? "disabled" : "available"}
-                      statusText={selected ? "已选" : noBudget ? "工厂预算不足" : "可选"}
-                      control={{
-                        kind: "toggle",
-                        checked: selected,
-                        disabled,
-                        label: selected ? "取消" : "选择",
-                        onChange: (next) => onFactoryActionToggle(action.actionId, next),
-                      }}
-                    />
+                      className={[
+                        "factory-command-row",
+                        selected && "factory-command-row--selected",
+                        disabled && !selected && "factory-command-row--disabled",
+                      ].filter(Boolean).join(" ")}
+                    >
+                      <div className="factory-command-row__main">
+                        <div className="factory-command-row__title-line">
+                          <h5>{action.label}</h5>
+                          <span>{action.cost > 0 ? `${action.cost} 工厂` : "无成本"}</span>
+                        </div>
+                        <p>{isLocked ? `锁定：${action.lockedReason}` : action.description}</p>
+                        {renderEffectTags(effects)}
+                      </div>
+                      <div className="factory-command-row__control">
+                        <span>{selected ? "本轮执行" : noBudget ? "预算不足" : isLocked ? "未解锁" : "可选"}</span>
+                        <button
+                          type="button"
+                          disabled={disabled && !selected}
+                          onClick={() => onFactoryActionToggle(action.actionId, !selected)}
+                          aria-label={`${selected ? "取消" : "选择"}工厂调度：${action.label}`}
+                        >
+                          {selected ? "撤回" : "选择"}
+                        </button>
+                      </div>
+                    </article>
                   );
                 })}
               </div>
@@ -133,7 +144,7 @@ export function FactoryPanel({
                 <span className="factory-section-label__icon">🏗️</span>
                 建设与升级
               </h4>
-              <div className="factory-actions">
+              <div className="factory-command-list">
                 {workspace.expansionOptions.map((option) =>
                   renderConstructionCard(option, "expansion"),
                 )}
@@ -163,11 +174,6 @@ export function FactoryPanel({
     const canRemove = quantity > 0;
     const title = getConstructionTitle(option, kind);
 
-    const status = quantity > 0
-      ? "selected"
-      : isLocked
-        ? "disabled"
-        : "available";
     const description = isLocked
       ? `🔒 ${option.lockedReason}`
       : option.maxQuantity < 999
@@ -177,26 +183,61 @@ export function FactoryPanel({
       ? undefined
       : [{ label: `产能 +${option.capacityDelta}`, value: "" }];
     return (
-      <DecisionActionCard
+      <article
         key={`${kind}-${option.routeId}`}
-        title={title}
-        costLabel={`💰${option.unitBudgetCost} 财政`}
-        description={description}
-        effects={effects}
-        status={status}
-        statusText={quantity > 0 ? `已选 ${quantity} 次` : noBudget ? "财政不足" : "可选"}
-        control={{
-          kind: "stepper",
-          value: quantity,
-          min: 0,
-          max: option.maxQuantity,
-          onChange: (next) => onConstructionQuantityChange(option.routeId, kind, next),
-          incrementDisabled: !canAdd,
-          decrementDisabled: !canRemove,
-        }}
-      />
+        className={[
+          "factory-command-row",
+          "factory-command-row--construction",
+          quantity > 0 && "factory-command-row--selected",
+          isLocked && "factory-command-row--disabled",
+        ].filter(Boolean).join(" ")}
+      >
+        <div className="factory-command-row__main">
+          <div className="factory-command-row__title-line">
+            <h5>{title}</h5>
+            <span>{option.unitBudgetCost} 工厂</span>
+          </div>
+          <p>{description ?? `${getConstructionKindLabel(kind)}产线，提升后续生产能力。`}</p>
+          {renderEffectTags(effects)}
+        </div>
+        <div className="factory-command-row__stepper">
+          <button
+            type="button"
+            disabled={!canRemove}
+            onClick={() => onConstructionQuantityChange(option.routeId, kind, Math.max(0, quantity - 1))}
+            aria-label={`${title} 减少`}
+          >
+            −
+          </button>
+          <strong>{quantity}</strong>
+          <button
+            type="button"
+            disabled={!canAdd}
+            onClick={() => onConstructionQuantityChange(option.routeId, kind, Math.min(option.maxQuantity, quantity + 1))}
+            aria-label={`${title} 增加`}
+          >
+            +
+          </button>
+          <span>{quantity > 0 ? `已选 ${quantity}` : noBudget ? "预算不足" : isLocked ? "未解锁" : "可建"}</span>
+        </div>
+      </article>
     );
   }
+}
+
+function renderEffectTags(effects: { label: string; value: string | number; temporary?: boolean }[] | undefined) {
+  if (!effects || effects.length === 0) {
+    return null;
+  }
+  return (
+    <div className="factory-command-row__effects">
+      {effects.map((effect) => (
+        <span key={`${effect.label}-${effect.value}`}>
+          {effect.value ? `${effect.label} ${effect.value}` : effect.label}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 /* ── Helpers (kept for external use) ── */

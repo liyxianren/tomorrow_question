@@ -87,7 +87,7 @@ function createFinalResult(): GameFinishedPayload {
       },
     ],
     replayGuidance: [
-      "如果你是法国，下一局要更早把海外收益转成下一轮三池空间。",
+      "如果你是法国，下一局要更早把海外收益转成下一轮资源空间。",
     ],
   };
 }
@@ -137,7 +137,7 @@ describe("SettlementPage", () => {
     expect(screen.getByText("终局已归档")).toBeInTheDocument();
     expect(screen.getByText("最终排名主表")).toBeInTheDocument();
     expect(screen.getByText("累计国家收入：42")).toBeInTheDocument();
-    expect(screen.getByText("同分比较：总产能：2，控制区域数：1，三池总额：20")).toBeInTheDocument();
+    expect(screen.getByText("同分比较：总产能：2，控制区域数：1，资源总额：20")).toBeInTheDocument();
     expect(screen.getByTestId("settlement-left-rail")).toHaveTextContent("最终国家档案");
     expect(screen.getByTestId("settlement-assist-rail")).toHaveTextContent("终局判断辅助");
     expect(screen.getByText("英国 以 42 累计国家收入位列第一。")).toBeInTheDocument();

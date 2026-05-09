@@ -5,12 +5,12 @@ import {
 } from "../decisionDrafts";
 import {
   buildEffectMetrics,
-  buildGovernmentActionDescription,
   buildMilitaryActionDescription,
   buildRegionAccessDescription,
   buildTechResearchDescription,
   buildTechUnlockSummary,
   calculateDecisionSpendSummary,
+  calculateGovernmentFiscalState,
   calculateGovernmentPointPreview,
   calculateRatioPreview,
   calculateTechResearchPreview,
@@ -18,6 +18,7 @@ import {
   formatPriceTrendText,
   formatRatio,
   formatRatioDeltaSummary,
+  formatSignedValue,
   getGoodsLabel,
   getRegionAccessLevelLabel,
   getTechResearchLockedReason,
@@ -36,6 +37,20 @@ import type {
   DecisionLocationViewModel,
 } from "./types";
 
+const MARKET_PREVIEW_EFFECT_KEYS = [
+  "domesticMarketCapacityDelta",
+  "domesticPriceBonusDelta",
+  "handicraftCapacityDelta",
+  "overseasMarketCapacityDelta",
+] as const;
+
+const MARKET_PREVIEW_EFFECT_LABELS: Record<(typeof MARKET_PREVIEW_EFFECT_KEYS)[number], string> = {
+  domesticMarketCapacityDelta: "国内容量",
+  domesticPriceBonusDelta: "国内价格",
+  handicraftCapacityDelta: "手工业",
+  overseasMarketCapacityDelta: "海外容量",
+};
+
 export function buildDecisionCommandDeckViewModel({
   workspace,
   draft,
@@ -46,6 +61,7 @@ export function buildDecisionCommandDeckViewModel({
   activeStep: DecisionStepId;
 }): DecisionCommandDeckViewModel {
   const spendSummary = calculateDecisionSpendSummary(workspace, draft);
+  const fiscalState = calculateGovernmentFiscalState(workspace, draft);
   const ratioPreview = calculateRatioPreview(workspace, draft);
   const governmentPointPreview = calculateGovernmentPointPreview(workspace, draft);
   const techResearchPreview = calculateTechResearchPreview(workspace, draft);
@@ -65,11 +81,11 @@ export function buildDecisionCommandDeckViewModel({
     domestic: buildDomesticLocation({
       draft,
       remainingDomesticBudget: remainingBudgets.domesticMarket,
-      techResearchPreview,
       workspace,
     }),
     government: buildGovernmentLocation({
       draft,
+      fiscalState,
       governmentPointPreview,
       ratioPreview,
       remainingGovernmentBudget: remainingBudgets.governmentFiscal,
@@ -79,13 +95,13 @@ export function buildDecisionCommandDeckViewModel({
     military: buildMilitaryLocation({
       draft,
       availableMilitaryPoints: governmentPointPreview.militaryPoints,
-      remainingGovernmentBudget: remainingBudgets.governmentFiscal,
+      remainingGovernmentBudget: fiscalState.baseGovernmentRemaining,
       workspace,
     }),
     research: buildResearchLocation({
       workspace,
       draft,
-      remainingGovernmentBudget: remainingBudgets.governmentFiscal,
+      remainingGovernmentBudget: fiscalState.baseGovernmentRemaining,
     }),
   };
 
@@ -237,116 +253,144 @@ function buildFactoryLocation({
   };
 }
 
+function formatOptionalNumber(value: number | undefined): string {
+  if (value == null || !Number.isFinite(value)) {
+    return "—";
+  }
+  return `${Math.round(value * 100) / 100}`;
+}
+
+function sumMarketEffect(
+  actions: DecisionPlayerPhaseWorkspace["governmentActions"]["strategies"],
+  effectKey: (typeof MARKET_PREVIEW_EFFECT_KEYS)[number],
+): number {
+  return actions.reduce((sum, action) => {
+    const value = action.effects?.[effectKey];
+    return sum + (typeof value === "number" ? value : 0);
+  }, 0);
+}
+
+function hasMarketPreviewEffect(action: DecisionPlayerPhaseWorkspace["governmentActions"]["strategies"][number]): boolean {
+  return MARKET_PREVIEW_EFFECT_KEYS.some((key) => typeof action.effects?.[key] === "number");
+}
+
 function buildDomesticLocation({
   workspace,
   draft,
   remainingDomesticBudget,
-  techResearchPreview,
 }: {
   workspace: DecisionPlayerPhaseWorkspace;
   draft: PhaseDraftByPhase["decision"];
   remainingDomesticBudget: number;
-  techResearchPreview: ReturnType<typeof calculateTechResearchPreview>;
 }): DecisionLocationViewModel {
-  const selectedActionIds = new Set(draft.domesticMarketPlan.domesticMarketActions.map((item) => item.actionId));
+  const phase1 = workspace.phase1Economy;
+  const selectedStrategyIds = new Set(draft.governmentPlan.strategySelections.map((item) => item.actionId));
+  const selectedMarketStrategies = workspace.governmentActions.strategies.filter((action) =>
+    action.actionId !== "expand_research"
+    && selectedStrategyIds.has(action.actionId)
+    && hasMarketPreviewEffect(action),
+  );
+  const selectedCapacityDelta = sumMarketEffect(selectedMarketStrategies, "domesticMarketCapacityDelta");
+  const selectedPriceDelta = sumMarketEffect(selectedMarketStrategies, "domesticPriceBonusDelta");
+  const selectedEffectSummary = MARKET_PREVIEW_EFFECT_KEYS
+    .map((key) => ({ key, value: sumMarketEffect(selectedMarketStrategies, key) }))
+    .filter((item) => item.value !== 0);
 
-  const domesticActionCards = workspace.domesticMarketActions.map((action) => {
-    const selected = selectedActionIds.has(action.actionId);
-    const lockedReason = resolveBudgetLockedReason({
-      baseLockedReason: action.lockedReason,
-      isSelected: selected,
-      remainingBudget: remainingDomesticBudget,
-      requiredBudget: action.cost,
-      insufficientBudgetLabel: "国内预算不足",
-    });
+  const baseCapacity = workspace.domesticMarketCapacity ?? phase1?.domesticDemand;
+  const projectedCapacity = baseCapacity != null ? Math.max(0, baseCapacity + selectedCapacityDelta) : undefined;
+  const domesticDemand = phase1?.domesticDemand;
+  const priceCeiling = phase1?.domesticPriceCeiling ?? 12;
+  const basePrice = phase1?.domesticBasePricePreview ?? phase1?.equilibriumPrice;
+  const existingPriceBeforeCap = phase1?.domesticPriceBeforeCap ?? phase1?.domesticPricePreview;
+  const projectedPriceBeforeCap = existingPriceBeforeCap != null
+    ? Math.max(1, existingPriceBeforeCap + selectedPriceDelta)
+    : undefined;
+  const projectedPrice = projectedPriceBeforeCap != null
+    ? Math.max(1, Math.min(priceCeiling, projectedPriceBeforeCap))
+    : undefined;
 
-    const effectMetrics = buildEffectMetrics(action.effects);
-
-    return {
-      id: `domestic-${action.actionId}`,
-      title: action.label,
-      subtitle: `国内预算 ${action.cost}`,
-      description: action.description,
-      badges: selected ? ["已纳入本轮"] : action.lockedReason ? ["待研究"] : ["待选择"],
+  const previewCards: DecisionCardViewModel[] = [
+    {
+      id: "market-demand-preview",
+      title: "市场需求",
+      subtitle: "出售阶段参考",
+      description: "国内需求决定最多能承接多少统一商品；贸易港会按实际投放量重新计算成交价。",
+      badges: ["只读预览"],
       metrics: [
-        { label: "预算消耗", value: action.cost },
-        ...effectMetrics.map((em) => ({ label: em.label, value: em.value })),
+        { label: "民间购买力", value: remainingDomesticBudget },
+        { label: "市场需求", value: formatOptionalNumber(domesticDemand) },
+        { label: "投放上限", value: formatOptionalNumber(projectedCapacity) },
       ],
-      feedback: selected ? `已纳入本轮，国内消费市场预算 -${action.cost}。` : undefined,
-      lockedReason,
-      tone: lockedReason && !selected ? "locked" : selected ? "accent" : "default",
-      selected,
-      control: {
-        kind: "toggle",
-        label: action.label,
-        checked: selected,
-        disabled: !selected && lockedReason !== null,
-      },
-      interaction: { type: "domesticAction", actionId: action.actionId },
-    } satisfies DecisionCardViewModel;
-  });
-
-  const domesticTechCards = flattenTechTree(workspace.techTree)
-    .filter((tech) => tech.budgetPool === "domesticMarket")
-    .map((tech) => {
-      const queued = draft.governmentPlan.techResearch.some((item) => item.techId === tech.techId);
-      const lockedReason = getTechResearchLockedReason(tech, techResearchPreview, workspace);
-      const unlockSummary = buildTechUnlockSummary(tech, workspace);
-
-      return {
-        id: `technology-${tech.techId}`,
-        title: tech.label,
-        subtitle: `国内预算 ${tech.budgetCost}`,
-        description: buildTechResearchDescription(tech, lockedReason, workspace, queued),
-        badges: unlockSummary ? [unlockSummary] : [],
-        metrics: [{ label: "预算消耗", value: `${tech.budgetCost}` }],
-        feedback: queued ? "已加入本轮消费研究队列。" : undefined,
-        lockedReason,
-        tone: lockedReason ? "locked" : queued || tech.isUnlocked ? "accent" : "default",
-        selected: queued || tech.isUnlocked,
-        control: {
-          kind: "toggle",
-          label: tech.label,
-          checked: queued || tech.isUnlocked,
-          disabled: tech.isUnlocked || (!queued && lockedReason !== null),
-        },
-        interaction: { type: "technology", techId: tech.techId },
-      } satisfies DecisionCardViewModel;
-    });
+      lockedReason: null,
+      tone: "default",
+      control: { kind: "none" },
+    },
+    {
+      id: "market-price-preview",
+      title: "价格来源",
+      subtitle: "供需定价",
+      description: "基础价、既有加成和政府市场调节共同形成参考价，最终仍由出售阶段按投放量结算。",
+      badges: [
+        `基础 ${formatOptionalNumber(basePrice)}`,
+        `既有加成 ${formatSignedValue(phase1?.domesticPriceBonus ?? 0)}`,
+        `上限 ${priceCeiling}`,
+      ],
+      metrics: [
+        { label: "政府调节", value: formatSignedValue(selectedPriceDelta) },
+        { label: "参考售价", value: formatOptionalNumber(projectedPrice) },
+        { label: "价格上限", value: priceCeiling },
+      ],
+      lockedReason: null,
+      tone: selectedPriceDelta !== 0 ? "accent" : "default",
+      control: { kind: "none" },
+    },
+    {
+      id: "market-regulation-preview",
+      title: "本轮政府调节",
+      subtitle: selectedMarketStrategies.length > 0 ? `${selectedMarketStrategies.length} 项已选择` : "议会厅选择",
+      description: selectedMarketStrategies.length > 0
+        ? selectedMarketStrategies.map((action) => action.label).join("、")
+        : "博览会、消费补贴、进口替代、公共工程、奢侈品推广和商贸枢纽都在议会厅统一决策。",
+      badges: selectedEffectSummary.length > 0
+        ? selectedEffectSummary.map((item) => `${MARKET_PREVIEW_EFFECT_LABELS[item.key]} ${formatSignedValue(item.value)}`)
+        : ["暂无调节"],
+      metrics: selectedEffectSummary.length > 0
+        ? selectedEffectSummary.map((item) => ({
+            label: MARKET_PREVIEW_EFFECT_LABELS[item.key],
+            value: formatSignedValue(item.value),
+          }))
+        : [{ label: "影响", value: "使用基础供需和既有效果" }],
+      feedback: selectedMarketStrategies.length > 0
+        ? "这些动作已经写入 governmentPlan.strategySelections，并消耗政府财政。"
+        : undefined,
+      lockedReason: null,
+      tone: selectedMarketStrategies.length > 0 ? "accent" : "default",
+      control: { kind: "none" },
+    },
+  ];
 
   return {
     id: "domestic",
     label: "市民广场",
-    eyebrow: "步骤 2 / 5",
-    subtitle: "如何刺激国内市场？",
-    description: "消费动作和消费研究共享同一个国内预算池。",
-    budgetLabel: "国内预算",
+    eyebrow: "步骤 3 / 5",
+    subtitle: "市场需求与价格预览",
+    description: "市民广场只展示内需、承接上限和价格来源；本轮市场调节由议会厅统一执行。",
+    budgetLabel: "民间购买力",
     remainingBudget: remainingDomesticBudget,
     summaryPills: [
-      `国内预算 ${remainingDomesticBudget}`,
-      `已选动作 ${selectedActionIds.size} 项`,
-      `消费研究 ${draft.governmentPlan.techResearch.filter((item) => {
-        const tech = flattenTechTree(workspace.techTree).find((candidate) => candidate.techId === item.techId);
-        return tech?.budgetPool === "domesticMarket";
-      }).length} 项`,
+      `购买力 ${remainingDomesticBudget}`,
+      `需求 ${formatOptionalNumber(domesticDemand)}`,
+      `投放上限 ${formatOptionalNumber(projectedCapacity)}`,
+      `参考售价 ${formatOptionalNumber(projectedPrice)}`,
+      `政府调节 ${selectedMarketStrategies.length} 项`,
     ],
     sections: [
       {
-        id: "domestic-actions",
-        title: "民生政策",
-        description: "选中后立即进入本轮提交草稿。",
-        cards: domesticActionCards,
+        id: "market-preview",
+        title: "市场预览",
+        description: "这里不再提供可选动作，出售阶段会按实际投放重算成交价。",
+        cards: previewCards,
       },
-      ...(domesticTechCards.length > 0
-        ? [
-            {
-              id: "domestic-tech",
-              title: "消费研究",
-              description: "先研究，再决定是否把预算留给消费动作。",
-              cards: domesticTechCards,
-            },
-          ]
-        : []),
     ],
   };
 }
@@ -354,6 +398,7 @@ function buildDomesticLocation({
 function buildGovernmentLocation({
   workspace,
   draft,
+  fiscalState,
   remainingGovernmentBudget,
   ratioPreview,
   governmentPointPreview,
@@ -361,57 +406,131 @@ function buildGovernmentLocation({
 }: {
   workspace: DecisionPlayerPhaseWorkspace;
   draft: PhaseDraftByPhase["decision"];
+  fiscalState: ReturnType<typeof calculateGovernmentFiscalState>;
   remainingGovernmentBudget: number;
   ratioPreview: ReturnType<typeof calculateRatioPreview>;
   governmentPointPreview: ReturnType<typeof calculateGovernmentPointPreview>;
   techResearchPreview: ReturnType<typeof calculateTechResearchPreview>;
 }): DecisionLocationViewModel {
   const selectedStrategyIds = new Set(draft.governmentPlan.strategySelections.map((item) => item.actionId));
+  const selectedMarketStrategies = workspace.governmentActions.strategies.filter((action) =>
+    action.actionId !== "expand_research"
+    && selectedStrategyIds.has(action.actionId)
+    && hasMarketPreviewEffect(action),
+  );
+  const selectedCapacityDelta = sumMarketEffect(selectedMarketStrategies, "domesticMarketCapacityDelta");
+  const selectedPriceDelta = sumMarketEffect(selectedMarketStrategies, "domesticPriceBonusDelta");
+  const selectedOverseasCapacityDelta = sumMarketEffect(selectedMarketStrategies, "overseasMarketCapacityDelta");
+  const selectedEffectSummary = MARKET_PREVIEW_EFFECT_KEYS
+    .map((key) => ({ key, value: sumMarketEffect(selectedMarketStrategies, key) }))
+    .filter((item) => item.value !== 0);
+  const phase1 = workspace.phase1Economy;
+  const baseDomesticCapacity = workspace.domesticMarketCapacity ?? phase1?.domesticDemand;
+  const projectedDomesticCapacity = baseDomesticCapacity != null
+    ? Math.max(0, baseDomesticCapacity + selectedCapacityDelta)
+    : undefined;
+  const projectedOverseasCapacity = workspace.overseasMarketCapacity != null
+    ? Math.max(0, workspace.overseasMarketCapacity + selectedOverseasCapacityDelta)
+    : undefined;
+  const domesticDemand = phase1?.domesticDemand;
+  const priceCeiling = phase1?.domesticPriceCeiling ?? 12;
+  const existingPriceBeforeCap = phase1?.domesticPriceBeforeCap ?? phase1?.domesticPricePreview;
+  const projectedPriceBeforeCap = existingPriceBeforeCap != null
+    ? Math.max(1, existingPriceBeforeCap + selectedPriceDelta)
+    : undefined;
+  const projectedPrice = projectedPriceBeforeCap != null
+    ? Math.max(1, Math.min(priceCeiling, projectedPriceBeforeCap))
+    : undefined;
+  const priceIsCapped = projectedPriceBeforeCap != null && projectedPriceBeforeCap > priceCeiling;
+  const marketPreviewCards: DecisionCardViewModel[] = [
+    {
+      id: "government-market-baseline",
+      title: "市场基线",
+      subtitle: "国内承接与供需价格",
+      description: "政府市场调节会直接改变本轮国内承接量和参考售价，出售阶段仍按实际投放重新定价。",
+      badges: [
+        `需求 ${formatOptionalNumber(domesticDemand)}`,
+        `基础承接 ${formatOptionalNumber(baseDomesticCapacity)}`,
+        `价格上限 ${priceCeiling}`,
+      ],
+      metrics: [
+        { label: "投放上限", value: formatOptionalNumber(projectedDomesticCapacity) },
+        { label: priceIsCapped ? "参考售价已封顶" : "参考售价", value: formatOptionalNumber(projectedPrice) },
+        { label: "政府价格调节", value: formatSignedValue(selectedPriceDelta) },
+      ],
+      lockedReason: null,
+      tone: selectedMarketStrategies.length > 0 ? "accent" : "default",
+      control: { kind: "none" },
+    },
+    {
+      id: "government-market-effects",
+      title: "本轮调节结果",
+      subtitle: selectedMarketStrategies.length > 0 ? `${selectedMarketStrategies.length} 项已选择` : "未选择调节",
+      description: selectedMarketStrategies.length > 0
+        ? selectedMarketStrategies.map((action) => action.label).join("、")
+        : "暂不执行市场调节时，贸易港只使用基础供需、既有效果和实际投放结算。",
+      badges: selectedEffectSummary.length > 0
+        ? selectedEffectSummary.map((item) => `${MARKET_PREVIEW_EFFECT_LABELS[item.key]} ${formatSignedValue(item.value)}`)
+        : ["基础供需"],
+      metrics: [
+        { label: "国内容量变化", value: formatSignedValue(selectedCapacityDelta) },
+        { label: "海外容量", value: formatOptionalNumber(projectedOverseasCapacity) },
+        { label: "海外容量变化", value: formatSignedValue(selectedOverseasCapacityDelta) },
+      ],
+      lockedReason: null,
+      tone: selectedMarketStrategies.length > 0 ? "accent" : "default",
+      control: { kind: "none" },
+    },
+  ];
   const selectedAbility = workspace.nationalAbility && draft.abilitySelection?.abilityId === workspace.nationalAbility.abilityId
     ? draft.abilitySelection
     : null;
 
-  const strategyCards = workspace.governmentActions.strategies.map((action) => {
-    const selected = selectedStrategyIds.has(action.actionId);
-    const lockedReason = resolveBudgetLockedReason({
-      baseLockedReason: action.lockedReason,
-      isSelected: selected,
-      remainingBudget: remainingGovernmentBudget,
-      requiredBudget: action.cost,
-      insufficientBudgetLabel: "政府预算不足",
+  const strategyCards = workspace.governmentActions.strategies
+    .filter((action) => action.actionId !== "expand_research")
+    .map((action) => {
+      const selected = selectedStrategyIds.has(action.actionId);
+      const nextMarketSpend = fiscalState.marketRegulationSpend + action.cost;
+      const nextMarketOverflow = Math.max(0, nextMarketSpend - fiscalState.marketRegulationAllowance);
+      const nextBaseFiscalSpend = fiscalState.coreGovernmentSpend + fiscalState.militaryFiscalSpend + nextMarketOverflow;
+      const lockedReason = action.lockedReason ?? (
+        !selected && nextBaseFiscalSpend > fiscalState.baseGovernmentBudget ? "市场调节额度不足" : null
+      );
+
+      const govEffectMetrics = buildEffectMetrics(action.effects);
+      const govExtraMetrics = govEffectMetrics
+        .filter((em) => !["科技点", "军事点"].includes(em.label))
+        .map((em) => ({ label: em.label, value: em.value }));
+      const effectBadges = govExtraMetrics.length > 0
+        ? govExtraMetrics.map((metric) => `${metric.label} ${metric.value}`)
+        : ["一次性策略"];
+
+      return {
+        id: `strategy-${action.actionId}`,
+        title: action.label,
+        subtitle: `市场调节 ${action.cost}`,
+        description: action.description,
+        badges: Object.keys(action.ratioDelta ?? {}).length > 0
+          ? [formatRatioDeltaSummary(action.ratioDelta ?? {})]
+          : effectBadges,
+        metrics: [
+          { label: "财政消耗", value: action.cost },
+          ...(action.militaryPointDelta ? [{ label: "军事点变化", value: action.militaryPointDelta }] : []),
+          ...govExtraMetrics,
+        ],
+        feedback: selected ? `已纳入本轮市场调节，额度 -${action.cost}。` : undefined,
+        lockedReason,
+        tone: lockedReason && !selected ? "locked" : selected ? "accent" : "default",
+        selected,
+        control: {
+          kind: "toggle",
+          label: action.label,
+          checked: selected,
+          disabled: !selected && lockedReason !== null,
+        },
+        interaction: { type: "governmentStrategy", actionId: action.actionId },
+      } satisfies DecisionCardViewModel;
     });
-
-    const govEffectMetrics = buildEffectMetrics(action.effects);
-    const govExtraMetrics = govEffectMetrics
-      .filter((em) => !["科技点", "军事点"].includes(em.label))
-      .map((em) => ({ label: em.label, value: em.value }));
-
-    return {
-      id: `strategy-${action.actionId}`,
-      title: action.label,
-      subtitle: `政府预算 ${action.cost}`,
-      description: action.description,
-      badges: Object.keys(action.ratioDelta ?? {}).length > 0
-        ? [formatRatioDeltaSummary(action.ratioDelta ?? {})]
-        : ["收入结构不变"],
-      metrics: [
-        { label: "财政消耗", value: action.cost },
-        { label: "军事点变化", value: action.militaryPointDelta ?? 0 },
-        ...govExtraMetrics,
-      ],
-      feedback: selected ? `已纳入本轮，政府财政 -${action.cost}。` : undefined,
-      lockedReason,
-      tone: lockedReason && !selected ? "locked" : selected ? "accent" : "default",
-      selected,
-      control: {
-        kind: "toggle",
-        label: action.label,
-        checked: selected,
-        disabled: !selected && lockedReason !== null,
-      },
-      interaction: { type: "governmentStrategy", actionId: action.actionId },
-    } satisfies DecisionCardViewModel;
-  });
 
   const governmentTechCards = flattenTechTree(workspace.techTree)
     .filter((tech) => tech.budgetPool === "governmentFiscal")
@@ -543,22 +662,29 @@ function buildGovernmentLocation({
   return {
     id: "government",
     label: "议会厅",
-    eyebrow: "步骤 3 / 5",
+    eyebrow: "步骤 2 / 5",
     subtitle: "帝国的政治方向",
-    description: "政治策略、政策研究与国家能力共用政府财政。",
+    description: "市场调节、政治策略、政策研究与国家能力共用政府财政。",
     budgetLabel: "政府财政",
     remainingBudget: remainingGovernmentBudget,
     summaryPills: [
       `政府预算 ${remainingGovernmentBudget}`,
       `比例预告 ${formatRatio(ratioPreview)}`,
+      `市场 需求 ${formatOptionalNumber(domesticDemand)} · 承接 ${formatOptionalNumber(projectedDomesticCapacity)} · 价 ${formatOptionalNumber(projectedPrice)}`,
       `军事点 ${governmentPointPreview.militaryPoints}`,
       `国家能力 ${selectedAbility ? "已启用" : "未启用"}`,
     ],
     sections: [
       {
+        id: "government-market-preview",
+        title: "市场基线",
+        description: "这些数值已经并入议会厅；选择市场调节后会直接改变同一组预览。",
+        cards: marketPreviewCards,
+      },
+      {
         id: "government-strategy",
-        title: "政府策略",
-        description: "会影响收入结构、军事储备和后续发展方向。",
+        title: "市场调节",
+        description: "本回合一次性调节市场承接、售价或海外容量，统一消耗政府财政。",
         cards: strategyCards,
       },
       ...(governmentTechCards.length > 0

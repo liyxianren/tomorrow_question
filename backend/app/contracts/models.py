@@ -283,9 +283,16 @@ class Phase1ExternalAllocationPayload(TypedDict):
     quantity: int
 
 
+class Phase1ExternalCompetitionDeploymentPayload(TypedDict):
+    marketId: str
+    infantry: int
+    artillery: int
+
+
 class Phase1MarketPayload(TypedDict, total=False):
     domesticAllocation: int
     externalAllocations: list[Phase1ExternalAllocationPayload]
+    externalCompetitionDeployments: list[Phase1ExternalCompetitionDeploymentPayload]
 
 
 class MarketSubmissionPayload(TypedDict):

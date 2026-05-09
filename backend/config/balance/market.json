@@ -1,4 +1,11 @@
 {
+  "overseasCompetition": {
+    "rewardCapacityBonus": 8,
+    "rewardPriceBonus": 1,
+    "infantryPower": 1,
+    "artilleryPower": 2,
+    "minimumPower": 1
+  },
   "regionGoodsPremiums": {
     "europe": {
       "grain": 0, "cotton": 0, "tea": 1, "coal": 0, "minerals": 0,

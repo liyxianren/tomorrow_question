@@ -324,9 +324,16 @@ export interface Phase1ExternalAllocation {
   quantity: number;
 }
 
+export interface Phase1ExternalCompetitionDeployment {
+  marketId: string;
+  infantry: number;
+  artillery: number;
+}
+
 export interface Phase1MarketPayload {
   domesticAllocation: number;
   externalAllocations: Phase1ExternalAllocation[];
+  externalCompetitionDeployments?: Phase1ExternalCompetitionDeployment[];
 }
 
 export interface MarketSubmission {
@@ -399,6 +406,7 @@ export interface DecisionActionOption {
   militaryPointDelta?: number;
   ratioDelta?: Partial<IncomeAllocationRatio>;
   effects?: Record<string, number | Record<string, number>>;
+  isMarketRegulation?: boolean;
   lockedReason: string | null;
 }
 
@@ -425,6 +433,10 @@ export type RegionLockReason =
   | "diplomacy_not_established"
   | "route_blocked";
 
+export type OverseasCompetitionLockReason =
+  | RegionLockReason
+  | "no_army";
+
 export interface RegionAccessStatus {
   regionId: string;
   label: string;
@@ -432,6 +444,11 @@ export interface RegionAccessStatus {
   isAccessible: boolean;
   lockReason: RegionLockReason | null;
   isDiplomacyEstablished: boolean;
+  canCompete?: boolean;
+  competitionLockedReason?: OverseasCompetitionLockReason | null;
+  competitionRewardCapacityBonus?: number;
+  competitionRewardPriceBonus?: number;
+  competitionMinimumPower?: number;
   isColonized: boolean;
   controller: string | null;
   acceptedGoods: string[];
@@ -528,6 +545,8 @@ export interface DecisionPlayerPhaseWorkspace {
   countryCode: CountryCode;
   countryLabel: string;
   budgetPools: BudgetPools;
+  baseBudgetPools?: BudgetPools;
+  marketRegulationAllowance?: number;
   domesticMarketCapacity?: number;
   overseasMarketCapacity?: number;
   incomeAllocationRatio: IncomeAllocationRatio;
@@ -647,6 +666,14 @@ export interface MarketPlayerPhaseWorkspace {
   domesticMarketCapacity: number;
   overseasMarketCapacity: number;
   regionAccessStatus: RegionAccessStatus[];
+  overseasCompetition?: {
+    availableArmy: Record<string, number>;
+    rewardCapacityBonus: number;
+    rewardPriceBonus: number;
+    infantryPower: number;
+    artilleryPower: number;
+    minimumPower: number;
+  };
   phase1Economy?: Phase1EconomyWorkspace;
   phase1GoodsAvailable?: number;
 }

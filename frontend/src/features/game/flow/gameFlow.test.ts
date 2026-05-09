@@ -154,7 +154,7 @@ describe("createGameFlowState", () => {
           rankingWorkspace: createRankingWorkspace(),
           lastSettlementWorkspace: createSettlementWorkspace({
             phaseLabel: "市场出售",
-            headline: "市场出售阶段已经完成结算，国家收入已进入三池分账。",
+            headline: "市场出售阶段已经完成结算，国家收入已重新分配。",
           }),
         }),
         logs: [],
@@ -162,7 +162,7 @@ describe("createGameFlowState", () => {
         rankingWorkspace: createRankingWorkspace(),
         lastSettlementWorkspace: createSettlementWorkspace({
           phaseLabel: "市场出售",
-          headline: "市场出售阶段已经完成结算，国家收入已进入三池分账。",
+          headline: "市场出售阶段已经完成结算，国家收入已重新分配。",
         }),
       },
       canSubmitCurrentPhase: false,

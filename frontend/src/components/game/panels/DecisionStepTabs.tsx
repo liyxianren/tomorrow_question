@@ -32,7 +32,7 @@ function getDecisionTabLabel(step: DecisionStepId): string {
     case "factory":
       return "工厂决策";
     case "domestic":
-      return "国民消费";
+      return "市场预览";
     case "government":
       return "政府政策";
     case "military":

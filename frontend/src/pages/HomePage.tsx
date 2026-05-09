@@ -59,7 +59,7 @@ export function HomePage() {
           <div className="home-page__feature-list">
             <article className="home-page__feature-item">
                <h4>国家决策</h4>
-               <p>在工厂、国民消费、政府政策、军事和研究院中分配预算，为后续阶段排兵布阵。</p>
+               <p>在工厂、政府政策、市场预览、军事和研究院中分配预算，为后续阶段排兵布阵。</p>
             </article>
             <article className="home-page__feature-item">
                <h4>市场出售</h4>
@@ -67,7 +67,7 @@ export function HomePage() {
             </article>
             <article className="home-page__feature-item">
                <h4>财政结算</h4>
-               <p>结算阶段汇总收入并按比例分配进消费、投资、财政三池，滚动进入下一回合。</p>
+               <p>结算阶段汇总收入并按比例回流到民间购买力、工厂和政府财政，滚动进入下一回合。</p>
             </article>
           </div>
         </SectionCard>

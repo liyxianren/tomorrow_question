@@ -9,7 +9,7 @@ export type DecisionFlowState = {
   activeResearchBranch: string | null;
 };
 
-export const DECISION_STEP_ORDER: DecisionStepId[] = ["factory", "domestic", "government", "military", "research"];
+export const DECISION_STEP_ORDER: DecisionStepId[] = ["factory", "government", "domestic", "military", "research"];
 
 export type DecisionStepContentContext = {
   activeResearch?: string | null;
@@ -34,7 +34,7 @@ export function getDecisionStepLabel(step: DecisionStepId): string {
     case "factory":
       return "工厂决策";
     case "domestic":
-      return "国民消费";
+      return "市场预览";
     case "government":
       return "政府政策";
     case "military":
@@ -78,7 +78,7 @@ export function hasDecisionStepContent(
     );
   }
   if (step === "domestic") {
-    return draft.domesticMarketPlan.domesticMarketActions.length > 0;
+    return true;
   }
   if (step === "military") {
     return (
@@ -100,7 +100,7 @@ export function hasDecisionStepContent(
   }
   return (
     draft.governmentPlan.pointPurchases.some((purchase) => purchase.quantity > 0) ||
-    draft.governmentPlan.strategySelections.length > 0 ||
+    draft.governmentPlan.strategySelections.some((selection) => selection.actionId !== "expand_research") ||
     (draft.governmentPlan.adminPurchases ?? 0) > 0 ||
     (draft.reforms ?? []).length > 0 ||
     (draft.activatePolicies ?? []).length > 0 ||
@@ -222,7 +222,7 @@ export function clearDecisionStepDraft(
     ...draft,
     governmentPlan: {
       pointPurchases: [],
-      strategySelections: [],
+      strategySelections: draft.governmentPlan.strategySelections.filter((selection) => selection.actionId === "expand_research"),
       techResearch: draft.governmentPlan.techResearch,
       adminPurchases: 0,
     },
@@ -255,7 +255,7 @@ export function getDecisionStepCompletionSummary(
   }
 
   if (step === "domestic") {
-    return `已选动作 ${draft.domesticMarketPlan.domesticMarketActions.length} 项`;
+    return "市场预览";
   }
 
   if (step === "military") {
@@ -271,7 +271,7 @@ export function getDecisionStepCompletionSummary(
   }
 
   const purchases = draft.governmentPlan.pointPurchases.reduce((sum, item) => sum + item.quantity, 0);
-  const strategies = draft.governmentPlan.strategySelections.length;
+  const strategies = draft.governmentPlan.strategySelections.filter((selection) => selection.actionId !== "expand_research").length;
   const policies = (draft.activatePolicies ?? []).length + (draft.deactivatePolicies ?? []).length;
   const reforms = (draft.reforms ?? []).length;
   const ability = draft.abilitySelection ? "已启用" : "未启用";

@@ -5,6 +5,7 @@ from typing import Any
 
 from app.modules.balance_config import get_balance_config
 from app.modules.game_state.effects import apply_effects, get_talent_effect_total
+from app.modules.game_state.budgeting import market_regulation_allowance
 from app.modules.game_state.factory_economy import (
     action_locked_reason,
     current_route_capacity,
@@ -352,10 +353,21 @@ def _apply_domestic_market_plan(player_state, domestic_plan: dict[str, Any], bal
     return spent
 
 
+def _resolve_government_strategy_action(balance, action_id: str):
+    market_action = balance.decision_actions.domestic_market_actions.get(action_id)
+    if market_action is not None:
+        return market_action, True
+    government_action = balance.decision_actions.government_actions.get(action_id)
+    if government_action is None:
+        return None, False
+    return government_action, False
+
+
 def _apply_government_plan(player_state, government_plan: dict[str, Any], balance) -> int:
     """Phase-2 government plan: spend fiscal on admin capacity, points, and strategy actions."""
     spent = 0
     remaining_budget = int(player_state.budget_pools.get("governmentFiscal", 0))
+    remaining_market_allowance = market_regulation_allowance(player_state)
     admin_cost = max(1, int(balance.politics.administration_cost))
 
     raw_admin_purchase = government_plan.get("adminPurchases")
@@ -391,13 +403,19 @@ def _apply_government_plan(player_state, government_plan: dict[str, Any], balanc
     from app.modules.game_state.effects import apply_effects
     for selection in government_plan.get("strategySelections") or []:
         action_id = str(selection.get("actionId") or "")
-        action = balance.decision_actions.government_actions.get(action_id)
+        action, is_market_regulation = _resolve_government_strategy_action(balance, action_id)
         if action is None:
             continue
         cost = int(action.budget_pool_cost)
-        if cost > 0 and spent + cost > remaining_budget:
-            continue
-        if cost > 0:
+        if is_market_regulation:
+            fiscal_cost = max(0, cost - remaining_market_allowance)
+            if fiscal_cost > 0 and spent + fiscal_cost > remaining_budget:
+                continue
+            remaining_market_allowance = max(0, remaining_market_allowance - cost)
+            spent += fiscal_cost
+        elif cost > 0:
+            if spent + cost > remaining_budget:
+                continue
             spent += cost
         apply_effects(player_state, action.effects)
         for pool_key, delta in action.ratio_delta.items():

@@ -453,6 +453,8 @@ def _phase_workspace_is_complete(snapshot: GameSnapshot) -> bool:
             "activeEvents",
             "techTree",
             "domesticMarketActions",
+            "baseBudgetPools",
+            "marketRegulationAllowance",
             "governmentActions",
             "militaryWorkspace",
             "nationalAbility",

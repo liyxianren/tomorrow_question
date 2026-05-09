@@ -86,8 +86,18 @@ class ResearchChainConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class OverseasCompetitionConfig:
+    reward_capacity_bonus: int
+    reward_price_bonus: int
+    infantry_power: int
+    artillery_power: int
+    minimum_power: int
+
+
+@dataclass(frozen=True, slots=True)
 class MarketBalanceConfig:
     region_goods_premiums: dict[str, dict[str, int]]
+    overseas_competition: OverseasCompetitionConfig
 
 
 @dataclass(frozen=True, slots=True)

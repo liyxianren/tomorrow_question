@@ -8,7 +8,7 @@ import {
 } from "../../../features/game/decisionShared";
 import "./DecisionResourceBar.css";
 
-type ChipKey = "domestic" | "factory" | "government" | "military";
+type ChipKey = "factory" | "government" | "military";
 
 type DecisionResourceBarProps = {
   workspace: DecisionPlayerPhaseWorkspace;
@@ -28,12 +28,6 @@ export function DecisionResourceBar({ workspace, draft, activeStep }: DecisionRe
   return (
     <div className="drb" data-testid="decision-resource-bar">
       <ResourceChip
-        label="消费池"
-        total={workspace.budgetPools.domesticMarket}
-        spent={spendSummary.domesticSpend}
-        active={activeChip === "domestic"}
-      />
-      <ResourceChip
         label="工厂预算"
         total={workspace.budgetPools.factory}
         spent={spendSummary.factorySpend}
@@ -41,10 +35,10 @@ export function DecisionResourceBar({ workspace, draft, activeStep }: DecisionRe
       />
       <ResourceChip
         label="政府财政"
-        total={workspace.budgetPools.governmentFiscal}
-        spent={spendSummary.governmentSpend}
+        total={governmentBreakdown.effectiveGovernmentBudget}
+        spent={governmentBreakdown.total}
         active={activeChip === "government"}
-        breakdown={`政务 ${governmentBreakdown.government} · 外交/解锁 ${governmentBreakdown.military}`}
+        breakdown={`基础 ${governmentBreakdown.baseGovernmentRemaining}/${governmentBreakdown.baseGovernmentBudget} · 市场调节 ${Math.max(0, governmentBreakdown.marketRegulationAllowance - governmentBreakdown.marketRegulation)}/${governmentBreakdown.marketRegulationAllowance}`}
       />
       <ResourceChip
         label="军事点"
@@ -104,8 +98,6 @@ function mapStepToChip(step: DecisionStepId): ChipKey | null {
   switch (step) {
     case "factory":
       return "factory";
-    case "domestic":
-      return "domestic";
     case "government":
       return "government";
     case "military":

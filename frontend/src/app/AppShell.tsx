@@ -66,7 +66,7 @@ function resolveShellContent(pathname: string): BrandShellContent | TaskShellCon
   if (pathname.startsWith("/design/decision-card-demo")) {
     return {
       kind: "task",
-      description: "对比不同卡片式决策交互，让工厂、议会厅和市民广场的填写方式更直观。",
+      description: "对比不同卡片式决策交互，让工厂、议会厅和市场预览的职责更直观。",
       eyebrow: "设计验证",
       title: "决策卡片 DEMO",
     };

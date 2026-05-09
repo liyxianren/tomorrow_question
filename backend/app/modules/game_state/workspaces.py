@@ -12,6 +12,10 @@ from app.modules.game_state.market_access import (
     resolve_domestic_market_capacity,
     resolve_overseas_market_capacity,
 )
+from app.modules.game_state.budgeting import (
+    decision_phase_budget_pools,
+    market_regulation_allowance,
+)
 from app.modules.rules.route_utils import check_route_accessible
 from app.modules.rules.common import POINT_PURCHASE_COSTS
 from app.modules.rules.phase1_economy import (
@@ -168,16 +172,16 @@ def build_phase_settlement_workspace(
 def build_decision_player_workspace(snapshot: GameSnapshot, player: PlayerState) -> dict[str, Any]:
     balance = get_balance_config()
     player = _player_with_active_event_preview(snapshot, player)
-    domestic_actions = [
-        {
-            "actionId": action.action_id,
-            "label": action.label,
-            "cost": action.budget_pool_cost,
-            "description": _build_action_description(action.description, action.effects),
-            "lockedReason": action_locked_reason(player, action.action_id),
-            "effects": deepcopy(action.effects),
-        }
-        for action in balance.decision_actions.domestic_market_actions.values()
+    market_action_ids = set(balance.decision_actions.domestic_market_actions)
+    # Domestic-market actions are now exposed as government one-shot market
+    # regulation strategies. Keep the legacy workspace field empty so old
+    # payloads remain valid without teaching the UI a second action entry.
+    domestic_actions: list[dict[str, Any]] = []
+    market_regulation_actions = list(balance.decision_actions.domestic_market_actions.values())
+    research_facility_action = balance.decision_actions.government_actions.get("expand_research")
+    government_workspace_actions = [
+        *market_regulation_actions,
+        *([research_facility_action] if research_facility_action is not None else []),
     ]
     government_strategies = [
         {
@@ -188,8 +192,9 @@ def build_decision_player_workspace(snapshot: GameSnapshot, player: PlayerState)
             "lockedReason": action_locked_reason(player, action.action_id),
             "effects": deepcopy(action.effects),
             "ratioDelta": deepcopy(action.ratio_delta),
+            "isMarketRegulation": action.action_id in market_action_ids,
         }
-        for action in balance.decision_actions.government_actions.values()
+        for action in government_workspace_actions
     ]
     factory_actions = [
         {
@@ -206,7 +211,9 @@ def build_decision_player_workspace(snapshot: GameSnapshot, player: PlayerState)
     return {
         "countryCode": player.country.value,
         "countryLabel": COUNTRY_LABELS.get(player.country.value, player.country.value),
-        "budgetPools": deepcopy(player.budget_pools),
+        "budgetPools": decision_phase_budget_pools(player),
+        "baseBudgetPools": deepcopy(player.budget_pools),
+        "marketRegulationAllowance": market_regulation_allowance(player),
         "domesticMarketCapacity": resolve_domestic_market_capacity(player),
         "overseasMarketCapacity": resolve_overseas_market_capacity(player),
         "incomeAllocationRatio": deepcopy(player.income_allocation_ratio),
@@ -317,6 +324,7 @@ def _decision_phase1_economy(snapshot: GameSnapshot, player: PlayerState) -> dic
 def build_market_player_workspace(snapshot: GameSnapshot, player: PlayerState) -> dict[str, Any]:
     domestic_capacity = resolve_domestic_market_capacity(player)
     overseas_capacity = resolve_overseas_market_capacity(player)
+    competition = get_balance_config().market.overseas_competition
     return {
         "countryCode": player.country.value,
         "countryLabel": COUNTRY_LABELS.get(player.country.value, player.country.value),
@@ -337,6 +345,14 @@ def build_market_player_workspace(snapshot: GameSnapshot, player: PlayerState) -
         "domesticMarketCapacity": domestic_capacity,
         "overseasMarketCapacity": overseas_capacity,
         "regionAccessStatus": _build_region_access_status(snapshot, player),
+        "overseasCompetition": {
+            "availableArmy": deepcopy(player.army),
+            "rewardCapacityBonus": int(competition.reward_capacity_bonus),
+            "rewardPriceBonus": int(competition.reward_price_bonus),
+            "infantryPower": int(competition.infantry_power),
+            "artilleryPower": int(competition.artillery_power),
+            "minimumPower": int(competition.minimum_power),
+        },
         "phase1Economy": _market_phase1_economy(snapshot, player),
     }
 
@@ -689,6 +705,11 @@ def _build_research_workspace(snapshot: GameSnapshot, player: PlayerState) -> di
 
 def _build_region_access_status(snapshot: GameSnapshot, player: PlayerState) -> list[dict[str, Any]]:
     balance = get_balance_config()
+    competition = balance.market.overseas_competition
+    army_power = (
+        int(player.army.get("infantry", 0)) * int(competition.infantry_power)
+        + int(player.army.get("artillery", 0)) * int(competition.artillery_power)
+    )
     statuses: list[dict[str, Any]] = []
     for region in snapshot.region_states:
         route_blocked = not check_route_accessible(
@@ -700,6 +721,14 @@ def _build_region_access_status(snapshot: GameSnapshot, player: PlayerState) -> 
             established_diplomacy=player.established_diplomacy,
             route_blocked=route_blocked,
         )
+        if region.region_id not in player.established_diplomacy:
+            competition_lock_reason = "diplomacy_not_established"
+        elif route_blocked:
+            competition_lock_reason = "route_blocked"
+        elif army_power < int(competition.minimum_power):
+            competition_lock_reason = "no_army"
+        else:
+            competition_lock_reason = None
         statuses.append(
             {
                 "regionId": region.region_id,
@@ -708,6 +737,11 @@ def _build_region_access_status(snapshot: GameSnapshot, player: PlayerState) -> 
                 "isAccessible": lock_reason is None,
                 "lockReason": lock_reason,
                 "isDiplomacyEstablished": region.region_id in player.established_diplomacy,
+                "canCompete": competition_lock_reason is None,
+                "competitionLockedReason": competition_lock_reason,
+                "competitionRewardCapacityBonus": int(competition.reward_capacity_bonus),
+                "competitionRewardPriceBonus": int(competition.reward_price_bonus),
+                "competitionMinimumPower": int(competition.minimum_power),
                 "acceptedGoods": list(region.resource_limit),
                 "isColonized": region.controller is not None,
                 "controller": region.controller,

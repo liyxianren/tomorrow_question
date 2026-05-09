@@ -120,4 +120,45 @@ describe("http service", () => {
     ]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("times out a hung availability leader and releases queued requests", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => (
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          reject(new DOMException("Aborted", "AbortError"));
+        });
+      })
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { apiRequest } = await loadHttpModule();
+    const first = apiRequest("/api/v1/lobby/waiting-rooms", { sessionId: null });
+    const second = apiRequest("/api/v1/rooms", {
+      method: "POST",
+      body: { nickname: "tester" },
+      sessionId: null,
+    });
+    const settledRequests = Promise.allSettled([first, second]);
+
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(await settledRequests).toEqual([
+      expect.objectContaining({
+        status: "rejected",
+        reason: expect.objectContaining({
+          code: "BACKEND_UNAVAILABLE",
+          status: 0,
+        }),
+      }),
+      expect.objectContaining({
+        status: "rejected",
+        reason: expect.objectContaining({
+          code: "BACKEND_UNAVAILABLE",
+          status: 0,
+        }),
+      }),
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });

@@ -165,12 +165,13 @@ class GameStateWorkspaceTests(unittest.TestCase):
         self.assertIn("pointPurchaseCosts", gov)
         self.assertGreater(len(gov["strategies"]), 0, "should expose at least one strategy")
 
-        trade_agreement = next((s for s in gov["strategies"] if s["actionId"] == "trade_agreement"), None)
-        self.assertIsNotNone(trade_agreement, "trade_agreement should be exposed")
-        self.assertEqual(trade_agreement["label"], "贸易协定")
-        self.assertEqual(trade_agreement["cost"], 6)
-        self.assertIn("description", trade_agreement)
-        self.assertIn("效果", trade_agreement["description"], "description should include effect summary")
+        market_fair = next((s for s in gov["strategies"] if s["actionId"] == "market_fair"), None)
+        self.assertIsNotNone(market_fair, "market_fair should be exposed as a government market-regulation strategy")
+        self.assertEqual(market_fair["label"], "博览会")
+        self.assertEqual(market_fair["cost"], 5)
+        self.assertTrue(market_fair["isMarketRegulation"])
+        self.assertIn("description", market_fair)
+        self.assertIn("效果", market_fair["description"], "description should include effect summary")
 
         self.assertEqual(gov["pointPurchaseCosts"], {"tech": 2, "military": 6})
 
@@ -193,7 +194,9 @@ class GameStateWorkspaceTests(unittest.TestCase):
 
         workspace = build_decision_player_workspace(snapshot, britain)
 
-        self.assertEqual(workspace["budgetPools"]["governmentFiscal"], 8)
+        self.assertEqual(workspace["baseBudgetPools"]["governmentFiscal"], 8)
+        self.assertEqual(workspace["marketRegulationAllowance"], 24)
+        self.assertEqual(workspace["budgetPools"]["governmentFiscal"], 32)
         self.assertEqual(workspace["domesticMarketCapacity"], 10)
         self.assertEqual(workspace["militaryWorkspace"]["militaryPoints"], 1)
         self.assertEqual(britain.budget_pools["governmentFiscal"], 10, "workspace preview must not mutate snapshot state")

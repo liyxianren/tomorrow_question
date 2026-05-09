@@ -12,7 +12,7 @@
 .decision-command-deck__tab {
   min-height: 42px;
   padding: 0 16px;
-  border-radius: 999px;
+  border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.04);
   color: rgba(255, 245, 231, 0.78);
@@ -25,13 +25,15 @@
 
 .decision-command-deck__tab:hover {
   transform: translateY(-2px);
-  border-color: rgba(212, 175, 55, 0.34);
+  border-color: rgba(127, 180, 216, 0.36);
+  background: rgba(127, 180, 216, 0.08);
 }
 
 .decision-command-deck__tab--active {
-  border-color: rgba(212, 175, 55, 0.34);
-  background: rgba(212, 175, 55, 0.14);
-  color: #fff6e7;
+  border-color: rgba(232, 200, 120, 0.34);
+  background: rgba(232, 200, 120, 0.1);
+  color: var(--game-text-primary, #f4efe4);
+  box-shadow: inset 0 -2px 0 rgba(232, 200, 120, 0.44);
 }
 
 .decision-command-deck__hero {
@@ -39,18 +41,18 @@
   gap: 16px;
   grid-template-columns: minmax(0, 1fr) minmax(180px, auto);
   padding: 22px 24px;
-  border-radius: 28px;
-  border: 1px solid rgba(212, 175, 55, 0.16);
+  border-radius: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.1);
   background:
-    radial-gradient(circle at top right, rgba(212, 175, 55, 0.08), transparent 42%),
-    linear-gradient(180deg, rgba(17, 21, 30, 0.88) 0%, rgba(10, 13, 18, 0.94) 100%);
+    linear-gradient(135deg, rgba(127, 180, 216, 0.08), transparent 48%),
+    linear-gradient(180deg, rgba(18, 27, 35, 0.88) 0%, rgba(8, 12, 17, 0.95) 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .decision-command-deck__hero h3,
 .decision-command-deck__section-header h4 {
   margin: 0;
-  color: #fff4e5;
+  color: var(--game-text-primary, #f4efe4);
 }
 
 .decision-command-deck__hero p,
@@ -61,7 +63,7 @@
 
 .decision-command-deck__eyebrow {
   margin-bottom: 6px;
-  color: rgba(255, 217, 145, 0.76);
+  color: var(--game-text-feedback, #b8dcf4);
   font-size: 0.78rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -74,8 +76,8 @@
   justify-items: end;
   min-width: 180px;
   padding: 18px 20px;
-  border-radius: 22px;
-  background: rgba(0, 0, 0, 0.24);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.18);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -85,7 +87,7 @@
 }
 
 .decision-command-deck__budget strong {
-  color: #ffe49b;
+  color: var(--game-text-value, #e8c878);
   font-size: 2rem;
   line-height: 1;
 }
@@ -101,7 +103,7 @@
   align-items: center;
   min-height: 34px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.06);
   color: rgba(255, 245, 231, 0.72);
@@ -117,7 +119,7 @@
   display: grid;
   gap: 16px;
   padding: 20px;
-  border-radius: 26px;
+  border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(255, 255, 255, 0.03);
 }
@@ -130,7 +132,7 @@
 }
 
 .decision-command-deck__section-header span {
-  color: rgba(255, 217, 145, 0.72);
+  color: var(--game-text-feedback, #b8dcf4);
   font-size: 0.82rem;
   letter-spacing: 0.08em;
 }
@@ -145,14 +147,14 @@
   display: grid;
   gap: 14px;
   padding: 18px;
-  border-radius: 22px;
+  border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: linear-gradient(180deg, rgba(14, 18, 26, 0.84) 0%, rgba(8, 11, 16, 0.96) 100%);
 }
 
 .decision-command-deck-card--accent {
-  border-color: rgba(212, 175, 55, 0.32);
-  box-shadow: inset 0 1px 0 rgba(212, 175, 55, 0.08), 0 12px 24px rgba(0, 0, 0, 0.18);
+  border-color: rgba(127, 180, 216, 0.3);
+  box-shadow: inset 0 1px 0 rgba(127, 180, 216, 0.1), 0 12px 24px rgba(0, 0, 0, 0.18);
 }
 
 .decision-command-deck-card--locked {
@@ -171,7 +173,7 @@
 .decision-command-deck-card__header h5 {
   margin: 0;
   font-size: 1.08rem;
-  color: #fff6eb;
+  color: var(--game-text-primary, #f4efe4);
 }
 
 .decision-command-deck-card__subtitle,
@@ -189,9 +191,9 @@
   align-items: center;
   min-height: 28px;
   padding: 0 10px;
-  border-radius: 999px;
-  background: rgba(212, 175, 55, 0.14);
-  color: #ffe5ab;
+  border-radius: 8px;
+  background: rgba(127, 180, 216, 0.12);
+  color: var(--game-text-feedback, #b8dcf4);
   font-size: 0.74rem;
 }
 
@@ -206,7 +208,7 @@
   align-items: center;
   min-height: 30px;
   padding: 0 10px;
-  border-radius: 999px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.05);
   color: rgba(255, 245, 231, 0.72);
   font-size: 0.76rem;
@@ -223,20 +225,20 @@
   display: grid;
   gap: 4px;
   padding: 10px 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(212, 175, 55, 0.12);
+  border-radius: 10px;
+  border: 1px solid rgba(226, 232, 240, 0.08);
   background: rgba(0, 0, 0, 0.22);
 }
 
 .decision-command-deck-card__metric dd {
   margin: 0;
-  color: #fff4e5;
+  color: var(--game-text-primary, #f4efe4);
   font-size: 1.05rem;
   font-weight: 600;
 }
 
 .decision-command-deck-card__metric--accent dd {
-  color: #ffe7a4;
+  color: var(--game-text-feedback, #b8dcf4);
 }
 
 .decision-command-deck-card__metric--warn dd {
@@ -254,17 +256,17 @@
 .decision-command-deck-card__stepper-btn {
   width: 48px;
   height: 48px;
-  border-radius: 12px;
-  border: 1px solid rgba(212, 175, 55, 0.25);
-  background: rgba(82, 64, 27, 0.3);
+  border-radius: 10px;
+  border: 1px solid rgba(127, 180, 216, 0.24);
+  background: rgba(127, 180, 216, 0.1);
   color: var(--game-text-primary, #fff5e7);
   font-size: 22px;
   font-weight: 700;
 }
 
 .decision-command-deck-card__stepper-btn:hover:not(:disabled) {
-  background: rgba(82, 64, 27, 0.55);
-  border-color: rgba(212, 175, 55, 0.45);
+  background: rgba(127, 180, 216, 0.18);
+  border-color: rgba(127, 180, 216, 0.42);
 }
 
 .decision-command-deck-card__stepper-btn:disabled {
@@ -275,7 +277,7 @@
 .decision-command-deck-card__stepper-value {
   min-width: 84px;
   text-align: center;
-  color: var(--game-text-value, #fceb9c);
+  color: var(--game-text-value, #e8c878);
   font-family: var(--font-serif, Georgia, serif);
   font-size: 24px;
   font-weight: 700;
@@ -290,17 +292,17 @@
 .decision-command-deck-card__confirm-btn {
   width: 100%;
   padding: 12px 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(212, 175, 55, 0.3);
-  background: rgba(82, 64, 27, 0.25);
-  color: var(--game-text-accent, rgba(255, 217, 145, 0.84));
+  border-radius: 10px;
+  border: 1px solid rgba(127, 180, 216, 0.22);
+  background: rgba(127, 180, 216, 0.1);
+  color: var(--game-text-feedback, #b8dcf4);
   font-size: 14px;
   font-weight: 600;
 }
 
 .decision-command-deck-card__confirm-btn:hover:not(:disabled) {
-  background: rgba(82, 64, 27, 0.5);
-  border-color: rgba(212, 175, 55, 0.5);
+  background: rgba(127, 180, 216, 0.18);
+  border-color: rgba(127, 180, 216, 0.42);
 }
 
 .decision-command-deck-card__confirm-btn--active {
@@ -340,7 +342,7 @@
   display: grid;
   gap: 10px;
   padding: 12px;
-  border-radius: 16px;
+  border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -350,7 +352,7 @@
 
 .decision-command-deck-card__locked-reason {
   padding: 10px 12px;
-  border-radius: 14px;
+  border-radius: 10px;
   border: 1px solid rgba(255, 178, 141, 0.18);
   background: rgba(101, 33, 26, 0.18);
   color: #ffc9b0;
@@ -361,7 +363,7 @@
   gap: 12px;
   align-items: center;
   padding: 18px 20px;
-  border-radius: 24px;
+  border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(255, 255, 255, 0.03);
 }

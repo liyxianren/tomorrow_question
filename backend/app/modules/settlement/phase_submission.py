@@ -6,6 +6,7 @@ from typing import Any
 
 from app.contracts.enums import ErrorCode, GamePhase, PlayerSubmissionStatus
 from app.modules.balance_config import get_balance_config
+from app.modules.game_state.budgeting import calculate_market_regulation_allowance
 from app.modules.game_state.factory_economy import (
     action_locked_reason,
     current_route_capacity,
@@ -25,6 +26,7 @@ from app.modules.rules.common import (
     default_decision_submission_payload,
     default_market_submission_payload,
 )
+from app.modules.rules.route_utils import check_route_accessible
 
 
 PHASE1_GOODS_KEY = "phase1_goods"
@@ -236,6 +238,7 @@ def _normalize_submission_payload(*, phase: GamePhase, payload: dict[str, object
 
 
 def _validate_market_payload(*, snapshot: GameSnapshot, player_state, payload: dict[str, Any]) -> None:
+    balance = get_balance_config()
     for order in payload.get("saleOrders", []):
         if str(order.get("market") or "") != "overseas":
             continue
@@ -265,6 +268,12 @@ def _validate_market_payload(*, snapshot: GameSnapshot, player_state, payload: d
             )
 
     phase1_market = payload.get("phase1Market") or {}
+    _validate_external_competition_deployments(
+        snapshot=snapshot,
+        player_state=player_state,
+        phase1_market=phase1_market,
+        balance=balance,
+    )
     domestic_allocation_raw = phase1_market.get("domesticAllocation")
     if isinstance(domestic_allocation_raw, (int, float)) and not isinstance(domestic_allocation_raw, bool):
         domestic_allocation = max(0, int(domestic_allocation_raw))
@@ -288,6 +297,98 @@ def _validate_market_payload(*, snapshot: GameSnapshot, player_state, payload: d
                     ErrorCode.INVALID_SUBMISSION,
                     f"Domestic market allocation ({domestic_allocation}) exceeds domestic market capacity ({domestic_capacity}).",
                 )
+
+
+def _validate_external_competition_deployments(
+    *,
+    snapshot: GameSnapshot,
+    player_state,
+    phase1_market: dict[str, Any],
+    balance,
+) -> None:
+    raw_deployments = phase1_market.get("externalCompetitionDeployments", [])
+    if raw_deployments is None:
+        return
+    if not isinstance(raw_deployments, list):
+        raise PhaseSubmissionError(
+            ErrorCode.INVALID_SUBMISSION,
+            "Market submission.phase1Market.externalCompetitionDeployments must be a list.",
+        )
+
+    regions_by_id = {region.region_id: region for region in snapshot.region_states}
+    seen_regions: set[str] = set()
+    total_infantry = 0
+    total_artillery = 0
+    minimum_power = int(balance.market.overseas_competition.minimum_power)
+    infantry_power = int(balance.market.overseas_competition.infantry_power)
+    artillery_power = int(balance.market.overseas_competition.artillery_power)
+
+    for index, raw_deployment in enumerate(raw_deployments):
+        if not isinstance(raw_deployment, dict):
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Market submission.phase1Market.externalCompetitionDeployments[{index}] must be an object.",
+            )
+        region_id = str(raw_deployment.get("marketId") or "").strip()
+        if not region_id:
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Market submission.phase1Market.externalCompetitionDeployments[{index}].marketId must be a non-empty string.",
+            )
+        if region_id in seen_regions:
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Overseas competition region {region_id} is duplicated in this submission.",
+            )
+        seen_regions.add(region_id)
+
+        region_state = regions_by_id.get(region_id)
+        if region_state is None:
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Overseas competition region {region_id} is invalid.",
+            )
+        if region_id not in player_state.established_diplomacy:
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Overseas competition region {region_id} requires established diplomacy.",
+            )
+        if not check_route_accessible(player_state.country.value, region_id, snapshot, balance):
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Overseas competition region {region_id} route is blocked.",
+            )
+
+        try:
+            infantry = max(0, int(raw_deployment.get("infantry", 0) or 0))
+            artillery = max(0, int(raw_deployment.get("artillery", 0) or 0))
+        except (TypeError, ValueError) as exc:
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Overseas competition region {region_id} deployment must use integer army counts.",
+            ) from exc
+        power = infantry * infantry_power + artillery * artillery_power
+        if power < minimum_power:
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Overseas competition region {region_id} deployment power is below minimum.",
+            )
+        total_infantry += infantry
+        total_artillery += artillery
+
+    available_infantry = int(player_state.army.get("infantry", 0))
+    available_artillery = int(player_state.army.get("artillery", 0))
+    if total_infantry > available_infantry or total_artillery > available_artillery:
+        raise PhaseSubmissionError(
+            ErrorCode.INVALID_SUBMISSION,
+            "Overseas competition deployment exceeds available army.",
+            details={
+                "reason": (
+                    f"海外争夺兵力不足：计划步兵 {total_infantry}/{available_infantry}，"
+                    f"炮兵 {total_artillery}/{available_artillery}"
+                ),
+            },
+        )
 
 
 def _normalize_decision_submission(payload: dict[str, object]) -> dict[str, Any]:
@@ -452,9 +553,100 @@ def _normalize_market_submission(payload: dict[str, object]) -> dict[str, Any]:
 
     phase1_market = payload.get("phase1Market")
     if isinstance(phase1_market, dict):
+        normalized_phase1_market: dict[str, Any] = {}
         raw_domestic = phase1_market.get("domesticAllocation")
         if isinstance(raw_domestic, (int, float)) and not isinstance(raw_domestic, bool) and raw_domestic >= 0:
-            normalized["phase1Market"] = phase1_market
+            normalized_phase1_market["domesticAllocation"] = max(0, int(raw_domestic))
+        has_domestic_allocation = "domesticAllocation" in normalized_phase1_market
+        has_external_allocations = "externalAllocations" in phase1_market
+        external_allocations = _normalize_phase1_external_allocations(
+            phase1_market.get("externalAllocations")
+        )
+        if external_allocations or (has_domestic_allocation and has_external_allocations):
+            normalized_phase1_market["externalAllocations"] = external_allocations
+        has_external_competition_deployments = "externalCompetitionDeployments" in phase1_market
+        external_competition_deployments = _normalize_external_competition_deployments(
+            phase1_market.get("externalCompetitionDeployments")
+        )
+        if external_competition_deployments or (
+            has_domestic_allocation and has_external_competition_deployments
+        ):
+            normalized_phase1_market["externalCompetitionDeployments"] = external_competition_deployments
+        if normalized_phase1_market:
+            normalized["phase1Market"] = normalized_phase1_market
+    return normalized
+
+
+def _normalize_phase1_external_allocations(value: object) -> list[dict[str, int | str]]:
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise PhaseSubmissionError(
+            ErrorCode.INVALID_SUBMISSION,
+            "Market submission.phase1Market.externalAllocations must be a list.",
+        )
+    normalized: list[dict[str, int | str]] = []
+    for index, raw_item in enumerate(value):
+        if not isinstance(raw_item, dict):
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Market submission.phase1Market.externalAllocations[{index}] must be an object.",
+            )
+        market_id = raw_item.get("marketId")
+        if not isinstance(market_id, str) or not market_id.strip():
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Market submission.phase1Market.externalAllocations[{index}].marketId must be a non-empty string.",
+            )
+        try:
+            quantity = max(0, int(raw_item.get("quantity", 0) or 0))
+        except (TypeError, ValueError) as exc:
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Market submission.phase1Market.externalAllocations[{index}].quantity must be an integer.",
+            ) from exc
+        if quantity > 0:
+            normalized.append({"marketId": market_id.strip(), "quantity": quantity})
+    return normalized
+
+
+def _normalize_external_competition_deployments(value: object) -> list[dict[str, int | str]]:
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise PhaseSubmissionError(
+            ErrorCode.INVALID_SUBMISSION,
+            "Market submission.phase1Market.externalCompetitionDeployments must be a list.",
+        )
+    normalized: list[dict[str, int | str]] = []
+    for index, raw_item in enumerate(value):
+        if not isinstance(raw_item, dict):
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Market submission.phase1Market.externalCompetitionDeployments[{index}] must be an object.",
+            )
+        market_id = raw_item.get("marketId")
+        if not isinstance(market_id, str) or not market_id.strip():
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Market submission.phase1Market.externalCompetitionDeployments[{index}].marketId must be a non-empty string.",
+            )
+        try:
+            infantry = max(0, int(raw_item.get("infantry", 0) or 0))
+            artillery = max(0, int(raw_item.get("artillery", 0) or 0))
+        except (TypeError, ValueError) as exc:
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Market submission.phase1Market.externalCompetitionDeployments[{index}] must use integer army counts.",
+            ) from exc
+        if infantry > 0 or artillery > 0:
+            normalized.append(
+                {
+                    "marketId": market_id.strip(),
+                    "infantry": infantry,
+                    "artillery": artillery,
+                }
+            )
     return normalized
 
 
@@ -792,7 +984,8 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
             details={"reason": f"国民消费预算超支：计划 {domestic_spend} > 可用 {domestic_budget}"},
         )
 
-    government_spend = 0
+    core_government_spend = 0
+    market_regulation_spend = 0
     admin_cost = max(1, int(balance.politics.administration_cost))
 
     raw_admin_purchase = payload.get("governmentPlan", {}).get("adminPurchases")
@@ -800,21 +993,26 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
         admin_quantity = max(0, int(raw_admin_purchase or 0))
     except (TypeError, ValueError):
         admin_quantity = 0
-    government_spend += admin_quantity * admin_cost
+    core_government_spend += admin_quantity * admin_cost
 
     point_costs = POINT_PURCHASE_COSTS
     for purchase in payload.get("governmentPlan", {}).get("pointPurchases", []):
         point_type = str(purchase.get("pointType") or "")
         if point_type not in point_costs:
             continue
-        government_spend += max(0, int(purchase.get("quantity", 0))) * point_costs[point_type]
+        core_government_spend += max(0, int(purchase.get("quantity", 0))) * point_costs[point_type]
 
-    # Validate strategy selections (government actions) budget
+    # Market-regulation strategies use a one-turn allowance derived from
+    # domesticMarket first; only overflow spends base government fiscal.
     for selection in payload.get("governmentPlan", {}).get("strategySelections", []):
         action_id = str(selection.get("actionId") or "")
+        market_action = balance.decision_actions.domestic_market_actions.get(action_id)
+        if market_action is not None:
+            market_regulation_spend += int(market_action.budget_pool_cost)
+            continue
         action = balance.decision_actions.government_actions.get(action_id)
         if action is not None:
-            government_spend += int(action.budget_pool_cost)
+            core_government_spend += int(action.budget_pool_cost)
 
     # Validate activatePolicies budget cost
     for raw_id in payload.get("activatePolicies") or []:
@@ -826,7 +1024,7 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
             continue
         if policy_id in player_state.active_policies:
             continue  # already active, no cost
-        government_spend += int(policy.budget_cost)
+        core_government_spend += int(policy.budget_cost)
 
     military_plan_spend = 0
     military_point_spend = 0
@@ -943,14 +1141,17 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
             },
         )
 
-    if government_spend + military_plan_spend > government_budget:
+    market_allowance = calculate_market_regulation_allowance(max(0, domestic_budget - domestic_spend))
+    market_regulation_fiscal_overflow = max(0, market_regulation_spend - market_allowance)
+    fiscal_spend = core_government_spend + market_regulation_fiscal_overflow + military_plan_spend
+    if fiscal_spend > government_budget:
         raise PhaseSubmissionError(
             ErrorCode.INVALID_SUBMISSION,
             "Government fiscal budget exceeded for the submitted plan.",
             details={
                 "reason": (
-                    f"政府财政预算超支：计划 {government_spend + military_plan_spend} > "
-                    f"可用 {government_budget}"
+                    f"政府财政预算超支：计划 {fiscal_spend} > "
+                    f"可用 {government_budget}（市场调节额度 {market_allowance}）"
                 ),
             },
         )

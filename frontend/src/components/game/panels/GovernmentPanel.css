@@ -3,7 +3,7 @@
 .government-panel {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .government-panel__header {
@@ -22,6 +22,19 @@
 .government-panel__budget {
   font-size: 14px;
   color: var(--game-text-value, #fceb9c);
+}
+
+.government-panel__budget-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.government-panel__budget-detail {
+  color: var(--game-text-muted, rgba(255, 255, 255, 0.52));
+  font-size: 11px;
+  line-height: 1.2;
 }
 
 /* ── Stats Bar ── */
@@ -110,7 +123,7 @@
 .government-actions {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .government-stat--critical {
@@ -125,16 +138,136 @@
   color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
 }
 
+/* ── Market Preview ── */
+
+.government-market-section {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(127, 180, 216, 0.18);
+  background: linear-gradient(180deg, rgba(20, 35, 46, 0.62), rgba(12, 17, 24, 0.78));
+}
+
+.government-market-section__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.government-market-section__summary {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(127, 180, 216, 0.2);
+  background: rgba(127, 180, 216, 0.08);
+  color: var(--game-text-feedback, #b8dcf4);
+  font-size: 12px;
+}
+
+.government-actions--market {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.government-market-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(127, 180, 216, 0.18);
+  background: rgba(10, 16, 23, 0.46);
+}
+
+.government-market-preview__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.government-market-preview__heading div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.government-market-preview__heading strong {
+  color: var(--game-text-primary, #fff5e7);
+  font-size: 13px;
+}
+
+.government-market-preview__heading span,
+.government-market-preview__metric small,
+.government-market-preview__effects {
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.64));
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.government-market-preview__heading .government-market-preview__status {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(121, 201, 154, 0.1);
+  color: #baf0d0;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.government-market-preview__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.government-market-preview__metric {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  min-height: 78px;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.government-market-preview__metric span {
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.66));
+  font-size: 11px;
+}
+
+.government-market-preview__metric strong {
+  color: var(--game-text-feedback, #b8dcf4);
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+.government-market-preview__effects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.government-market-preview__effects span {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(127, 180, 216, 0.1);
+}
+
 /* ── Reform Workbench ── */
 
 .gov-reform-workbench {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 14px;
-  border-radius: var(--game-radius-sm, 12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.02);
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.07);
+  background: rgba(255, 255, 255, 0.018);
 }
 
 .gov-reform-workbench__header {
@@ -169,8 +302,8 @@
 }
 
 .gov-reform-tab--active {
-  border-color: rgba(212, 175, 55, 0.45);
-  background: rgba(212, 175, 55, 0.14);
+  border-color: rgba(232, 200, 120, 0.42);
+  background: rgba(232, 200, 120, 0.12);
   color: var(--game-text-primary, #fff5e7);
 }
 
@@ -201,14 +334,18 @@
   .gov-reform-tabs {
     grid-template-columns: 1fr;
   }
+
+  .government-market-preview__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* ── Policy & Strategy Binary Split ── */
 
 .gov-policy-split {
   display: grid;
-  grid-template-columns: minmax(220px, 0.58fr) minmax(0, 1.42fr);
-  gap: 16px;
+  grid-template-columns: minmax(220px, 0.66fr) minmax(0, 1.34fr);
+  gap: 12px;
   align-items: start;
 }
 
@@ -216,7 +353,7 @@
 .gov-policy-split__right {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   min-width: 0;
 }
 
@@ -263,6 +400,20 @@
 
 @media (max-width: 900px) {
   .gov-policy-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .government-market-section__head {
+    flex-direction: column;
+  }
+
+  .government-market-preview__heading {
+    flex-direction: column;
+  }
+
+  .government-market-preview__grid {
     grid-template-columns: 1fr;
   }
 }

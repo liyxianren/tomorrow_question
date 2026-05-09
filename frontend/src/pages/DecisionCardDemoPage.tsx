@@ -10,7 +10,6 @@ import {
   setProductionOrderQuantity,
   setRouteDecisionOrderQuantity,
   toggleDiplomacyActionSelection,
-  toggleDomesticMarketActionSelection,
   toggleGovernmentStrategySelection,
   toggleNationalAbilitySelection,
   toggleTechResearchSelection,
@@ -125,8 +124,6 @@ export function DecisionCardDemoPage() {
 
     updateDraft((previous) => {
       switch (card.interaction?.type) {
-        case "domesticAction":
-          return toggleDomesticMarketActionSelection(previous, card.interaction.actionId, checked);
         case "governmentStrategy":
           return toggleGovernmentStrategySelection(previous, card.interaction.actionId, checked);
         case "technology":
@@ -223,9 +220,9 @@ export function DecisionCardDemoPage() {
 
       <section className="decision-demo__summary-grid">
         <article className="decision-demo__summary-card">
-          <span>国内消费市场</span>
+          <span>民间购买力</span>
           <strong>{viewModel.summary.remainingBudgets.domesticMarket}</strong>
-          <p>剩余预算</p>
+          <p>内需基准</p>
         </article>
         <article className="decision-demo__summary-card">
           <span>工业区</span>

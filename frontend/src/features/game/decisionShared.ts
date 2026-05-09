@@ -1,5 +1,6 @@
 import type {
   BudgetPools,
+  DecisionActionOption,
   DecisionPlayerPhaseWorkspace,
   FactoryProductionOption,
   IncomeAllocationRatio,
@@ -22,6 +23,25 @@ const BUDGET_POOL_LABELS: Record<string, string> = {
   factory: "工厂预算",
   governmentFiscal: "政府预算",
 };
+
+export function getMarketRegulationAllowance(workspace: DecisionPlayerPhaseWorkspace): number {
+  return Math.max(0, Math.floor(workspace.marketRegulationAllowance ?? 0));
+}
+
+export function getBaseBudgetPools(workspace: DecisionPlayerPhaseWorkspace): BudgetPools {
+  if (workspace.baseBudgetPools) {
+    return workspace.baseBudgetPools;
+  }
+  const allowance = getMarketRegulationAllowance(workspace);
+  return {
+    ...workspace.budgetPools,
+    governmentFiscal: Math.max(0, workspace.budgetPools.governmentFiscal - allowance),
+  };
+}
+
+function isMarketRegulationAction(action: DecisionActionOption | undefined): boolean {
+  return Boolean(action?.isMarketRegulation);
+}
 
 const GOODS_LABELS: Record<string, string> = {
   grain: "粮食",
@@ -192,20 +212,89 @@ export type GovernmentSpendBreakdown = {
   total: number;
   government: number;
   military: number;
+  coreGovernment: number;
+  marketRegulation: number;
+  marketRegulationAllowance: number;
+  marketRegulationOverflow: number;
+  baseGovernmentBudget: number;
+  baseGovernmentRemaining: number;
+  effectiveGovernmentBudget: number;
+  effectiveGovernmentRemaining: number;
 };
 
 export function calculateGovernmentSpendBreakdown(
   workspace: DecisionPlayerPhaseWorkspace,
   draft: PhaseDraftByPhase["decision"],
 ): GovernmentSpendBreakdown {
+  const state = calculateGovernmentFiscalState(workspace, draft);
+  return {
+    total: state.totalDecisionSpend,
+    government: state.coreGovernmentSpend + state.marketRegulationSpend,
+    military: state.militaryFiscalSpend,
+    coreGovernment: state.coreGovernmentSpend,
+    marketRegulation: state.marketRegulationSpend,
+    marketRegulationAllowance: state.marketRegulationAllowance,
+    marketRegulationOverflow: state.marketRegulationOverflow,
+    baseGovernmentBudget: state.baseGovernmentBudget,
+    baseGovernmentRemaining: state.baseGovernmentRemaining,
+    effectiveGovernmentBudget: state.effectiveGovernmentBudget,
+    effectiveGovernmentRemaining: state.effectiveGovernmentRemaining,
+  };
+}
+
+export type GovernmentFiscalState = {
+  baseGovernmentBudget: number;
+  marketRegulationAllowance: number;
+  effectiveGovernmentBudget: number;
+  coreGovernmentSpend: number;
+  marketRegulationSpend: number;
+  marketRegulationOverflow: number;
+  militaryFiscalSpend: number;
+  baseFiscalSpend: number;
+  totalDecisionSpend: number;
+  baseGovernmentRemaining: number;
+  effectiveGovernmentRemaining: number;
+};
+
+export function calculateGovernmentFiscalState(
+  workspace: DecisionPlayerPhaseWorkspace,
+  draft: PhaseDraftByPhase["decision"],
+): GovernmentFiscalState {
+  const selectedFactoryActions = draft.factoryPlan.factoryActions ?? [];
+  const factoryActionDomesticBudgetDelta = selectedFactoryActions.reduce((sum, selection) => {
+    const action = workspace.factoryActions?.find((item) => item.actionId === selection.actionId);
+    return sum + getNumericEffect(action?.effects, "domesticMarketBudgetDelta");
+  }, 0);
+  const factoryActionGovernmentBudgetDelta = selectedFactoryActions.reduce((sum, selection) => {
+    const action = workspace.factoryActions?.find((item) => item.actionId === selection.actionId);
+    return sum
+      + getNumericEffect(action?.effects, "governmentFiscalBudgetDelta")
+      + getNumericEffect(action?.effects, "governmentFiscalDelta");
+  }, 0);
+  const legacyDomesticSpend = draft.domesticMarketPlan.domesticMarketActions.reduce((sum, selection) => {
+    const action = workspace.domesticMarketActions.find((item) => item.actionId === selection.actionId);
+    return sum + (action?.cost ?? 0);
+  }, 0);
+  const marketRegulationAllowance = Math.max(
+    0,
+    getMarketRegulationAllowance(workspace) + factoryActionDomesticBudgetDelta - legacyDomesticSpend,
+  );
+  const baseGovernmentBudget = Math.max(
+    0,
+    getBaseBudgetPools(workspace).governmentFiscal + factoryActionGovernmentBudgetDelta,
+  );
   const governmentPurchaseSpend = draft.governmentPlan.pointPurchases.reduce((sum, purchase) => {
     return sum + purchase.quantity * workspace.governmentActions.pointPurchaseCosts[purchase.pointType];
   }, 0);
   const governmentAdminSpend = Math.max(0, draft.governmentPlan.adminPurchases ?? 0)
     * (workspace.governmentReforms?.adminPurchaseCost ?? 0);
-  const governmentStrategySpend = draft.governmentPlan.strategySelections.reduce((sum, selection) => {
+  const coreGovernmentStrategySpend = draft.governmentPlan.strategySelections.reduce((sum, selection) => {
     const action = workspace.governmentActions.strategies.find((item) => item.actionId === selection.actionId);
-    return sum + (action?.cost ?? 0);
+    return isMarketRegulationAction(action) ? sum : sum + (action?.cost ?? 0);
+  }, 0);
+  const marketRegulationSpend = draft.governmentPlan.strategySelections.reduce((sum, selection) => {
+    const action = workspace.governmentActions.strategies.find((item) => item.actionId === selection.actionId);
+    return isMarketRegulationAction(action) ? sum + (action?.cost ?? 0) : sum;
   }, 0);
   const policyActivationSpend = (draft.activatePolicies ?? []).reduce((sum, policyId) => {
     const policy = workspace.governmentReforms?.availablePolicies.find((item) => item.policyId === policyId);
@@ -222,12 +311,24 @@ export function calculateGovernmentSpendBreakdown(
     ? (workspace.militaryWorkspace.colonizationCapability.unlockCost ?? 0)
     : 0;
 
-  const government = governmentPurchaseSpend + governmentAdminSpend + governmentStrategySpend + policyActivationSpend;
-  const military = diplomacySpend + colonizationSpend;
+  const coreGovernmentSpend = governmentPurchaseSpend + governmentAdminSpend + coreGovernmentStrategySpend + policyActivationSpend;
+  const militaryFiscalSpend = diplomacySpend + colonizationSpend;
+  const marketRegulationOverflow = Math.max(0, marketRegulationSpend - marketRegulationAllowance);
+  const baseFiscalSpend = coreGovernmentSpend + militaryFiscalSpend + marketRegulationOverflow;
+  const totalDecisionSpend = coreGovernmentSpend + militaryFiscalSpend + marketRegulationSpend;
+  const effectiveGovernmentBudget = baseGovernmentBudget + marketRegulationAllowance;
   return {
-    total: government + military,
-    government,
-    military,
+    baseGovernmentBudget,
+    marketRegulationAllowance,
+    effectiveGovernmentBudget,
+    coreGovernmentSpend,
+    marketRegulationSpend,
+    marketRegulationOverflow,
+    militaryFiscalSpend,
+    baseFiscalSpend,
+    totalDecisionSpend,
+    baseGovernmentRemaining: baseGovernmentBudget - baseFiscalSpend,
+    effectiveGovernmentRemaining: effectiveGovernmentBudget - totalDecisionSpend,
   };
 }
 

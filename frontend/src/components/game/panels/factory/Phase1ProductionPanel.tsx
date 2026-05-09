@@ -119,6 +119,17 @@ export function Phase1ProductionPanel({
 
   return (
     <section className="phase1-panel" data-testid="phase1-production-panel">
+      <header className="phase1-panel__header">
+        <div>
+          <h4>本轮生产投料</h4>
+          <p>原材料、工厂预算和投料上限共同限制本轮产出。</p>
+        </div>
+        <div className="phase1-panel__output-meter">
+          <span>预计产出</span>
+          <strong>{formatNumber(totalOutput)}</strong>
+        </div>
+      </header>
+
       <div className="phase1-panel__control-room" aria-label="工厂总览">
         <FactoryMeter
           label="原材料"
@@ -139,63 +150,63 @@ export function Phase1ProductionPanel({
           total={totalCapacity}
           progress={capacityProgress}
         />
-        <div className="phase1-panel__output-meter">
-          <span>预计产出</span>
-          <strong>{formatNumber(totalOutput)}</strong>
-        </div>
       </div>
 
-      <div className="phase1-panel__status-rail" aria-label="工厂状态">
-        <span className="phase1-panel__status-chip">
-          库存 <strong>{goodsInventory}</strong>
-        </span>
-        <span className="phase1-panel__status-chip">
-          国内需求 <strong>{formatNumber(domesticDemand)}</strong>
-        </span>
-        <span className="phase1-panel__status-chip" title={`均衡价 ${formatNumber(equilibriumPrice)}`}>
-          预估价格 <strong>{formatNumber(domesticPricePreview)}</strong>
-        </span>
-        <span className="phase1-panel__status-chip phase1-panel__status-chip--idle" data-testid="idle-status-chip">
-          空置产能 <strong>{idleCapacity}</strong>
-        </span>
-        <span className="phase1-panel__status-chip">
-          未投入产能 <strong>{unusedProductiveCapacity}</strong>
-        </span>
-        {capacityShortfall ? (
-          <span className="phase1-panel__status-chip phase1-panel__status-chip--warn" data-testid="capacity-warning">
-            {unprocessedRawMaterials} 原材料留到下回合
-          </span>
-        ) : null}
-        {productionCapacityDelta < 0 ? (
-          <span className="phase1-panel__status-chip phase1-panel__status-chip--warn">
-            调度占用 {-productionCapacityDelta} 投料上限
-          </span>
-        ) : null}
-        {outputMultiplier > 1 ? (
-          <span className="phase1-panel__status-chip">
-            产出倍率 <strong>x{outputMultiplier}</strong>
-          </span>
-        ) : null}
-      </div>
-
-      <div className="phase1-factory-map" aria-label="工厂生产线">
-        <div className="phase1-factory-map__scene" aria-hidden="true">
-          <span className="phase1-factory-map__roof" />
-          <span className="phase1-factory-map__chimney" />
-          <span className="phase1-factory-map__stack phase1-factory-map__stack--left" />
-          <span className="phase1-factory-map__stack phase1-factory-map__stack--right" />
-          <span className="phase1-factory-map__belt" />
+      <div className="phase1-panel__workspace">
+        <div className="phase1-routes" aria-label="工厂生产线">
+          <div className="phase1-routes__head">
+            <div>
+              <h5>生产路线</h5>
+              <p>优先把原材料投向已解锁且产出倍率更高的路线。</p>
+            </div>
+            <span>{totalAssigned} / {rawMaterials} 已投料</span>
+          </div>
+          <div className="phase1-routes__list">
+            {routeViewModels.map((route) => (
+              <ProductionRouteNode
+                key={route.mode.mode}
+                route={route}
+                onAssignmentChange={onAssignmentChange}
+              />
+            ))}
+          </div>
         </div>
 
-        <div className="phase1-factory-map__routes">
-          {routeViewModels.map((route) => (
-            <ProductionRouteNode
-              key={route.mode.mode}
-              route={route}
-              onAssignmentChange={onAssignmentChange}
-            />
-          ))}
-        </div>
+        <aside className="phase1-panel__status-card" aria-label="工厂状态">
+          <h5>市场与产能核对</h5>
+          <div className="phase1-panel__status-grid">
+            <span className="phase1-panel__status-chip">
+              库存 <strong>{goodsInventory}</strong>
+            </span>
+            <span className="phase1-panel__status-chip">
+              国内需求 <strong>{formatNumber(domesticDemand)}</strong>
+            </span>
+            <span className="phase1-panel__status-chip" title={`均衡价 ${formatNumber(equilibriumPrice)}`}>
+              预估价格 <strong>{formatNumber(domesticPricePreview)}</strong>
+            </span>
+            <span className="phase1-panel__status-chip phase1-panel__status-chip--idle" data-testid="idle-status-chip">
+              空置产能 <strong>{idleCapacity}</strong>
+            </span>
+            <span className="phase1-panel__status-chip">
+              未投入产能 <strong>{unusedProductiveCapacity}</strong>
+            </span>
+            {outputMultiplier > 1 ? (
+              <span className="phase1-panel__status-chip">
+                产出倍率 <strong>x{outputMultiplier}</strong>
+              </span>
+            ) : null}
+          </div>
+          {capacityShortfall ? (
+            <p className="phase1-panel__status-warning" data-testid="capacity-warning">
+              {unprocessedRawMaterials} 原材料会留到下回合，因为当前投料上限不足。
+            </p>
+          ) : null}
+          {productionCapacityDelta < 0 ? (
+            <p className="phase1-panel__status-warning">
+              工厂调度占用 {-productionCapacityDelta} 投料上限。
+            </p>
+          ) : null}
+        </aside>
       </div>
 
       <div className="phase1-panel__footer">
@@ -253,10 +264,10 @@ function ProductionRouteNode({
 }) {
   const { mode, assigned, expectedOutput, isLocked, noCapacity, disabled, maxAlloc, requiredTechLabel } = route;
   const nodeClass = [
-    "phase1-route-node",
-    isLocked && "phase1-route-node--locked",
-    noCapacity && !isLocked && "phase1-route-node--empty",
-    assigned > 0 && "phase1-route-node--active",
+    "phase1-route-row",
+    isLocked && "phase1-route-row--locked",
+    noCapacity && !isLocked && "phase1-route-row--empty",
+    assigned > 0 && "phase1-route-row--active",
   ]
     .filter(Boolean)
     .join(" ");
@@ -286,45 +297,47 @@ function ProductionRouteNode({
       data-testid={`production-route-${mode.mode}`}
       title={detailTitle}
     >
-      <header className="phase1-route-node__header">
-        <span className="phase1-route-node__icon" aria-hidden="true">
+      <header className="phase1-route-row__route">
+        <span className="phase1-route-row__icon" aria-hidden="true">
           {MODE_ICON[mode.mode] ?? "◆"}
         </span>
-        <span className="phase1-route-node__label">{mode.label}</span>
-        {isLocked ? (
-          <span className="phase1-route-node__lock" aria-label={`${mode.label} 锁定`}>
-            🔒
-          </span>
-        ) : null}
+        <span className="phase1-route-row__copy">
+          <strong>{mode.label}</strong>
+          <small>
+            {isLocked
+              ? `需 ${requiredTechLabel ?? "解锁"}`
+              : `${MODE_HINT[mode.mode] ?? mode.label} · 1 原料产出 ${formatNumber(mode.outputRatio)}`}
+          </small>
+        </span>
       </header>
 
-      <div className="phase1-route-node__metrics" aria-label={`${mode.label}生产数据`}>
+      <div className="phase1-route-row__metrics" aria-label={`${mode.label}生产数据`}>
         <span>
           <strong>{assigned}</strong>
-          投入
+          <small>投入</small>
         </span>
         <span>
           <strong>{formatNumber(expectedOutput)}</strong>
-          产出
+          <small>产出</small>
         </span>
       </div>
 
-      {isLocked ? (
-        <div className="phase1-route-node__requirement">
-          需 {requiredTechLabel ?? "解锁"}
-        </div>
-      ) : (
-        <div className="phase1-route-node__capacity">
-          <span>产能 {formatNumber(mode.currentCapacity)}</span>
-          {assigned > 0 && assigned === mode.currentCapacity ? <strong>已满</strong> : null}
-        </div>
-      )}
+      <div className="phase1-route-row__capacity">
+        {isLocked ? (
+          <span>未解锁</span>
+        ) : (
+          <>
+            <span>产能 {formatNumber(mode.currentCapacity)}</span>
+            {assigned > 0 && assigned === mode.currentCapacity ? <strong>已满</strong> : null}
+          </>
+        )}
+      </div>
 
       {!isLocked ? (
-        <div className="phase1-route-node__stepper">
+        <div className="phase1-route-row__stepper">
           <button
             type="button"
-            className="phase1-route-node__stepper-btn"
+            className="phase1-route-row__stepper-btn"
             disabled={disabled || assigned <= 0}
             onClick={() => handleDelta(-1)}
             aria-label={`${mode.label} 减少`}
@@ -333,17 +346,17 @@ function ProductionRouteNode({
           </button>
           <button
             type="button"
-            className="phase1-route-node__stepper-zero"
+            className="phase1-route-row__stepper-zero"
             disabled={disabled || assigned <= 0}
             onClick={handleZero}
             aria-label={`${mode.label} 清零`}
           >
-            0
+            清
           </button>
-          <span className="phase1-route-node__stepper-value">{assigned}</span>
+          <span className="phase1-route-row__stepper-value">{assigned}</span>
           <button
             type="button"
-            className="phase1-route-node__stepper-btn"
+            className="phase1-route-row__stepper-btn"
             disabled={disabled || assigned >= maxAlloc}
             onClick={() => handleDelta(1)}
             aria-label={`${mode.label} 增加`}
@@ -352,12 +365,12 @@ function ProductionRouteNode({
           </button>
           <button
             type="button"
-            className="phase1-route-node__stepper-max"
+            className="phase1-route-row__stepper-max"
             disabled={disabled || assigned >= maxAlloc}
             onClick={handleMax}
             aria-label={`${mode.label} 最大`}
           >
-            MAX
+            满
           </button>
         </div>
       ) : null}

@@ -58,7 +58,6 @@ describe("DecisionCardDemoPage", () => {
     await user.click(screen.getByRole("button", { name: "工业区" }));
     expect(screen.getByText("本轮生产")).toBeInTheDocument();
     expect(screen.getByText("建设升级")).toBeInTheDocument();
-    expect(screen.getByText("工业研究")).toBeInTheDocument();
     expect(screen.getByText("未解锁商品")).toBeInTheDocument();
 
     const grainCard = screen.getByText("粮食").closest("article");
@@ -76,14 +75,14 @@ describe("DecisionCardDemoPage", () => {
     });
 
     await user.click(screen.getByRole("button", { name: "市民广场" }));
-    expect(screen.getByText("民生政策")).toBeInTheDocument();
-    expect(screen.getByText("消费研究")).toBeInTheDocument();
-    expect(screen.getByText("消费补贴")).toBeInTheDocument();
-    expect(screen.getAllByText("需要研究「市场经济」").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("市场预览").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("市场需求").length).toBeGreaterThan(0);
+    expect(screen.getByText("价格来源")).toBeInTheDocument();
+    expect(screen.queryByText("民生政策")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "议会厅" }));
-    expect(screen.getByText("政府策略")).toBeInTheDocument();
-    expect(screen.getByText("政策研究")).toBeInTheDocument();
+    expect(screen.getByText("市场调节")).toBeInTheDocument();
+    expect(screen.getByText("博览会")).toBeInTheDocument();
     expect(screen.getByText("国家能力卡")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "军事要塞" }));
@@ -91,7 +90,7 @@ describe("DecisionCardDemoPage", () => {
     expect(screen.getByText("海军建设")).toBeInTheDocument();
   });
 
-  it("allows confirm cards to update draft and prevents overspending after research is queued", async () => {
+  it("allows confirm cards and market regulation toggles to update the shared draft", async () => {
     renderDecisionCardDemoPage();
     const user = userEvent.setup();
 
@@ -103,8 +102,13 @@ describe("DecisionCardDemoPage", () => {
     expect(screen.getByText("工厂预算 2")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "取消扩产" }));
-    await user.click(screen.getByLabelText("珍妮纺织机"));
-    expect(screen.getByText("工厂预算 0")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "增加生产 粮食" })).toBeDisabled();
+    await user.click(screen.getByTestId("decision-command-deck-tab-government"));
+    await user.click(screen.getByLabelText("博览会"));
+    expect(screen.getByText("已纳入本轮市场调节，额度 -5。")).toBeInTheDocument();
+
+    await user.click(screen.getByTestId("decision-command-deck-tab-domestic"));
+    expect(screen.getByText("本轮政府调节")).toBeInTheDocument();
+    expect(screen.getByText("博览会")).toBeInTheDocument();
+    expect(screen.queryByLabelText("选择 博览会")).not.toBeInTheDocument();
   });
 });

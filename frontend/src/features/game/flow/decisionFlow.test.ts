@@ -2,14 +2,23 @@ import { describe, expect, it } from "vitest";
 
 import { createInitialPhaseDraft } from "../forms";
 import {
+  DECISION_STEP_ORDER,
   clearDecisionStepDraft,
   getDecisionStepCompletionSummary,
+  getNextDecisionStep,
+  getPreviousDecisionStep,
   getUncheckedDecisionSteps,
   hasDecisionStepContent,
   createInitialDecisionFlowState,
 } from "./decisionFlow";
 
 describe("decisionFlow factory draft helpers", () => {
+  it("places government policy before the read-only market preview", () => {
+    expect(DECISION_STEP_ORDER).toEqual(["factory", "government", "domestic", "military", "research"]);
+    expect(getNextDecisionStep("factory")).toBe("government");
+    expect(getPreviousDecisionStep("domestic")).toBe("government");
+  });
+
   it("clears phase-1 raw assignments when the factory step is cleared", () => {
     const draft = {
       ...createInitialPhaseDraft("decision"),
@@ -37,11 +46,11 @@ describe("decisionFlow factory draft helpers", () => {
     expect(getDecisionStepCompletionSummary(draft, "factory")).toBe("投料 3 原材料 / 建设 0 次");
   });
 
-  it("counts research facility construction as both government spend and research facility content", () => {
+  it("counts research facility construction as research content without making government dirty", () => {
     const draft = createInitialPhaseDraft("decision");
     draft.governmentPlan.strategySelections = [{ actionId: "expand_research" }];
 
-    expect(hasDecisionStepContent(draft, "government")).toBe(true);
+    expect(hasDecisionStepContent(draft, "government")).toBe(false);
     expect(hasDecisionStepContent(draft, "research")).toBe(true);
   });
 

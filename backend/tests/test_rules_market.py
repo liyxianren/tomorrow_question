@@ -164,3 +164,161 @@ class MarketRulesTests(unittest.TestCase):
 
         updated = get_player(resolution.updated_snapshot, "player-1")
         self.assertEqual(updated.overseas_sales_revenue, 10)
+
+    def test_external_competition_win_grants_extra_capacity_and_price(self) -> None:
+        snapshot = build_snapshot()
+        britain = get_player(snapshot, "player-1")
+        britain.phase1_economy.capacity_by_mode = {
+            "idle": 0,
+            "handicraft": 3,
+            "mechanized": 0,
+            "steam": 0,
+            "electrified": 0,
+        }
+        britain.phase1_economy.goods_inventory = 13
+        britain.goods_stock = {"phase1_goods": 13}
+        britain.budget_pools = {"domesticMarket": 24, "factory": 0, "governmentFiscal": 0}
+        britain.established_diplomacy = ["asia_pacific"]
+        britain.army = {"infantry": 1, "artillery": 0}
+
+        resolution = resolve_market_phase(
+            snapshot=snapshot,
+            turn_inputs=[
+                build_turn_input(
+                    "player-1",
+                    {
+                        "saleOrders": [],
+                        "phase1Market": {
+                            "domesticAllocation": 0,
+                            "externalAllocations": [{"marketId": "asia_pacific", "quantity": 13}],
+                            "externalCompetitionDeployments": [
+                                {"marketId": "asia_pacific", "infantry": 1, "artillery": 0}
+                            ],
+                        },
+                    },
+                )
+            ],
+        )
+
+        updated = get_player(resolution.updated_snapshot, "player-1")
+        region = get_region(resolution.updated_snapshot, "asia_pacific")
+        self.assertEqual(updated.army["infantry"], 0)
+        self.assertEqual(updated.overseas_sales_revenue, 117)
+        self.assertEqual(updated.phase1_economy.goods_inventory, 0)
+        self.assertIsNone(region.controller)
+        self.assertEqual(region.access_level, RegionAccessLevel.CONCESSION)
+
+    def test_external_competition_highest_power_wins_and_loser_keeps_army(self) -> None:
+        snapshot = build_snapshot()
+        britain = get_player(snapshot, "player-1")
+        france = get_player(snapshot, "player-2")
+        for player in (britain, france):
+            player.phase1_economy.capacity_by_mode = {
+                "idle": 0,
+                "handicraft": 3,
+                "mechanized": 0,
+                "steam": 0,
+                "electrified": 0,
+            }
+            player.phase1_economy.goods_inventory = 13
+            player.goods_stock = {"phase1_goods": 13}
+            player.budget_pools = {"domesticMarket": 24, "factory": 0, "governmentFiscal": 0}
+            player.established_diplomacy = ["africa"]
+        britain.army = {"infantry": 0, "artillery": 1}
+        france.army = {"infantry": 1, "artillery": 0}
+
+        resolution = resolve_market_phase(
+            snapshot=snapshot,
+            turn_inputs=[
+                build_turn_input(
+                    "player-1",
+                    {
+                        "saleOrders": [],
+                        "phase1Market": {
+                            "domesticAllocation": 0,
+                            "externalAllocations": [{"marketId": "africa", "quantity": 13}],
+                            "externalCompetitionDeployments": [
+                                {"marketId": "africa", "infantry": 0, "artillery": 1}
+                            ],
+                        },
+                    },
+                ),
+                build_turn_input(
+                    "player-2",
+                    {
+                        "saleOrders": [],
+                        "phase1Market": {
+                            "domesticAllocation": 0,
+                            "externalAllocations": [{"marketId": "africa", "quantity": 13}],
+                            "externalCompetitionDeployments": [
+                                {"marketId": "africa", "infantry": 1, "artillery": 0}
+                            ],
+                        },
+                    },
+                ),
+            ],
+        )
+
+        updated_britain = get_player(resolution.updated_snapshot, "player-1")
+        updated_france = get_player(resolution.updated_snapshot, "player-2")
+        self.assertEqual(updated_britain.army["artillery"], 0)
+        self.assertEqual(updated_france.army["infantry"], 1)
+        self.assertEqual(updated_britain.overseas_sales_revenue, 130)
+        self.assertEqual(updated_france.overseas_sales_revenue, 45)
+
+    def test_external_competition_tie_has_no_winner_or_army_loss(self) -> None:
+        snapshot = build_snapshot()
+        britain = get_player(snapshot, "player-1")
+        france = get_player(snapshot, "player-2")
+        for player in (britain, france):
+            player.phase1_economy.capacity_by_mode = {
+                "idle": 0,
+                "handicraft": 3,
+                "mechanized": 0,
+                "steam": 0,
+                "electrified": 0,
+            }
+            player.phase1_economy.goods_inventory = 13
+            player.goods_stock = {"phase1_goods": 13}
+            player.budget_pools = {"domesticMarket": 24, "factory": 0, "governmentFiscal": 0}
+            player.established_diplomacy = ["africa"]
+            player.army = {"infantry": 1, "artillery": 0}
+
+        resolution = resolve_market_phase(
+            snapshot=snapshot,
+            turn_inputs=[
+                build_turn_input(
+                    "player-1",
+                    {
+                        "saleOrders": [],
+                        "phase1Market": {
+                            "domesticAllocation": 0,
+                            "externalAllocations": [{"marketId": "africa", "quantity": 13}],
+                            "externalCompetitionDeployments": [
+                                {"marketId": "africa", "infantry": 1, "artillery": 0}
+                            ],
+                        },
+                    },
+                ),
+                build_turn_input(
+                    "player-2",
+                    {
+                        "saleOrders": [],
+                        "phase1Market": {
+                            "domesticAllocation": 0,
+                            "externalAllocations": [{"marketId": "africa", "quantity": 13}],
+                            "externalCompetitionDeployments": [
+                                {"marketId": "africa", "infantry": 1, "artillery": 0}
+                            ],
+                        },
+                    },
+                ),
+            ],
+        )
+
+        updated_britain = get_player(resolution.updated_snapshot, "player-1")
+        updated_france = get_player(resolution.updated_snapshot, "player-2")
+        self.assertEqual(updated_britain.army["infantry"], 1)
+        self.assertEqual(updated_france.army["infantry"], 1)
+        self.assertEqual(updated_britain.overseas_sales_revenue, 45)
+        self.assertEqual(updated_france.overseas_sales_revenue, 45)

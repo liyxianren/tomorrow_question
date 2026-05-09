@@ -69,16 +69,16 @@ describe("GamePhasePanelContent", () => {
     expect(screen.getByTestId("decision-step-tab-factory")).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByTestId("decision-command-deck")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "下一步：国民消费" }));
-    expect(screen.getByTestId("domestic-panel")).toBeInTheDocument();
-    expect(screen.getByTestId("decision-step-tab-domestic")).toHaveAttribute("aria-pressed", "true");
-    await user.click(screen.getByRole("button", { name: "选择 博览会" }));
-    expect(screen.getByTestId("decision-step-footer-status")).toHaveTextContent("已决策");
-
     await user.click(screen.getByRole("button", { name: "下一步：政府政策" }));
     expect(screen.getByTestId("government-panel")).toBeInTheDocument();
     expect(screen.getByTestId("decision-step-tab-government")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("government-market-preview")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "选择策略：博览会" }));
     await user.click(screen.getByRole("button", { name: "激活政策：贸易协定" }));
+
+    await user.click(screen.getByRole("button", { name: "下一步：市场预览" }));
+    expect(screen.getByTestId("domestic-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("decision-step-tab-domestic")).toHaveAttribute("aria-pressed", "true");
 
     await user.click(screen.getByRole("button", { name: "下一步：军事要塞" }));
     expect(screen.getByTestId("military-panel")).toBeInTheDocument();
@@ -95,11 +95,11 @@ describe("GamePhasePanelContent", () => {
         factoryActions: [],
       },
       domesticMarketPlan: {
-        domesticMarketActions: [{ actionId: "market_fair" }],
+        domesticMarketActions: [],
       },
       governmentPlan: {
         pointPurchases: [],
-        strategySelections: [],
+        strategySelections: [{ actionId: "market_fair" }],
         techResearch: [],
         adminPurchases: 0,
       },
@@ -125,9 +125,9 @@ describe("GamePhasePanelContent", () => {
     renderPanel("decision");
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole("button", { name: "下一步：国民消费" }));
-    expect(screen.getByTestId("domestic-panel")).toBeInTheDocument();
-    expect(screen.getByTestId("decision-step-tab-domestic")).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: "下一步：政府政策" }));
+    expect(screen.getByTestId("government-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("decision-step-tab-government")).toHaveAttribute("aria-pressed", "true");
 
     await user.click(screen.getByRole("button", { name: "上一步：工厂决策" }));
     expect(screen.getByTestId("factory-panel")).toBeInTheDocument();
@@ -153,12 +153,12 @@ describe("GamePhasePanelContent", () => {
     renderPanel("decision");
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole("button", { name: "下一步：国民消费" }));
-    expect(screen.getByTestId("domestic-panel")).toBeInTheDocument();
-    expect(screen.queryByTestId("decision-command-deck")).not.toBeInTheDocument();
-
     await user.click(screen.getByRole("button", { name: "下一步：政府政策" }));
     expect(screen.getByTestId("government-panel")).toBeInTheDocument();
+    expect(screen.queryByTestId("decision-command-deck")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "下一步：市场预览" }));
+    expect(screen.getByTestId("domestic-panel")).toBeInTheDocument();
     expect(screen.queryByTestId("decision-command-deck")).not.toBeInTheDocument();
   });
 
@@ -166,14 +166,14 @@ describe("GamePhasePanelContent", () => {
     renderPanel("decision");
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole("button", { name: "下一步：国民消费" }));
+    await user.click(screen.getByRole("button", { name: "下一步：政府政策" }));
     expect(readFlowJson().stepReviewStateByStep.factory).toBe("no_op");
 
-    await user.click(screen.getByRole("button", { name: "下一步：政府政策" }));
+    await user.click(screen.getByRole("button", { name: "下一步：市场预览" }));
     await user.click(screen.getByRole("button", { name: "下一步：军事要塞" }));
 
     const flow = readFlowJson();
-    expect(flow.stepReviewStateByStep.domestic).toBe("no_op");
+    expect(flow.stepReviewStateByStep.domestic).toBe("unreviewed");
     expect(flow.stepReviewStateByStep.government).toBe("no_op");
   });
 
@@ -189,7 +189,6 @@ describe("GamePhasePanelContent", () => {
     });
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole("button", { name: "下一步：国民消费" }));
     await user.click(screen.getByRole("button", { name: "下一步：政府政策" }));
 
     expect(screen.getByRole("button", { name: "激活政策：贸易协定" })).toBeDisabled();
@@ -254,7 +253,7 @@ describe("GamePhasePanelContent", () => {
     renderPanel("decision");
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole("button", { name: "下一步：国民消费" }));
+    await user.click(screen.getByRole("button", { name: "下一步：市场预览" }));
     expect(screen.getAllByText("需要研究「市场经济」").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "选择 消费补贴" })).toBeDisabled();
 
@@ -279,7 +278,6 @@ describe("GamePhasePanelContent", () => {
     });
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole("button", { name: "下一步：国民消费" }));
     await user.click(screen.getByRole("button", { name: "下一步：政府政策" }));
     await user.click(screen.getByLabelText("启用国家能力：民法典"));
     await user.click(screen.getByLabelText("民法典 民族主义"));
@@ -327,8 +325,8 @@ describe("GamePhasePanelContent", () => {
     renderPanel("decision");
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole("button", { name: "下一步：国民消费" }));
     await user.click(screen.getByRole("button", { name: "下一步：政府政策" }));
+    await user.click(screen.getByRole("button", { name: "下一步：市场预览" }));
     await user.click(screen.getByRole("button", { name: "下一步：军事要塞" }));
 
     expect(screen.getByRole("heading", { name: /世界地图/ })).toBeInTheDocument();
@@ -346,12 +344,27 @@ describe("GamePhasePanelContent", () => {
             label: "亚太",
             accessLevel: "concession",
             isAccessible: true,
+            lockReason: null,
             isDiplomacyEstablished: true,
+            canCompete: true,
+            competitionLockedReason: null,
+            competitionRewardCapacityBonus: 8,
+            competitionRewardPriceBonus: 1,
+            competitionMinimumPower: 1,
             isColonized: false,
             controller: null,
             acceptedGoods: ["grain"],
+            priceMultiplier: 1.1,
           },
         ],
+        overseasCompetition: {
+          availableArmy: { infantry: 1, artillery: 0 },
+          rewardCapacityBonus: 8,
+          rewardPriceBonus: 1,
+          infantryPower: 1,
+          artilleryPower: 2,
+          minimumPower: 1,
+        },
       }),
     });
     const user = userEvent.setup();
@@ -369,7 +382,21 @@ describe("GamePhasePanelContent", () => {
     expect(draft.phase1Market).toEqual({
       domesticAllocation: 2,
       externalAllocations: [{ marketId: "asia_pacific", quantity: 1 }],
+      externalCompetitionDeployments: [],
     });
+  });
+
+  it("adds overseas competition deployments to the market draft", async () => {
+    renderPanel("market");
+    const user = userEvent.setup();
+
+    await user.click(screen.getByLabelText("增加步兵投放"));
+
+    const draft = readDraftJson();
+    expect(draft.phase1Market?.externalCompetitionDeployments).toEqual([
+      { marketId: "middle_east", infantry: 1, artillery: 0 },
+    ]);
+    expect(draft.militaryPlan).toBeUndefined();
   });
 
   it("clamps domestic MAX to domestic demand instead of total inventory", async () => {

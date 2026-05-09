@@ -7,9 +7,9 @@
         "governmentFiscal": 10
       },
       "incomeAllocationRatio": {
-        "domesticMarket": 5.0,
+        "domesticMarket": 4.0,
         "factory": 3.0,
-        "governmentFiscal": 2.0
+        "governmentFiscal": 3.0
       },
       "techPoints": 1,
       "militaryPoints": 1,
@@ -55,9 +55,9 @@
         "governmentFiscal": 9
       },
       "incomeAllocationRatio": {
-        "domesticMarket": 5.0,
+        "domesticMarket": 4.0,
         "factory": 3.0,
-        "governmentFiscal": 2.0
+        "governmentFiscal": 3.0
       },
       "techPoints": 1,
       "militaryPoints": 0,
@@ -103,9 +103,9 @@
         "governmentFiscal": 9
       },
       "incomeAllocationRatio": {
-        "domesticMarket": 5.0,
+        "domesticMarket": 4.0,
         "factory": 3.0,
-        "governmentFiscal": 2.0
+        "governmentFiscal": 3.0
       },
       "techPoints": 1,
       "militaryPoints": 1,
@@ -151,9 +151,9 @@
         "governmentFiscal": 9
       },
       "incomeAllocationRatio": {
-        "domesticMarket": 5.0,
+        "domesticMarket": 4.0,
         "factory": 3.0,
-        "governmentFiscal": 2.0
+        "governmentFiscal": 3.0
       },
       "techPoints": 1,
       "militaryPoints": 1,
@@ -199,9 +199,9 @@
         "governmentFiscal": 10
       },
       "incomeAllocationRatio": {
-        "domesticMarket": 5.0,
+        "domesticMarket": 4.0,
         "factory": 3.0,
-        "governmentFiscal": 2.0
+        "governmentFiscal": 3.0
       },
       "techPoints": 1,
       "militaryPoints": 1,

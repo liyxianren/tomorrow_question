@@ -386,6 +386,79 @@ class PhaseSubmissionServiceTests(unittest.TestCase):
             [{"targetRegionId": "americas"}],
         )
 
+    def test_submit_rejects_overseas_competition_without_diplomacy(self) -> None:
+        room = build_room()
+        game, snapshot = build_snapshot()
+        game.current_phase = GamePhase.MARKET
+        snapshot.phase = GamePhase.MARKET
+        assign_phase_deadline(
+            snapshot,
+            started_at=datetime(2026, 3, 29, 12, 0, tzinfo=UTC),
+            duration=timedelta(minutes=2),
+        )
+        britain = snapshot.player_states[0]
+        britain.army = {"infantry": 1, "artillery": 0}
+
+        with self.assertRaises(PhaseSubmissionError) as error:
+            PhaseSubmissionService().submit(
+                room=room,
+                game=game,
+                snapshot=snapshot,
+                phase_state=PhaseSubmissionState.from_snapshot(snapshot),
+                player_id="player-1",
+                requested_phase=GamePhase.MARKET,
+                payload={
+                    "saleOrders": [],
+                    "phase1Market": {
+                        "domesticAllocation": 0,
+                        "externalCompetitionDeployments": [
+                            {"marketId": "africa", "infantry": 1, "artillery": 0}
+                        ],
+                    },
+                },
+                submitted_at=datetime(2026, 3, 29, 12, 1, tzinfo=UTC),
+            )
+
+        self.assertEqual(error.exception.error_code, ErrorCode.INVALID_SUBMISSION)
+        self.assertIn("requires established diplomacy", error.exception.message)
+
+    def test_submit_rejects_overseas_competition_army_overcommit(self) -> None:
+        room = build_room()
+        game, snapshot = build_snapshot()
+        game.current_phase = GamePhase.MARKET
+        snapshot.phase = GamePhase.MARKET
+        assign_phase_deadline(
+            snapshot,
+            started_at=datetime(2026, 3, 29, 12, 0, tzinfo=UTC),
+            duration=timedelta(minutes=2),
+        )
+        britain = snapshot.player_states[0]
+        britain.established_diplomacy = ["asia_pacific"]
+        britain.army = {"infantry": 0, "artillery": 0}
+
+        with self.assertRaises(PhaseSubmissionError) as error:
+            PhaseSubmissionService().submit(
+                room=room,
+                game=game,
+                snapshot=snapshot,
+                phase_state=PhaseSubmissionState.from_snapshot(snapshot),
+                player_id="player-1",
+                requested_phase=GamePhase.MARKET,
+                payload={
+                    "saleOrders": [],
+                    "phase1Market": {
+                        "domesticAllocation": 0,
+                        "externalCompetitionDeployments": [
+                            {"marketId": "asia_pacific", "infantry": 1, "artillery": 0}
+                        ],
+                    },
+                },
+                submitted_at=datetime(2026, 3, 29, 12, 1, tzinfo=UTC),
+            )
+
+        self.assertEqual(error.exception.error_code, ErrorCode.INVALID_SUBMISSION)
+        self.assertIn("exceeds available army", error.exception.message)
+
     @unittest.skip("2.0: overseas market goodsId validation removed; region resource_limit check is legacy 1.0 logic")
     def test_submit_rejects_market_sale_for_region_that_does_not_accept_goods(self) -> None:
         room = build_room()

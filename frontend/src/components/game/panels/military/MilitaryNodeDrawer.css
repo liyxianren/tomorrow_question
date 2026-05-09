@@ -149,9 +149,9 @@
 }
 
 .mnd__btn--primary {
-  background: rgba(212, 175, 55, 0.18);
-  border-color: rgba(212, 175, 55, 0.45);
-  color: #fceb9c;
+  background: rgba(127, 180, 216, 0.14);
+  border-color: rgba(127, 180, 216, 0.42);
+  color: var(--game-text-feedback, #b8dcf4);
 }
 
 .mnd__btn--cancel {
@@ -160,9 +160,9 @@
 }
 
 .mnd__btn--active {
-  background: rgba(212, 175, 55, 0.24);
-  border-color: rgba(212, 175, 55, 0.55);
-  color: #ffd700;
+  background: rgba(104, 211, 145, 0.16);
+  border-color: rgba(104, 211, 145, 0.42);
+  color: #b9efb2;
 }
 
 .mnd__indep {
@@ -216,7 +216,7 @@
 
 .mnd__loot-hint {
   font-size: 11px;
-  color: #d4a017;
+  color: var(--game-text-feedback, #b8dcf4);
 }
 
 .mnd__conquest-row {

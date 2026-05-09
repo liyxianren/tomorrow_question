@@ -152,7 +152,7 @@ function formatTieBreakSummary(tieBreak: {
   controlledRegions: number;
   budgetPoolsTotal: number;
 }): string {
-  return `总产能：${tieBreak.productionCapacity}，控制区域数：${tieBreak.controlledRegions}，三池总额：${tieBreak.budgetPoolsTotal ?? 0}`;
+  return `总产能：${tieBreak.productionCapacity}，控制区域数：${tieBreak.controlledRegions}，资源总额：${tieBreak.budgetPoolsTotal ?? 0}`;
 }
 
 function getPhaseLabel(phase: string): string {

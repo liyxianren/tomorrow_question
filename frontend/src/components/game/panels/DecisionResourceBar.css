@@ -9,8 +9,8 @@
 .drb__chip {
   flex: 1;
   min-width: 180px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(20, 27, 36, 0.62);
+  border: 1px solid rgba(226, 232, 240, 0.08);
   border-radius: 8px;
   padding: 10px 14px;
   display: flex;
@@ -20,8 +20,8 @@
 }
 
 .drb__chip--active {
-  border-color: var(--color-accent, #d4af37);
-  box-shadow: 0 0 12px -4px rgba(212, 175, 55, 0.35);
+  border-color: rgba(232, 200, 120, 0.44);
+  box-shadow: inset 0 2px 0 rgba(232, 200, 120, 0.54);
 }
 
 .drb__chip--exceeded {
@@ -62,7 +62,7 @@
 .drb__progress-fill {
   position: absolute;
   inset: 0 auto 0 0;
-  background: linear-gradient(90deg, rgba(212, 175, 55, 0.6) 0%, rgba(255, 215, 0, 0.85) 100%);
+  background: linear-gradient(90deg, rgba(127, 180, 216, 0.64) 0%, rgba(232, 200, 120, 0.84) 100%);
   border-radius: inherit;
   transition: width 0.2s;
 }

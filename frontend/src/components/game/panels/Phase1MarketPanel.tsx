@@ -2,7 +2,9 @@ import { useEffect, useMemo } from "react";
 
 import type {
   BudgetPools,
+  OverseasCompetitionLockReason,
   Phase1EconomyWorkspace,
+  Phase1ExternalCompetitionDeployment,
   Phase1ExternalAllocation,
   RegionAccessStatus,
   RegionLockReason,
@@ -20,6 +22,12 @@ const LOCK_REASON_LABELS: Record<RegionLockReason, string> = {
   route_blocked: "航线被封锁",
 };
 
+const COMPETITION_LOCK_REASON_LABELS: Record<OverseasCompetitionLockReason, string> = {
+  diplomacy_not_established: "需要先与该区域建交",
+  route_blocked: "航线被封锁，无法投放兵力",
+  no_army: "没有可投放陆军",
+};
+
 function lockReasonLabel(reason: RegionLockReason | null | undefined): string {
   if (reason && reason in LOCK_REASON_LABELS) {
     return LOCK_REASON_LABELS[reason];
@@ -27,17 +35,36 @@ function lockReasonLabel(reason: RegionLockReason | null | undefined): string {
   return "暂不可进入";
 }
 
+function competitionLockReasonLabel(reason: OverseasCompetitionLockReason | null | undefined): string {
+  if (reason && reason in COMPETITION_LOCK_REASON_LABELS) {
+    return COMPETITION_LOCK_REASON_LABELS[reason];
+  }
+  return "暂不可争夺";
+}
+
+type OverseasCompetitionConfig = {
+  availableArmy: Record<string, number>;
+  rewardCapacityBonus: number;
+  rewardPriceBonus: number;
+  infantryPower: number;
+  artilleryPower: number;
+  minimumPower: number;
+};
+
 type Phase1MarketPanelProps = {
   phase1Economy: Phase1EconomyWorkspace;
   goodsInventory: number;
   domesticMarketCapacity: number;
   overseasMarketCapacity: number;
+  overseasCompetition?: OverseasCompetitionConfig;
   budgetPools: BudgetPools;
   regionAccessStatus: RegionAccessStatus[];
   draftAllocation: number;
   externalAllocations: Phase1ExternalAllocation[];
+  competitionDeployments: Phase1ExternalCompetitionDeployment[];
   onAllocationChange: (domesticAllocation: number) => void;
   onExternalAllocationChange: (marketId: string, quantity: number) => void;
+  onCompetitionDeploymentChange: (marketId: string, infantry: number, artillery: number) => void;
   readOnly?: boolean;
 };
 
@@ -46,12 +73,15 @@ export function Phase1MarketPanel({
   goodsInventory,
   domesticMarketCapacity,
   overseasMarketCapacity,
+  overseasCompetition,
   budgetPools,
   regionAccessStatus,
   draftAllocation,
   externalAllocations,
+  competitionDeployments,
   onAllocationChange,
   onExternalAllocationChange,
+  onCompetitionDeploymentChange,
   readOnly = false,
 }: Phase1MarketPanelProps) {
   const totalGoods = Math.max(0, goodsInventory);
@@ -69,6 +99,30 @@ export function Phase1MarketPanel({
     (sum, item) => sum + Math.max(0, item.quantity),
     0,
   );
+  const overseasRegions = regionAccessStatus.filter((status) => status.regionId !== "domestic");
+  const competitionConfig = overseasCompetition ?? {
+    availableArmy: {},
+    rewardCapacityBonus: 0,
+    rewardPriceBonus: 0,
+    infantryPower: 1,
+    artilleryPower: 2,
+    minimumPower: 1,
+  };
+  const competitionDeploymentByRegion = new Map<string, Phase1ExternalCompetitionDeployment>(
+    competitionDeployments.map((deployment) => [deployment.marketId, deployment]),
+  );
+  const rewardCapacityByRegion = new Map<string, number>();
+  const competitionPriceBonusByRegion = new Map<string, number>();
+  for (const region of overseasRegions) {
+    const deployment = competitionDeploymentByRegion.get(region.regionId);
+    const power = calculateDeploymentPower(deployment, competitionConfig);
+    if (region.canCompete && power >= competitionConfig.minimumPower) {
+      const rewardCapacity = region.competitionRewardCapacityBonus ?? competitionConfig.rewardCapacityBonus;
+      const rewardPrice = region.competitionRewardPriceBonus ?? competitionConfig.rewardPriceBonus;
+      rewardCapacityByRegion.set(region.regionId, Math.max(0, rewardCapacity));
+      competitionPriceBonusByRegion.set(region.regionId, Math.max(0, rewardPrice));
+    }
+  }
 
   const domesticLimit = Math.floor(Math.max(
     0,
@@ -107,19 +161,38 @@ export function Phase1MarketPanel({
     ],
   );
 
-  const overseasRegions = regionAccessStatus.filter((status) => status.regionId !== "domestic");
   const totalAllocated = clampedDomestic + externalAllocationTotal;
 
+  let remainingInventoryForOverseasPreview = Math.max(0, totalGoods - clampedDomestic);
   let remainingOverseasCapacityForPreview = Math.max(0, overseasMarketCapacity);
+  const rewardCapacityForPreview = new Map(rewardCapacityByRegion);
   const overseasRevenue = externalAllocations.reduce((sum, alloc) => {
-    if (remainingOverseasCapacityForPreview <= 0) {
+    if (remainingInventoryForOverseasPreview <= 0) {
       return sum;
     }
     const region = overseasRegions.find((r) => r.regionId === alloc.marketId);
     const mult = region?.priceMultiplier ?? 1.0;
-    const sold = Math.min(Math.max(0, alloc.quantity), remainingOverseasCapacityForPreview);
-    remainingOverseasCapacityForPreview -= sold;
-    return sum + sold * calculateOverseasPrice(equilibriumPrice, mult, overseasPriceBonus, overseasPriceCeiling).price;
+    const regionRewardCapacity = Math.max(0, rewardCapacityForPreview.get(alloc.marketId) ?? 0);
+    const rewardSold = Math.min(Math.max(0, alloc.quantity), remainingInventoryForOverseasPreview, regionRewardCapacity);
+    const sharedSold = Math.min(
+      Math.max(0, alloc.quantity - rewardSold),
+      Math.max(0, remainingInventoryForOverseasPreview - rewardSold),
+      remainingOverseasCapacityForPreview,
+    );
+    const sold = rewardSold + sharedSold;
+    if (sold <= 0) {
+      return sum;
+    }
+    rewardCapacityForPreview.set(alloc.marketId, Math.max(0, regionRewardCapacity - rewardSold));
+    remainingOverseasCapacityForPreview -= sharedSold;
+    remainingInventoryForOverseasPreview -= sold;
+    const competitionPriceBonus = competitionPriceBonusByRegion.get(alloc.marketId) ?? 0;
+    return sum + sold * calculateOverseasPrice(
+      equilibriumPrice,
+      mult,
+      overseasPriceBonus + competitionPriceBonus,
+      overseasPriceCeiling,
+    ).price;
   }, 0);
 
   function handleDomesticDelta(delta: number) {
@@ -240,15 +313,58 @@ export function Phase1MarketPanel({
             const allocation = externalAllocations.find((item) => item.marketId === region.regionId);
             const quantity = allocation?.quantity ?? 0;
             const accessible = region.isAccessible;
+            const competitionDeployment = competitionDeploymentByRegion.get(region.regionId);
+            const competitionPower = calculateDeploymentPower(competitionDeployment, competitionConfig);
+            const regionRewardCapacity = rewardCapacityByRegion.get(region.regionId) ?? 0;
+            const regionRewardPrice = competitionPriceBonusByRegion.get(region.regionId) ?? 0;
+            const sharedCapacityUsedByOtherRegions = externalAllocations.reduce((sum, item) => {
+              if (item.marketId === region.regionId) {
+                return sum;
+              }
+              const rewardCapacity = rewardCapacityByRegion.get(item.marketId) ?? 0;
+              return sum + Math.max(0, Math.max(0, item.quantity) - rewardCapacity);
+            }, 0);
+            const inventoryRemainingForRegion = Math.max(
+              0,
+              totalGoods - clampedDomestic - (externalAllocationTotal - quantity),
+            );
+            const marketCapacityForRegion = Math.max(
+              0,
+              regionRewardCapacity + Math.max(0, overseasMarketCapacity - sharedCapacityUsedByOtherRegions),
+            );
             const maxForRegion = Math.max(
               0,
               Math.min(
-                totalGoods - clampedDomestic - externalAllocationTotal + quantity,
-                overseasMarketCapacity - externalAllocationTotal + quantity,
+                inventoryRemainingForRegion,
+                marketCapacityForRegion,
               ),
             );
             const multiplier = region.priceMultiplier ?? 1.0;
             const overseasPrice = calculateOverseasPrice(equilibriumPrice, multiplier, overseasPriceBonus, overseasPriceCeiling);
+            const competitionPrice = calculateOverseasPrice(
+              equilibriumPrice,
+              multiplier,
+              overseasPriceBonus + regionRewardPrice,
+              overseasPriceCeiling,
+            );
+            const usedInfantryOutsideRegion = competitionDeployments.reduce(
+              (sum, item) => item.marketId === region.regionId ? sum : sum + Math.max(0, item.infantry),
+              0,
+            );
+            const usedArtilleryOutsideRegion = competitionDeployments.reduce(
+              (sum, item) => item.marketId === region.regionId ? sum : sum + Math.max(0, item.artillery),
+              0,
+            );
+            const maxInfantryForRegion = Math.max(
+              0,
+              Math.floor(competitionConfig.availableArmy.infantry ?? 0) - usedInfantryOutsideRegion,
+            );
+            const maxArtilleryForRegion = Math.max(
+              0,
+              Math.floor(competitionConfig.availableArmy.artillery ?? 0) - usedArtilleryOutsideRegion,
+            );
+            const competitionLockedReason = region.competitionLockedReason ?? null;
+            const canCompete = Boolean(region.canCompete);
 
             function handleRegionDelta(delta: number) {
               if (readOnly) {
@@ -271,16 +387,32 @@ export function Phase1MarketPanel({
               onExternalAllocationChange(region.regionId, maxForRegion);
             }
 
+            function handleCompetitionDelta(unit: "infantry" | "artillery", delta: number) {
+              if (readOnly || !canCompete) {
+                return;
+              }
+              const nextInfantry = unit === "infantry"
+                ? clamp((competitionDeployment?.infantry ?? 0) + delta, 0, maxInfantryForRegion)
+                : clamp(competitionDeployment?.infantry ?? 0, 0, maxInfantryForRegion);
+              const nextArtillery = unit === "artillery"
+                ? clamp((competitionDeployment?.artillery ?? 0) + delta, 0, maxArtilleryForRegion)
+                : clamp(competitionDeployment?.artillery ?? 0, 0, maxArtilleryForRegion);
+              onCompetitionDeploymentChange(region.regionId, nextInfantry, nextArtillery);
+            }
+
             const cardClass = [
               "phase1-market__card",
               "phase1-market__card--overseas",
               !accessible && "phase1-market__card--locked",
-              accessible && quantity > 0 && "phase1-market__card--active",
+              accessible && (quantity > 0 || competitionPower > 0) && "phase1-market__card--active",
             ]
               .filter(Boolean)
               .join(" ");
 
             const lockHint = !accessible ? lockReasonLabel(region.lockReason) : null;
+            const competitionLockHint = competitionLockedReason
+              ? competitionLockReasonLabel(competitionLockedReason)
+              : null;
 
             return (
               <article key={region.regionId} className={cardClass}>
@@ -353,6 +485,43 @@ export function Phase1MarketPanel({
                       基础 {formatNumber(overseasPrice.basePrice)} + 海外加成 {formatSignedValue(overseasPriceBonus)}
                       ，上限 {overseasPriceCeiling}{overseasPrice.isCapped ? "，已按上限成交" : ""}
                     </p>
+                    <div className="phase1-market__competition">
+                      <div className="phase1-market__competition-header">
+                        <span className="phase1-market__competition-title">市场争夺</span>
+                        {canCompete ? (
+                          <span className="phase1-market__competition-power">战力 {competitionPower}</span>
+                        ) : (
+                          <span className="phase1-market__competition-lock">{competitionLockHint ?? "暂不可争夺"}</span>
+                        )}
+                      </div>
+                      {canCompete ? (
+                        <>
+                          <div className="phase1-market__unit-controls">
+                            <UnitStepper
+                              label="步兵"
+                              value={competitionDeployment?.infantry ?? 0}
+                              max={maxInfantryForRegion}
+                              readOnly={readOnly}
+                              onDelta={(delta) => handleCompetitionDelta("infantry", delta)}
+                            />
+                            <UnitStepper
+                              label="炮兵"
+                              value={competitionDeployment?.artillery ?? 0}
+                              max={maxArtilleryForRegion}
+                              readOnly={readOnly}
+                              onDelta={(delta) => handleCompetitionDelta("artillery", delta)}
+                            />
+                          </div>
+                          <p className="phase1-market__price-note">
+                            若夺取成功：额外承接 +{region.competitionRewardCapacityBonus ?? competitionConfig.rewardCapacityBonus}
+                            ，价格 +{region.competitionRewardPriceBonus ?? competitionConfig.rewardPriceBonus}
+                            {regionRewardCapacity > 0
+                              ? `，胜利价 ${formatNumber(competitionPrice.price)} 财政/件`
+                              : `，至少需要战力 ${region.competitionMinimumPower ?? competitionConfig.minimumPower}`}
+                          </p>
+                        </>
+                      ) : null}
+                    </div>
                   </>
                 ) : null}
               </article>
@@ -376,9 +545,61 @@ export function Phase1MarketPanel({
   );
 }
 
+function UnitStepper({
+  label,
+  value,
+  max,
+  readOnly,
+  onDelta,
+}: {
+  label: string;
+  value: number;
+  max: number;
+  readOnly: boolean;
+  onDelta: (delta: number) => void;
+}) {
+  return (
+    <div className="phase1-market__unit-stepper">
+      <span className="phase1-market__unit-label">{label}</span>
+      <button
+        type="button"
+        className="phase1-market__stepper-btn"
+        disabled={readOnly || value <= 0}
+        onClick={() => onDelta(-1)}
+        aria-label={`减少${label}投放`}
+      >
+        −
+      </button>
+      <span className="phase1-market__unit-value">{value}</span>
+      <button
+        type="button"
+        className="phase1-market__stepper-btn"
+        disabled={readOnly || value >= max}
+        onClick={() => onDelta(1)}
+        aria-label={`增加${label}投放`}
+      >
+        +
+      </button>
+    </div>
+  );
+}
+
 function clamp(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
   return Math.max(min, Math.min(max, Math.floor(value)));
+}
+
+function calculateDeploymentPower(
+  deployment: Phase1ExternalCompetitionDeployment | undefined,
+  config: OverseasCompetitionConfig,
+): number {
+  if (!deployment) {
+    return 0;
+  }
+  return (
+    Math.max(0, deployment.infantry) * Math.max(0, config.infantryPower)
+    + Math.max(0, deployment.artillery) * Math.max(0, config.artilleryPower)
+  );
 }
 
 function clampPrice(value: number, max = 8): number {

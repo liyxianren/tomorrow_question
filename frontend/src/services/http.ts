@@ -3,6 +3,7 @@ import type { ApiFailure, ApiResponse, ApiSuccess } from "../types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? "http://127.0.0.1:5000" : "");
 const BACKEND_UNAVAILABLE_COOLDOWN_MS = 3_000;
+const REQUEST_TIMEOUT_MS = 10_000;
 
 export const SESSION_STORAGE_KEY = "tomorrow-question.session-id";
 
@@ -117,12 +118,17 @@ async function runApiRequest<T>(
   }
 
   let response: Response;
+  const abortController = new AbortController();
+  const timeoutId = setTimeout(() => {
+    abortController.abort();
+  }, REQUEST_TIMEOUT_MS);
 
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       method,
       headers: requestHeaders,
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal: abortController.signal,
     });
   } catch (error) {
     backendUnavailableUntil = Date.now() + BACKEND_UNAVAILABLE_COOLDOWN_MS;
@@ -131,6 +137,8 @@ async function runApiRequest<T>(
       rejectBackendAvailabilityGate(backendError);
     }
     throw backendError;
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   if (signalBackendAvailability) {

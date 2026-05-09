@@ -25,6 +25,7 @@ from .models import (
     MilitaryActionConfig,
     MilitaryActionsBalanceConfig,
     OceanNodeBlueprintConfig,
+    OverseasCompetitionConfig,
     PolicyConfig,
     ReformConfig,
     ReformsBalanceConfig,
@@ -366,7 +367,36 @@ def _build_market_config(payload: dict[str, Any]) -> MarketBalanceConfig:
         region_goods_premiums[str(region_id)] = {
             str(k): int(v) for k, v in _require_dict(goods_premiums, f"market.regionGoodsPremiums.{region_id}").items()
         }
-    return MarketBalanceConfig(region_goods_premiums=region_goods_premiums)
+    raw_competition = _require_dict(payload.get("overseasCompetition", {}), "market.overseasCompetition")
+    overseas_competition = OverseasCompetitionConfig(
+        reward_capacity_bonus=_require_non_negative_int(
+            raw_competition.get("rewardCapacityBonus", 8),
+            "market.overseasCompetition.rewardCapacityBonus",
+        ),
+        reward_price_bonus=_require_non_negative_int(
+            raw_competition.get("rewardPriceBonus", 1),
+            "market.overseasCompetition.rewardPriceBonus",
+        ),
+        infantry_power=_require_non_negative_int(
+            raw_competition.get("infantryPower", 1),
+            "market.overseasCompetition.infantryPower",
+        ),
+        artillery_power=_require_non_negative_int(
+            raw_competition.get("artilleryPower", 2),
+            "market.overseasCompetition.artilleryPower",
+        ),
+        minimum_power=max(
+            1,
+            _require_non_negative_int(
+                raw_competition.get("minimumPower", 1),
+                "market.overseasCompetition.minimumPower",
+            ),
+        ),
+    )
+    return MarketBalanceConfig(
+        region_goods_premiums=region_goods_premiums,
+        overseas_competition=overseas_competition,
+    )
 
 
 def _build_regions_config(payload: dict[str, Any]) -> RegionsBalanceConfig:

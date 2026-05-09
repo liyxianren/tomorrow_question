@@ -4,7 +4,10 @@ import type { PhaseDraftByPhase } from "../../../features/game/forms";
 import type { DecisionActionCardEffect } from "./shared/DecisionActionCard";
 import { DecisionStatStrip } from "./shared/DecisionStatStrip";
 import { DecisionActionCard } from "./shared/DecisionActionCard";
-import { buildEffectMetrics } from "../../../features/game/decisionShared";
+import {
+  buildEffectMetrics,
+  calculateGovernmentFiscalState,
+} from "../../../features/game/decisionShared";
 import "./GovernmentPanel.css";
 
 type ReformPath = "freedom" | "equality" | "national";
@@ -30,6 +33,32 @@ const IDEOLOGY_META: Record<IdeologyKey, { label: string; icon: string }> = {
 };
 
 const IDEOLOGY_KEYS: IdeologyKey[] = ["liberalism", "egalitarianism", "nationalism"];
+
+const MARKET_STRATEGY_ICONS: Record<string, string> = {
+  expand_workshop: "⚙️",
+  market_fair: "🎪",
+  rural_development: "🌾",
+  consumer_subsidy: "💰",
+  import_substitution: "🧱",
+  public_works: "🏗️",
+  luxury_promotion: "💎",
+  infrastructure_investment: "🏭",
+  trade_hub: "⚓",
+};
+
+const MARKET_PREVIEW_EFFECT_KEYS = [
+  "domesticMarketCapacityDelta",
+  "domesticPriceBonusDelta",
+  "handicraftCapacityDelta",
+  "overseasMarketCapacityDelta",
+] as const;
+
+const MARKET_PREVIEW_EFFECT_LABELS: Record<(typeof MARKET_PREVIEW_EFFECT_KEYS)[number], string> = {
+  domesticMarketCapacityDelta: "国内容量",
+  domesticPriceBonusDelta: "国内价格",
+  handicraftCapacityDelta: "手工业",
+  overseasMarketCapacityDelta: "海外容量",
+};
 
 const IDEOLOGY_LABELS: Record<IdeologyKey, string> = {
   liberalism: "自由主义",
@@ -151,6 +180,12 @@ function stripGeneratedEffectSummary(description: string | undefined): string | 
   return description.replace(/\s*效果：.*。$/, "");
 }
 
+function formatMarketNumber(value: number | undefined): string {
+  if (value == null || !Number.isFinite(value)) return "—";
+  const rounded = Math.round(value * 100) / 100;
+  return `${rounded}`;
+}
+
 function resolveReformDescription(
   reform: { reformId: string; description?: string; path: ReformPath },
 ): string {
@@ -262,6 +297,22 @@ function formatStrategyEffects(
   }
 
   return effects;
+}
+
+function hasMarketPreviewEffect(
+  strategy: DecisionPlayerPhaseWorkspace["governmentActions"]["strategies"][number],
+): boolean {
+  return MARKET_PREVIEW_EFFECT_KEYS.some((key) => typeof strategy.effects?.[key] === "number");
+}
+
+function sumMarketEffect(
+  strategies: DecisionPlayerPhaseWorkspace["governmentActions"]["strategies"],
+  effectKey: (typeof MARKET_PREVIEW_EFFECT_KEYS)[number],
+): number {
+  return strategies.reduce((sum, strategy) => {
+    const value = strategy.effects?.[effectKey];
+    return sum + (typeof value === "number" ? value : 0);
+  }, 0);
 }
 
 function formatPolicyEffects(
@@ -395,10 +446,49 @@ export function GovernmentPanel({
   const queuedActivateIds = new Set(draft.activatePolicies ?? []);
   const queuedDeactivateIds = new Set(draft.deactivatePolicies ?? []);
 
-  const strategies = workspace.governmentActions?.strategies ?? [];
+  const strategies = (workspace.governmentActions?.strategies ?? [])
+    .filter((strategy) => strategy.actionId !== "expand_research");
   const queuedStrategyIds = new Set(
     (draft.governmentPlan.strategySelections ?? []).map((selection) => selection.actionId),
   );
+  const selectedMarketStrategies = strategies.filter((strategy) =>
+    queuedStrategyIds.has(strategy.actionId) && hasMarketPreviewEffect(strategy),
+  );
+  const selectedDomesticCapacityDelta = sumMarketEffect(selectedMarketStrategies, "domesticMarketCapacityDelta");
+  const selectedDomesticPriceDelta = sumMarketEffect(selectedMarketStrategies, "domesticPriceBonusDelta");
+  const selectedOverseasCapacityDelta = sumMarketEffect(selectedMarketStrategies, "overseasMarketCapacityDelta");
+  const selectedMarketEffectSummary = MARKET_PREVIEW_EFFECT_KEYS
+    .map((key) => ({ key, value: sumMarketEffect(selectedMarketStrategies, key) }))
+    .filter((item) => item.value !== 0);
+  const phase1Economy = workspace.phase1Economy;
+  const baseDomesticCapacity = workspace.domesticMarketCapacity ?? phase1Economy?.domesticDemand;
+  const projectedDomesticCapacity = baseDomesticCapacity != null
+    ? Math.max(0, baseDomesticCapacity + selectedDomesticCapacityDelta)
+    : undefined;
+  const baseOverseasCapacity = workspace.overseasMarketCapacity;
+  const projectedOverseasCapacity = baseOverseasCapacity != null
+    ? Math.max(0, baseOverseasCapacity + selectedOverseasCapacityDelta)
+    : undefined;
+  const domesticPriceCeiling = phase1Economy?.domesticPriceCeiling ?? 12;
+  const existingDomesticPriceBeforeCap = phase1Economy?.domesticPriceBeforeCap
+    ?? phase1Economy?.domesticPricePreview;
+  const projectedDomesticPriceBeforeCap = existingDomesticPriceBeforeCap != null
+    ? Math.max(1, existingDomesticPriceBeforeCap + selectedDomesticPriceDelta)
+    : undefined;
+  const projectedDomesticPrice = projectedDomesticPriceBeforeCap != null
+    ? Math.max(1, Math.min(domesticPriceCeiling, projectedDomesticPriceBeforeCap))
+    : undefined;
+  const marketPriceIsCapped = projectedDomesticPriceBeforeCap != null
+    && projectedDomesticPriceBeforeCap > domesticPriceCeiling;
+  const marketPriceHint = phase1Economy
+    ? [
+        `基础 ${formatMarketNumber(phase1Economy.domesticBasePricePreview ?? phase1Economy.equilibriumPrice)}`,
+        `既有加成 ${formatSigned(phase1Economy.domesticPriceBonus ?? 0)}`,
+        selectedDomesticPriceDelta !== 0 ? `本轮调节 ${formatSigned(selectedDomesticPriceDelta)}` : null,
+        `上限 ${domesticPriceCeiling}`,
+        marketPriceIsCapped ? "已触顶" : null,
+      ].filter(Boolean).join("，")
+    : "等待市场数据同步";
   const ability = workspace.nationalAbility;
   const abilitySelected = Boolean(ability && draft.abilitySelection?.abilityId === ability.abilityId);
   const abilityTarget = IDEOLOGY_KEYS.includes(draft.abilitySelection?.targetIdeology as IdeologyKey)
@@ -440,19 +530,130 @@ export function GovernmentPanel({
 
   const activePolicies = reforms.availablePolicies.filter((policy) => policy.isActive);
   const inactivePolicies = reforms.availablePolicies.filter((policy) => !policy.isActive);
+  const fiscalState = calculateGovernmentFiscalState(workspace, draft);
+  const baseGovernmentRemaining = fiscalState.baseGovernmentRemaining;
+  const marketRegulationRemaining = Math.max(
+    0,
+    fiscalState.marketRegulationAllowance - fiscalState.marketRegulationSpend,
+  );
 
-  const canBuyAdmin = adminCost > 0 && remainingGovernmentBudget >= adminCost;
+  const canBuyAdmin = adminCost > 0 && baseGovernmentRemaining >= adminCost;
 
   const pointPurchaseCosts = workspace.governmentActions?.pointPurchaseCosts ?? { tech: 0, military: 0 };
   const militaryCost = pointPurchaseCosts.military;
   const queuedMilitaryPurchases = draft.governmentPlan.pointPurchases.find((p) => p.pointType === "military")?.quantity ?? 0;
-  const canBuyMilitary = militaryCost > 0 && remainingGovernmentBudget >= militaryCost;
+  const canBuyMilitary = militaryCost > 0 && baseGovernmentRemaining >= militaryCost;
+  const canAddMarketStrategy = (cost: number) => {
+    const nextMarketSpend = fiscalState.marketRegulationSpend + cost;
+    const nextMarketOverflow = Math.max(0, nextMarketSpend - fiscalState.marketRegulationAllowance);
+    const nextBaseFiscalSpend = fiscalState.coreGovernmentSpend + fiscalState.militaryFiscalSpend + nextMarketOverflow;
+    return nextBaseFiscalSpend <= fiscalState.baseGovernmentBudget;
+  };
+  const marketRegulationSection = strategies.length > 0 ? (
+    <section className="government-market-section">
+      <div className="government-market-section__head">
+        <div>
+          <h4 className="government-section-label">🎯 市场调节</h4>
+          <p className="government-section-note">
+            民间购买力转化为本轮市场调节额度，优先支付补贴、博览会、进口替代和公共工程。
+          </p>
+        </div>
+        <span className="government-market-section__summary">
+          额度 {marketRegulationRemaining}/{fiscalState.marketRegulationAllowance}
+        </span>
+      </div>
+      <div className="government-market-preview" aria-label="市场调节预览" data-testid="government-market-preview">
+        <div className="government-market-preview__heading">
+          <div>
+            <strong>市场基线</strong>
+            <span>选择下方策略后，承接量、参考售价和海外容量会即时更新。</span>
+          </div>
+          <span className="government-market-preview__status">
+            {selectedMarketStrategies.length > 0 ? "已纳入本轮政府策略" : "使用基础供需"}
+          </span>
+        </div>
+        <div className="government-market-preview__grid">
+          <div className="government-market-preview__metric">
+            <span>市场需求</span>
+            <strong>{formatMarketNumber(phase1Economy?.domesticDemand)}</strong>
+            <small>出售阶段国内承接参考</small>
+          </div>
+          <div className="government-market-preview__metric">
+            <span>投放上限</span>
+            <strong>{formatMarketNumber(projectedDomesticCapacity)}</strong>
+            <small>
+              基础 {formatMarketNumber(baseDomesticCapacity)}
+              {selectedDomesticCapacityDelta !== 0 ? `，调节 ${formatSigned(selectedDomesticCapacityDelta)}` : ""}
+            </small>
+          </div>
+          <div className="government-market-preview__metric">
+            <span>{marketPriceIsCapped ? "参考售价已封顶" : "参考售价"}</span>
+            <strong>{formatMarketNumber(projectedDomesticPrice)}</strong>
+            <small>{marketPriceHint}</small>
+          </div>
+          <div className="government-market-preview__metric">
+            <span>海外容量</span>
+            <strong>{formatMarketNumber(projectedOverseasCapacity)}</strong>
+            <small>
+              基础 {formatMarketNumber(baseOverseasCapacity)}
+              {selectedOverseasCapacityDelta !== 0 ? `，调节 ${formatSigned(selectedOverseasCapacityDelta)}` : ""}
+            </small>
+          </div>
+        </div>
+        <div className="government-market-preview__effects">
+          {selectedMarketEffectSummary.length > 0 ? (
+            selectedMarketEffectSummary.map((item) => (
+              <span key={item.key}>
+                {MARKET_PREVIEW_EFFECT_LABELS[item.key]} {formatSigned(item.value)}
+              </span>
+            ))
+          ) : (
+            <span>出售阶段会按实际投放、基础供需和既有效果重新定价。</span>
+          )}
+        </div>
+      </div>
+      <div className="government-actions government-actions--market">
+        {strategies.map((strategy) => {
+          const queued = queuedStrategyIds.has(strategy.actionId);
+          const overBudget = !queued && !canAddMarketStrategy(strategy.cost);
+          const lockedReason = strategy.lockedReason ?? (overBudget ? "财政不足" : null);
+          const isDisabled = !queued && lockedReason !== null;
+          const status = queued ? "selected" : lockedReason ? "disabled" : "available";
+          return (
+            <DecisionActionCard
+              key={strategy.actionId}
+              icon={MARKET_STRATEGY_ICONS[strategy.actionId] ?? "🎯"}
+              title={strategy.label}
+              costLabel={`${strategy.cost} 市场调节`}
+              description={stripGeneratedEffectSummary(strategy.description ?? undefined)}
+              effects={formatStrategyEffects(strategy)}
+              status={status}
+              statusText={queued ? "✓ 本轮执行" : lockedReason ?? "可选"}
+              control={{
+                kind: "toggle",
+                checked: queued,
+                onChange: (next) => onToggleStrategy(strategy.actionId, next),
+                label: queued ? "撤回" : "选择",
+                ariaLabel: `选择策略：${strategy.label}`,
+                disabled: isDisabled,
+              }}
+            />
+          );
+        })}
+      </div>
+    </section>
+  ) : null;
 
   return (
     <section className="government-panel" data-testid="government-panel">
       <div className="government-panel__header">
         <h3 className="government-panel__title">🏛️ 议会大厅</h3>
-        <span className="government-panel__budget">政府财政 {remainingGovernmentBudget}</span>
+        <div className="government-panel__budget-stack">
+          <span className="government-panel__budget">政府财政 {fiscalState.effectiveGovernmentRemaining}</span>
+          <span className="government-panel__budget-detail">
+            基础 {baseGovernmentRemaining}/{fiscalState.baseGovernmentBudget} · 市场调节 {marketRegulationRemaining}/{fiscalState.marketRegulationAllowance}
+          </span>
+        </div>
       </div>
 
       <DecisionStatStrip
@@ -463,6 +664,8 @@ export function GovernmentPanel({
           { icon: "⚙️", value: activePolicies.length, label: "现行政策" },
         ]}
       />
+
+      {marketRegulationSection}
 
       {/* ── 思潮信号 ── */}
       <h4 className="government-section-label">
@@ -711,14 +914,14 @@ export function GovernmentPanel({
                 queuedAdminPurchases > 0
                   ? `本轮：财政 -${queuedAdminPurchases * adminCost}，行政力 +${queuedAdminPurchases}`
                   : !canBuyAdmin
-                    ? formatShortfall(adminCost, remainingGovernmentBudget)
+                    ? formatShortfall(adminCost, baseGovernmentRemaining)
                     : "可兑换"
               }
               control={{
                 kind: "stepper",
                 value: queuedAdminPurchases,
                 min: 0,
-                max: adminCost > 0 ? Math.floor((remainingGovernmentBudget + queuedAdminPurchases * adminCost) / adminCost) : 0,
+                max: adminCost > 0 ? Math.floor((baseGovernmentRemaining + queuedAdminPurchases * adminCost) / adminCost) : 0,
                 onChange: onAdminPurchase,
                 incrementAriaLabel: "增加行政力购买",
                 decrementAriaLabel: "减少行政力购买",
@@ -750,14 +953,14 @@ export function GovernmentPanel({
                       queuedMilitaryPurchases > 0
                         ? `本轮：财政 -${queuedMilitaryPurchases * militaryCost}，军事点 +${queuedMilitaryPurchases}`
                         : !canBuyMilitary
-                          ? formatShortfall(militaryCost, remainingGovernmentBudget)
+                          ? formatShortfall(militaryCost, baseGovernmentRemaining)
                           : "可兑换"
                     }
                     control={{
                       kind: "stepper",
                       value: queuedMilitaryPurchases,
                       min: 0,
-                      max: militaryCost > 0 ? Math.floor((remainingGovernmentBudget + queuedMilitaryPurchases * militaryCost) / militaryCost) : 0,
+                      max: militaryCost > 0 ? Math.floor((baseGovernmentRemaining + queuedMilitaryPurchases * militaryCost) / militaryCost) : 0,
                       onChange: onMilitaryPurchase,
                       incrementAriaLabel: "增加军事点购买",
                       decrementAriaLabel: "减少军事点购买",
@@ -832,7 +1035,7 @@ export function GovernmentPanel({
                 {inactivePolicies.map((policy) => {
                   const active = isPolicyActiveAfter(policy.policyId, policy.isActive);
                   const policyBudgetCost = policy.budgetCost;
-                  const budgetLockedReason = !active && policyBudgetCost > 0 && remainingGovernmentBudget < policyBudgetCost
+                  const budgetLockedReason = !active && policyBudgetCost > 0 && baseGovernmentRemaining < policyBudgetCost
                     ? "财政不足"
                     : null;
                   const adminLockedReason = !active && projectedAdmin < policy.adminCostPerTurn
@@ -879,41 +1082,6 @@ export function GovernmentPanel({
             </>
           )}
 
-          {/* 本回合策略（一次性） */}
-          {strategies.length > 0 && (
-            <>
-              <h4 className="government-section-label">🎯 本回合策略</h4>
-              <div className="government-actions">
-                {strategies.map((strategy) => {
-                  const queued = queuedStrategyIds.has(strategy.actionId);
-                  const overBudget = !queued && remainingGovernmentBudget < strategy.cost;
-                  const lockedReason = strategy.lockedReason ?? (overBudget ? "财政不足" : null);
-                  const isDisabled = !queued && lockedReason !== null;
-                  const status = queued ? "selected" : lockedReason ? "disabled" : "available";
-                  return (
-                    <DecisionActionCard
-                      key={strategy.actionId}
-                      icon="🎯"
-                      title={strategy.label}
-                      costLabel={`${strategy.cost} 财政`}
-                      description={stripGeneratedEffectSummary(strategy.description ?? undefined)}
-                      effects={formatStrategyEffects(strategy)}
-                      status={status}
-                      statusText={queued ? "✓ 本轮执行" : lockedReason ?? "可选"}
-                      control={{
-                        kind: "toggle",
-                        checked: queued,
-                        onChange: (next) => onToggleStrategy(strategy.actionId, next),
-                        label: queued ? "撤回" : "选择",
-                        ariaLabel: `选择策略：${strategy.label}`,
-                        disabled: isDisabled,
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            </>
-          )}
         </div>
       </div>
     </section>

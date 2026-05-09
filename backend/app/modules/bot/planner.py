@@ -32,29 +32,40 @@ def _plan_decision(workspace: Mapping[str, Any]) -> dict[str, Any]:
     }
 
     budget_pools = _as_mapping(workspace.get("budgetPools"))
-
-    domestic_actions = [
-        action for action in _as_list(workspace.get("domesticMarketActions")) if isinstance(action, dict)
+    base_budget_pools = _as_mapping(workspace.get("baseBudgetPools"))
+    market_allowance = max(0, int(workspace.get("marketRegulationAllowance", 0) or 0))
+    government_budget = int(
+        base_budget_pools.get(
+            "governmentFiscal",
+            max(0, int(budget_pools.get("governmentFiscal", 0)) - market_allowance),
+        )
+    )
+    government_actions = _as_mapping(workspace.get("governmentActions"))
+    government_strategies = [
+        action for action in _as_list(government_actions.get("strategies")) if isinstance(action, dict)
     ]
-    first_domestic_action = next(
+    first_market_strategy = next(
         (
             action
-            for action in domestic_actions
+            for action in government_strategies
             if str(action.get("actionId") or "")
-            and int(budget_pools.get("domesticMarket", 0)) >= int(action.get("cost", 0))
+            and str(action.get("actionId")) != "expand_research"
+            and government_budget + market_allowance >= int(action.get("cost", 0))
         ),
         None,
     )
-    if first_domestic_action is not None:
-        draft["domesticMarketPlan"]["domesticMarketActions"].append(
-            {"actionId": str(first_domestic_action.get("actionId"))}
+    if first_market_strategy is not None:
+        draft["governmentPlan"]["strategySelections"].append(
+            {"actionId": str(first_market_strategy.get("actionId"))}
         )
+        strategy_cost = int(first_market_strategy.get("cost", 0))
+        government_budget -= max(0, strategy_cost - market_allowance)
+        market_allowance = max(0, market_allowance - strategy_cost)
 
     research_target = _find_research_target(workspace)
     if research_target:
         draft["researchTarget"] = research_target
 
-    government_budget = int(budget_pools.get("governmentFiscal", 0))
     gov_reforms = _as_mapping(workspace.get("governmentReforms"))
     admin_cost = max(1, int(gov_reforms.get("adminPurchaseCost", 0) or 0))
     if government_budget >= admin_cost:
@@ -127,9 +138,68 @@ def _plan_market(workspace: Mapping[str, Any]) -> dict[str, Any]:
         )
         if goods_available > 0:
             demand = int(phase1_economy.get("domesticDemand", 0) or 0)
+            domestic_allocation = min(goods_available, demand)
+            external_allocations: list[dict[str, Any]] = []
+            competition_deployments: list[dict[str, Any]] = []
+            remaining_quantity = max(0, goods_available - domestic_allocation)
+            remaining_overseas_capacity = int(workspace.get("overseasMarketCapacity", 0) or 0)
+            region_statuses = [
+                region for region in _as_list(workspace.get("regionAccessStatus")) if isinstance(region, dict)
+            ]
+            for region in region_statuses:
+                if remaining_quantity <= 0 or remaining_overseas_capacity <= 0:
+                    break
+                if not bool(region.get("isAccessible")):
+                    continue
+                region_id = str(region.get("regionId") or "")
+                if not region_id:
+                    continue
+                quantity = min(remaining_quantity, remaining_overseas_capacity)
+                external_allocations.append({"marketId": region_id, "quantity": quantity})
+                remaining_quantity -= quantity
+                remaining_overseas_capacity -= quantity
+
+            competition = _as_mapping(workspace.get("overseasCompetition"))
+            available_army = _as_mapping(competition.get("availableArmy"))
+            available_infantry = int(available_army.get("infantry", 0) or 0)
+            available_artillery = int(available_army.get("artillery", 0) or 0)
+            if remaining_quantity > 0 and (available_infantry > 0 or available_artillery > 0):
+                target_region = next(
+                    (
+                        region
+                        for region in region_statuses
+                        if bool(region.get("canCompete")) and str(region.get("regionId") or "")
+                    ),
+                    None,
+                )
+                if target_region is not None:
+                    region_id = str(target_region.get("regionId") or "")
+                    infantry = 1 if available_infantry > 0 else 0
+                    artillery = 0 if infantry > 0 else 1
+                    competition_deployments.append(
+                        {"marketId": region_id, "infantry": infantry, "artillery": artillery}
+                    )
+                    reward_capacity = int(
+                        target_region.get(
+                            "competitionRewardCapacityBonus",
+                            competition.get("rewardCapacityBonus", 0),
+                        )
+                        or 0
+                    )
+                    reward_quantity = min(remaining_quantity, max(0, reward_capacity))
+                    if reward_quantity > 0:
+                        existing = next(
+                            (item for item in external_allocations if item["marketId"] == region_id),
+                            None,
+                        )
+                        if existing is not None:
+                            existing["quantity"] = int(existing["quantity"]) + reward_quantity
+                        else:
+                            external_allocations.append({"marketId": region_id, "quantity": reward_quantity})
             draft["phase1Market"] = {
-                "domesticAllocation": min(goods_available, demand),
-                "externalAllocations": [],
+                "domesticAllocation": domestic_allocation,
+                "externalAllocations": external_allocations,
+                "externalCompetitionDeployments": competition_deployments,
             }
     return draft
 

@@ -28,9 +28,10 @@ describe("decisionCardDemo adapter", () => {
       "locked-goods",
     ]);
     expect(viewModel.locations.domestic.sections.map((section) => section.id)).toEqual([
-      "domestic-actions",
+      "market-preview",
     ]);
     expect(viewModel.locations.government.sections.map((section) => section.id)).toEqual([
+      "government-market-preview",
       "government-strategy",
       "government-ability",
     ]);
@@ -56,7 +57,7 @@ describe("decisionCardDemo adapter", () => {
       },
       governmentPlan: {
         pointPurchases: [],
-        strategySelections: [{ actionId: "industrial_policy" }],
+        strategySelections: [{ actionId: "market_fair" }],
         techResearch: [],
       },
     };
@@ -69,10 +70,10 @@ describe("decisionCardDemo adapter", () => {
 
     expect(viewModel.sourceLabel).toBe("实时对局");
     expect(viewModel.summary.remainingBudgets.factory).toBe(11);
-    expect(viewModel.summary.ratioPreview.factory).toBe(3.2);
+    expect(viewModel.summary.ratioPreview.factory).toBe(3);
     expect(viewModel.locations.factory.sections[0].cards.find((card) => card.id === "production-coal")?.feedback).toContain("已安排 2 批");
     expect(
-      viewModel.locations.government.sections.flatMap((section) => section.cards).find((card) => card.id === "strategy-industrial_policy")?.selected,
+      viewModel.locations.government.sections.flatMap((section) => section.cards).find((card) => card.id === "strategy-market_fair")?.selected,
     ).toBe(true);
   });
 
@@ -104,7 +105,7 @@ describe("decisionCardDemo adapter", () => {
     expect(viewModel.locations.research.summaryPills).toContain("本轮已选目标");
   });
 
-  it("localizes ratio delta badges in government strategy cards", () => {
+  it("shows market-regulation effect badges in government strategy cards", () => {
     const scenario = createSeedDecisionCardDemoScenario();
     const viewModel = buildDecisionCardDemoViewModel({
       activeStep: "government",
@@ -113,8 +114,11 @@ describe("decisionCardDemo adapter", () => {
     });
 
     expect(
-      viewModel.locations.government.sections.flatMap((section) => section.cards).find((card) => card.id === "strategy-expand_shipping_lines")?.badges,
-    ).toContain("内需 -0.2 / 政府 +0.2");
+      viewModel.locations.government.sections.flatMap((section) => section.cards).find((card) => card.id === "strategy-market_fair")?.badges,
+    ).toContain("国内容量 +2");
+    expect(
+      viewModel.locations.government.sections.flatMap((section) => section.cards).some((card) => card.id === "strategy-expand_research"),
+    ).toBe(false);
   });
 
   it("does not lock factory production when a research target is selected", () => {
@@ -165,7 +169,7 @@ describe("decisionCardDemo adapter", () => {
     });
   });
 
-  it("does not lock domestic actions when a research target is selected", () => {
+  it("keeps the domestic location as read-only market preview when a research target is selected", () => {
     const scenario = createSeedDecisionCardDemoScenario();
     const draft = {
       ...createInitialPhaseDraft("decision"),
@@ -183,10 +187,38 @@ describe("decisionCardDemo adapter", () => {
     });
     const domesticCards = viewModel.locations.domestic.sections.flatMap((section) => section.cards);
 
-    expect(domesticCards.find((card) => card.id === "domestic-rural_development")?.lockedReason).toBeNull();
-    expect(domesticCards.find((card) => card.id === "domestic-rural_development")?.control).toMatchObject({
-      kind: "toggle",
-      disabled: false,
+    expect(domesticCards.map((card) => card.id)).toEqual([
+      "market-demand-preview",
+      "market-price-preview",
+      "market-regulation-preview",
+    ]);
+    expect(domesticCards.every((card) => card.control.kind === "none")).toBe(true);
+    expect(domesticCards.every((card) => card.interaction == null)).toBe(true);
+  });
+
+  it("previews selected government market regulation without spending domestic budget", () => {
+    const scenario = createSeedDecisionCardDemoScenario();
+    const draft = {
+      ...createInitialPhaseDraft("decision"),
+      governmentPlan: {
+        pointPurchases: [],
+        strategySelections: [{ actionId: "market_fair" }],
+        techResearch: [],
+      },
+    };
+
+    const viewModel = buildDecisionCardDemoViewModel({
+      activeStep: "domestic",
+      draft,
+      scenario,
     });
+    const regulationCard = viewModel.locations.domestic.sections
+      .flatMap((section) => section.cards)
+      .find((card) => card.id === "market-regulation-preview");
+
+    expect(viewModel.summary.remainingBudgets.domesticMarket).toBe(10);
+    expect(viewModel.summary.remainingBudgets.governmentFiscal).toBe(10);
+    expect(regulationCard?.badges).toContain("国内容量 +2");
+    expect(regulationCard?.feedback).toContain("governmentPlan.strategySelections");
   });
 });

@@ -17,8 +17,8 @@
   min-width: 300px;
   flex-shrink: 0;
   padding: 12px;
-  background: linear-gradient(180deg, rgba(12, 15, 22, 0.98) 0%, rgba(6, 8, 14, 0.99) 100%);
-  border-right: 1px solid rgba(212, 175, 55, 0.15);
+  background: linear-gradient(180deg, rgba(12, 17, 24, 0.96) 0%, rgba(7, 10, 15, 0.98) 100%);
+  border-right: 1px solid rgba(226, 232, 240, 0.08);
   overflow-y: auto;
   overflow-x: hidden;
   max-height: 100vh;
@@ -58,7 +58,7 @@
 
 .game-map-sidebar__action {
   padding-top: 12px;
-  border-top: 1px solid rgba(212, 175, 55, 0.12);
+  border-top: 1px solid rgba(226, 232, 240, 0.08);
 }
 
 .game-map-sidebar .gp-submit {
@@ -117,7 +117,7 @@
   flex: 1;
   min-width: 0;
   min-height: 0;
-  background-color: var(--color-bg-top);
+  background-color: #0b1118;
   overflow: hidden;
 }
 
@@ -133,13 +133,15 @@
   height: 100%;
   object-fit: cover;
   object-position: center 20%;
-  opacity: 0.85;
+  opacity: 0.92;
 }
 
 .game-map-canvas__overlay {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at center, transparent 30%, rgba(10, 14, 20, 0.6) 100%);
+  background:
+    linear-gradient(90deg, rgba(4, 7, 11, 0.18) 0%, transparent 24%, transparent 74%, rgba(4, 7, 11, 0.18) 100%),
+    radial-gradient(circle at center, transparent 36%, rgba(8, 13, 20, 0.34) 100%);
   pointer-events: none;
 }
 
@@ -173,11 +175,11 @@
 }
 
 .game-map-building__dot {
-  width: 14px;
-  height: 14px;
-  background-color: var(--color-accent-strong);
+  width: 12px;
+  height: 12px;
+  background-color: var(--game-text-value);
   border-radius: 50%;
-  box-shadow: 0 0 10px var(--color-accent-strong), 0 0 20px var(--color-accent);
+  box-shadow: 0 0 10px rgba(232, 200, 120, 0.75), 0 0 22px rgba(232, 200, 120, 0.28);
   position: relative;
   z-index: 2;
 }
@@ -186,7 +188,7 @@
   position: absolute;
   width: 100%;
   height: 100%;
-  background-color: var(--color-accent);
+  background-color: var(--game-text-value);
   border-radius: 50%;
   opacity: 0.8;
   animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
@@ -203,32 +205,32 @@
 /* ── Tooltip below pin ── */
 
 .game-map-building__tooltip {
-  margin-top: 10px;
-  background: rgba(10, 14, 22, 0.92);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(212, 175, 55, 0.4);
-  padding: 8px 14px;
-  border-radius: 10px;
+  margin-top: 8px;
+  background: rgba(12, 18, 26, 0.84);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(226, 232, 240, 0.16);
+  padding: 8px 12px;
+  border-radius: 8px;
   white-space: nowrap;
   display: flex;
   flex-direction: column;
   align-items: center;
   cursor: pointer;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.42);
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   pointer-events: auto;
 }
 
 .game-map-building:hover .game-map-building__tooltip,
 .game-map-building--active .game-map-building__tooltip {
-  border-color: var(--color-accent-strong);
-  transform: translateY(-4px);
-  box-shadow: 0 12px 28px rgba(212, 175, 55, 0.2);
+  border-color: rgba(232, 200, 120, 0.52);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5), 0 0 18px rgba(232, 200, 120, 0.16);
 }
 
 .game-map-building__label {
   font-family: var(--font-serif);
-  color: var(--color-accent-strong);
+  color: var(--game-text-value);
   font-size: 1.05rem;
   font-weight: 700;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
@@ -276,7 +278,7 @@
     align-items: center;
     padding: 10px 12px;
     border-right: none;
-    border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.08);
   }
 
   .game-map-sidebar__spacer {

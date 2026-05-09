@@ -12,6 +12,7 @@ from ...contracts.models import (
     PlayerTurnInputPayload,
     RoomPayload,
 )
+from ..game_state.models import GameSnapshot
 from .repositories import (
     GameLogRepository,
     GameRepository,
@@ -94,7 +95,7 @@ class RecoveryRepository:
         try:
             snapshot = self.snapshots.get(active_snapshot_id)
             if snapshot is not None:
-                context["activeSnapshot"] = snapshot
+                context["activeSnapshot"] = GameSnapshot.from_payload(snapshot).to_payload()
         except ValueError:
             return context
 

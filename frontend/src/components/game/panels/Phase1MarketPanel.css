@@ -5,10 +5,10 @@
   flex-direction: column;
   gap: 12px;
   padding: 14px;
-  border-radius: var(--game-radius-md, 14px);
-  border: 1px solid rgba(212, 175, 55, 0.15);
-  background: linear-gradient(160deg, rgba(20, 16, 10, 0.92) 0%, rgba(10, 8, 5, 0.96) 100%);
-  box-shadow: 0 0 18px -10px rgba(212, 175, 55, 0.3);
+  border-radius: var(--game-radius-md, 12px);
+  border: 1px solid rgba(127, 180, 216, 0.16);
+  background: linear-gradient(160deg, rgba(13, 22, 30, 0.92) 0%, rgba(7, 12, 18, 0.96) 100%);
+  box-shadow: 0 0 18px -12px rgba(127, 180, 216, 0.26);
 }
 
 /* ── Summary Bar ── */
@@ -26,8 +26,8 @@
   gap: 2px;
   padding: 8px 6px;
   border-radius: 8px;
-  background: rgba(212, 175, 55, 0.06);
-  border: 1px solid rgba(212, 175, 55, 0.12);
+  background: rgba(127, 180, 216, 0.07);
+  border: 1px solid rgba(127, 180, 216, 0.14);
 }
 
 .phase1-market__stat-value {
@@ -51,15 +51,15 @@
   flex-direction: column;
   gap: 8px;
   padding: 10px 12px;
-  border-radius: var(--game-radius-sm, 10px);
+  border-radius: var(--game-radius-sm, 8px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: linear-gradient(160deg, rgba(14, 18, 26, 0.84) 0%, rgba(8, 11, 16, 0.96) 100%);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
 }
 
 .phase1-market__card--active {
-  border-color: rgba(212, 175, 55, 0.4);
-  box-shadow: 0 0 10px -4px rgba(212, 175, 55, 0.25);
+  border-color: rgba(121, 201, 154, 0.42);
+  box-shadow: 0 0 10px -5px rgba(121, 201, 154, 0.3);
 }
 
 .phase1-market__card--locked {
@@ -69,7 +69,7 @@
 }
 
 .phase1-market__card--domestic {
-  border-color: rgba(212, 175, 55, 0.25);
+  border-color: rgba(232, 200, 120, 0.24);
 }
 
 /* ── Card Header ── */
@@ -200,8 +200,8 @@
 .phase1-market__stepper-btn:hover:not(:disabled),
 .phase1-market__stepper-zero:hover:not(:disabled),
 .phase1-market__stepper-max:hover:not(:disabled) {
-  background: rgba(212, 175, 55, 0.15);
-  border-color: rgba(212, 175, 55, 0.35);
+  background: rgba(127, 180, 216, 0.13);
+  border-color: rgba(127, 180, 216, 0.35);
 }
 
 .phase1-market__stepper-btn:disabled,
@@ -291,6 +291,67 @@
   color: var(--game-text-value, #fceb9c);
 }
 
+/* ── Overseas Competition ── */
+
+.phase1-market__competition {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.phase1-market__competition-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.phase1-market__competition-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--game-text-primary, #fff5e7);
+}
+
+.phase1-market__competition-power,
+.phase1-market__competition-lock {
+  font-size: 11px;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.6));
+}
+
+.phase1-market__competition-lock {
+  color: var(--game-text-warn, #f6ad55);
+}
+
+.phase1-market__unit-controls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.phase1-market__unit-stepper {
+  display: grid;
+  grid-template-columns: minmax(36px, 1fr) 28px minmax(20px, 28px) 28px;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.phase1-market__unit-label {
+  font-size: 11px;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.66));
+}
+
+.phase1-market__unit-value {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--game-text-value, #fceb9c);
+}
+
 /* ── Regions Grid ── */
 
 .phase1-market__regions-grid {
@@ -309,8 +370,8 @@
   gap: 6px 12px;
   padding: 8px 12px;
   border-radius: 8px;
-  background: rgba(212, 175, 55, 0.08);
-  border: 1px solid rgba(212, 175, 55, 0.18);
+  background: rgba(127, 180, 216, 0.08);
+  border: 1px solid rgba(127, 180, 216, 0.16);
 }
 
 .phase1-market__footer-row {

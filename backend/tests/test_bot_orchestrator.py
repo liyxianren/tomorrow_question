@@ -12,6 +12,8 @@ sys.path.insert(0, str(ROOT))
 
 from app.contracts.enums import CountryCode, GamePhase
 from app.modules.bot import auto_submit_bot_turns
+from app.modules.bot.models import BotPlanningContext
+from app.modules.bot.planner import plan_bot_payload
 from app.modules.game_state.factory import create_game, create_initial_snapshot
 from app.modules.game_state.workspaces import hydrate_snapshot_workspaces
 from app.modules.persistence import RecoveryRepository, connect_database, initialize_database
@@ -29,6 +31,67 @@ class BotTurnOrchestratorTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.connection.close()
         self.temp_dir.cleanup()
+
+    def test_market_bot_uses_overseas_competition_for_overflow_inventory(self) -> None:
+        room = create_room(room_code="ROOM42", host_player_id="player-1", host_nickname="Host")
+        game = create_game(room_code=room.room_code, game_id="game-1")
+        snapshot = create_initial_snapshot(
+            game=game,
+            player_assignments={
+                "player-1": CountryCode.BRITAIN,
+                "player-2": CountryCode.FRANCE,
+                "player-3": CountryCode.PRUSSIA,
+                "player-4": CountryCode.AUSTRIA,
+                "player-5": CountryCode.RUSSIA,
+            },
+            snapshot_id="snapshot-1",
+            phase_deadline_at=datetime(2026, 4, 6, 12, 0, tzinfo=UTC),
+        )
+        snapshot.phase = GamePhase.MARKET
+
+        payload = plan_bot_payload(
+            BotPlanningContext(
+                room=room,
+                room_member=room.members[0],
+                snapshot=snapshot,
+                player_workspace={
+                    "sellableInventory": [],
+                    "domesticMarketCapacity": 4,
+                    "overseasMarketCapacity": 5,
+                    "regionAccessStatus": [
+                        {
+                            "regionId": "middle_east",
+                            "label": "中东",
+                            "isAccessible": True,
+                            "canCompete": True,
+                            "competitionRewardCapacityBonus": 8,
+                        }
+                    ],
+                    "overseasCompetition": {
+                        "availableArmy": {"infantry": 1, "artillery": 0},
+                        "rewardCapacityBonus": 8,
+                        "rewardPriceBonus": 1,
+                        "infantryPower": 1,
+                        "artilleryPower": 2,
+                        "minimumPower": 1,
+                    },
+                    "phase1Economy": {
+                        "goodsInventory": 20,
+                        "domesticDemand": 3,
+                    },
+                },
+            )
+        )
+
+        self.assertEqual(payload["phase1Market"]["domesticAllocation"], 3)
+        self.assertEqual(
+            payload["phase1Market"]["externalCompetitionDeployments"],
+            [{"marketId": "middle_east", "infantry": 1, "artillery": 0}],
+        )
+        self.assertEqual(
+            payload["phase1Market"]["externalAllocations"],
+            [{"marketId": "middle_east", "quantity": 13}],
+        )
 
     def test_market_bot_payload_never_over_allocates_single_goods_stock(self) -> None:
         room = create_room(room_code="ROOM42", host_player_id="player-1", host_nickname="Host")
@@ -122,6 +185,14 @@ class BotTurnOrchestratorTests(unittest.TestCase):
             self.assertIn("domesticMarketActions", turn_input.payload["domesticMarketPlan"])
             self.assertIn("pointPurchases", turn_input.payload["governmentPlan"])
             self.assertIn("strategySelections", turn_input.payload["governmentPlan"])
+            self.assertEqual(turn_input.payload["domesticMarketPlan"]["domesticMarketActions"], [])
+            self.assertTrue(
+                any(
+                    selection.get("actionId") in {"expand_workshop", "market_fair", "rural_development"}
+                    for selection in turn_input.payload["governmentPlan"]["strategySelections"]
+                ),
+                "bot should select market regulation through government strategySelections",
+            )
 
     def test_settlement_phase_does_not_generate_bot_turn_inputs(self) -> None:
         room = create_room(room_code="ROOM42", host_player_id="player-1", host_nickname="Host")

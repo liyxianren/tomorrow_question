@@ -80,4 +80,16 @@ describe("calculateDecisionSpendSummary", () => {
 
     expect(summary.governmentSpend).toBe(22);
   });
+
+  it("counts market regulation strategies as government spend, not domestic spend", () => {
+    const workspace = createDecisionPlayerWorkspace();
+    const draft = createInitialPhaseDraft("decision");
+
+    draft.governmentPlan.strategySelections = [{ actionId: "market_fair" }];
+
+    const summary = calculateDecisionSpendSummary(workspace, draft);
+
+    expect(summary.governmentSpend).toBe(5);
+    expect(summary.domesticSpend).toBe(0);
+  });
 });
