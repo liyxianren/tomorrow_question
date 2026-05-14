@@ -16,7 +16,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PORT=8080 \
     FRONTEND_DIST=/app/frontend/dist \
     DATABASE_PATH=/data/tomorrow_question.sqlite3 \
-    SOCKETIO_ASYNC_MODE=eventlet
+    SOCKETIO_ASYNC_MODE=threading
 
 WORKDIR /app/backend
 
@@ -32,4 +32,4 @@ EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD python -c "import os, urllib.request; port=os.getenv('PORT', '8080'); urllib.request.urlopen(f'http://127.0.0.1:{port}/healthz').read()"
 
-CMD ["gunicorn", "--worker-class", "eventlet", "--workers", "1", "--bind", "0.0.0.0:8080", "run:app"]
+CMD ["gunicorn", "--worker-class", "gthread", "--workers", "1", "--threads", "8", "--bind", "0.0.0.0:8080", "run:app"]
