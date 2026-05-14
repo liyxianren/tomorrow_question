@@ -159,6 +159,16 @@ function buildBuildingDefs(
   const pos = POSITIONS_BY_COUNTRY[countryId] ?? DEFAULT_POSITIONS;
   const budgetPools = decisionWorkspace?.budgetPools ?? playerState.budgetPools;
   const militaryPoints = decisionWorkspace?.militaryWorkspace.militaryPoints ?? playerState.militaryPoints;
+  const army: Record<string, number> = decisionWorkspace?.militaryWorkspace.army ?? playerState.army ?? {};
+  const armyTotal = Object.values(army).reduce((sum, value) => sum + Math.max(0, Math.floor(value)), 0);
+  const marketRegulationAllowance = Math.max(0, Math.floor(decisionWorkspace?.marketRegulationAllowance ?? 0));
+  const baseGovernmentBudget = Math.max(
+    0,
+    decisionWorkspace?.baseBudgetPools?.governmentFiscal ?? budgetPools.governmentFiscal - marketRegulationAllowance,
+  );
+  const governmentBudgetMetric = marketRegulationAllowance > 0
+    ? `${baseGovernmentBudget}+${marketRegulationAllowance}`
+    : `${budgetPools.governmentFiscal}`;
 
   if (phase === "decision") {
     return [
@@ -174,7 +184,7 @@ function buildBuildingDefs(
         id: "government",
         label: "议会厅",
         subtitle: "政府政策",
-        metric: `预算 ${budgetPools.governmentFiscal}`,
+        metric: `预算 ${governmentBudgetMetric}`,
         x: pos.domestic.x,
         y: pos.domestic.y,
       },
@@ -190,7 +200,7 @@ function buildBuildingDefs(
         id: "military",
         label: "军事要塞",
         subtitle: "军事行动",
-        metric: `军力 ${militaryPoints}`,
+        metric: `军事点 ${militaryPoints} / 陆军 ${armyTotal}`,
         x: pos.military.x,
         y: pos.military.y,
       },

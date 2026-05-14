@@ -12,7 +12,7 @@ import {
 } from "../components/game/panels/GamePhasePanelContent";
 import { GameSituationSummary } from "../components/game/status/GameSituationSummary";
 import type { DecisionStepId } from "../features/game/flow/decisionFlow";
-import { createGameWorkbenchViewModel } from "../features/game/flow/gameWorkbench";
+import { createGameWorkbenchViewModel, getPhaseSubmitBlockingReasons } from "../features/game/flow/gameWorkbench";
 import { useGamePageController } from "../features/game/flow/useGamePageController";
 import { useMapViewState } from "../features/game/flow/useMapViewState";
 import { useGameRuntime } from "../features/game/runtime/useGameRuntime";
@@ -104,6 +104,13 @@ export function GamePage() {
     rankingStandings,
     settlementWorkspace,
   });
+  const submitBlockingReasons = getPhaseSubmitBlockingReasons({
+    currentPhase,
+    currentPlayerState,
+    currentPlayerWorkspace: currentWorkspace,
+    draftPayload: controller.draftPayload,
+    decisionFlowState: controller.decisionFlowState,
+  });
 
   const mapState = useMapViewState({
     currentPhase,
@@ -122,7 +129,8 @@ export function GamePage() {
   const bottomDock =
     runtimeState.game && currentPhase && currentPlayerId && currentPhase !== "settlement" ? (
       <UnifiedSubmitPanel
-        canSubmit={runtimeState.canSubmitCurrentPhase}
+        canSubmit={runtimeState.canSubmitCurrentPhase && submitBlockingReasons.length === 0}
+        disabledReasons={submitBlockingReasons}
         draftPayload={controller.draftPayload}
         gameId={runtimeState.game.gameId}
         onSubmitted={handleSubmitted}

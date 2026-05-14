@@ -281,6 +281,15 @@
   font-size: 12px;
 }
 
+.phase1-market__overseas-price--reward {
+  padding-top: 3px;
+  border-top: 1px solid rgba(244, 204, 116, 0.18);
+}
+
+.phase1-market__overseas-price--reward .phase1-market__overseas-price-value {
+  color: #f7d981;
+}
+
 .phase1-market__overseas-price-label {
   color: var(--game-text-secondary, rgba(255, 255, 255, 0.6));
 }

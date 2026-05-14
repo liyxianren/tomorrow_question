@@ -4,6 +4,7 @@ import type {
   DecisionPlayerPhaseWorkspace,
   FactoryProductionOption,
   IncomeAllocationRatio,
+  Phase1EconomyWorkspace,
   PriceTrend,
   RegionAccessLevel,
   TechTreeData,
@@ -37,6 +38,47 @@ export function getBaseBudgetPools(workspace: DecisionPlayerPhaseWorkspace): Bud
     ...workspace.budgetPools,
     governmentFiscal: Math.max(0, workspace.budgetPools.governmentFiscal - allowance),
   };
+}
+
+export type DecisionMarketReferencePrice = {
+  basePrice?: number;
+  existingPriceBonus: number;
+  priceBeforeCap?: number;
+  price?: number;
+  priceCeiling: number;
+  isCapped: boolean;
+};
+
+export function calculateDecisionMarketReferencePrice(
+  phase1: Phase1EconomyWorkspace | null | undefined,
+  selectedPriceDelta = 0,
+): DecisionMarketReferencePrice {
+  const priceCeiling = phase1?.domesticPriceCeiling ?? 12;
+  const basePrice = pickFiniteNumber(
+    phase1?.equilibriumPrice,
+    phase1?.domesticBasePricePreview,
+    phase1?.domesticPricePreview,
+  );
+  const existingPriceBonus = phase1?.domesticPriceBonus ?? 0;
+  const priceBeforeCap = basePrice == null
+    ? undefined
+    : Math.max(1, basePrice + existingPriceBonus + selectedPriceDelta);
+  const price = priceBeforeCap == null
+    ? undefined
+    : Math.max(1, Math.min(priceCeiling, priceBeforeCap));
+
+  return {
+    basePrice,
+    existingPriceBonus,
+    priceBeforeCap,
+    price,
+    priceCeiling,
+    isCapped: priceBeforeCap != null && priceBeforeCap > priceCeiling,
+  };
+}
+
+function pickFiniteNumber(...values: Array<number | undefined>): number | undefined {
+  return values.find((value): value is number => typeof value === "number" && Number.isFinite(value));
 }
 
 function isMarketRegulationAction(action: DecisionActionOption | undefined): boolean {

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -7,6 +8,7 @@ from typing import Any
 from app.contracts.enums import ErrorCode, GamePhase, PlayerSubmissionStatus
 from app.modules.balance_config import get_balance_config
 from app.modules.game_state.budgeting import calculate_market_regulation_allowance
+from app.modules.game_state.effects import apply_effects
 from app.modules.game_state.factory_economy import (
     action_locked_reason,
     current_route_capacity,
@@ -825,7 +827,19 @@ def _phase1_production_unit_budget_cost(balance) -> int:
     return max(0, int(goods.unit_budget_cost))
 
 
+def _player_state_with_active_event_effects(snapshot: GameSnapshot, player_state):
+    if not snapshot.active_events:
+        return player_state
+    preview_player = deepcopy(player_state)
+    for event in snapshot.active_events:
+        effects = event.get("effects")
+        if isinstance(effects, dict):
+            apply_effects(preview_player, effects)
+    return preview_player
+
+
 def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload: dict[str, Any]) -> None:
+    player_state = _player_state_with_active_event_effects(snapshot, player_state)
     balance = get_balance_config()
     factory_budget = int(player_state.budget_pools.get("factory", 0))
     domestic_budget = int(player_state.budget_pools.get("domesticMarket", 0))

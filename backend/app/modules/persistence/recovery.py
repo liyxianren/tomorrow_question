@@ -13,6 +13,7 @@ from ...contracts.models import (
     RoomPayload,
 )
 from ..game_state.models import GameSnapshot
+from ..game_state.workspaces import hydrate_snapshot_workspaces
 from .repositories import (
     GameLogRepository,
     GameRepository,
@@ -95,7 +96,9 @@ class RecoveryRepository:
         try:
             snapshot = self.snapshots.get(active_snapshot_id)
             if snapshot is not None:
-                context["activeSnapshot"] = GameSnapshot.from_payload(snapshot).to_payload()
+                snapshot_model = GameSnapshot.from_payload(snapshot)
+                hydrate_snapshot_workspaces(snapshot_model)
+                context["activeSnapshot"] = snapshot_model.to_payload()
         except ValueError:
             return context
 

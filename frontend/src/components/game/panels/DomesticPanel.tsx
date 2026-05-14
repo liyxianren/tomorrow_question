@@ -1,6 +1,9 @@
 import type { DecisionPlayerPhaseWorkspace } from "../../../types";
 import type { PhaseDraftByPhase } from "../../../features/game/forms";
-import { formatSignedValue } from "../../../features/game/decisionShared";
+import {
+  calculateDecisionMarketReferencePrice,
+  formatSignedValue,
+} from "../../../features/game/decisionShared";
 import { DecisionStatStrip } from "./shared/DecisionStatStrip";
 import "./DomesticPanel.css";
 
@@ -67,28 +70,17 @@ export function DomesticPanel({
   const projectedDomesticCapacity = baseDomesticCapacity != null
     ? Math.max(0, baseDomesticCapacity + selectedCapacityDelta)
     : undefined;
-  const domesticPriceCeiling = phase1Economy?.domesticPriceCeiling ?? 12;
-  const existingPriceBeforeCap = phase1Economy?.domesticPriceBeforeCap
-    ?? phase1Economy?.domesticPricePreview
-    ?? undefined;
-  const projectedDomesticPriceBeforeCap = existingPriceBeforeCap != null
-    ? Math.max(1, existingPriceBeforeCap + selectedPriceDelta)
-    : undefined;
+  const referencePrice = calculateDecisionMarketReferencePrice(phase1Economy, selectedPriceDelta);
   const projectedDomesticDemand = phase1Economy?.domesticDemand != null
     ? Math.max(0, phase1Economy.domesticDemand)
     : undefined;
-  const projectedDomesticPrice = projectedDomesticPriceBeforeCap != null
-    ? Math.max(1, Math.min(domesticPriceCeiling, projectedDomesticPriceBeforeCap))
-    : undefined;
-  const isProjectedPriceCapped = projectedDomesticPriceBeforeCap != null
-    && projectedDomesticPriceBeforeCap > domesticPriceCeiling;
   const domesticPriceHint = phase1Economy
     ? [
-        `基础 ${formatNumber(phase1Economy.domesticBasePricePreview ?? phase1Economy.equilibriumPrice)}`,
-        `既有加成 ${formatSignedValue(phase1Economy.domesticPriceBonus ?? 0)}`,
+        `均衡 ${formatNumber(referencePrice.basePrice)}`,
+        `既有加成 ${formatSignedValue(referencePrice.existingPriceBonus)}`,
         selectedPriceDelta !== 0 ? `政府调节 ${formatSignedValue(selectedPriceDelta)}` : null,
-        `上限 ${domesticPriceCeiling}`,
-        isProjectedPriceCapped ? "已按上限成交" : null,
+        `上限 ${referencePrice.priceCeiling}`,
+        referencePrice.isCapped ? "已按上限成交" : null,
       ].filter(Boolean).join("，")
     : null;
 
@@ -118,8 +110,8 @@ export function DomesticPanel({
           },
           {
             icon: "🏷️",
-            value: projectedDomesticPrice != null ? formatNumber(projectedDomesticPrice) : "—",
-            label: isProjectedPriceCapped ? "参考售价已封顶" : "参考售价",
+            value: referencePrice.price != null ? formatNumber(referencePrice.price) : "—",
+            label: referencePrice.isCapped ? "均衡价已封顶" : "均衡参考价",
           },
         ]}
       />

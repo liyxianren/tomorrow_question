@@ -111,6 +111,44 @@ class PhaseSubmissionServiceTests(unittest.TestCase):
         self.assertFalse(result.player_turn_input.is_timeout_generated)
         self.assertEqual(result.updated_phase_state.submission_status_by_player_id["player-1"], PlayerSubmissionStatus.SUBMITTED)
 
+    def test_decision_submission_validation_uses_active_event_resource_preview(self) -> None:
+        room = build_room()
+        game, snapshot = build_snapshot()
+        britain = next(player for player in snapshot.player_states if player.player_id == "player-1")
+        britain.military_points = 0
+        snapshot.active_events = [
+            {
+                "eventId": "militia_drive",
+                "label": "民兵动员",
+                "effects": {"militaryPointsDelta": 1},
+            }
+        ]
+        assign_phase_deadline(
+            snapshot,
+            started_at=datetime(2026, 3, 29, 12, 0, tzinfo=UTC),
+            duration=timedelta(minutes=2),
+        )
+
+        payload = empty_decision_payload()
+        payload["militaryPlan"]["militaryActions"] = [{"actionId": "recruit_infantry"}]
+
+        result = PhaseSubmissionService().submit(
+            room=room,
+            game=game,
+            snapshot=snapshot,
+            phase_state=PhaseSubmissionState.from_snapshot(snapshot),
+            player_id="player-1",
+            requested_phase=GamePhase.DECISION,
+            payload=payload,
+            submitted_at=datetime(2026, 3, 29, 12, 1, tzinfo=UTC),
+        )
+
+        self.assertEqual(
+            result.player_turn_input.payload["militaryPlan"]["militaryActions"],
+            [{"actionId": "recruit_infantry"}],
+        )
+        self.assertEqual(britain.military_points, 0, "submission validation must not consume active events early")
+
     def test_submit_rejects_phase_mismatch(self) -> None:
         room = build_room()
         game, snapshot = build_snapshot()

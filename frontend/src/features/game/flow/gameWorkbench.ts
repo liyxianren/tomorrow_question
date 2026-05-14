@@ -21,6 +21,7 @@ import {
   getAllocatedProductionBatchesForRoute as getAllocatedProductionBatchesForRouteFromDraft,
 } from "../decisionDrafts";
 import {
+  calculateDecisionMarketReferencePrice,
   calculateDecisionSpendSummary as calculateDecisionSpendSummaryFromDraft,
   calculateGovernmentFiscalState,
   calculateRatioPreview as calculateRatioPreviewFromDraft,
@@ -153,6 +154,49 @@ export function createGameWorkbenchViewModel({
   };
 }
 
+export function getPhaseSubmitBlockingReasons({
+  currentPhase,
+  currentPlayerState,
+  currentPlayerWorkspace,
+  draftPayload,
+  decisionFlowState,
+}: {
+  currentPhase: GamePhase | null;
+  currentPlayerState: PlayerState | null;
+  currentPlayerWorkspace: PlayerPhaseWorkspace | null;
+  draftPayload: Record<string, unknown>;
+  decisionFlowState: DecisionFlowState;
+}): string[] {
+  if (!currentPhase || !currentPlayerState || !currentPlayerWorkspace) {
+    return ["等待当前阶段数据同步。"];
+  }
+  if (currentPhase === "settlement") {
+    return [];
+  }
+
+  const reasons: string[] = [];
+  if (currentPhase === "decision") {
+    const draft = normalizeDecisionDraft(draftPayload);
+    const contentContext = getDecisionContentContext(currentPlayerWorkspace);
+    const uncheckedDecisionSteps = getUncheckedDecisionSteps(decisionFlowState, draft, contentContext);
+    if (uncheckedDecisionSteps.length > 0) {
+      reasons.push(`请先完成或跳过：${uncheckedDecisionSteps.map((step) => getDecisionStepLabel(step)).join("、")}。`);
+    }
+  }
+
+  reasons.push(
+    ...extractBlockingLines(
+      buildValidationLines({
+        currentPhase,
+        currentPlayerState,
+        currentPlayerWorkspace,
+        draftPayload,
+      }),
+    ),
+  );
+  return reasons;
+}
+
 function createTopWorkflowViewModel(
   currentPhase: GamePhase | null,
   decisionFlowState: DecisionFlowState,
@@ -210,22 +254,33 @@ function createResourceStripViewModel({
       ? (currentPlayerWorkspace as DecisionPlayerPhaseWorkspace)
       : null;
   const visibleBudgetPools = decisionWorkspace?.budgetPools ?? currentPlayerState.budgetPools;
+  const draft = normalizeDecisionDraft(draftPayload);
+  const fiscalState = decisionWorkspace
+    ? calculateGovernmentFiscalState(decisionWorkspace, draft)
+    : null;
   const metrics: ResourceStripMetric[] = [
     { label: "民间购买力", value: visibleBudgetPools.domesticMarket },
     { label: "工厂", value: visibleBudgetPools.factory },
-    { label: "政府财政", value: visibleBudgetPools.governmentFiscal },
+    {
+      label: fiscalState && fiscalState.marketRegulationAllowance > 0 ? "政府财政(基础+市场)" : "政府财政",
+      value: fiscalState && fiscalState.marketRegulationAllowance > 0
+        ? `${fiscalState.baseGovernmentBudget}+${fiscalState.marketRegulationAllowance}`
+        : visibleBudgetPools.governmentFiscal,
+    },
   ];
 
   if (currentPhase === "decision" && currentPlayerWorkspace && "militaryWorkspace" in currentPlayerWorkspace) {
     const spendSummary = calculateDecisionSpendSummary(currentPlayerWorkspace as DecisionPlayerPhaseWorkspace, draftPayload);
-    const fiscalState = calculateGovernmentFiscalState(currentPlayerWorkspace as DecisionPlayerPhaseWorkspace, normalizeDecisionDraft(draftPayload));
     if (spendSummary.factorySpend > visibleBudgetPools.factory) {
       metrics[1].tone = "warning";
     }
     if (spendSummary.domesticSpend > visibleBudgetPools.domesticMarket) {
       metrics[0].tone = "warning";
     }
-    if (spendSummary.governmentSpend > visibleBudgetPools.governmentFiscal || fiscalState.baseFiscalSpend > fiscalState.baseGovernmentBudget) {
+    if (
+      spendSummary.governmentSpend > visibleBudgetPools.governmentFiscal
+      || (fiscalState && fiscalState.baseFiscalSpend > fiscalState.baseGovernmentBudget)
+    ) {
       metrics[2].tone = "warning";
     }
   }
@@ -277,6 +332,11 @@ function createLeftRailViewModel({
       : null;
   const visibleBudgetPools = decisionWorkspace?.budgetPools ?? currentPlayerState?.budgetPools;
   const visibleMilitaryPoints = decisionWorkspace?.militaryWorkspace.militaryPoints ?? currentPlayerState?.militaryPoints;
+  const visibleArmy: Record<string, number> = decisionWorkspace?.militaryWorkspace.army ?? currentPlayerState?.army ?? {};
+  const visibleArmyTotal = Object.values(visibleArmy).reduce((sum, value) => sum + Math.max(0, Math.floor(value)), 0);
+  const fiscalState = decisionWorkspace
+    ? calculateGovernmentFiscalState(decisionWorkspace, normalizeDecisionDraft(draftPayload))
+    : null;
 
   return {
     title: "国家仪表盘",
@@ -289,8 +349,14 @@ function createLeftRailViewModel({
           ? [
               { label: "民间购买力", value: visibleBudgetPools?.domesticMarket ?? currentPlayerState.budgetPools.domesticMarket },
               { label: "工厂", value: visibleBudgetPools?.factory ?? currentPlayerState.budgetPools.factory },
-              { label: "政府财政", value: visibleBudgetPools?.governmentFiscal ?? currentPlayerState.budgetPools.governmentFiscal },
+              {
+                label: fiscalState && fiscalState.marketRegulationAllowance > 0 ? "政府财政(基础+市场)" : "政府财政",
+                value: fiscalState && fiscalState.marketRegulationAllowance > 0
+                  ? `${fiscalState.baseGovernmentBudget}+${fiscalState.marketRegulationAllowance}`
+                  : visibleBudgetPools?.governmentFiscal ?? currentPlayerState.budgetPools.governmentFiscal,
+              },
               { label: "军事点", value: visibleMilitaryPoints ?? currentPlayerState.militaryPoints },
+              { label: "陆军", value: visibleArmyTotal },
               ...(researchFacilities !== null
                 ? [{ label: "研究设施", value: researchFacilities }]
                 : []),
@@ -485,7 +551,7 @@ function buildCurrentResourceLines({
       return [
         `民间购买力 ${workspace.budgetPools.domesticMarket}`,
         phase1
-          ? `需求 ${formatNumber(phase1.domesticDemand)} · 参考价 ${formatNumber(phase1.domesticPricePreview)}`
+          ? `需求 ${formatNumber(phase1.domesticDemand)} · 均衡参考价 ${formatNumber(calculateDecisionMarketReferencePrice(phase1).price ?? 0)}`
           : "市场预览",
       ];
     }
@@ -520,16 +586,10 @@ function buildCurrentResourceLines({
       ? Math.max(0, (workspace.domesticMarketCapacity ?? phase1.domesticDemand) + marketCapacityDelta)
       : null;
     const projectedMarketPrice = phase1
-      ? Math.max(
-          1,
-          Math.min(
-            phase1.domesticPriceCeiling ?? 12,
-            (phase1.domesticPriceBeforeCap ?? phase1.domesticPricePreview) + marketPriceDelta,
-          ),
-        )
+      ? calculateDecisionMarketReferencePrice(phase1, marketPriceDelta).price
       : null;
     const marketLine = phase1
-      ? `市场 需求 ${formatNumber(phase1.domesticDemand)} · 承接 ${formatNumber(projectedMarketCapacity ?? 0)} · 价 ${formatNumber(projectedMarketPrice ?? 0)}`
+      ? `市场 需求 ${formatNumber(phase1.domesticDemand)} · 承接 ${formatNumber(projectedMarketCapacity ?? 0)} · 均衡价 ${formatNumber(projectedMarketPrice ?? 0)}`
       : "市场数值等待同步";
 
     return [

@@ -2455,6 +2455,14 @@ ul {
   color: var(--color-success);
 }
 
+.gp-submit__status--warning {
+  color: var(--game-text-warn);
+  padding: 8px;
+  border-radius: var(--game-radius-sm);
+  background: rgba(255, 190, 90, 0.1);
+  border: 1px solid rgba(255, 190, 90, 0.24);
+}
+
 .gp-submit__status--error {
   color: var(--game-text-warn);
   padding: 8px;

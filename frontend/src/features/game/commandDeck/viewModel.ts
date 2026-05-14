@@ -9,6 +9,7 @@ import {
   buildRegionAccessDescription,
   buildTechResearchDescription,
   buildTechUnlockSummary,
+  calculateDecisionMarketReferencePrice,
   calculateDecisionSpendSummary,
   calculateGovernmentFiscalState,
   calculateGovernmentPointPreview,
@@ -299,15 +300,7 @@ function buildDomesticLocation({
   const baseCapacity = workspace.domesticMarketCapacity ?? phase1?.domesticDemand;
   const projectedCapacity = baseCapacity != null ? Math.max(0, baseCapacity + selectedCapacityDelta) : undefined;
   const domesticDemand = phase1?.domesticDemand;
-  const priceCeiling = phase1?.domesticPriceCeiling ?? 12;
-  const basePrice = phase1?.domesticBasePricePreview ?? phase1?.equilibriumPrice;
-  const existingPriceBeforeCap = phase1?.domesticPriceBeforeCap ?? phase1?.domesticPricePreview;
-  const projectedPriceBeforeCap = existingPriceBeforeCap != null
-    ? Math.max(1, existingPriceBeforeCap + selectedPriceDelta)
-    : undefined;
-  const projectedPrice = projectedPriceBeforeCap != null
-    ? Math.max(1, Math.min(priceCeiling, projectedPriceBeforeCap))
-    : undefined;
+  const referencePrice = calculateDecisionMarketReferencePrice(phase1, selectedPriceDelta);
 
   const previewCards: DecisionCardViewModel[] = [
     {
@@ -329,16 +322,16 @@ function buildDomesticLocation({
       id: "market-price-preview",
       title: "价格来源",
       subtitle: "供需定价",
-      description: "基础价、既有加成和政府市场调节共同形成参考价，最终仍由出售阶段按投放量结算。",
+      description: "均衡价、既有加成和政府市场调节共同形成参考价，最终仍由出售阶段按投放量结算。",
       badges: [
-        `基础 ${formatOptionalNumber(basePrice)}`,
-        `既有加成 ${formatSignedValue(phase1?.domesticPriceBonus ?? 0)}`,
-        `上限 ${priceCeiling}`,
+        `均衡 ${formatOptionalNumber(referencePrice.basePrice)}`,
+        `既有加成 ${formatSignedValue(referencePrice.existingPriceBonus)}`,
+        `上限 ${referencePrice.priceCeiling}`,
       ],
       metrics: [
         { label: "政府调节", value: formatSignedValue(selectedPriceDelta) },
-        { label: "参考售价", value: formatOptionalNumber(projectedPrice) },
-        { label: "价格上限", value: priceCeiling },
+        { label: "均衡参考价", value: formatOptionalNumber(referencePrice.price) },
+        { label: "价格上限", value: referencePrice.priceCeiling },
       ],
       lockedReason: null,
       tone: selectedPriceDelta !== 0 ? "accent" : "default",
@@ -381,7 +374,7 @@ function buildDomesticLocation({
       `购买力 ${remainingDomesticBudget}`,
       `需求 ${formatOptionalNumber(domesticDemand)}`,
       `投放上限 ${formatOptionalNumber(projectedCapacity)}`,
-      `参考售价 ${formatOptionalNumber(projectedPrice)}`,
+      `均衡参考价 ${formatOptionalNumber(referencePrice.price)}`,
       `政府调节 ${selectedMarketStrategies.length} 项`,
     ],
     sections: [
@@ -433,29 +426,21 @@ function buildGovernmentLocation({
     ? Math.max(0, workspace.overseasMarketCapacity + selectedOverseasCapacityDelta)
     : undefined;
   const domesticDemand = phase1?.domesticDemand;
-  const priceCeiling = phase1?.domesticPriceCeiling ?? 12;
-  const existingPriceBeforeCap = phase1?.domesticPriceBeforeCap ?? phase1?.domesticPricePreview;
-  const projectedPriceBeforeCap = existingPriceBeforeCap != null
-    ? Math.max(1, existingPriceBeforeCap + selectedPriceDelta)
-    : undefined;
-  const projectedPrice = projectedPriceBeforeCap != null
-    ? Math.max(1, Math.min(priceCeiling, projectedPriceBeforeCap))
-    : undefined;
-  const priceIsCapped = projectedPriceBeforeCap != null && projectedPriceBeforeCap > priceCeiling;
+  const referencePrice = calculateDecisionMarketReferencePrice(phase1, selectedPriceDelta);
   const marketPreviewCards: DecisionCardViewModel[] = [
     {
       id: "government-market-baseline",
       title: "市场基线",
       subtitle: "国内承接与供需价格",
-      description: "政府市场调节会直接改变本轮国内承接量和参考售价，出售阶段仍按实际投放重新定价。",
+      description: "政府市场调节会直接改变本轮国内承接量和均衡参考价，出售阶段仍按实际投放重新定价。",
       badges: [
         `需求 ${formatOptionalNumber(domesticDemand)}`,
         `基础承接 ${formatOptionalNumber(baseDomesticCapacity)}`,
-        `价格上限 ${priceCeiling}`,
+        `价格上限 ${referencePrice.priceCeiling}`,
       ],
       metrics: [
         { label: "投放上限", value: formatOptionalNumber(projectedDomesticCapacity) },
-        { label: priceIsCapped ? "参考售价已封顶" : "参考售价", value: formatOptionalNumber(projectedPrice) },
+        { label: referencePrice.isCapped ? "均衡参考价已封顶" : "均衡参考价", value: formatOptionalNumber(referencePrice.price) },
         { label: "政府价格调节", value: formatSignedValue(selectedPriceDelta) },
       ],
       lockedReason: null,
@@ -474,8 +459,8 @@ function buildGovernmentLocation({
         : ["基础供需"],
       metrics: [
         { label: "国内容量变化", value: formatSignedValue(selectedCapacityDelta) },
-        { label: "海外容量", value: formatOptionalNumber(projectedOverseasCapacity) },
-        { label: "海外容量变化", value: formatSignedValue(selectedOverseasCapacityDelta) },
+        { label: "和平外销", value: formatOptionalNumber(projectedOverseasCapacity) },
+        { label: "外销容量变化", value: formatSignedValue(selectedOverseasCapacityDelta) },
       ],
       lockedReason: null,
       tone: selectedMarketStrategies.length > 0 ? "accent" : "default",
@@ -670,7 +655,7 @@ function buildGovernmentLocation({
     summaryPills: [
       `政府预算 ${remainingGovernmentBudget}`,
       `比例预告 ${formatRatio(ratioPreview)}`,
-      `市场 需求 ${formatOptionalNumber(domesticDemand)} · 承接 ${formatOptionalNumber(projectedDomesticCapacity)} · 价 ${formatOptionalNumber(projectedPrice)}`,
+      `市场 需求 ${formatOptionalNumber(domesticDemand)} · 承接 ${formatOptionalNumber(projectedDomesticCapacity)} · 均衡价 ${formatOptionalNumber(referencePrice.price)}`,
       `军事点 ${governmentPointPreview.militaryPoints}`,
       `国家能力 ${selectedAbility ? "已启用" : "未启用"}`,
     ],

@@ -19,6 +19,7 @@ type UnifiedSubmitPanelProps = {
   playerId: string;
   draftPayload: object;
   canSubmit: boolean;
+  disabledReasons?: string[];
   submissionStatus: PlayerSubmissionStatus;
   submissionStatusByPlayerId?: Record<string, PlayerSubmissionStatus>;
   onSubmitted?: (response: SubmitPhaseResponse) => void;
@@ -79,6 +80,7 @@ export function UnifiedSubmitPanel({
   playerId,
   draftPayload,
   canSubmit,
+  disabledReasons = [],
   submissionStatus,
   submissionStatusByPlayerId,
   onSubmitted,
@@ -110,6 +112,7 @@ export function UnifiedSubmitPanel({
   const pendingOtherPlayers = Object.entries(effectiveStatusByPlayerId).filter(
     ([id, status]) => id !== playerId && status === "pending",
   ).length;
+  const visibleDisabledReasons = !hasSubmitted && !canSubmit ? disabledReasons.slice(0, 3) : [];
 
   async function handleSubmit(): Promise<void> {
     if (!canSubmit || hasSubmitted || isSubmitting) return;
@@ -150,6 +153,14 @@ export function UnifiedSubmitPanel({
               ? `等待其他 ${pendingOtherPlayers} 名玩家...`
               : "全部玩家已提交，等待结算。"}
         </p>
+      ) : null}
+
+      {visibleDisabledReasons.length > 0 ? (
+        <div className="gp-submit__status gp-submit__status--warning" data-testid="submit-blocking-reasons">
+          {visibleDisabledReasons.map((reason) => (
+            <p key={reason} style={{ margin: 0 }}>{reason}</p>
+          ))}
+        </div>
       ) : null}
 
       {submitError ? (

@@ -6,6 +6,7 @@ import { DecisionStatStrip } from "./shared/DecisionStatStrip";
 import { DecisionActionCard } from "./shared/DecisionActionCard";
 import {
   buildEffectMetrics,
+  calculateDecisionMarketReferencePrice,
   calculateGovernmentFiscalState,
 } from "../../../features/game/decisionShared";
 import "./GovernmentPanel.css";
@@ -469,24 +470,14 @@ export function GovernmentPanel({
   const projectedOverseasCapacity = baseOverseasCapacity != null
     ? Math.max(0, baseOverseasCapacity + selectedOverseasCapacityDelta)
     : undefined;
-  const domesticPriceCeiling = phase1Economy?.domesticPriceCeiling ?? 12;
-  const existingDomesticPriceBeforeCap = phase1Economy?.domesticPriceBeforeCap
-    ?? phase1Economy?.domesticPricePreview;
-  const projectedDomesticPriceBeforeCap = existingDomesticPriceBeforeCap != null
-    ? Math.max(1, existingDomesticPriceBeforeCap + selectedDomesticPriceDelta)
-    : undefined;
-  const projectedDomesticPrice = projectedDomesticPriceBeforeCap != null
-    ? Math.max(1, Math.min(domesticPriceCeiling, projectedDomesticPriceBeforeCap))
-    : undefined;
-  const marketPriceIsCapped = projectedDomesticPriceBeforeCap != null
-    && projectedDomesticPriceBeforeCap > domesticPriceCeiling;
+  const referencePrice = calculateDecisionMarketReferencePrice(phase1Economy, selectedDomesticPriceDelta);
   const marketPriceHint = phase1Economy
     ? [
-        `基础 ${formatMarketNumber(phase1Economy.domesticBasePricePreview ?? phase1Economy.equilibriumPrice)}`,
-        `既有加成 ${formatSigned(phase1Economy.domesticPriceBonus ?? 0)}`,
+        `均衡 ${formatMarketNumber(referencePrice.basePrice)}`,
+        `既有加成 ${formatSigned(referencePrice.existingPriceBonus)}`,
         selectedDomesticPriceDelta !== 0 ? `本轮调节 ${formatSigned(selectedDomesticPriceDelta)}` : null,
-        `上限 ${domesticPriceCeiling}`,
-        marketPriceIsCapped ? "已触顶" : null,
+        `上限 ${referencePrice.priceCeiling}`,
+        referencePrice.isCapped ? "已触顶" : null,
       ].filter(Boolean).join("，")
     : "等待市场数据同步";
   const ability = workspace.nationalAbility;
@@ -566,7 +557,7 @@ export function GovernmentPanel({
         <div className="government-market-preview__heading">
           <div>
             <strong>市场基线</strong>
-            <span>选择下方策略后，承接量、参考售价和海外容量会即时更新。</span>
+            <span>选择下方策略后，承接量、均衡参考价和和平外销容量会即时更新。</span>
           </div>
           <span className="government-market-preview__status">
             {selectedMarketStrategies.length > 0 ? "已纳入本轮政府策略" : "使用基础供需"}
@@ -587,15 +578,15 @@ export function GovernmentPanel({
             </small>
           </div>
           <div className="government-market-preview__metric">
-            <span>{marketPriceIsCapped ? "参考售价已封顶" : "参考售价"}</span>
-            <strong>{formatMarketNumber(projectedDomesticPrice)}</strong>
+            <span>{referencePrice.isCapped ? "均衡参考价已封顶" : "均衡参考价"}</span>
+            <strong>{formatMarketNumber(referencePrice.price)}</strong>
             <small>{marketPriceHint}</small>
           </div>
           <div className="government-market-preview__metric">
-            <span>海外容量</span>
+            <span>和平外销</span>
             <strong>{formatMarketNumber(projectedOverseasCapacity)}</strong>
             <small>
-              基础 {formatMarketNumber(baseOverseasCapacity)}
+              基础外销 {formatMarketNumber(baseOverseasCapacity)}
               {selectedOverseasCapacityDelta !== 0 ? `，调节 ${formatSigned(selectedOverseasCapacityDelta)}` : ""}
             </small>
           </div>

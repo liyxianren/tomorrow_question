@@ -365,6 +365,9 @@ export function Phase1MarketPanel({
             );
             const competitionLockedReason = region.competitionLockedReason ?? null;
             const canCompete = Boolean(region.canCompete);
+            const hasCompetitionPriceBonus = canCompete
+              && competitionPower >= competitionConfig.minimumPower
+              && regionRewardPrice > 0;
 
             function handleRegionDelta(delta: number) {
               if (readOnly) {
@@ -478,12 +481,19 @@ export function Phase1MarketPanel({
                     </div>
 
                     <div className="phase1-market__overseas-price">
-                      <span className="phase1-market__overseas-price-label">海外价格</span>
+                      <span className="phase1-market__overseas-price-label">保底价格</span>
                       <strong className="phase1-market__overseas-price-value">{formatNumber(overseasPrice.price)} 财政/件</strong>
                     </div>
+                    {hasCompetitionPriceBonus ? (
+                      <div className="phase1-market__overseas-price phase1-market__overseas-price--reward">
+                        <span className="phase1-market__overseas-price-label">夺取成功价</span>
+                        <strong className="phase1-market__overseas-price-value">{formatNumber(competitionPrice.price)} 财政/件</strong>
+                      </div>
+                    ) : null}
                     <p className="phase1-market__price-note">
                       基础 {formatNumber(overseasPrice.basePrice)} + 海外加成 {formatSignedValue(overseasPriceBonus)}
-                      ，上限 {overseasPriceCeiling}{overseasPrice.isCapped ? "，已按上限成交" : ""}
+                      {hasCompetitionPriceBonus ? `，争夺胜利 +${regionRewardPrice}` : ""}
+                      ，上限 {overseasPriceCeiling}{(hasCompetitionPriceBonus ? competitionPrice.isCapped : overseasPrice.isCapped) ? "，已按上限成交" : ""}
                     </p>
                     <div className="phase1-market__competition">
                       <div className="phase1-market__competition-header">
@@ -516,7 +526,7 @@ export function Phase1MarketPanel({
                             若夺取成功：额外承接 +{region.competitionRewardCapacityBonus ?? competitionConfig.rewardCapacityBonus}
                             ，价格 +{region.competitionRewardPriceBonus ?? competitionConfig.rewardPriceBonus}
                             {regionRewardCapacity > 0
-                              ? `，胜利价 ${formatNumber(competitionPrice.price)} 财政/件`
+                              ? `，本区成交按 ${formatNumber(competitionPrice.price)} 财政/件预估`
                               : `，至少需要战力 ${region.competitionMinimumPower ?? competitionConfig.minimumPower}`}
                           </p>
                         </>
