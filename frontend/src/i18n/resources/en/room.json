@@ -28,6 +28,8 @@
     "you": "You",
     "empty": "Waiting for players..."
   },
+  "sideRailAriaLabel": "Room status and game start operations",
+  "roomExpiryNotice": "This room will automatically close if no one is here for a while.",
   "errors": {
     "roomNotFound": "Room not found",
     "roomFull": "Room is full",

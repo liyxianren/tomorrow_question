@@ -28,6 +28,8 @@
     "you": "你",
     "empty": "等待玩家加入..."
   },
+  "sideRailAriaLabel": "房间状态和开局操作",
+  "roomExpiryNotice": "长时间无人时房间会自动关闭。",
   "errors": {
     "roomNotFound": "未找到房间",
     "roomFull": "房间已满",

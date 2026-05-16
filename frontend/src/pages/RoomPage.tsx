@@ -93,7 +93,7 @@ export function RoomPage() {
             />
           </main>
           
-          <aside className="room-page__side-rail" aria-label="房间状态和开局操作">
+          <aside className="room-page__side-rail" aria-label={t("sideRailAriaLabel")}>
             <RoomMembersPanel
               isBusy={pendingAction === "removeBot"}
               members={viewModel.members}
