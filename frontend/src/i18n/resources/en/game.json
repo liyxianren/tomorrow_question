@@ -1,0 +1,98 @@
+{
+  "phase": {
+    "decision": "National Decision",
+    "market": "Market Sales",
+    "settlement": "Fiscal Settlement",
+    "production": "Production",
+    "military": "Military",
+    "politics": "Politics"
+  },
+  "country": {
+    "austria": "Austria",
+    "britain": "Britain",
+    "france": "France",
+    "prussia": "Prussia",
+    "russia": "Russia"
+  },
+  "productionRoute": {
+    "idle": "Idle Capacity",
+    "handicraft": "Handicraft",
+    "mechanized": "Mechanized Industry",
+    "steam": "Steam Industry",
+    "electrified": "Electrified Industry"
+  },
+  "goods": {
+    "phase1_goods": "Unified Goods"
+  },
+  "accessLevel": {
+    "closed": "Closed",
+    "colony": "Colonial Control",
+    "concession": "Concession",
+    "open": "Open Trade"
+  },
+  "ideology": {
+    "conservatism": "Conservatism",
+    "egalitarianism": "Egalitarianism",
+    "liberalism": "Liberalism",
+    "monarchy": "Monarchism",
+    "nationalism": "Nationalism",
+    "republicanism": "Republicanism",
+    "socialism": "Socialism"
+  },
+  "reform": {
+    "civil service": "Civil Service",
+    "factory act": "Factory Act",
+    "land reform": "Land Reform",
+    "public schools": "Public Schools"
+  },
+  "policy": {
+    "free trade": "Free Trade",
+    "naval act": "Naval Act",
+    "press controls": "Press Controls",
+    "protective tariffs": "Protective Tariffs"
+  },
+  "technology": {
+    "spinning_jenny": "Spinning Jenny",
+    "steam_engine": "Steam Engine",
+    "steelmaking": "Steelmaking",
+    "watt_engine": "Watt Engine",
+    "lathe": "Lathe",
+    "power_generation": "Power Generation",
+    "combustion_engine": "Combustion Engine"
+  },
+  "researchFacility": {
+    "academy": "Academy",
+    "public_labs": "Public Labs"
+  },
+  "region": {
+    "balkans": "Balkans",
+    "india": "India",
+    "europe": "Europe",
+    "americas": "Americas",
+    "africa": "Africa",
+    "middle_east": "Middle East",
+    "asia_pacific": "Asia-Pacific"
+  },
+  "oceanNode": {
+    "mediterranean": "Mediterranean",
+    "north-sea": "North Sea"
+  },
+  "route": {
+    "atlantic": "Atlantic",
+    "baltic": "Baltic",
+    "suez": "Suez"
+  },
+  "unit": {
+    "artillery": "Artillery",
+    "cavalry": "Cavalry",
+    "frigates": "Frigates",
+    "infantry": "Infantry",
+    "ironclads": "Ironclads"
+  },
+  "socketState": {
+    "idle": "Awaiting Connection",
+    "connecting": "Connecting",
+    "connected": "Connected",
+    "disconnected": "Disconnected"
+  }
+}

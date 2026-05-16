@@ -1,0 +1,87 @@
+{
+  "eyebrow": "房间大厅",
+  "title": "创建或加入一局",
+  "lead": "先确认显示昵称，再从可加入房间中直接进入；没有合适房间时再创建新房间。只有收到邀请时才需要输入房间码。",
+  "flow": {
+    "step1": "确认昵称",
+    "step2": "创建或加入",
+    "step3": "选择国家",
+    "step4": "准备开局"
+  },
+  "identityCard": {
+    "noProfileDisplayName": "尚未设置昵称",
+    "noProfileHelperText": "设置昵称后，才能在这台设备上创建或加入房间。",
+    "profileIdLabel": "本机识别号",
+    "noProfileIdValue": "保存昵称后自动生成",
+    "actionSet": "设置昵称",
+    "hasProfileHelperText": "创建房间和加入房间时会使用这个昵称。",
+    "actionChange": "修改昵称",
+    "notBoundName": "尚未绑定显示姓名",
+    "notBoundIdValue": "确认身份后自动生成",
+    "clearIdentity": "清除本机身份",
+    "description": "可回到之前离开的房间或对局。",
+    "sessionStateLabel": "保存的进度",
+    "noProgress": "当前没有可恢复的进度。",
+    "hasProgressPrefix": "这台设备保存了进度：",
+    "restoreLabel": "恢复进度",
+    "restoringLabel": "恢复中...",
+    "clearLabel": "清除记录"
+  },
+  "roomsSection": {
+    "title": "可加入的房间",
+    "refresh": "刷新",
+    "loading": "加载房间中...",
+    "empty": "当前没有正在等待玩家的房间。",
+    "emptyHint": "你可以在右侧创建新房间。"
+  },
+  "entryForm": {
+    "createTitle": "创建新房间",
+    "createDescription": "当前没有合适房间时，你可以直接创建一局，再邀请其他玩家加入。",
+    "roomCodePlaceholder": "例如 ABCD-1234",
+    "createButton": "创建房间",
+    "joinTitle": "输入房间码加入",
+    "joinDescription": "如果朋友发来了房间码，可以在这里输入并加入私密房间。",
+    "joinButton": "加入房间",
+    "inviteDescriptionWithCode": "好友已经把房间码带给你了，确认身份后就能直接加入 {code}。",
+    "inviteDescriptionPrefilled": "房间码 {code} 已经替你填好，确认身份后就能直接加入。",
+    "inviteJoinButton": "加入 {code}"
+  },
+  "roomCard": {
+    "hostLabel": "房主 {name}",
+    "members": "{count} / {max} 人",
+    "availableSeats": "{count} 个空位",
+    "readyCount": "准备 {ready} / {total}",
+    "selectedCountries": "已选 {count} / {max} 个国家",
+    "statusJoinable": "可直接加入",
+    "statusUnavailable": "暂不可加入",
+    "activityRecent": "最近有活动",
+    "activityWaiting": "等待刷新",
+    "joinLabel": "加入 {code}",
+    "waitingHost": "等待房主信息"
+  },
+  "recentRoomCard": {
+    "statusWaiting": "等待开局",
+    "statusInGame": "进行中",
+    "statusFinished": "已结束",
+    "statusUnknown": "状态待确认",
+    "statusUnavailable": "暂时无法读取",
+    "memberCountUnavailable": "人数信息不可用",
+    "unavailableDetail": "这个入口暂时不可用，你仍可以通过房间码重新加入。",
+    "retryLabel": "稍后再试",
+    "membersLabel": "{count} / 5 位玩家",
+    "detailInGame": "上次离开时，这个房间已经进入对局或完成结算。",
+    "detailWaiting": "你可以回到房间继续准备或等待开局。",
+    "actionViewSettlement": "查看结算",
+    "actionBackToGame": "回到对局",
+    "actionEnterRoom": "进入房间"
+  },
+  "continueBanner": {
+    "title": "可恢复的进度",
+    "description": "已找到之前离开的房间或对局。",
+    "actionLabel": "回到对局"
+  },
+  "statusNotice": {
+    "creating": "正在创建房间...",
+    "joining": "正在加入房间..."
+  }
+}

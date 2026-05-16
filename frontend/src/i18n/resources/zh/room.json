@@ -1,0 +1,37 @@
+{
+  "eyebrow": "游戏房间",
+  "memberCount": "{count} / {max} 人",
+  "readyCount": "准备 {ready} / {total}",
+  "status": {
+    "waiting": "等待玩家加入",
+    "readying": "准备开局中",
+    "in_game": "游戏中",
+    "finished": "已结束"
+  },
+  "actions": {
+    "ready": "准备",
+    "unready": "取消准备",
+    "leave": "离开房间",
+    "start": "开始游戏",
+    "copyCode": "复制房间码",
+    "codeCopied": "已复制！"
+  },
+  "countrySelection": {
+    "title": "选择国家",
+    "noSelection": "未选择国家",
+    "taken": "（已被选）",
+    "confirm": "确认选择"
+  },
+  "members": {
+    "title": "房间成员",
+    "host": "房主",
+    "you": "你",
+    "empty": "等待玩家加入..."
+  },
+  "errors": {
+    "roomNotFound": "未找到房间",
+    "roomFull": "房间已满",
+    "alreadyInRoom": "你已在此房间中",
+    "genericError": "出错了"
+  }
+}

@@ -1,0 +1,135 @@
+{
+  "home": {
+    "eyebrow": "5 人回合制列强经营对局",
+    "title": "第一次进入也能顺着玩完一局",
+    "description": "这是一局 5 人参与的回合制列强经营对局。每回合你将在国家决策、市场出售、财政结算三个阶段中做有限选择，拿结果、滚动下一轮，并最终按累计总收入排名。",
+    "badges": {
+      "multiplayer": "多人策略对局",
+      "turns": "15 回合推进",
+      "threePhase": "三阶段议程"
+    },
+    "heroActions": {
+      "enterLobby": "进入大厅",
+      "rule1": "5 人固定局",
+      "rule2": "选国家",
+      "rule3": "全员准备",
+      "rule4": "自动开局"
+    },
+    "asideCard": {
+      "eyebrow": "进入大厅前你只需要知道 4 步",
+      "title": "4 步进入第一局",
+      "description": "这里不需要先读很长规则。进入大厅后，系统会把你带进身份确认、房间准备和自动开局这条主线。",
+      "steps": [
+        "先确认昵称，系统会把它当作你这台设备的身份。",
+        "进入大厅后，创建房间或加入等待中的房间。",
+        "进入房间后选择国家，确认你这一局代表谁。",
+        "全员点下准备后，系统会自动进入第 1 回合。"
+      ]
+    },
+    "cycleCard": {
+      "eyebrow": "这局怎么玩",
+      "title": "三阶段经营循环",
+      "description": "整局不会要求你背规则墙。你只需要知道每回合固定按这条循环推进，上一阶段的结果会回流到下一轮经营。",
+      "phases": {
+        "decision": {
+          "title": "国家决策",
+          "desc": "在工厂、政府政策、市场预览、军事和研究院中分配预算，为后续阶段排兵布阵。"
+        },
+        "market": {
+          "title": "市场出售",
+          "desc": "把商品投放到国内和海外市场，供需决定价格，销售直接转化为国家收入。"
+        },
+        "settlement": {
+          "title": "财政结算",
+          "desc": "结算阶段汇总收入并按比例回流到民间购买力、工厂和政府财政，滚动进入下一回合。"
+        }
+      }
+    },
+    "lobbyCard": {
+      "eyebrow": "进入大厅后会发生什么",
+      "title": "从这里进入房间主线",
+      "description": "首页只负责告诉你这局是什么；真正的创建、选房和继续上次进度都放在大厅里，避免第一次进入就被表单和状态打断。",
+      "steps": [
+        "先确认昵称，再进入大厅的下一步引导。",
+        "大厅会告诉你哪些房间正在等人，也会提示如何回到上次进度。",
+        "进入房间后选择国家、点击准备，等全员满足条件后系统自动开局。"
+      ]
+    }
+  },
+  "settings": {
+    "title": "设置",
+    "eyebrow": "参数面板",
+    "numericConfigTitle": "数值配置",
+    "numericConfigDescription": "上方是常用平衡项；底部\"全部 JSON 数值\"会自动列出配置文件里的其余数字。保存后写回 backend/config/balance/*.json 并清空配置缓存。",
+    "saveButton": "保存",
+    "savingButton": "保存中...",
+    "allJsonValuesTitle": "全部 JSON 数值",
+    "allJsonValuesEyebrow": "balance/*.json",
+    "allJsonValuesDescription": "这里列出未在上方常用面板中单独展示的全部数值。中文名称用于理解含义，灰色路径用于定位 JSON 位置；修改后点击顶部保存即可生效。",
+    "loadErrorTitle": "配置面板",
+    "loadErrorDescription": "加载失败",
+    "productionCost": {
+      "title": "生产成本",
+      "eyebrow": "production",
+      "routeColumn": "生产方式",
+      "newCostColumn": "新建成本",
+      "upgradeCostColumn": "升级成本"
+    },
+    "rawMaterials": {
+      "title": "各国原材料",
+      "eyebrow": "countries",
+      "countryColumn": "国家",
+      "initialColumn": "初始原材料",
+      "perTurnColumn": "每回合增量"
+    },
+    "market": {
+      "title": "市场参数",
+      "eyebrow": "market",
+      "baseIncomeLabel": "baseIncomePerRound（每回合保底收入）",
+      "regionColumn": "区域",
+      "priceMultiplierColumn": "价格倍率"
+    },
+    "government": {
+      "title": "政府参数",
+      "eyebrow": "government",
+      "adminCostLabel": "行政能力价格（administrationCost）",
+      "ideologyMinLabel": "思潮范围 - 最小值",
+      "ideologyMaxLabel": "最大值",
+      "thresholdColumns": {
+        "ideology": "思潮",
+        "highThreshold": "高阈值",
+        "lowThreshold": "低阈值"
+      }
+    },
+    "jsonValueColumns": {
+      "name": "中文名称",
+      "value": "数值"
+    },
+    "configFiles": {
+      "abilities.json": "国家能力",
+      "countries.json": "国家初始值",
+      "decision_actions.json": "行动 / 政策",
+      "events.json": "事件",
+      "global.json": "全局",
+      "market.json": "市场",
+      "military.json": "军事",
+      "military_actions.json": "军事行动",
+      "politics.json": "政治 / 思潮",
+      "production.json": "生产",
+      "reforms.json": "改革",
+      "regions.json": "区域",
+      "research_actions.json": "天赋树",
+      "technology.json": "科技树"
+    }
+  },
+  "notFound": {
+    "title": "页面未找到",
+    "hint": "你访问的页面不存在或可能已被移动。",
+    "action": "返回首页"
+  },
+  "settlement": {
+    "title": "财政结算",
+    "loading": "正在加载结算...",
+    "noData": "暂无结算数据。"
+  }
+}

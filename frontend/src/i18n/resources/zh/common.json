@@ -1,0 +1,17 @@
+{
+  "none": "无",
+  "loading": "正在加载...",
+  "save": "保存",
+  "saving": "保存中...",
+  "cancel": "取消",
+  "backToLobby": "返回大厅",
+  "backToHome": "返回首页",
+  "enterLobby": "进入大厅",
+  "settings": "设置",
+  "notFound": "404 - 页面未找到",
+  "notFoundHint": "你访问的页面不存在。",
+  "loadFailed": "加载失败",
+  "saveSuccess": "保存成功",
+  "saveFailed": "保存失败",
+  "backendUnavailable": "后端服务不可用，请确认本地 API 已启动。"
+}

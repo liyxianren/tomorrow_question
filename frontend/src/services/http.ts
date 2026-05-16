@@ -1,4 +1,5 @@
 import type { ApiFailure, ApiResponse, ApiSuccess } from "../types";
+import i18n from "../i18n";
 
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? "http://127.0.0.1:5000" : "");
@@ -113,6 +114,8 @@ async function runApiRequest<T>(
     requestHeaders.set("Content-Type", "application/json");
   }
 
+  requestHeaders.set("Accept-Language", i18n.language);
+
   if (sessionId) {
     requestHeaders.set("X-Session-Id", sessionId);
   }
@@ -163,7 +166,7 @@ async function runApiRequest<T>(
 
 function createBackendUnavailableError(cause?: unknown): ApiRequestError {
   const error = new ApiRequestError(
-    "后端服务不可用，请确认本地 API 已启动。",
+    i18n.t("common:backendUnavailable", "Backend service unavailable. Please confirm the local API is running."),
     0,
     "BACKEND_UNAVAILABLE",
   );

@@ -1,0 +1,17 @@
+{
+  "none": "None",
+  "loading": "Loading...",
+  "save": "Save",
+  "saving": "Saving...",
+  "cancel": "Cancel",
+  "backToLobby": "Back to Lobby",
+  "backToHome": "Back to Home",
+  "enterLobby": "Enter Lobby",
+  "settings": "Settings",
+  "notFound": "404 - Page Not Found",
+  "notFoundHint": "The page you are looking for does not exist.",
+  "loadFailed": "Failed to load",
+  "saveSuccess": "Saved successfully",
+  "saveFailed": "Save failed",
+  "backendUnavailable": "Backend service unavailable. Please confirm the local API is running."
+}

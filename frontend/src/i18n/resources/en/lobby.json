@@ -1,0 +1,87 @@
+{
+  "eyebrow": "Room Lobby",
+  "title": "Create or Join a Game",
+  "lead": "Confirm your display name first, then join from the available rooms. Create a new room only when none fit. Use a room code only if you received an invite.",
+  "flow": {
+    "step1": "Set Nickname",
+    "step2": "Create or Join",
+    "step3": "Pick Nation",
+    "step4": "Ready Up"
+  },
+  "identityCard": {
+    "noProfileDisplayName": "No Nickname Set",
+    "noProfileHelperText": "Set a nickname before creating or joining rooms on this device.",
+    "profileIdLabel": "Device ID",
+    "noProfileIdValue": "Auto-generated after setting nickname",
+    "actionSet": "Set Nickname",
+    "hasProfileHelperText": "This nickname will be used when creating or joining rooms.",
+    "actionChange": "Change Nickname",
+    "notBoundName": "No Display Name Bound",
+    "notBoundIdValue": "Auto-generated after identity confirmation",
+    "clearIdentity": "Clear Identity",
+    "description": "Resume a room or game you left earlier.",
+    "sessionStateLabel": "Saved Progress",
+    "noProgress": "No saved progress to resume.",
+    "hasProgressPrefix": "This device has saved progress: ",
+    "restoreLabel": "Resume Progress",
+    "restoringLabel": "Resuming...",
+    "clearLabel": "Clear Record"
+  },
+  "roomsSection": {
+    "title": "Available Rooms",
+    "refresh": "Refresh",
+    "loading": "Loading rooms...",
+    "empty": "No rooms waiting for players right now.",
+    "emptyHint": "You can create a new room on the right."
+  },
+  "entryForm": {
+    "createTitle": "Create New Room",
+    "createDescription": "Create a game and invite other players to join.",
+    "joinTitle": "Join with Room Code",
+    "joinDescription": "Enter a room code from a friend to join a private room.",
+    "roomCodePlaceholder": "e.g. ABCD-1234",
+    "createButton": "Create Room",
+    "joinButton": "Join Room",
+    "inviteDescriptionWithCode": "A friend shared a room code with you—confirm your identity to join {code}.",
+    "inviteDescriptionPrefilled": "Room code {code} is already filled in—confirm your identity to join.",
+    "inviteJoinButton": "Join {code}"
+  },
+  "roomCard": {
+    "hostLabel": "Host {name}",
+    "members": "{count} / {max} players",
+    "availableSeats": "{count} seats open",
+    "readyCount": "Ready {ready} / {total}",
+    "selectedCountries": "{count} / {max} nations selected",
+    "statusJoinable": "Available to Join",
+    "statusUnavailable": "Not Available",
+    "activityRecent": "Recent Activity",
+    "activityWaiting": "Waiting for Refresh",
+    "joinLabel": "Join {code}",
+    "waitingHost": "Waiting for host info"
+  },
+  "recentRoomCard": {
+    "statusWaiting": "Waiting to Start",
+    "statusInGame": "In Progress",
+    "statusFinished": "Finished",
+    "statusUnknown": "Status Pending",
+    "statusUnavailable": "Temporarily Unavailable",
+    "memberCountUnavailable": "Member info unavailable",
+    "unavailableDetail": "This entry is temporarily unavailable. You can still rejoin by room code.",
+    "retryLabel": "Try Again Later",
+    "membersLabel": "{count} / 5 players",
+    "detailInGame": "When you left, this room had entered a game or finished settlement.",
+    "detailWaiting": "You can return to the room to continue preparation or wait for the game to start.",
+    "actionViewSettlement": "View Results",
+    "actionBackToGame": "Back to Game",
+    "actionEnterRoom": "Enter Room"
+  },
+  "continueBanner": {
+    "title": "Recoverable Progress",
+    "description": "Found a room or game you left earlier.",
+    "actionLabel": "Resume"
+  },
+  "statusNotice": {
+    "creating": "Creating room...",
+    "joining": "Joining room..."
+  }
+}
