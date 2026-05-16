@@ -444,7 +444,7 @@ export function Phase1MarketPanel({
                   {accessible ? (
                     <span className="phase1-market__card-badge">{getRegionAccessLevelLabel(region.accessLevel)}</span>
                   ) : (
-                    <span className="phase1-market__card-lock" title={lockHint ?? "未开放"}>
+                    <span className="phase1-market__card-lock" title={lockHint ?? i18n.t("common:notAvailable")}>
                       <svg className="phase1-market__card-lock-icon" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5">
                         <rect x="3" y="7" width="10" height="7" rx="1.5" />
                         <path d="M5 7V5a3 3 0 0 1 6 0v2" />
@@ -575,7 +575,7 @@ export function Phase1MarketPanel({
         </span>
         <span className="phase1-market__footer-row">
           <span className="phase1-market__footer-label">{t("game:market.totalEstimatedRevenue")}</span>
-          <span className="phase1-market__footer-value phase1-market__footer-value--highlight">{preview.revenue + overseasRevenue} 财政</span>
+          <span className="phase1-market__footer-value phase1-market__footer-value--highlight">{preview.revenue + overseasRevenue} {t("game:settlement.fiscalUnit")}</span>
         </span>
       </div>
     </section>

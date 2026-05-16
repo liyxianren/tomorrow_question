@@ -1,3 +1,4 @@
+import i18n from "../../../i18n";
 import {
   getAllocatedProductionBatchesForRoute,
   getProductionOrderQuantity,
@@ -46,10 +47,10 @@ const MARKET_PREVIEW_EFFECT_KEYS = [
 ] as const;
 
 const MARKET_PREVIEW_EFFECT_LABELS: Record<(typeof MARKET_PREVIEW_EFFECT_KEYS)[number], string> = {
-  domesticMarketCapacityDelta: "国内容量",
-  domesticPriceBonusDelta: "国内价格",
-  handicraftCapacityDelta: "手工业",
-  overseasMarketCapacityDelta: "海外容量",
+  domesticMarketCapacityDelta: i18n.t("game:effect.domesticMarketCapacityDelta", "国内容量"),
+  domesticPriceBonusDelta: i18n.t("game:effect.domesticPriceBonusDelta", "国内价格"),
+  handicraftCapacityDelta: i18n.t("game:effect.handicraftCapacityDelta", "手工业产能"),
+  overseasMarketCapacityDelta: i18n.t("game:effect.overseasMarketCapacityDelta", "海外容量"),
 };
 
 export function buildDecisionCommandDeckViewModel({
@@ -165,11 +166,11 @@ function buildFactoryLocation({
       return {
         id: `technology-${tech.techId}`,
         title: tech.label,
-        subtitle: `工厂预算 ${tech.budgetCost}`,
+        subtitle: i18n.t("game:commandDeck.factory.factoryBudgetAmount", "工厂预算 {{amount}}", { amount: tech.budgetCost }),
         description: buildTechResearchDescription(tech, lockedReason, workspace, queued),
         badges: unlockSummary ? [unlockSummary] : [],
-        metrics: [{ label: "预算消耗", value: `${tech.budgetCost}` }],
-        feedback: queued ? "已加入本轮工业研究队列。" : undefined,
+        metrics: [{ label: i18n.t("game:commandDeck.factory.budgetCost", "预算消耗"), value: `${tech.budgetCost}` }],
+        feedback: queued ? i18n.t("game:commandDeck.factory.techQueued", "已加入本轮工业研究队列。") : undefined,
         lockedReason,
         tone: lockedReason ? "locked" : queued || tech.isUnlocked ? "accent" : "default",
         selected: queued || tech.isUnlocked,
@@ -191,8 +192,8 @@ function buildFactoryLocation({
       subtitle: option.routeLabel,
       description: option.usageHint,
       badges: [
-        `国内 ${option.domesticReferencePrice}`,
-        `海外 ${option.overseasReferencePriceMin}-${option.overseasReferencePriceMax}`,
+        i18n.t("game:commandDeck.factory.domesticPriceBadge", "国内 {{price}}", { price: option.domesticReferencePrice }),
+        i18n.t("game:commandDeck.factory.overseasPriceBadge", "海外 {{min}}-{{max}}", { min: option.overseasReferencePriceMin, max: option.overseasReferencePriceMax }),
         formatPriceTrendText(option.priceTrend, option.priceAdjustment),
       ],
       metrics: [],
@@ -203,39 +204,39 @@ function buildFactoryLocation({
 
   return {
     id: "factory",
-    label: "工业区",
-    eyebrow: "步骤 1 / 5",
-    subtitle: "你的工厂今天需要什么指令？",
-    description: "安排本轮生产、建设产线，并把工业研究直接挂到工厂预算上。",
-    budgetLabel: "工厂预算",
+    label: i18n.t("game:building.factory", "工业区"),
+    eyebrow: i18n.t("game:commandDeck.stepEyebrow", "步骤 {{current}} / 5", { current: 1 }),
+    subtitle: i18n.t("game:commandDeck.factory.subtitle", "你的工厂今天需要什么指令？"),
+    description: i18n.t("game:commandDeck.factory.description", "安排本轮生产、建设产线，并把工业研究直接挂到工厂预算上。"),
+    budgetLabel: i18n.t("game:commandDeck.factory.budgetLabel", "工厂预算"),
     remainingBudget: remainingFactoryBudget,
     summaryPills: [
-      `工厂预算 ${remainingFactoryBudget}`,
-      `已排产 ${draft.factoryPlan.productionOrders.reduce((sum, item) => sum + item.quantity, 0)} 批`,
+      `${i18n.t("game:commandDeck.factory.budgetLabel", "工厂预算")} ${remainingFactoryBudget}`,
+      i18n.t("game:commandDeck.factory.plannedBatches", "已排产 {{count}} 批", { count: draft.factoryPlan.productionOrders.reduce((sum, item) => sum + item.quantity, 0) }),
       ...workspace.routeSummaries.map((summary) => {
         const allocated = getAllocatedProductionBatchesForRoute(draft, workspace.productionOptions, summary.routeId);
-        return `${summary.routeLabel}剩余 ${Math.max(summary.availableBatchesThisRound - allocated, 0)} 批`;
+        return `${summary.routeLabel}${i18n.t("game:commandDeck.factory.remainingCapacity", "剩余 {{count}} 批", { count: Math.max(summary.availableBatchesThisRound - allocated, 0) })}`;
       }),
     ],
     sections: [
       {
         id: "production",
-        title: "本轮生产",
-        description: "选择生产批次，预算和共享产能会即时联动。",
+        title: i18n.t("game:commandDeck.factory.productionTitle", "本轮生产"),
+        description: i18n.t("game:commandDeck.factory.productionDesc", "选择生产批次，预算和共享产能会即时联动。"),
         cards: productionCards,
       },
       {
         id: "construction",
-        title: "建设升级",
-        description: "确认后写入本轮草稿，影响下一回合产能。",
+        title: i18n.t("game:commandDeck.factory.constructionTitle", "建设升级"),
+        description: i18n.t("game:commandDeck.factory.constructionDesc", "确认后写入本轮草稿，影响下一回合产能。"),
         cards: constructionCards,
       },
       ...(factoryTechCards.length > 0
         ? [
             {
               id: "factory-tech",
-              title: "工业研究",
-              description: "使用工厂预算解锁新商品和产线。",
+              title: i18n.t("game:commandDeck.factory.techTitle", "工业研究"),
+              description: i18n.t("game:commandDeck.factory.techDesc", "使用工厂预算解锁新商品和产线。"),
               cards: factoryTechCards,
             },
           ]
@@ -244,8 +245,8 @@ function buildFactoryLocation({
         ? [
             {
               id: "locked-goods",
-              title: "未解锁商品",
-              description: "当前还不能投入生产的商品会集中展示在这里。",
+              title: i18n.t("game:commandDeck.factory.lockedGoodsTitle", "未解锁商品"),
+              description: i18n.t("game:commandDeck.factory.lockedGoodsDesc", "当前还不能投入生产的商品会集中展示在这里。"),
               cards: lockedGoodsCards,
             },
           ]
@@ -305,14 +306,14 @@ function buildDomesticLocation({
   const previewCards: DecisionCardViewModel[] = [
     {
       id: "market-demand-preview",
-      title: "市场需求",
-      subtitle: "出售阶段参考",
-      description: "国内需求决定最多能承接多少统一商品；贸易港会按实际投放量重新计算成交价。",
-      badges: ["只读预览"],
+      title: i18n.t("game:commandDeck.domestic.demandTitle", "市场需求"),
+      subtitle: i18n.t("game:commandDeck.domestic.demandSubtitle", "出售阶段参考"),
+      description: i18n.t("game:commandDeck.domestic.demandDesc", "国内需求决定最多能承接多少统一商品；贸易港会按实际投放量重新计算成交价。"),
+      badges: [i18n.t("game:commandDeck.domestic.readOnlyPreview", "只读预览")],
       metrics: [
-        { label: "民间购买力", value: remainingDomesticBudget },
-        { label: "市场需求", value: formatOptionalNumber(domesticDemand) },
-        { label: "投放上限", value: formatOptionalNumber(projectedCapacity) },
+        { label: i18n.t("game:commandDeck.domestic.consumerPower", "民间购买力"), value: remainingDomesticBudget },
+        { label: i18n.t("game:commandDeck.domestic.marketDemand", "市场需求"), value: formatOptionalNumber(domesticDemand) },
+        { label: i18n.t("game:commandDeck.domestic.capacityCap", "投放上限"), value: formatOptionalNumber(projectedCapacity) },
       ],
       lockedReason: null,
       tone: "default",
@@ -320,18 +321,18 @@ function buildDomesticLocation({
     },
     {
       id: "market-price-preview",
-      title: "价格来源",
-      subtitle: "供需定价",
-      description: "均衡价、既有加成和政府市场调节共同形成参考价，最终仍由出售阶段按投放量结算。",
+      title: i18n.t("game:commandDeck.domestic.priceSource", "价格来源"),
+      subtitle: i18n.t("game:commandDeck.domestic.priceSubtitle", "供需定价"),
+      description: i18n.t("game:commandDeck.domestic.priceDesc", "均衡价、既有加成和政府市场调节共同形成参考价，最终仍由出售阶段按投放量结算。"),
       badges: [
-        `均衡 ${formatOptionalNumber(referencePrice.basePrice)}`,
-        `既有加成 ${formatSignedValue(referencePrice.existingPriceBonus)}`,
-        `上限 ${referencePrice.priceCeiling}`,
+        i18n.t("game:commandDeck.domestic.equilibriumBadge", "均衡 {{price}}", { price: formatOptionalNumber(referencePrice.basePrice) }),
+        i18n.t("game:commandDeck.domestic.existingBonusBadge", "既有加成 {{bonus}}", { bonus: formatSignedValue(referencePrice.existingPriceBonus) }),
+        i18n.t("game:commandDeck.domestic.ceilingBadge", "上限 {{ceiling}}", { ceiling: referencePrice.priceCeiling }),
       ],
       metrics: [
-        { label: "政府调节", value: formatSignedValue(selectedPriceDelta) },
-        { label: "均衡参考价", value: formatOptionalNumber(referencePrice.price) },
-        { label: "价格上限", value: referencePrice.priceCeiling },
+        { label: i18n.t("game:commandDeck.domestic.govAdjustment", "政府调节"), value: formatSignedValue(selectedPriceDelta) },
+        { label: i18n.t("game:commandDeck.domestic.equilibriumPrice", "均衡参考价"), value: formatOptionalNumber(referencePrice.price) },
+        { label: i18n.t("game:commandDeck.domestic.priceCeiling", "价格上限"), value: referencePrice.priceCeiling },
       ],
       lockedReason: null,
       tone: selectedPriceDelta !== 0 ? "accent" : "default",
@@ -339,22 +340,22 @@ function buildDomesticLocation({
     },
     {
       id: "market-regulation-preview",
-      title: "本轮政府调节",
-      subtitle: selectedMarketStrategies.length > 0 ? `${selectedMarketStrategies.length} 项已选择` : "议会厅选择",
+      title: i18n.t("game:commandDeck.domestic.regulationTitle", "本轮政府调节"),
+      subtitle: selectedMarketStrategies.length > 0 ? i18n.t("game:commandDeck.domestic.selectedCount", "{{count}} 项已选择", { count: selectedMarketStrategies.length }) : i18n.t("game:commandDeck.domestic.parliamentSelect", "议会厅选择"),
       description: selectedMarketStrategies.length > 0
         ? selectedMarketStrategies.map((action) => action.label).join("、")
-        : "博览会、消费补贴、进口替代、公共工程、奢侈品推广和商贸枢纽都在议会厅统一决策。",
+        : i18n.t("game:commandDeck.domestic.regulationDefaultDesc", "博览会、消费补贴、进口替代、公共工程、奢侈品推广和商贸枢纽都在议会厅统一决策。"),
       badges: selectedEffectSummary.length > 0
         ? selectedEffectSummary.map((item) => `${MARKET_PREVIEW_EFFECT_LABELS[item.key]} ${formatSignedValue(item.value)}`)
-        : ["暂无调节"],
+        : [i18n.t("game:commandDeck.domestic.noAdjustment", "暂无调节")],
       metrics: selectedEffectSummary.length > 0
         ? selectedEffectSummary.map((item) => ({
             label: MARKET_PREVIEW_EFFECT_LABELS[item.key],
             value: formatSignedValue(item.value),
           }))
-        : [{ label: "影响", value: "使用基础供需和既有效果" }],
+        : [{ label: i18n.t("game:commandDeck.domestic.effect", "影响"), value: i18n.t("game:commandDeck.domestic.useBaseEffects", "使用基础供需和既有效果") }],
       feedback: selectedMarketStrategies.length > 0
-        ? "这些动作已经写入 governmentPlan.strategySelections，并消耗政府财政。"
+        ? i18n.t("game:commandDeck.domestic.regulationFeedback", "这些动作已经写入 governmentPlan.strategySelections，并消耗政府财政。")
         : undefined,
       lockedReason: null,
       tone: selectedMarketStrategies.length > 0 ? "accent" : "default",
@@ -364,24 +365,24 @@ function buildDomesticLocation({
 
   return {
     id: "domestic",
-    label: "市民广场",
-    eyebrow: "步骤 3 / 5",
-    subtitle: "市场需求与价格预览",
-    description: "市民广场只展示内需、承接上限和价格来源；本轮市场调节由议会厅统一执行。",
-    budgetLabel: "民间购买力",
+    label: i18n.t("game:building.domestic", "市民广场"),
+    eyebrow: i18n.t("game:commandDeck.stepEyebrow", "步骤 {{current}} / 5", { current: 3 }),
+    subtitle: i18n.t("game:commandDeck.domestic.locationSubtitle", "市场需求与价格预览"),
+    description: i18n.t("game:commandDeck.domestic.locationDesc", "市民广场只展示内需、承接上限和价格来源；本轮市场调节由议会厅统一执行。"),
+    budgetLabel: i18n.t("game:commandDeck.domestic.budgetLabel", "民间购买力"),
     remainingBudget: remainingDomesticBudget,
     summaryPills: [
-      `购买力 ${remainingDomesticBudget}`,
-      `需求 ${formatOptionalNumber(domesticDemand)}`,
-      `投放上限 ${formatOptionalNumber(projectedCapacity)}`,
-      `均衡参考价 ${formatOptionalNumber(referencePrice.price)}`,
-      `政府调节 ${selectedMarketStrategies.length} 项`,
+      i18n.t("game:commandDeck.domestic.pillPurchasingPower", "购买力 {{amount}}", { amount: remainingDomesticBudget }),
+      i18n.t("game:commandDeck.domestic.pillDemand", "需求 {{amount}}", { amount: formatOptionalNumber(domesticDemand) }),
+      i18n.t("game:commandDeck.domestic.pillCapacity", "投放上限 {{amount}}", { amount: formatOptionalNumber(projectedCapacity) }),
+      i18n.t("game:commandDeck.domestic.pillEqPrice", "均衡参考价 {{amount}}", { amount: formatOptionalNumber(referencePrice.price) }),
+      i18n.t("game:commandDeck.domestic.pillGovAdjustment", "政府调节 {{count}} 项", { count: selectedMarketStrategies.length }),
     ],
     sections: [
       {
         id: "market-preview",
-        title: "市场预览",
-        description: "这里不再提供可选动作，出售阶段会按实际投放重算成交价。",
+        title: i18n.t("game:commandDeck.domestic.sectionTitle", "市场预览"),
+        description: i18n.t("game:commandDeck.domestic.sectionDesc", "这里不再提供可选动作，出售阶段会按实际投放重算成交价。"),
         cards: previewCards,
       },
     ],
@@ -430,18 +431,18 @@ function buildGovernmentLocation({
   const marketPreviewCards: DecisionCardViewModel[] = [
     {
       id: "government-market-baseline",
-      title: "市场基线",
-      subtitle: "国内承接与供需价格",
-      description: "政府市场调节会直接改变本轮国内承接量和均衡参考价，出售阶段仍按实际投放重新定价。",
+      title: i18n.t("game:commandDeck.government.marketBaselineTitle", "市场基线"),
+      subtitle: i18n.t("game:commandDeck.government.marketBaselineSubtitle", "国内承接与供需价格"),
+      description: i18n.t("game:commandDeck.government.marketBaselineDesc", "政府市场调节会直接改变本轮国内承接量和均衡参考价，出售阶段仍按实际投放重新定价。"),
       badges: [
-        `需求 ${formatOptionalNumber(domesticDemand)}`,
-        `基础承接 ${formatOptionalNumber(baseDomesticCapacity)}`,
-        `价格上限 ${referencePrice.priceCeiling}`,
+        i18n.t("game:commandDeck.government.demandBadge", "需求 {{amount}}", { amount: formatOptionalNumber(domesticDemand) }),
+        i18n.t("game:commandDeck.government.baseCapacityBadge", "基础承接 {{amount}}", { amount: formatOptionalNumber(baseDomesticCapacity) }),
+        i18n.t("game:commandDeck.government.priceCeilingBadge", "价格上限 {{ceiling}}", { ceiling: referencePrice.priceCeiling }),
       ],
       metrics: [
-        { label: "投放上限", value: formatOptionalNumber(projectedDomesticCapacity) },
-        { label: referencePrice.isCapped ? "均衡参考价已封顶" : "均衡参考价", value: formatOptionalNumber(referencePrice.price) },
-        { label: "政府价格调节", value: formatSignedValue(selectedPriceDelta) },
+        { label: i18n.t("game:commandDeck.government.capacityCap", "投放上限"), value: formatOptionalNumber(projectedDomesticCapacity) },
+        { label: referencePrice.isCapped ? i18n.t("game:commandDeck.government.eqPriceCapped", "均衡参考价已封顶") : i18n.t("game:commandDeck.government.eqPrice", "均衡参考价"), value: formatOptionalNumber(referencePrice.price) },
+        { label: i18n.t("game:commandDeck.government.priceAdjustment", "政府价格调节"), value: formatSignedValue(selectedPriceDelta) },
       ],
       lockedReason: null,
       tone: selectedMarketStrategies.length > 0 ? "accent" : "default",
@@ -449,18 +450,18 @@ function buildGovernmentLocation({
     },
     {
       id: "government-market-effects",
-      title: "本轮调节结果",
-      subtitle: selectedMarketStrategies.length > 0 ? `${selectedMarketStrategies.length} 项已选择` : "未选择调节",
+      title: i18n.t("game:commandDeck.government.regulationResultTitle", "本轮调节结果"),
+      subtitle: selectedMarketStrategies.length > 0 ? i18n.t("game:commandDeck.government.selectedCount", "{{count}} 项已选择", { count: selectedMarketStrategies.length }) : i18n.t("game:commandDeck.government.noRegulation", "未选择调节"),
       description: selectedMarketStrategies.length > 0
         ? selectedMarketStrategies.map((action) => action.label).join("、")
-        : "暂不执行市场调节时，贸易港只使用基础供需、既有效果和实际投放结算。",
+        : i18n.t("game:commandDeck.government.noRegulationDesc", "暂不执行市场调节时，贸易港只使用基础供需、既有效果和实际投放结算。"),
       badges: selectedEffectSummary.length > 0
         ? selectedEffectSummary.map((item) => `${MARKET_PREVIEW_EFFECT_LABELS[item.key]} ${formatSignedValue(item.value)}`)
-        : ["基础供需"],
+        : [i18n.t("game:commandDeck.government.baseSupplyDemand", "基础供需")],
       metrics: [
-        { label: "国内容量变化", value: formatSignedValue(selectedCapacityDelta) },
-        { label: "和平外销", value: formatOptionalNumber(projectedOverseasCapacity) },
-        { label: "外销容量变化", value: formatSignedValue(selectedOverseasCapacityDelta) },
+        { label: i18n.t("game:commandDeck.government.domesticCapacityChange", "国内容量变化"), value: formatSignedValue(selectedCapacityDelta) },
+        { label: i18n.t("game:commandDeck.government.peaceExport", "和平外销"), value: formatOptionalNumber(projectedOverseasCapacity) },
+        { label: i18n.t("game:commandDeck.government.overseasCapacityChange", "外销容量变化"), value: formatSignedValue(selectedOverseasCapacityDelta) },
       ],
       lockedReason: null,
       tone: selectedMarketStrategies.length > 0 ? "accent" : "default",
@@ -479,7 +480,7 @@ function buildGovernmentLocation({
       const nextMarketOverflow = Math.max(0, nextMarketSpend - fiscalState.marketRegulationAllowance);
       const nextBaseFiscalSpend = fiscalState.coreGovernmentSpend + fiscalState.militaryFiscalSpend + nextMarketOverflow;
       const lockedReason = action.lockedReason ?? (
-        !selected && nextBaseFiscalSpend > fiscalState.baseGovernmentBudget ? "市场调节额度不足" : null
+        !selected && nextBaseFiscalSpend > fiscalState.baseGovernmentBudget ? i18n.t("game:commandDeck.government.marketRegulationInsufficient", "市场调节额度不足") : null
       );
 
       const govEffectMetrics = buildEffectMetrics(action.effects);
@@ -488,22 +489,22 @@ function buildGovernmentLocation({
         .map((em) => ({ label: em.label, value: em.value }));
       const effectBadges = govExtraMetrics.length > 0
         ? govExtraMetrics.map((metric) => `${metric.label} ${metric.value}`)
-        : ["一次性策略"];
+        : [i18n.t("game:commandDeck.government.oneTimeStrategy", "一次性策略")];
 
       return {
         id: `strategy-${action.actionId}`,
         title: action.label,
-        subtitle: `市场调节 ${action.cost}`,
+        subtitle: i18n.t("game:commandDeck.government.marketRegulationCost", "市场调节 {{cost}}", { cost: action.cost }),
         description: action.description,
         badges: Object.keys(action.ratioDelta ?? {}).length > 0
           ? [formatRatioDeltaSummary(action.ratioDelta ?? {})]
           : effectBadges,
         metrics: [
-          { label: "财政消耗", value: action.cost },
-          ...(action.militaryPointDelta ? [{ label: "军事点变化", value: action.militaryPointDelta }] : []),
+          { label: i18n.t("game:commandDeck.government.fiscalCost", "财政消耗"), value: action.cost },
+          ...(action.militaryPointDelta ? [{ label: i18n.t("game:commandDeck.government.militaryPointChange", "军事点变化"), value: action.militaryPointDelta }] : []),
           ...govExtraMetrics,
         ],
-        feedback: selected ? `已纳入本轮市场调节，额度 -${action.cost}。` : undefined,
+        feedback: selected ? i18n.t("game:commandDeck.government.strategyFeedback", "已纳入本轮市场调节，额度 -{{cost}}。", { cost: action.cost }) : undefined,
         lockedReason,
         tone: lockedReason && !selected ? "locked" : selected ? "accent" : "default",
         selected,
@@ -527,11 +528,11 @@ function buildGovernmentLocation({
       return {
         id: `technology-${tech.techId}`,
         title: tech.label,
-        subtitle: `政府预算 ${tech.budgetCost}`,
+        subtitle: i18n.t("game:commandDeck.government.govBudgetAmount", "政府预算 {{amount}}", { amount: tech.budgetCost }),
         description: buildTechResearchDescription(tech, lockedReason, workspace, queued),
         badges: unlockSummary ? [unlockSummary] : [],
-        metrics: [{ label: "预算消耗", value: `${tech.budgetCost}` }],
-        feedback: queued ? "已加入本轮政策研究队列。" : undefined,
+        metrics: [{ label: i18n.t("game:commandDeck.factory.budgetCost", "预算消耗"), value: `${tech.budgetCost}` }],
+        feedback: queued ? i18n.t("game:commandDeck.government.techQueued", "已加入本轮政策研究队列。") : undefined,
         lockedReason,
         tone: lockedReason ? "locked" : queued || tech.isUnlocked ? "accent" : "default",
         selected: queued || tech.isUnlocked,
@@ -550,20 +551,20 @@ function buildGovernmentLocation({
         {
           id: `ability-${workspace.nationalAbility.abilityId}`,
           title: workspace.nationalAbility.label,
-          subtitle: workspace.nationalAbility.isAvailable ? "国家专属能力" : "本局已使用",
+          subtitle: workspace.nationalAbility.isAvailable ? i18n.t("game:commandDeck.government.nationalAbility", "国家专属能力") : i18n.t("game:commandDeck.government.abilityUsed", "本局已使用"),
           description: workspace.nationalAbility.description,
-          badges: workspace.nationalAbility.requiresTargetIdeology ? ["需要选择意识形态目标"] : ["即时生效"],
+          badges: workspace.nationalAbility.requiresTargetIdeology ? [i18n.t("game:commandDeck.government.needsIdeologyTarget", "需要选择意识形态目标")] : [i18n.t("game:commandDeck.government.instantEffect", "即时生效")],
           metrics: [
-            { label: "比例预告", value: formatRatio(ratioPreview) },
-            { label: "财政剩余", value: remainingGovernmentBudget },
+            { label: i18n.t("game:commandDeck.government.ratioPreview", "比例预告"), value: formatRatio(ratioPreview) },
+            { label: i18n.t("game:commandDeck.government.fiscalRemaining", "财政剩余"), value: remainingGovernmentBudget },
           ],
-          feedback: selectedAbility ? "本轮会一起提交国家能力。" : undefined,
-          lockedReason: workspace.nationalAbility.isAvailable ? null : "本局已使用",
+          feedback: selectedAbility ? i18n.t("game:commandDeck.government.abilityFeedback", "本轮会一起提交国家能力。") : undefined,
+          lockedReason: workspace.nationalAbility.isAvailable ? null : i18n.t("game:commandDeck.government.abilityUsed", "本局已使用"),
           tone: selectedAbility ? "accent" : workspace.nationalAbility.isAvailable ? "default" : "locked",
           selected: Boolean(selectedAbility),
           control: {
             kind: "toggle",
-            label: `启用国家能力：${workspace.nationalAbility.label}`,
+            label: i18n.t("game:commandDeck.government.enableAbility", "启用国家能力：{{label}}", { label: workspace.nationalAbility.label }),
             checked: Boolean(selectedAbility),
             disabled: !workspace.nationalAbility.isAvailable,
           },

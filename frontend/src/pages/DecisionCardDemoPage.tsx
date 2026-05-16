@@ -1,5 +1,6 @@
 import { startTransition, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
 
 import { restoreSessionContext } from "../app/sessionRecovery";
 import { GameMapModal } from "../components/game/map/GameMapModal";
@@ -415,7 +416,7 @@ function DecisionVariantPicker({
   onSelect: (variant: DecisionCardDemoVariant) => void;
 }) {
   return (
-    <section className="decision-demo__variant-grid" aria-label="卡片方案切换">
+    <section className="decision-demo__variant-grid" aria-label={i18n.t("pages:decisionCardDemo.cardsLabel")}>
       {variants.map((variant) => (
         <button
           key={variant.id}

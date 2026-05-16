@@ -17,7 +17,7 @@ export function HomePage() {
             <ActionBar>
               <PrimaryButton to="/lobby">{t("home.heroActions.enterLobby")}</PrimaryButton>
             </ActionBar>
-            <div className="home-page__rule-strip" aria-label="开局规则">
+            <div className="home-page__rule-strip" aria-label={t("home.heroActions.ariaLabel")}>
               <span className="home-page__rule-pill">{t("home.heroActions.rule1")}</span>
               <span className="home-page__rule-pill">{t("home.heroActions.rule2")}</span>
               <span className="home-page__rule-pill">{t("home.heroActions.rule3")}</span>

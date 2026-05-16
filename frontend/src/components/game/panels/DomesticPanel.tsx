@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import i18n from "../../../i18n";
 import type { DecisionPlayerPhaseWorkspace } from "../../../types";
 import type { PhaseDraftByPhase } from "../../../features/game/forms";
 import {
@@ -15,12 +16,15 @@ const EFFECT_KEYS = [
   "overseasMarketCapacityDelta",
 ] as const;
 
-const EFFECT_LABELS: Record<(typeof EFFECT_KEYS)[number], string> = {
-  domesticMarketCapacityDelta: "国内容量",
-  domesticPriceBonusDelta: "国内价格",
-  handicraftCapacityDelta: "手工业",
-  overseasMarketCapacityDelta: "海外容量",
-};
+function getEffectLabel(key: (typeof EFFECT_KEYS)[number]): string {
+  const map: Record<string, string> = {
+    domesticMarketCapacityDelta: i18n.t("game:domestic.effectCapacityDelta", "Domestic Capacity"),
+    domesticPriceBonusDelta: i18n.t("game:domestic.effectPriceBonus", "Domestic Price"),
+    handicraftCapacityDelta: i18n.t("game:productionRoute.handicraft"),
+    overseasMarketCapacityDelta: i18n.t("game:domestic.effectOverseasCapacity", "Overseas Capacity"),
+  };
+  return map[key] ?? key;
+}
 
 function formatNumber(value: number | undefined): string {
   if (value == null || !Number.isFinite(value)) return "—";
@@ -156,7 +160,7 @@ export function DomesticPanel({
                 {selectedEffectSummary.length > 0 ? (
                   <span className="gp-metric__hint">
                     {selectedEffectSummary
-                      .map((item) => `${EFFECT_LABELS[item.key]} ${item.value > 0 ? "+" : ""}${item.value}`)
+                      .map((item) => `${getEffectLabel(item.key)} ${item.value > 0 ? "+" : ""}${item.value}`)
                       .join(", ")}
                   </span>
                 ) : (
@@ -181,7 +185,7 @@ export function DomesticPanel({
                       .map((key) => {
                         const value = action.effects?.[key];
                         return typeof value === "number" && value !== 0
-                          ? `${EFFECT_LABELS[key]} ${value > 0 ? "+" : ""}${value}`
+                          ? `${getEffectLabel(key)} ${value > 0 ? "+" : ""}${value}`
                           : null;
                       })
                       .filter(Boolean)
