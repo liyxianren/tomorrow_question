@@ -146,6 +146,17 @@ export function Phase1MarketPanel({
     }
   }, [clampedDomestic, draftAllocation, onAllocationChange, readOnly]);
 
+  const marketLabel = (key: string) => {
+    const map: Record<string, string> = {
+      notAllocated: t("game:market.notAllocated"),
+      noDemand: t("game:market.noDemand"),
+      supplyDemandBalanced: t("game:market.supplyDemandBalanced"),
+      shortage: t("game:market.shortage"),
+      surplus: t("game:market.surplus"),
+    };
+    return map[key] ?? key;
+  };
+
   const preview = useMemo(
     () => calculatePreview(
       clampedDomestic,
@@ -155,6 +166,7 @@ export function Phase1MarketPanel({
       domesticPriceBeforeCap,
       domesticPriceBonus,
       domesticPriceCeiling,
+      marketLabel,
     ),
     [
       clampedDomestic,
@@ -164,6 +176,7 @@ export function Phase1MarketPanel({
       domesticPriceBeforeCap,
       domesticPriceBonus,
       domesticPriceCeiling,
+      marketLabel,
     ],
   );
 
@@ -308,7 +321,7 @@ export function Phase1MarketPanel({
           </div>
         </div>
         <p className="phase1-market__price-note">
-          {buildDomesticPriceNote(preview, domesticPriceBonus, domesticPriceCeiling)}
+          {buildDomesticPriceNote(preview, domesticPriceBonus, domesticPriceCeiling, t)}
         </p>
       </article>
 
@@ -497,15 +510,19 @@ export function Phase1MarketPanel({
                       </div>
                     ) : null}
                     <p className="phase1-market__price-note">
-                      基础 {formatNumber(overseasPrice.basePrice)} + 海外加成 {formatSignedValue(overseasPriceBonus)}
-                      {hasCompetitionPriceBonus ? `，争夺胜利 +${regionRewardPrice}` : ""}
-                      ，上限 {overseasPriceCeiling}{(hasCompetitionPriceBonus ? competitionPrice.isCapped : overseasPrice.isCapped) ? "，已按上限成交" : ""}
+                      {t("game:market.overseasPriceNote", {
+                        base: formatNumber(overseasPrice.basePrice),
+                        bonus: formatSignedValue(overseasPriceBonus),
+                        captureBonus: hasCompetitionPriceBonus ? `，${t("game:market.competition")} +${regionRewardPrice}` : "",
+                        ceiling: overseasPriceCeiling,
+                        capped: (hasCompetitionPriceBonus ? competitionPrice.isCapped : overseasPrice.isCapped) ? `，${t("game:market.domesticPriceNote_capped")}` : "",
+                      })}
                     </p>
                     <div className="phase1-market__competition">
                       <div className="phase1-market__competition-header">
                         <span className="phase1-market__competition-title">{t("game:market.competition")}</span>
                         {canCompete ? (
-                          <span className="phase1-market__competition-power">战力 {competitionPower}</span>
+                          <span className="phase1-market__competition-power">{t("game:military.militaryPoints")} {competitionPower}</span>
                         ) : (
                           <span className="phase1-market__competition-lock">{competitionLockHint ?? t("game:market.cannotCompete")}</span>
                         )}
@@ -529,11 +546,14 @@ export function Phase1MarketPanel({
                             />
                           </div>
                           <p className="phase1-market__price-note">
-                            若夺取成功：额外承接 +{region.competitionRewardCapacityBonus ?? competitionConfig.rewardCapacityBonus}
-                            ，价格 +{region.competitionRewardPriceBonus ?? competitionConfig.rewardPriceBonus}
-                            {regionRewardCapacity > 0
-                              ? `，本区成交按 ${formatNumber(competitionPrice.price)} 财政/件预估`
-                              : `，至少需要战力 ${region.competitionMinimumPower ?? competitionConfig.minimumPower}`}
+                            {t("game:market.competitionCaptureNote", {
+                              capacity: region.competitionRewardCapacityBonus ?? competitionConfig.rewardCapacityBonus,
+                              price: region.competitionRewardPriceBonus ?? competitionConfig.rewardPriceBonus,
+                              estimated: regionRewardCapacity > 0
+                                ? `，${t("game:market.estimatedSold")} ${formatNumber(competitionPrice.price)} ${t("game:market.fiscalPerUnit")}`
+                                : "",
+                              minPower: `，${t("game:military.militaryPointsRequired", { points: region.competitionMinimumPower ?? competitionConfig.minimumPower })}`,
+                            })}
                           </p>
                         </>
                       ) : null}
@@ -670,6 +690,7 @@ function calculatePreview(
   fallbackPriceBeforeCap: number,
   domesticPriceBonus: number,
   domesticPriceCeiling: number,
+  getLabel: (key: string) => string,
 ): PreviewResult {
   if (allocation <= 0) {
     const referencePrice = clampPrice(fallbackPrice, domesticPriceCeiling);
@@ -680,7 +701,7 @@ function calculatePreview(
       isPriceCapped: fallbackPriceBeforeCap > domesticPriceCeiling,
       soldQty: 0,
       revenue: 0,
-      balanceLabel: t("game:market.notAllocated"),
+      balanceLabel: getLabel("notAllocated"),
       tone: "balanced",
     };
   }
@@ -695,25 +716,25 @@ function calculatePreview(
       isPriceCapped: false,
       soldQty: 0,
       revenue: 0,
-      balanceLabel: "无需求",
+      balanceLabel: getLabel("noDemand"),
       tone: "surplus",
     };
   }
 
   const ratio = allocation / demand;
   let price = equilibriumPrice;
-  let balanceLabel = "供需均衡";
+  let balanceLabel = getLabel("supplyDemandBalanced");
   let tone: PreviewResult["tone"] = "balanced";
 
   if (ratio < 1) {
     const scale = 1 + (1 - ratio) * SHORTAGE_PRICE_DAMPING;
     price = equilibriumPrice * scale;
-    balanceLabel = "供不应求";
+    balanceLabel = getLabel("shortage");
     tone = "shortage";
   } else if (ratio > 1) {
     const scale = Math.max(MIN_SURPLUS_PRICE_RATIO, 1 - (ratio - 1) * SURPLUS_PRICE_DAMPING);
     price = equilibriumPrice * scale;
-    balanceLabel = "供过于求";
+    balanceLabel = getLabel("surplus");
     tone = "surplus";
   }
 
@@ -736,17 +757,18 @@ function buildDomesticPriceNote(
   preview: PreviewResult,
   domesticPriceBonus: number,
   domesticPriceCeiling: number,
+  t: (key: string, options?: Record<string, unknown>) => string,
 ): string {
   if (preview.soldQty <= 0) {
-    return `未投放时仅显示参考价；实际成交会按投放量重新计算，价格上限 ${domesticPriceCeiling}。`;
+    return t("game:market.noAllocationPriceNote", { ceiling: domesticPriceCeiling });
   }
 
   return [
-    `供需价 ${formatNumber(preview.supplyAdjustedPrice)}`,
-    `国内加成 ${formatSignedValue(domesticPriceBonus)}`,
-    `成交前 ${formatNumber(preview.priceBeforeCap)}`,
-    `上限 ${domesticPriceCeiling}`,
-    preview.isPriceCapped ? "已按上限成交" : null,
+    `${t("game:market.supplyDemandBalanced")} ${formatNumber(preview.supplyAdjustedPrice)}`,
+    `${t("game:market.domesticAllocated")} ${formatSignedValue(domesticPriceBonus)}`,
+    `${t("game:market.competition")} ${formatNumber(preview.priceBeforeCap)}`,
+    `${t("game:market.capacityLimit")} ${domesticPriceCeiling}`,
+    preview.isPriceCapped ? t("game:market.domesticPriceNote_capped") : null,
   ].filter(Boolean).join("，");
 }
 

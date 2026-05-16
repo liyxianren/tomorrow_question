@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { DecisionPlayerPhaseWorkspace, IdeologyKey } from "../../../types";
 import type { PhaseDraftByPhase } from "../../../features/game/forms";
 import type { DecisionActionCardEffect } from "./shared/DecisionActionCard";
@@ -427,16 +428,17 @@ export function GovernmentPanel({
   onToggleAbility,
   onAbilityTargetChange,
 }: GovernmentPanelProps) {
+  const { t } = useTranslation();
   const [activeReformPath, setActiveReformPath] = useState<ReformPath>("freedom");
   const reforms = workspace.governmentReforms;
   if (!reforms) {
     return (
       <section className="government-panel" data-testid="government-panel">
         <div className="government-panel__header">
-          <h3 className="government-panel__title">🏛️ 议会大厅</h3>
-          <span className="government-panel__budget">政府财政 {remainingGovernmentBudget}</span>
+          <h3 className="government-panel__title">🏛️ {t("game:government.title")}</h3>
+          <span className="government-panel__budget">{t("game:government.budget")} {remainingGovernmentBudget}</span>
         </div>
-        <p>议会数据未就绪。</p>
+        <p>{t("game:government.dataNotReady")}</p>
       </section>
     );
   }
@@ -544,50 +546,48 @@ export function GovernmentPanel({
     <section className="government-market-section">
       <div className="government-market-section__head">
         <div>
-          <h4 className="government-section-label">🎯 市场调节</h4>
+          <h4 className="government-section-label">🎯 {t("game:government.marketRegulation")}</h4>
           <p className="government-section-note">
-            民间购买力转化为本轮市场调节额度，优先支付补贴、博览会、进口替代和公共工程。
+            {t("game:government.marketRegulationDesc")}
           </p>
         </div>
         <span className="government-market-section__summary">
-          额度 {marketRegulationRemaining}/{fiscalState.marketRegulationAllowance}
+          {t("game:government.allowanceUsed", { remaining: marketRegulationRemaining, total: fiscalState.marketRegulationAllowance })}
         </span>
       </div>
       <div className="government-market-preview" aria-label="市场调节预览" data-testid="government-market-preview">
         <div className="government-market-preview__heading">
           <div>
-            <strong>市场基线</strong>
-            <span>选择下方策略后，承接量、均衡参考价和和平外销容量会即时更新。</span>
+            <strong>{t("game:government.marketBaseline")}</strong>
+            <span>{t("game:government.marketBaselineDesc")}</span>
           </div>
           <span className="government-market-preview__status">
-            {selectedMarketStrategies.length > 0 ? "已纳入本轮政府策略" : "使用基础供需"}
+            {selectedMarketStrategies.length > 0 ? t("game:government.usingSelectedStrategies") : t("game:government.usingBaseSupply")}
           </span>
         </div>
         <div className="government-market-preview__grid">
           <div className="government-market-preview__metric">
-            <span>市场需求</span>
+            <span>{t("game:market.demand")}</span>
             <strong>{formatMarketNumber(phase1Economy?.domesticDemand)}</strong>
-            <small>出售阶段国内承接参考</small>
+            <small>{t("game:government.marketBaselineDesc")}</small>
           </div>
           <div className="government-market-preview__metric">
-            <span>投放上限</span>
+            <span>{t("game:government.domesticCapacityRef")}</span>
             <strong>{formatMarketNumber(projectedDomesticCapacity)}</strong>
             <small>
-              基础 {formatMarketNumber(baseDomesticCapacity)}
-              {selectedDomesticCapacityDelta !== 0 ? `，调节 ${formatSigned(selectedDomesticCapacityDelta)}` : ""}
+              {t("game:government.domesticCapacityHint", { base: formatMarketNumber(baseDomesticCapacity), adjustment: selectedDomesticCapacityDelta !== 0 ? `，${formatSigned(selectedDomesticCapacityDelta)}` : "" })}
             </small>
           </div>
           <div className="government-market-preview__metric">
-            <span>{referencePrice.isCapped ? "均衡参考价已封顶" : "均衡参考价"}</span>
+            <span>{referencePrice.isCapped ? t("game:government.priceCapped") : t("game:government.equilibriumPriceLabel")}</span>
             <strong>{formatMarketNumber(referencePrice.price)}</strong>
             <small>{marketPriceHint}</small>
           </div>
           <div className="government-market-preview__metric">
-            <span>和平外销</span>
+            <span>{t("game:government.overseasExport")}</span>
             <strong>{formatMarketNumber(projectedOverseasCapacity)}</strong>
             <small>
-              基础外销 {formatMarketNumber(baseOverseasCapacity)}
-              {selectedOverseasCapacityDelta !== 0 ? `，调节 ${formatSigned(selectedOverseasCapacityDelta)}` : ""}
+              {t("game:government.overseasExportHint", { base: formatMarketNumber(baseOverseasCapacity), adjustment: selectedOverseasCapacityDelta !== 0 ? `，${formatSigned(selectedOverseasCapacityDelta)}` : "" })}
             </small>
           </div>
         </div>
@@ -599,7 +599,7 @@ export function GovernmentPanel({
               </span>
             ))
           ) : (
-            <span>出售阶段会按实际投放、基础供需和既有效果重新定价。</span>
+            <span>{t("game:government.sellPhaseNote")}</span>
           )}
         </div>
       </div>
@@ -615,17 +615,17 @@ export function GovernmentPanel({
               key={strategy.actionId}
               icon={MARKET_STRATEGY_ICONS[strategy.actionId] ?? "🎯"}
               title={strategy.label}
-              costLabel={`${strategy.cost} 市场调节`}
+              costLabel={`${strategy.cost} ${t("game:government.marketRegulation")}`}
               description={stripGeneratedEffectSummary(strategy.description ?? undefined)}
               effects={formatStrategyEffects(strategy)}
               status={status}
-              statusText={queued ? "✓ 本轮执行" : lockedReason ?? "可选"}
+              statusText={queued ? "✓ " + t("game:government.executeThisRound") : lockedReason ?? t("game:government.availableOption")}
               control={{
                 kind: "toggle",
                 checked: queued,
                 onChange: (next) => onToggleStrategy(strategy.actionId, next),
-                label: queued ? "撤回" : "选择",
-                ariaLabel: `选择策略：${strategy.label}`,
+                label: queued ? t("common:revoke") : t("common:select"),
+                ariaLabel: `${t("common:select")}：${strategy.label}`,
                 disabled: isDisabled,
               }}
             />
@@ -638,21 +638,21 @@ export function GovernmentPanel({
   return (
     <section className="government-panel" data-testid="government-panel">
       <div className="government-panel__header">
-        <h3 className="government-panel__title">🏛️ 议会大厅</h3>
+        <h3 className="government-panel__title">🏛️ {t("game:government.title")}</h3>
         <div className="government-panel__budget-stack">
-          <span className="government-panel__budget">政府财政 {fiscalState.effectiveGovernmentRemaining}</span>
+          <span className="government-panel__budget">{t("game:government.budget")} {fiscalState.effectiveGovernmentRemaining}</span>
           <span className="government-panel__budget-detail">
-            基础 {baseGovernmentRemaining}/{fiscalState.baseGovernmentBudget} · 市场调节 {marketRegulationRemaining}/{fiscalState.marketRegulationAllowance}
+            {t("game:government.budget")} {baseGovernmentRemaining}/{fiscalState.baseGovernmentBudget} · {t("game:government.marketRegulation")} {marketRegulationRemaining}/{fiscalState.marketRegulationAllowance}
           </span>
         </div>
       </div>
 
       <DecisionStatStrip
         items={[
-          { icon: "📜", value: reforms.administrationCapacity, label: "行政力" },
-          { icon: "🧮", value: projectedAdmin, label: "剩余行政力" },
-          { icon: "📚", value: reforms.completedReforms.length, label: "已完成改革" },
-          { icon: "⚙️", value: activePolicies.length, label: "现行政策" },
+          { icon: "📜", value: reforms.administrationCapacity, label: t("game:government.adminCapacity") },
+          { icon: "🧮", value: projectedAdmin, label: t("game:government.roundRemaining") },
+          { icon: "📚", value: reforms.completedReforms.length, label: t("game:government.reformQueue") },
+          { icon: "⚙️", value: activePolicies.length, label: t("game:government.activePolicies") },
         ]}
       />
 
@@ -660,12 +660,12 @@ export function GovernmentPanel({
 
       {/* ── 思潮信号 ── */}
       <h4 className="government-section-label">
-        🧭 思潮信号
+        🧭 {t("game:government.ideologySignal")}
         <span
           className="government-section-hint"
-          title={`任一意识形态达到 ${reforms.revolutionThreshold} 会进入最高警戒阶段；革命机制尚未开放。`}
+          title={t("game:government.ideologyHighestAlert", { threshold: reforms.revolutionThreshold })}
         >
-          （{reforms.revolutionThreshold} 为最高警戒）
+          （{t("game:government.ideologyHighestAlertShort", { threshold: reforms.revolutionThreshold })}）
         </span>
       </h4>
       <div className="government-stats">
@@ -711,8 +711,8 @@ export function GovernmentPanel({
               </div>
               <p>
                 {nextMilestone
-                  ? `下一阶 ${nextMilestone.level}：${nextMilestone.label} · ${formatMilestoneSummary(nextMilestone)}`
-                  : `已到最高阶段，后续革命机制尚未开放`}
+                  ? t("game:government.nextMilestone", { level: nextMilestone.level, label: nextMilestone.label, summary: formatMilestoneSummary(nextMilestone) })
+                  : t("game:government.atMaxStage")}
               </p>
             </div>
           );
@@ -723,13 +723,16 @@ export function GovernmentPanel({
       <div className="gov-reform-workbench">
         <div className="gov-reform-workbench__header">
           <div>
-            <h4 className="government-section-label">🧭 改革路径</h4>
+            <h4 className="government-section-label">🧭 {t("game:government.reformPath")}</h4>
             <p className="government-section-note">
-              本轮行政余量 {projectedAdmin} · 最高警戒 {reforms.revolutionThreshold}
-              {rawProjectedAdmin < 0 ? " · 政策占用超出行政力" : ""}
+              {t("game:government.reformPathNote", {
+                admin: projectedAdmin,
+                threshold: reforms.revolutionThreshold,
+                overflow: rawProjectedAdmin < 0 ? t("game:government.adminOverflow") : "",
+              })}
             </p>
           </div>
-          <div className="gov-reform-tabs" role="tablist" aria-label="改革路径">
+          <div className="gov-reform-tabs" role="tablist" aria-label={t("game:government.reformPath")}>
             {REFORM_PATHS.map((path) => {
               const isActive = path === activeReformPath;
               return (
@@ -752,17 +755,17 @@ export function GovernmentPanel({
 
         <div className="government-actions gov-reform-list">
           {activeReformList.length === 0 ? (
-            <p className="gov-reform-track__empty">暂无可选改革</p>
+            <p className="gov-reform-track__empty">{t("game:government.noReformsAvailable")}</p>
           ) : activeReformList.map((reform) => {
             const path = reform.path;
             const queued = queuedReformIds.has(reform.reformId);
             const overCapacity = !queued && projectedAdmin < reform.adminCost;
             const lockedReason = reform.isCompleted
-              ? "已实施"
+              ? t("game:government.alreadyImplemented")
               : reform.isBlocked
-                ? "路径已封锁"
+                ? t("game:government.pathBlocked")
                 : overCapacity
-                  ? "行政力不足"
+                  ? t("game:government.adminInsufficient")
                   : null;
             const isDisabled = reform.isCompleted || reform.isBlocked;
             const reformEffects = (reform.effects ?? {}) as Record<string, unknown>;
@@ -799,7 +802,7 @@ export function GovernmentPanel({
               <>
                 {wouldReachCritical && (
                   <span data-testid={`reform-revolution-warning-${reform.reformId}`}>
-                    ⚠️ 实施后进入最高警戒：
+                    ⚠️ {t("game:government.ideologyHighestAlert", { threshold: reforms.revolutionThreshold })}：
                     {criticalIdeologies
                       .map(
                         (key) =>
@@ -820,18 +823,18 @@ export function GovernmentPanel({
                 key={reform.reformId}
                 icon={wouldReachCritical ? "⚠️" : REFORM_PATH_ICONS[path]}
                 title={reform.label}
-                costLabel={`消耗 ${reform.adminCost} 行政力`}
+                costLabel={`${reform.adminCost} ${t("game:government.adminCapacity")}`}
                 description={resolveReformDescription(reform)}
                 warning={warningNode}
                 effects={effectTags.map((tag) => ({ label: tag, value: "" }))}
                 status={status}
-                statusText={queued ? "✓ 已排队" : lockedReason ?? "可实施"}
+                statusText={queued ? "✓ " + t("game:government.queuedThisRound") : lockedReason ?? t("game:government.canImplementWithAdmin", { cost: reform.adminCost })}
                 control={{
                   kind: "toggle",
                   checked: queued,
                   onChange: (next) => onEnactReform(reform.reformId, next),
-                  label: reform.isCompleted ? "已实施" : queued ? "撤回" : "实施",
-                  ariaLabel: `实施改革：${reform.label}`,
+                  label: reform.isCompleted ? t("game:government.alreadyImplemented") : queued ? t("common:revoke") : t("game:government.implement"),
+                  ariaLabel: t("game:government.implementReform", { label: reform.label }),
                   disabled: isDisabled || (!queued && lockedReason !== null),
                 }}
               />
@@ -846,7 +849,7 @@ export function GovernmentPanel({
           {/* 政策（生效中） */}
           {activePolicies.length > 0 ? (
             <>
-              <h4 className="government-section-label">⚙️ 现行政策</h4>
+              <h4 className="government-section-label">⚙️ {t("game:government.activePoliciesTitle")}</h4>
               <div className="government-actions">
                 {activePolicies.map((policy) => {
                   const active = isPolicyActiveAfter(policy.policyId, policy.isActive);
@@ -862,13 +865,13 @@ export function GovernmentPanel({
                       description={policy.description}
                       effects={formatPolicyEffects(policy, reforms.revolutionThreshold)}
                       status={active ? "selected" : restoreLockedReason ? "disabled" : "available"}
-                      statusText={active ? `每回合消耗 ${policy.adminCostPerTurn} 行政力` : restoreLockedReason ?? "本轮停用"}
+                      statusText={active ? t("game:government.adminCostPerTurn", { cost: policy.adminCostPerTurn, budget: policy.budgetCost }) : restoreLockedReason ?? t("game:government.policyDeactivated")}
                       control={{
                         kind: "toggle",
                         checked: active,
                         onChange: (next) => onTogglePolicy(policy.policyId, next),
-                        label: active ? "停用" : "恢复",
-                        ariaLabel: `${active ? "停用政策" : "恢复政策"}：${policy.label}`,
+                        label: active ? t("common:deactivate") : t("common:activate"),
+                        ariaLabel: `${active ? t("game:government.deactivatePolicy", { label: policy.label }) : t("game:government.activatePolicy", { label: policy.label })}`,
                         disabled: restoreLockedReason !== null,
                       }}
                     />
@@ -878,22 +881,22 @@ export function GovernmentPanel({
             </>
           ) : (
             <>
-              <h4 className="government-section-label">⚙️ 现行政策</h4>
-              <p className="gov-policy-split__empty">暂未启用政策</p>
+              <h4 className="government-section-label">⚙️ {t("game:government.activePoliciesTitle")}</h4>
+              <p className="gov-policy-split__empty">{t("game:government.noActivePolicies")}</p>
             </>
           )}
         </div>
 
         <div className="gov-policy-split__right">
           {/* 行政力购买 */}
-          <h4 className="government-section-label">💰 提升行政力</h4>
+          <h4 className="government-section-label">💰 {t("game:government.increaseAdmin")}</h4>
           <div className="government-actions">
             <DecisionActionCard
               icon="📜"
-              title="购买行政力"
-              costLabel={`${adminCost} 财政/行政力`}
-              description="把政府财政转为本轮行政力，用来推进改革或维持政策。"
-              effects={buildPurchaseEffects(queuedAdminPurchases, adminCost, "行政力")}
+              title={t("game:government.buyAdmin")}
+              costLabel={`${adminCost} ${t("game:government.adminCapacity")}`}
+              description={t("game:government.buyAdminDesc")}
+              effects={buildPurchaseEffects(queuedAdminPurchases, adminCost, t("game:government.adminCapacity"))}
               status={
                 queuedAdminPurchases > 0
                   ? "selected"
@@ -903,10 +906,10 @@ export function GovernmentPanel({
               }
               statusText={
                 queuedAdminPurchases > 0
-                  ? `本轮：财政 -${queuedAdminPurchases * adminCost}，行政力 +${queuedAdminPurchases}`
+                  ? t("game:government.purchasedThisRound", { cost: queuedAdminPurchases * adminCost, quantity: queuedAdminPurchases })
                   : !canBuyAdmin
                     ? formatShortfall(adminCost, baseGovernmentRemaining)
-                    : "可兑换"
+                    : t("game:government.canPurchase")
               }
               control={{
                 kind: "stepper",
@@ -914,8 +917,8 @@ export function GovernmentPanel({
                 min: 0,
                 max: adminCost > 0 ? Math.floor((baseGovernmentRemaining + queuedAdminPurchases * adminCost) / adminCost) : 0,
                 onChange: onAdminPurchase,
-                incrementAriaLabel: "增加行政力购买",
-                decrementAriaLabel: "减少行政力购买",
+                incrementAriaLabel: t("game:government.increaseAdmin"),
+                decrementAriaLabel: t("game:government.increaseAdmin"),
                 incrementDisabled: !canBuyAdmin,
               }}
             />
@@ -924,15 +927,15 @@ export function GovernmentPanel({
           {/* 点数购买 */}
           {militaryCost > 0 && (
             <>
-              <h4 className="government-section-label">🎫 点数购买</h4>
+              <h4 className="government-section-label">🎫 {t("game:government.pointPurchase")}</h4>
               <div className="government-actions">
                 {militaryCost > 0 && (
                   <DecisionActionCard
                     icon="⚔️"
-                    title="购买军事点"
-                    costLabel={`${militaryCost} 财政/军事点`}
-                    description="把财政转成军事点，提交后可用于招募、舰队和要塞行动。"
-                    effects={buildPurchaseEffects(queuedMilitaryPurchases, militaryCost, "军事点")}
+                    title={t("game:government.buyMilitaryPoints")}
+                    costLabel={`${militaryCost} ${t("game:military.militaryPoints")}`}
+                    description={t("game:government.buyMilitaryPointsDesc")}
+                    effects={buildPurchaseEffects(queuedMilitaryPurchases, militaryCost, t("game:military.militaryPoints"))}
                     status={
                       queuedMilitaryPurchases > 0
                         ? "selected"
@@ -942,10 +945,10 @@ export function GovernmentPanel({
                     }
                     statusText={
                       queuedMilitaryPurchases > 0
-                        ? `本轮：财政 -${queuedMilitaryPurchases * militaryCost}，军事点 +${queuedMilitaryPurchases}`
+                        ? t("game:government.militaryPurchasedThisRound", { cost: queuedMilitaryPurchases * militaryCost, quantity: queuedMilitaryPurchases })
                         : !canBuyMilitary
                           ? formatShortfall(militaryCost, baseGovernmentRemaining)
-                          : "可兑换"
+                          : t("game:government.canPurchase")
                     }
                     control={{
                       kind: "stepper",
@@ -953,8 +956,8 @@ export function GovernmentPanel({
                       min: 0,
                       max: militaryCost > 0 ? Math.floor((baseGovernmentRemaining + queuedMilitaryPurchases * militaryCost) / militaryCost) : 0,
                       onChange: onMilitaryPurchase,
-                      incrementAriaLabel: "增加军事点购买",
-                      decrementAriaLabel: "减少军事点购买",
+                      incrementAriaLabel: t("game:government.buyMilitaryPoints"),
+                      decrementAriaLabel: t("game:government.buyMilitaryPoints"),
                       incrementDisabled: !canBuyMilitary,
                     }}
                   />
@@ -966,14 +969,14 @@ export function GovernmentPanel({
           {/* 国家能力 */}
           {ability && (
             <>
-              <h4 className="government-section-label">🎴 国家能力</h4>
+              <h4 className="government-section-label">🎴 {t("game:government.nationalAbility")}</h4>
               <div className="government-actions">
                 <DecisionActionCard
                   icon="🎴"
                   title={ability.label}
-                  costLabel="国家能力"
+                  costLabel={t("game:government.nationalAbility")}
                   description={ability.description}
-                  effects={ability.requiresTargetIdeology ? [{ label: "需要选择意识形态目标", value: "" }] : [{ label: "即时生效", value: "" }]}
+                  effects={ability.requiresTargetIdeology ? [{ label: t("game:government.abilityNeedsTarget"), value: "" }] : [{ label: t("game:government.abilityInstant"), value: "" }]}
                   status={
                     abilitySelected
                       ? "selected"
@@ -983,17 +986,17 @@ export function GovernmentPanel({
                   }
                   statusText={
                     abilitySelected
-                      ? "✓ 本轮启用"
+                      ? "✓ " + t("game:government.abilityEnabledThisRound")
                       : !ability.isAvailable
-                        ? "本局已使用"
-                        : "可启用"
+                        ? t("game:government.abilityAlreadyUsed")
+                        : t("game:government.canEnable")
                   }
                   control={{
                     kind: "toggle",
                     checked: abilitySelected,
                     onChange: (next) => onToggleAbility?.(next),
-                    label: abilitySelected ? "撤回" : "启用",
-                    ariaLabel: `启用国家能力：${ability.label}`,
+                    label: abilitySelected ? t("common:revoke") : t("game:government.enable"),
+                    ariaLabel: t("game:government.enableAbility", { label: ability.label }),
                     disabled: !ability.isAvailable || !onToggleAbility,
                   }}
                 >
@@ -1021,7 +1024,7 @@ export function GovernmentPanel({
           {/* 政策（可激活） */}
           {inactivePolicies.length > 0 && (
             <>
-              <h4 className="government-section-label">🆕 可激活政策</h4>
+              <h4 className="government-section-label">🆕 {t("game:government.activablePolicies")}</h4>
               <div className="government-actions">
                 {inactivePolicies.map((policy) => {
                   const active = isPolicyActiveAfter(policy.policyId, policy.isActive);
@@ -1034,8 +1037,8 @@ export function GovernmentPanel({
                     : null;
                   const lockedReason = !policy.isUnlocked
                     ? policy.requiresReform
-                      ? `需改革：${policy.requiresReform}`
-                      : "未解锁"
+                      ? t("game:government.needsReform", { reform: policy.requiresReform })
+                      : t("game:government.lockedPolicy")
                     : budgetLockedReason ?? adminLockedReason;
                   const isDisabled = lockedReason !== null && !active;
                   const status = active ? "selected" : lockedReason ? "disabled" : "available";
@@ -1057,13 +1060,13 @@ export function GovernmentPanel({
                       }
                       effects={effects}
                       status={status}
-                      statusText={active ? "✓ 本轮激活" : lockedReason ?? "可激活"}
+                      statusText={active ? "✓ " + t("game:government.policyActivateThisRound") : lockedReason ?? t("game:government.activablePolicies")}
                       control={{
                         kind: "toggle",
                         checked: active,
                         onChange: (next) => onTogglePolicy(policy.policyId, next),
-                        label: active ? "撤回" : "激活",
-                        ariaLabel: `激活政策：${policy.label}`,
+                        label: active ? t("common:revoke") : t("common:activate"),
+                        ariaLabel: t("game:government.activatePolicy", { label: policy.label }),
                         disabled: isDisabled,
                       }}
                     />

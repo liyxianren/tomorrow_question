@@ -30,6 +30,6 @@ export function DecisionStepTabs({
   );
 }
 
-function getDecisionTabLabel(step: DecisionStepId, t: (key: string, defaultValue?: string) => string = (k, d) => d ?? k): string {
-  return t(`game:stepLabel.${step}`, step);
+function getDecisionTabLabel(step: DecisionStepId, t: (key: string, options?: Record<string, unknown>) => string = (k) => k): string {
+  return t(`game:stepLabel.${step}` as any, { defaultValue: step } as any) || getDecisionStepLabel(step);
 }

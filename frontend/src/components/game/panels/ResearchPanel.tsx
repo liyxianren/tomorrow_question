@@ -243,7 +243,7 @@ const CHAIN_META: Record<string, { icon: string; color: string }> = {
   steam:      { icon: "♨️", color: "#fc8181" },
 };
 
-function getTechUnlockHint(techId: string, t: (key: string, defaultValue?: string) => string): string | undefined {
+function getTechUnlockHint(techId: string, t: (key: string, options?: Record<string, unknown>) => string): string | undefined {
   const map: Record<string, string> = {
     spinning_jenny: t("game:factory.modeHints.mechanized", "Mechanized"),
     lathe: t("game:factory.modeHints.steam", "Steam Power"),
