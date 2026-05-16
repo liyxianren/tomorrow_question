@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18n from "../../../i18n";
 import type { PhaseActionStatusViewModel } from "../../../features/game/flow/gameFlow";
 
 
@@ -6,6 +8,7 @@ type GameSubmissionPanelProps = {
 };
 
 export function GameSubmissionPanel({ status }: GameSubmissionPanelProps) {
+  const { t } = useTranslation();
   const playerFacingStatus = getPlayerFacingStatus(status);
   const rhythmMessage = getRhythmMessage(status);
 
@@ -36,7 +39,7 @@ export function GameSubmissionPanel({ status }: GameSubmissionPanelProps) {
             color: "#f1c98c",
           }}
         >
-          当前状态：{playerFacingStatus}
+          {t("game:submit.currentStatus")}：{playerFacingStatus}
         </span>
         <strong data-testid="game-flow-status-message">{status.title}</strong>
       </div>
@@ -49,32 +52,32 @@ export function GameSubmissionPanel({ status }: GameSubmissionPanelProps) {
 function getPlayerFacingStatus(status: PhaseActionStatusViewModel): string {
   switch (status.kind) {
     case "actionable":
-      return "可提交";
+      return i18n.t("game:submit.canSubmitLabel");
     case "submitted":
       return status.badge;
     case "settled":
-      return "阶段已结算";
+      return i18n.t("game:submit.phaseSettled");
     case "finished":
-      return "本局已结束";
+      return i18n.t("game:submit.gameFinished");
     default:
-      return "战局同步中";
+      return i18n.t("game:submit.battleSyncing");
   }
 }
 
 function getRhythmMessage(status: PhaseActionStatusViewModel): string | null {
   switch (status.kind) {
     case "submitted":
-      if (status.badge.includes("结算中")) {
-        return "所有玩家都已完成操作，系统正在汇总本阶段动作并准备推进。";
+      if (status.badge.includes(i18n.t("game:flow.badgeSystemSettling"))) {
+        return i18n.t("game:flow.rhythmAllSubmitted");
       }
-      if (status.badge.includes("系统代交")) {
-        return "你这一阶段已经被系统锁定提交，接下来只能等待其他玩家或系统推进。";
+      if (status.badge.includes(i18n.t("game:flow.badgeAutoSubmit"))) {
+        return i18n.t("game:flow.rhythmAutoSubmitted");
       }
-      return "全部玩家提交后，系统会自动结算并推进到下一阶段。";
+      return i18n.t("game:flow.rhythmWaiting");
     case "settled":
-      return "先确认上一阶段发生了什么，再决定这轮是否调整经营主线。";
+      return i18n.t("game:flow.rhythmSettled");
     case "actionable":
-      return "完成左侧安排后，在这里确认提交；提交后会进入等待结算。";
+      return i18n.t("game:flow.rhythmActionable");
     default:
       return null;
   }

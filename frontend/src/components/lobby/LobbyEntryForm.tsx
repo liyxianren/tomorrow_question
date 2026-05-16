@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   fieldStyle,
 } from "./styles";
@@ -31,24 +32,25 @@ export function LobbyEntryForm({
   pendingAction,
   viewModel,
 }: LobbyEntryFormProps) {
+  const { t } = useTranslation("lobby");
   const resolvedViewModel = viewModel ?? buildLobbyPrimaryActionViewModel();
 
   return (
-    <section aria-label="创建和房间码入口" className="lobby-entry">
+    <section aria-label={t("entryForm.ariaLabel")} className="lobby-entry">
       <div className="lobby-entry__header">
-        <p>备用入口</p>
-        <h2>没有可加入房间？</h2>
+        <p>{t("entryForm.eyebrow")}</p>
+        <h2>{t("entryForm.headerTitle")}</h2>
       </div>
       <div className="lobby-entry__grid">
         <article className="lobby-action-card lobby-action-card--create">
           <div>
-            <span className="lobby-action-card__tag">创建房间</span>
+            <span className="lobby-action-card__tag">{t("entryForm.createTag")}</span>
             <h2>
               {resolvedViewModel.createTitle}
             </h2>
             <p>{resolvedViewModel.createDescription}</p>
           </div>
-          
+
           <div className="lobby-action-card__footer">
             <button
               className="lobby-action-button lobby-action-button--primary"
@@ -58,14 +60,14 @@ export function LobbyEntryForm({
               data-active={pendingAction === "create" ? "true" : "false"}
               type="button"
             >
-              {pendingAction === "create" ? "创建房间中..." : "创建房间"}
+              {pendingAction === "create" ? t("entryForm.creatingButton") : t("entryForm.createButton")}
             </button>
           </div>
         </article>
 
         <article className="lobby-action-card lobby-action-card--join">
           <div className="lobby-action-card__content">
-            <span className="lobby-action-card__tag">房间码</span>
+            <span className="lobby-action-card__tag">{t("entryForm.roomCodeTag")}</span>
             <h2>
               {resolvedViewModel.joinTitle}
             </h2>
@@ -82,15 +84,15 @@ export function LobbyEntryForm({
 
           <div className="lobby-join-form">
             <label>
-              <span>房间码</span>
+              <span>{t("entryForm.roomCodeLabel")}</span>
               <input
-                aria-label="房间码"
+                aria-label={t("entryForm.roomCodeLabel")}
                 autoCapitalize="characters"
                 data-testid="lobby-room-code-input"
                 disabled={isBusy}
                 maxLength={12}
                 onChange={(event) => onRoomCodeChange(event.target.value)}
-                placeholder="输入房间码"
+                placeholder={t("entryForm.roomCodePlaceholder")}
                 style={{
                   ...fieldStyle,
                   fontFamily: "monospace",
@@ -111,12 +113,12 @@ export function LobbyEntryForm({
                 data-active={pendingAction === "join" ? "true" : "false"}
                 type="button"
               >
-                {pendingAction === "join" ? "加入房间中..." : inviteEntry?.joinButtonLabel ?? "加入房间"}
+                {pendingAction === "join" ? t("entryForm.joiningButton") : inviteEntry?.joinButtonLabel ?? t("entryForm.joinButton")}
               </button>
             </div>
 
             <p className="lobby-join-form__hint">
-              输入正确房间码后会直接进入对应房间。
+              {t("entryForm.joinHint")}
             </p>
           </div>
         </article>

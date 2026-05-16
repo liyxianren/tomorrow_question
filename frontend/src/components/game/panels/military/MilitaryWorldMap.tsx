@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18n from "../../../../i18n";
 import type {
   ColonizationOption,
   CountryCode,
@@ -6,13 +8,13 @@ import type {
 } from "../../../../types";
 import "./MilitaryWorldMap.css";
 
-const OCEAN_NODE_LABELS: Record<string, string> = {
-  north_atlantic: "北大西洋",
-  south_atlantic: "南大西洋",
-  indian_ocean: "印度洋",
-  pacific: "太平洋",
-  mediterranean: "地中海",
-};
+function getOceanNodeLabel(nodeId: string): string {
+  return i18n.t(`game:oceanNode.${nodeId}`, nodeId);
+}
+
+function getGoodsLabel(goodsId: string): string {
+  return i18n.t(`game:goods.${goodsId}`, goodsId);
+}
 
 const REGION_ICONS: Record<string, string> = {
   europe: "🏰",
@@ -20,12 +22,6 @@ const REGION_ICONS: Record<string, string> = {
   africa: "🦁",
   middle_east: "🕌",
   asia_pacific: "🏯",
-};
-
-const GOODS_LABELS: Record<string, string> = {
-  coal: "煤炭", steel: "钢铁", grain: "粮食", cotton: "棉花",
-  oil: "石油", rubber: "橡胶", minerals: "矿产", tea: "茶叶", silk: "丝绸",
-  iron: "铁矿",
 };
 
 const OCEAN_POSITIONS: Record<string, { left: string; top: string }> = {
@@ -73,6 +69,7 @@ export function MilitaryWorldMap({
   onPinSelect,
   onNavalDeploymentChange,
 }: MilitaryWorldMapProps) {
+  const { t } = useTranslation();
   const colonizationByRegion = new Map(colonizationOptions.map((o) => [o.regionId, o]));
   const totalDeployed = totalFleets - remainingFleets;
 
@@ -86,7 +83,7 @@ export function MilitaryWorldMap({
         const draftCount = navalDeployment[node.nodeId];
         const myFleet = typeof draftCount === "number" ? draftCount : node.myFleet;
         const previewNode = previewOceanNode(node, myCountry, myFleet, oceanControlThreshold);
-        const label = OCEAN_NODE_LABELS[node.nodeId] ?? node.nodeId;
+        const label = getOceanNodeLabel(node.nodeId);
         const isSelected = selectedNode?.type === "ocean" && selectedNode?.id === node.nodeId;
         const isOpen = isSelected;
         return (
@@ -112,7 +109,7 @@ export function MilitaryWorldMap({
               </span>
             </span>
             <span className="mwm-pin__sub">
-              舰队 {myFleet}{previewNode.controller ? ` · ${previewNode.controller}` : ""}
+              {t("game:military.myFleet")} {myFleet}{previewNode.controller ? ` · ${previewNode.controller}` : ""}
             </span>
             <span
               className="mwm-pin__buttons"
@@ -120,14 +117,14 @@ export function MilitaryWorldMap({
               onKeyDown={(e) => e.stopPropagation()}
             >
               <button
-                aria-label={`${label}部署-1`}
+                aria-label={t("game:military.ariaDeployMinus", { label, defaultValue: `${label}部署-1` })}
                 className="mwm-pin__btn"
                 type="button"
                 disabled={myFleet <= 0}
                 onClick={() => onNavalDeploymentChange(node.nodeId, myFleet - 1)}
               >−</button>
               <button
-                aria-label={`${label}部署+1`}
+                aria-label={t("game:military.ariaDeployPlus", { label, defaultValue: `${label}部署+1` })}
                 className="mwm-pin__btn"
                 type="button"
                 disabled={remainingFleets <= 0}
@@ -169,7 +166,7 @@ export function MilitaryWorldMap({
             </span>
             {region.acceptedGoods.length > 0 && (
               <span className="mwm-pin__sub">
-                {region.acceptedGoods.map((g) => GOODS_LABELS[g] ?? g).join("·")}
+                {region.acceptedGoods.map((g) => getGoodsLabel(g)).join("·")}
               </span>
             )}
           </div>
@@ -178,7 +175,7 @@ export function MilitaryWorldMap({
 
       {oceanNodes.length > 0 && (
         <div className="mwm__legend">
-          ⛵ 舰队部署 {totalDeployed}/{totalFleets}
+          ⛵ {t("game:military.navalDeployment", { deployed: totalDeployed, total: totalFleets })}
         </div>
       )}
     </div>

@@ -1,0 +1,49 @@
+{
+  "countries": {
+    "britain": {
+      "generalContext": "Britain starts with the strongest capital and naval power, suited to linking industry, markets, and fleets into a growth chain.",
+      "phaseContexts": {
+        "production": "Britain has the deepest investment pool, but Round 1 favors producing stable output from existing inventory rather than chasing high-end expansion.",
+        "market": "Britain can more easily sell inventory to high-price overseas zones, but only if you first assess sea lanes and regional access.",
+        "military": "Britain is the only nation starting with a fleet. The military phase is more about deciding whether to lock in naval superiority early.",
+        "politics": "Britain's political actions are better suited to serving industrial upgrades and overseas operations rather than purely stacking ideology."
+      }
+    },
+    "france": {
+      "generalContext": "France starts the most balanced, suited to steady allocation between production, sales, military, and politics.",
+      "phaseContexts": {
+        "production": "France's inventory and budget are more evenly distributed. Round 1 favors steadily churning through what can be produced.",
+        "market": "France doesn't need to go all-in on overseas markets immediately. Compare domestic and regional markets carefully.",
+        "military": "France's military starts more solid. The military phase favors gaining regional presence at low cost.",
+        "politics": "France starts with administrative resources. The politics phase can more easily convert agendas into visible gains."
+      }
+    },
+    "prussia": {
+      "generalContext": "Prussia starts with more efficient handicraft industry but tighter funding, suited to short, decisive economic rhythms.",
+      "phaseContexts": {
+        "production": "Prussia already starts with mechanized production. The key is not wasting limited investment on the wrong paths.",
+        "market": "Prussia's inventory is not deep. The market phase must prioritize high-quality sales over blind volume.",
+        "military": "Prussia's land army presence is stronger. Military actions are better suited to regional suppression than large-scale naval competition.",
+        "politics": "Prussia's political actions should prioritize industrial and military efficiency, avoiding spreading across too many agendas."
+      }
+    },
+    "austria": {
+      "generalContext": "Austria leans toward domestic stability, suited to slow-paced operations, steady finances, and gradual expansion.",
+      "phaseContexts": {
+        "production": "Austria's industry is unremarkable. The production phase demands greater attention to budget efficiency and inventory turnover.",
+        "market": "Austria must rely on stable sales to grow subsequent room for maneuver, not charging into risky zones in Round 1.",
+        "military": "Austria's navy is weak. The military phase is more about defending critical regions and preventing economic chains from being severed.",
+        "politics": "Austria's administration starts more comfortable. The politics phase is well-suited to building governance capacity first."
+      }
+    },
+    "russia": {
+      "generalContext": "Russia starts with deep finances but slow industry, suited to a steady, methodical approach that yields late-game advantage.",
+      "phaseContexts": {
+        "production": "Russia's investment is the tightest. The production phase must prioritize foundational actions first, avoiding overreach.",
+        "market": "Russia's inventory structure leans basic. The market phase favors steadily converting what can be sold into revenue.",
+        "military": "Russia's finances are deep. The military phase can afford low-cost force supplementation to pave the way for later operations.",
+        "politics": "Russia's political actions are better suited to stabilizing administration and research, preparing for a mid-to-late game surge."
+      }
+    }
+  }
+}

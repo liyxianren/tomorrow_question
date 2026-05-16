@@ -1,0 +1,39 @@
+{
+  "eyebrow": "Game Room",
+  "memberCount": "{count} / {max} players",
+  "readyCount": "Ready {ready} / {total}",
+  "status": {
+    "waiting": "Waiting for Players",
+    "readying": "Preparing to Start",
+    "in_game": "Game in Progress",
+    "finished": "Game Finished"
+  },
+  "actions": {
+    "ready": "Ready",
+    "unready": "Unready",
+    "leave": "Leave Room",
+    "start": "Start Game",
+    "copyCode": "Copy Room Code",
+    "codeCopied": "Copied!"
+  },
+  "countrySelection": {
+    "title": "Select Your Nation",
+    "noSelection": "No nation selected",
+    "taken": "(Taken)",
+    "confirm": "Confirm Selection"
+  },
+  "members": {
+    "title": "Room Members",
+    "host": "Host",
+    "you": "You",
+    "empty": "Waiting for players..."
+  },
+  "sideRailAriaLabel": "Room status and game start operations",
+  "roomExpiryNotice": "This room will automatically close if no one is here for a while.",
+  "errors": {
+    "roomNotFound": "Room not found",
+    "roomFull": "Room is full",
+    "alreadyInRoom": "You are already in this room",
+    "genericError": "Something went wrong"
+  }
+}

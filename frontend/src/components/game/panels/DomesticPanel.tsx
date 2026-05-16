@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18n from "../../../i18n";
 import type { DecisionPlayerPhaseWorkspace } from "../../../types";
 import type { PhaseDraftByPhase } from "../../../features/game/forms";
 import {
@@ -14,12 +16,15 @@ const EFFECT_KEYS = [
   "overseasMarketCapacityDelta",
 ] as const;
 
-const EFFECT_LABELS: Record<(typeof EFFECT_KEYS)[number], string> = {
-  domesticMarketCapacityDelta: "国内容量",
-  domesticPriceBonusDelta: "国内价格",
-  handicraftCapacityDelta: "手工业",
-  overseasMarketCapacityDelta: "海外容量",
-};
+function getEffectLabel(key: (typeof EFFECT_KEYS)[number]): string {
+  const map: Record<string, string> = {
+    domesticMarketCapacityDelta: i18n.t("game:domestic.effectCapacityDelta", "Domestic Capacity"),
+    domesticPriceBonusDelta: i18n.t("game:domestic.effectPriceBonus", "Domestic Price"),
+    handicraftCapacityDelta: i18n.t("game:productionRoute.handicraft"),
+    overseasMarketCapacityDelta: i18n.t("game:domestic.effectOverseasCapacity", "Overseas Capacity"),
+  };
+  return map[key] ?? key;
+}
 
 function formatNumber(value: number | undefined): string {
   if (value == null || !Number.isFinite(value)) return "—";
@@ -51,6 +56,7 @@ export function DomesticPanel({
   draft,
   remainingDomesticBudget,
 }: DomesticPanelProps) {
+  const { t } = useTranslation();
   const queuedStrategyIds = new Set(
     draft.governmentPlan.strategySelections.map((item) => item.actionId),
   );
@@ -76,19 +82,19 @@ export function DomesticPanel({
     : undefined;
   const domesticPriceHint = phase1Economy
     ? [
-        `均衡 ${formatNumber(referencePrice.basePrice)}`,
-        `既有加成 ${formatSignedValue(referencePrice.existingPriceBonus)}`,
-        selectedPriceDelta !== 0 ? `政府调节 ${formatSignedValue(selectedPriceDelta)}` : null,
-        `上限 ${referencePrice.priceCeiling}`,
-        referencePrice.isCapped ? "已按上限成交" : null,
-      ].filter(Boolean).join("，")
+        `${t("game:domestic.equilibriumPriceLabel")} ${formatNumber(referencePrice.basePrice)}`,
+        `${t("game:government.marketDemand")} ${formatSignedValue(referencePrice.existingPriceBonus)}`,
+        selectedPriceDelta !== 0 ? `${t("game:domestic.governmentAdjustment")} ${formatSignedValue(selectedPriceDelta)}` : null,
+        `${t("game:market.capacityLimit")} ${referencePrice.priceCeiling}`,
+        referencePrice.isCapped ? t("game:domestic.equilibriumPriceCapped") : null,
+      ].filter(Boolean).join(", ")
     : null;
 
   return (
     <div className="domestic-panel" data-testid="domestic-panel">
       <div className="domestic-panel__header">
-        <h3 className="domestic-panel__title">🏛️ 市民广场</h3>
-        <span className="domestic-panel__budget">市场预览</span>
+        <h3 className="domestic-panel__title">🏛️ {t("game:domestic.title")}</h3>
+        <span className="domestic-panel__budget">{t("game:domestic.marketPreview")}</span>
       </div>
 
       <DecisionStatStrip
@@ -96,22 +102,22 @@ export function DomesticPanel({
           {
             icon: "💰",
             value: remainingDomesticBudget,
-            label: "民间购买力",
+            label: t("game:domestic.consumerPurchasingPower"),
           },
           {
             icon: "🧺",
             value: projectedDomesticDemand != null ? formatNumber(projectedDomesticDemand) : "—",
-            label: "市场需求",
+            label: t("game:market.demand"),
           },
           {
             icon: "📦",
             value: projectedDomesticCapacity != null ? formatNumber(projectedDomesticCapacity) : "—",
-            label: "投放上限",
+            label: t("game:domestic.capacityCapLabel"),
           },
           {
             icon: "🏷️",
             value: referencePrice.price != null ? formatNumber(referencePrice.price) : "—",
-            label: referencePrice.isCapped ? "均衡价已封顶" : "均衡参考价",
+            label: referencePrice.isCapped ? t("game:domestic.equilibriumPriceCapped") : t("game:domestic.equilibriumPriceLabel"),
           },
         ]}
       />
@@ -119,47 +125,47 @@ export function DomesticPanel({
       <div className="domestic-panel--v2">
         <div className="domestic-panel--v2__left">
           <div className="domestic-market-card">
-            <h4 className="domestic-section-label">📈 国内经济预览</h4>
+            <h4 className="domestic-section-label">📈 {t("game:domestic.domesticEconomyPreview")}</h4>
             <p className="domestic-section-note">
-              议会大厅已经同步显示这些市场数值；市民广场只保留出售阶段前的只读核对。
+              {t("game:domestic.domesticEconomyDesc")}
             </p>
             <div className="domestic-panel--v2__metrics">
               <div className="gp-metric">
-                <span className="gp-metric__label">均衡价格</span>
+                <span className="gp-metric__label">{t("game:domestic.equilibriumPriceLabel")}</span>
                 <span className="gp-metric__value">
-                  {phase1Economy?.equilibriumPrice != null ? `${formatNumber(phase1Economy.equilibriumPrice)} 财政/件` : "—"}
+                  {phase1Economy?.equilibriumPrice != null ? `${formatNumber(phase1Economy.equilibriumPrice)} ${t("game:market.fiscalPerUnit")}` : "—"}
                 </span>
                 {phase1Economy ? (
                   <span className="gp-metric__hint">
-                    {domesticPriceHint}；贸易港会按实际投放量重算成交价
+                    {domesticPriceHint}; {t("game:domestic.priceNoteHint")}
                   </span>
                 ) : null}
               </div>
               <div className="gp-metric">
-                <span className="gp-metric__label">投放上限</span>
+                <span className="gp-metric__label">{t("game:domestic.capacityCapLabel")}</span>
                 <span className="gp-metric__value">
-                  {projectedDomesticCapacity != null ? `${formatNumber(projectedDomesticCapacity)} 件` : "—"}
+                  {projectedDomesticCapacity != null ? `${formatNumber(projectedDomesticCapacity)} ${t("game:flow.items")}` : "—"}
                 </span>
                 {selectedCapacityDelta !== 0 ? (
                   <span className="gp-metric__hint">
-                    当前 {formatNumber(baseDomesticCapacity)}，政府调节 {selectedCapacityDelta > 0 ? "+" : ""}{selectedCapacityDelta}
+                    {t("game:domestic.currentCapacity", { capacity: formatNumber(baseDomesticCapacity), delta: `${selectedCapacityDelta > 0 ? "+" : ""}${selectedCapacityDelta}` })}
                   </span>
                 ) : null}
               </div>
               <div className="gp-metric">
-                <span className="gp-metric__label">政府调节</span>
+                <span className="gp-metric__label">{t("game:domestic.governmentAdjustment")}</span>
                 <span className="gp-metric__value">
-                  {selectedMarketStrategies.length > 0 ? `${selectedMarketStrategies.length} 项` : "未选择"}
+                  {selectedMarketStrategies.length > 0 ? `${selectedMarketStrategies.length} ${t("game:flow.strategies")}` : t("common:notAvailable")}
                 </span>
                 {selectedEffectSummary.length > 0 ? (
                   <span className="gp-metric__hint">
                     {selectedEffectSummary
-                      .map((item) => `${EFFECT_LABELS[item.key]} ${item.value > 0 ? "+" : ""}${item.value}`)
-                      .join("，")}
+                      .map((item) => `${getEffectLabel(item.key)} ${item.value > 0 ? "+" : ""}${item.value}`)
+                      .join(", ")}
                   </span>
                 ) : (
                   <span className="gp-metric__hint">
-                    可在议会大厅的“市场调节”中改变本轮承接量、售价或海外容量。
+                    {t("game:domestic.governmentAdjustmentHint")}
                   </span>
                 )}
               </div>
@@ -168,7 +174,7 @@ export function DomesticPanel({
         </div>
 
         <div className="domestic-panel--v2__right">
-          <h4 className="domestic-section-label">🏛️ 本轮政府调节</h4>
+          <h4 className="domestic-section-label">🏛️ {t("game:domestic.thisRoundGovernmentRegulation")}</h4>
           <div className="domestic-selected-effects">
             {selectedMarketStrategies.length > 0 ? (
               selectedMarketStrategies.map((action) => (
@@ -179,17 +185,17 @@ export function DomesticPanel({
                       .map((key) => {
                         const value = action.effects?.[key];
                         return typeof value === "number" && value !== 0
-                          ? `${EFFECT_LABELS[key]} ${value > 0 ? "+" : ""}${value}`
+                          ? `${getEffectLabel(key)} ${value > 0 ? "+" : ""}${value}`
                           : null;
                       })
                       .filter(Boolean)
-                      .join("，")}
+                      .join(", ")}
                   </span>
                 </div>
               ))
             ) : (
               <p className="domestic-panel__empty">
-                暂无市场调节。当前出售阶段将只使用基础供需、已有事件和既有效果计算价格。
+                {t("game:domestic.noMarketRegulation")}
               </p>
             )}
           </div>

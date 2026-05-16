@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
+import i18n from "../../../i18n";
 import {
   type SessionBootstrapRouteState,
   resolveSessionRoute,
@@ -182,7 +183,7 @@ export function useRoomFlowController() {
   useEffect(() => {
     if (bootstrap || !initialRoomCode) {
       if (!initialRoomCode) {
-        setLoadError("缺少房间码，无法进入房间。");
+        setLoadError(i18n.t("room:errors.roomNotFound"));
       }
 
       return;
@@ -230,7 +231,7 @@ export function useRoomFlowController() {
         applyAuthoritativeRoomContext(context);
       } catch (error) {
         if (!disposed) {
-          setLoadError(`进入房间失败：${formatRequestError(error)}`);
+          setLoadError(`${i18n.t("room:errors.genericError")}: ${formatRequestError(error)}`);
         }
       } finally {
         if (!disposed) {
@@ -266,7 +267,7 @@ export function useRoomFlowController() {
 
       waitingRoomSyncVersionRef.current += 1;
       if (updatedRoom.status === "in_game" && !roomContextRef.current?.activeGame?.gameId) {
-        setMessageOverride(createSuccessMessage("房间已满足开局条件，正在同步最新对局。"));
+        setMessageOverride(createSuccessMessage(i18n.t("room:status.in_game")));
         void syncAuthoritativeRoomContext(updatedRoom.roomCode).catch(() => {
           setRoomContext((previous) => ({
             room: updatedRoom,
@@ -297,7 +298,7 @@ export function useRoomFlowController() {
       }
 
       waitingRoomSyncVersionRef.current += 1;
-      setMessageOverride(createSuccessMessage("房间已满足开局条件，正在跳转到对局。"));
+      setMessageOverride(createSuccessMessage(i18n.t("room:status.in_game")));
       void syncAuthoritativeRoomContext(room.roomCode).catch(() => {
         const fallbackContext = {
           room: roomContextRef.current?.room ?? createFallbackRoom(room.roomCode),
@@ -322,7 +323,7 @@ export function useRoomFlowController() {
       }
 
       waitingRoomSyncVersionRef.current += 1;
-      setMessageOverride(createSuccessMessage("房间已完成开局，正在同步最新对局。"));
+      setMessageOverride(createSuccessMessage(i18n.t("room:status.in_game")));
       setRoomContext({
         room: nextRoom,
         activeGame: nextGame,
@@ -390,7 +391,7 @@ export function useRoomFlowController() {
 
   async function handleSelectCountry(country: CountryCode): Promise<void> {
     if (!room.roomCode || !currentPlayerId) {
-      setMessageOverride(createErrorMessage("当前没有可用的玩家身份，无法选择国家。"));
+      setMessageOverride(createErrorMessage(i18n.t("room:errors.genericError")));
       return;
     }
 
@@ -407,9 +408,9 @@ export function useRoomFlowController() {
       });
 
       await syncAuthoritativeRoomContext(room.roomCode);
-      setMessageOverride(createSuccessMessage(`已选国家：${country}。`));
+      setMessageOverride(createSuccessMessage(`${i18n.t("game:country." + country)}`));
     } catch (error) {
-      setMessageOverride(createErrorMessage(`选择国家失败：${formatRequestError(error)}`));
+      setMessageOverride(createErrorMessage(`${i18n.t("room:errors.genericError")}: ${formatRequestError(error)}`));
     } finally {
       setPendingAction(null);
     }
@@ -417,7 +418,7 @@ export function useRoomFlowController() {
 
   async function handleToggleReady(): Promise<void> {
     if (!room.roomCode || !currentPlayerId || !currentMember) {
-      setMessageOverride(createErrorMessage("当前没有可用的玩家身份，无法切换准备状态。"));
+      setMessageOverride(createErrorMessage(i18n.t("room:errors.genericError")));
       return;
     }
 
@@ -438,12 +439,12 @@ export function useRoomFlowController() {
       setMessageOverride(
         createSuccessMessage(
           nextReady
-            ? "你已准备开局。"
-            : "你已取消准备。",
+            ? i18n.t("room:actions.ready")
+            : i18n.t("room:actions.unready"),
         ),
       );
     } catch (error) {
-      setMessageOverride(createErrorMessage(`准备状态更新失败：${formatRequestError(error)}`));
+      setMessageOverride(createErrorMessage(`${i18n.t("room:errors.genericError")}: ${formatRequestError(error)}`));
     } finally {
       setPendingAction(null);
     }
@@ -451,7 +452,7 @@ export function useRoomFlowController() {
 
   async function handleFillBots(): Promise<void> {
     if (!room.roomCode || !currentPlayerId) {
-      setMessageOverride(createErrorMessage("当前没有可用的房主身份，无法补满 AI。"));
+      setMessageOverride(createErrorMessage(i18n.t("room:errors.genericError")));
       return;
     }
 
@@ -464,9 +465,9 @@ export function useRoomFlowController() {
         method: "POST",
       });
       await syncAuthoritativeRoomContext(room.roomCode);
-      setMessageOverride(createSuccessMessage("已补入 AI 席位。若房间条件已齐，系统会自动开局。"));
+      setMessageOverride(createSuccessMessage(i18n.t("room:status.readying")));
     } catch (error) {
-      setMessageOverride(createErrorMessage(`补满 AI 失败：${formatRequestError(error)}`));
+      setMessageOverride(createErrorMessage(`${i18n.t("room:errors.genericError")}: ${formatRequestError(error)}`));
     } finally {
       setPendingAction(null);
     }
@@ -474,7 +475,7 @@ export function useRoomFlowController() {
 
   async function handleRemoveBot(botPlayerId: string): Promise<void> {
     if (!room.roomCode || !currentPlayerId) {
-      setMessageOverride(createErrorMessage("当前没有可用的房主身份，无法踢出 AI。"));
+      setMessageOverride(createErrorMessage(i18n.t("room:errors.genericError")));
       return;
     }
 
@@ -487,9 +488,9 @@ export function useRoomFlowController() {
         method: "DELETE",
       });
       await syncAuthoritativeRoomContext(room.roomCode);
-      setMessageOverride(createSuccessMessage("已踢出 1 个 AI 席位，现在可以让真人加入。"));
+      setMessageOverride(createSuccessMessage(i18n.t("room:members.empty")));
     } catch (error) {
-      setMessageOverride(createErrorMessage(`踢出 AI 失败：${formatRequestError(error)}`));
+      setMessageOverride(createErrorMessage(`${i18n.t("room:errors.genericError")}: ${formatRequestError(error)}`));
     } finally {
       setPendingAction(null);
     }

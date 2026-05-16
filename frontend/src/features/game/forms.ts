@@ -1,3 +1,4 @@
+import i18n from "../../i18n";
 import type {
   ApiErrorCode,
   BudgetPools,
@@ -8,50 +9,50 @@ import type {
 } from "../../types";
 
 const SUBMIT_ERROR_CODE_LABELS: Partial<Record<ApiErrorCode, string>> = {
-  ALREADY_SUBMITTED: "你已提交过本阶段，等待结算即可。",
-  DEADLINE_PASSED: "提交截止时间已过。",
-  PHASE_MISMATCH: "当前阶段已切换，请刷新页面。",
-  GAME_NOT_FOUND: "对局不存在或已结束。",
-  NOT_ROOM_MEMBER: "你已不在该房间，无法提交。",
-  NOT_READYABLE: "当前状态无法准备/提交。",
-  INVALID_SESSION: "会话已失效，请重新登录。",
-  RECOVERY_NOT_AVAILABLE: "无法恢复对局状态，请刷新页面。",
+  ALREADY_SUBMITTED: i18n.t("game:submit.alreadySubmittedMsg", "你已提交过本阶段，等待结算即可。"),
+  DEADLINE_PASSED: i18n.t("game:submit.deadlinePassed", "提交截止时间已过。"),
+  PHASE_MISMATCH: i18n.t("game:submit.phaseMismatch", "当前阶段已切换，请刷新页面。"),
+  GAME_NOT_FOUND: i18n.t("game:submit.gameNotFound", "对局不存在或已结束。"),
+  NOT_ROOM_MEMBER: i18n.t("game:submit.notRoomMember", "你已不在该房间，无法提交。"),
+  NOT_READYABLE: i18n.t("game:submit.notReadyable", "当前状态无法准备/提交。"),
+  INVALID_SESSION: i18n.t("game:submit.invalidSession", "会话已失效，请重新登录。"),
+  RECOVERY_NOT_AVAILABLE: i18n.t("game:submit.recoveryNotAvailable", "无法恢复对局状态，请刷新页面。"),
 };
 
 const INVALID_SUBMISSION_MESSAGE_PATTERNS: ReadonlyArray<{
   match: RegExp;
   translate: (match: RegExpMatchArray) => string;
 }> = [
-  { match: /^Factory budget exceeded/i, translate: () => "工厂预算超支，无法提交。" },
-  { match: /^Domestic market budget exceeded/i, translate: () => "国民消费预算超支，无法提交。" },
-  { match: /^Government fiscal budget exceeded/i, translate: () => "政府财政预算超支，无法提交。" },
-  { match: /^Military action (\S+) exceeds maxPerRound/i, translate: (m) => `军事动作 ${m[1]} 超出本轮上限。` },
-  { match: /^Military action (\S+) requires required technology/i, translate: (m) => `军事动作 ${m[1]} 需要前置科技。` },
-  { match: /^Diplomacy action (\S+) requires required technology/i, translate: (m) => `外交动作 ${m[1]} 需要前置科技。` },
-  { match: /^Diplomacy target (\S+) has already been established/i, translate: (m) => `区域 ${m[1]} 已建交，本轮不能重复提交。` },
-  { match: /^Diplomacy target (\S+) is duplicated/i, translate: (m) => `区域 ${m[1]} 在本次提交中重复。` },
-  { match: /^Domestic action (\S+) requires required technology/i, translate: (m) => `旧市场调节动作 ${m[1]} 需要前置科技。` },
-  { match: /^Factory action (\S+) requires required technology/i, translate: (m) => `工厂调度 ${m[1]} 需要前置科技。` },
-  { match: /^Factory action (\S+) is duplicated/i, translate: (m) => `工厂调度 ${m[1]} 重复提交。` },
-  { match: /^Unknown factory action: (\S+)/i, translate: (m) => `未知工厂调度：${m[1]}。` },
-  { match: /^Expansion route (\S+) is not unlocked/i, translate: (m) => `生产线 ${m[1]} 尚未解锁，无法扩张。` },
-  { match: /^Upgrade route (\S+) requires route technology/i, translate: (m) => `生产线 ${m[1]} 需要先研究升级科技。` },
-  { match: /^Upgrade route (\S+) has no available source route capacity/i, translate: (m) => `生产线 ${m[1]} 没有可升级的源产能。` },
-  { match: /^Unknown military action: (\S+)/i, translate: (m) => `未知军事动作：${m[1]}。` },
-  { match: /^Unknown diplomacy action: (\S+)/i, translate: (m) => `未知外交动作：${m[1]}。` },
-  { match: /^Overseas market region (\S+) is not accessible/i, translate: (m) => `海外区域 ${m[1]} 当前不可访问。` },
-  { match: /^Overseas market region (\S+) is invalid/i, translate: (m) => `海外区域 ${m[1]} 无效。` },
-  { match: /^Overseas market sale order requires regionId/i, translate: () => "海外销售指令缺少区域。" },
-  { match: /^Overseas competition region (\S+) requires established diplomacy/i, translate: (m) => `海外争夺区域 ${m[1]} 需要先建交。` },
-  { match: /^Overseas competition region (\S+) route is blocked/i, translate: (m) => `海外争夺区域 ${m[1]} 航线被封锁。` },
-  { match: /^Overseas competition region (\S+) is duplicated/i, translate: (m) => `海外争夺区域 ${m[1]} 重复提交。` },
-  { match: /^Overseas competition deployment exceeds available army/i, translate: () => "海外争夺兵力超过可用陆军。" },
-  { match: /^Domestic market allocation \((\d+)\) exceeds domestic market capacity \((\d+)\)/i, translate: (m) => `国内投放 ${m[1]} 超过本轮承接能力 ${m[2]}。` },
-  { match: /^Domestic market allocation \((\d+)\) exceeds domestic demand \((\d+)\)/i, translate: (m) => `国内投放 ${m[1]} 超过本轮需求 ${m[2]}。` },
-  { match: /^Domestic market allocation \((\d+)\) exceeds available goods inventory \((\d+)\)/i, translate: (m) => `国内投放 ${m[1]} 超过库存 ${m[2]}。` },
-  { match: /^The current phase deadline has already passed/i, translate: () => "提交截止时间已过。" },
-  { match: /^The player has already submitted/i, translate: () => "你已提交过本阶段。" },
-  { match: /^Settlement is a system phase/i, translate: () => "结算阶段不接受玩家提交。" },
+  { match: /^Factory budget exceeded/i, translate: () => i18n.t("game:submit.errorFactoryBudgetExceeded", "工厂预算超支，无法提交。") },
+  { match: /^Domestic market budget exceeded/i, translate: () => i18n.t("game:submit.errorDomesticBudgetExceeded", "国民消费预算超支，无法提交。") },
+  { match: /^Government fiscal budget exceeded/i, translate: () => i18n.t("game:submit.errorGovernmentBudgetExceeded", "政府财政预算超支，无法提交。") },
+  { match: /^Military action (\S+) exceeds maxPerRound/i, translate: (m) => i18n.t("game:submit.errorMilitaryExceedsMax", "军事动作 {{action}} 超出本轮上限。", { action: m[1] }) },
+  { match: /^Military action (\S+) requires required technology/i, translate: (m) => i18n.t("game:submit.errorMilitaryNeedsTech", "军事动作 {{action}} 需要前置科技。", { action: m[1] }) },
+  { match: /^Diplomacy action (\S+) requires required technology/i, translate: (m) => i18n.t("game:submit.errorDiplomacyNeedsTech", "外交动作 {{action}} 需要前置科技。", { action: m[1] }) },
+  { match: /^Diplomacy target (\S+) has already been established/i, translate: (m) => i18n.t("game:submit.errorDiplomacyEstablished", "区域 {{region}} 已建交，本轮不能重复提交。", { region: m[1] }) },
+  { match: /^Diplomacy target (\S+) is duplicated/i, translate: (m) => i18n.t("game:submit.errorDiplomacyDuplicated", "区域 {{region}} 在本次提交中重复。", { region: m[1] }) },
+  { match: /^Domestic action (\S+) requires required technology/i, translate: (m) => i18n.t("game:submit.errorDomesticNeedsTech", "旧市场调节动作 {{action}} 需要前置科技。", { action: m[1] }) },
+  { match: /^Factory action (\S+) requires required technology/i, translate: (m) => i18n.t("game:submit.errorFactoryNeedsTech", "工厂调度 {{action}} 需要前置科技。", { action: m[1] }) },
+  { match: /^Factory action (\S+) is duplicated/i, translate: (m) => i18n.t("game:submit.errorFactoryDuplicated", "工厂调度 {{action}} 重复提交。", { action: m[1] }) },
+  { match: /^Unknown factory action: (\S+)/i, translate: (m) => i18n.t("game:submit.errorUnknownFactoryAction", "未知工厂调度：{{action}}。", { action: m[1] }) },
+  { match: /^Expansion route (\S+) is not unlocked/i, translate: (m) => i18n.t("game:submit.errorExpansionNotUnlocked", "生产线 {{route}} 尚未解锁，无法扩张。", { route: m[1] }) },
+  { match: /^Upgrade route (\S+) requires route technology/i, translate: (m) => i18n.t("game:submit.errorUpgradeNeedsTech", "生产线 {{route}} 需要先研究升级科技。", { route: m[1] }) },
+  { match: /^Upgrade route (\S+) has no available source route capacity/i, translate: (m) => i18n.t("game:submit.errorUpgradeNoCapacity", "生产线 {{route}} 没有可升级的源产能。", { route: m[1] }) },
+  { match: /^Unknown military action: (\S+)/i, translate: (m) => i18n.t("game:submit.errorUnknownMilitaryAction", "未知军事动作：{{action}}。", { action: m[1] }) },
+  { match: /^Unknown diplomacy action: (\S+)/i, translate: (m) => i18n.t("game:submit.errorUnknownDiplomacyAction", "未知外交动作：{{action}}。", { action: m[1] }) },
+  { match: /^Overseas market region (\S+) is not accessible/i, translate: (m) => i18n.t("game:submit.errorOverseasNotAccessible", "海外区域 {{region}} 当前不可访问。", { region: m[1] }) },
+  { match: /^Overseas market region (\S+) is invalid/i, translate: (m) => i18n.t("game:submit.errorOverseasInvalid", "海外区域 {{region}} 无效。", { region: m[1] }) },
+  { match: /^Overseas market sale order requires regionId/i, translate: () => i18n.t("game:submit.errorOverseasNoRegion", "海外销售指令缺少区域。") },
+  { match: /^Overseas competition region (\S+) requires established diplomacy/i, translate: (m) => i18n.t("game:submit.errorCompetitionNeedsDiplomacy", "海外争夺区域 {{region}} 需要先建交。", { region: m[1] }) },
+  { match: /^Overseas competition region (\S+) route is blocked/i, translate: (m) => i18n.t("game:submit.errorCompetitionRouteBlocked", "海外争夺区域 {{region}} 航线被封锁。", { region: m[1] }) },
+  { match: /^Overseas competition region (\S+) is duplicated/i, translate: (m) => i18n.t("game:submit.errorCompetitionDuplicated", "海外争夺区域 {{region}} 重复提交。", { region: m[1] }) },
+  { match: /^Overseas competition deployment exceeds available army/i, translate: () => i18n.t("game:submit.errorCompetitionArmyExceeded", "海外争夺兵力超过可用陆军。") },
+  { match: /^Domestic market allocation \((\d+)\) exceeds domestic market capacity \((\d+)\)/i, translate: (m) => i18n.t("game:submit.errorDomesticOverCapacity", "国内投放 {{alloc}} 超过本轮承接能力 {{capacity}}。", { alloc: m[1], capacity: m[2] }) },
+  { match: /^Domestic market allocation \((\d+)\) exceeds domestic demand \((\d+)\)/i, translate: (m) => i18n.t("game:submit.errorDomesticOverDemand", "国内投放 {{alloc}} 超过本轮需求 {{demand}}。", { alloc: m[1], demand: m[2] }) },
+  { match: /^Domestic market allocation \((\d+)\) exceeds available goods inventory \((\d+)\)/i, translate: (m) => i18n.t("game:submit.errorDomesticOverInventory", "国内投放 {{alloc}} 超过库存 {{inventory}}。", { alloc: m[1], inventory: m[2] }) },
+  { match: /^The current phase deadline has already passed/i, translate: () => i18n.t("game:submit.deadlinePassed", "提交截止时间已过。") },
+  { match: /^The player has already submitted/i, translate: () => i18n.t("game:submit.alreadySubmittedMsg", "你已提交过本阶段。") },
+  { match: /^Settlement is a system phase/i, translate: () => i18n.t("game:submit.errorSettlementSystemPhase", "结算阶段不接受玩家提交。") },
 ];
 
 export interface SubmitErrorRejection {
@@ -67,7 +68,7 @@ export function translateSubmitErrorMessage(code: string | null | undefined, raw
     if (label) return label;
   }
   if (!rawMessage) {
-    return "提交失败，请稍后再试。";
+    return i18n.t("game:submit.submitFailed", "提交失败，请稍后再试。");
   }
   for (const { match, translate } of INVALID_SUBMISSION_MESSAGE_PATTERNS) {
     const matched = rawMessage.match(match);

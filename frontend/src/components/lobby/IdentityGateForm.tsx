@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   fieldStyle,
   mutedMonoStyle,
@@ -25,32 +26,34 @@ export function IdentityGateForm({
   canCancel = false,
   message,
 }: IdentityGateFormProps) {
+  const { t } = useTranslation("lobby");
+
   return (
     <section className="identity-gate-form">
       <div className="identity-gate-form__header">
-        <h3>填写昵称</h3>
-        <p>输入一个容易识别的名字。之后可以在大厅里修改。</p>
+        <h3>{t("identityCard.formTitle")}</h3>
+        <p>{t("identityCard.formDescription")}</p>
       </div>
 
       <div className="identity-gate-form__body">
         <label>
-          <span>昵称</span>
+          <span>{t("identityCard.nicknameLabel")}</span>
           <input
-            aria-label="昵称"
+            aria-label={t("identityCard.nicknameLabel")}
             autoComplete="nickname"
             data-testid="identity-nickname-input"
             maxLength={24}
             onChange={(event) => onNicknameChange(event.target.value)}
-            placeholder="例如：test、Alex、维多利亚"
+            placeholder={t("identityCard.nicknamePlaceholder")}
             style={fieldStyle}
             value={nickname}
           />
         </label>
 
         <div className="identity-gate-form__profile">
-          <strong>本机身份码</strong>
+          <strong>{t("identityCard.profileIdLabel")}</strong>
           <span data-testid="identity-profile-id" style={{ ...mutedMonoStyle, color: "var(--color-accent)" }}>
-             {profileId ?? "保存昵称后自动生成"}
+             {profileId ?? t("identityCard.noProfileIdValue")}
           </span>
         </div>
 
@@ -61,7 +64,7 @@ export function IdentityGateForm({
             onClick={onContinue}
             type="button"
           >
-            保存并进入大厅
+            {t("identityCard.actionSaveAndEnter")}
           </button>
 
           {canCancel ? (
@@ -71,13 +74,13 @@ export function IdentityGateForm({
               onClick={onCancel}
               type="button"
             >
-              取消
+              {t("common:cancel")}
             </button>
           ) : null}
         </div>
 
         <div className="identity-gate-form__status" data-testid="identity-status-message">
-          {message ?? "昵称只保存在这台设备上，用于识别你的房间席位。"}
+          {message ?? t("identityCard.statusHint")}
         </div>
 
         {profileId ? (
@@ -87,7 +90,7 @@ export function IdentityGateForm({
             onClick={onClearIdentity}
             type="button"
           >
-            清除本机身份
+            {t("identityCard.clearIdentity")}
           </button>
         ) : null}
       </div>

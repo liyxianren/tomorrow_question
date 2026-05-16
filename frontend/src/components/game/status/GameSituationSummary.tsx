@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18n from "../../../i18n";
 import type { ResourceStripViewModel, TopWorkflowViewModel } from "../../../features/game/flow/gameWorkbench";
 import type { DecisionStepId } from "../../../features/game/flow/decisionFlow";
 import type { GameRuntimeState } from "../../../features/game/runtime/types";
@@ -23,6 +25,7 @@ export function GameSituationSummary({
   workflow = null,
   onWorkflowStepChange,
 }: GameSituationSummaryProps) {
+  const { t } = useTranslation();
   const currentRound = runtimeState.snapshot?.round ?? runtimeState.game?.currentRound ?? 0;
   const totalRounds = runtimeState.snapshot?.maxRounds ?? runtimeState.game?.totalRounds ?? 15;
   const currentPhase = runtimeState.snapshot?.phase ?? runtimeState.game?.currentPhase ?? null;
@@ -39,29 +42,29 @@ export function GameSituationSummary({
       <div className="game-situation-bar__mainline">
         <div className="game-situation-bar__identity">
           <div className="game-situation-pill game-situation-pill--country">
-            <span className="game-situation-pill__label">统治国家</span>
+            <span className="game-situation-pill__label">{t("game:situation.rulingCountry")}</span>
             <strong data-testid="game-country" className="game-situation-pill__value">
-              {currentCountry ? getCountryLabel(currentCountry) : "待分配国家"}
+              {currentCountry ? getCountryLabel(currentCountry) : t("game:situation.countryPending")}
             </strong>
           </div>
           <div className="game-situation-bar__commander">
-            {currentCountry ? `国家代表 - ${getCountryLabel(currentCountry)}` : currentPlayer?.nickname ?? runtimeState.session?.nickname ?? "接入频段..."}
+            {currentCountry ? `${t("game:situation.countryRepresentative")} - ${getCountryLabel(currentCountry)}` : currentPlayer?.nickname ?? runtimeState.session?.nickname ?? t("game:situation.connecting")}
           </div>
         </div>
 
         <div className="game-situation-bar__round">
           <span data-testid="game-round" className="game-situation-bar__round-text">
-            第 {currentRound} / {totalRounds} 回合
+            {t("game:situation.roundText")} {currentRound} / {totalRounds}
           </span>
           <span data-testid="game-phase" className="game-situation-bar__phase-text">
-            当前阶段：{currentPhase ? getPhaseLabel(currentPhase) : "通讯同步中"}
+            {t("game:situation.phaseLabel")}：{currentPhase ? getPhaseLabel(currentPhase) : t("game:situation.phaseSyncing")}
           </span>
         </div>
 
         <div className="game-situation-bar__meta">
           {runtimeState.secondsRemaining !== null ? (
             <div className="game-situation-pill">
-              <span className="game-situation-pill__label">阶段时钟</span>
+              <span className="game-situation-pill__label">{t("game:situation.phaseClock")}</span>
               <strong className="game-situation-pill__value">{formatSeconds(runtimeState.secondsRemaining)}</strong>
             </div>
           ) : null}
@@ -72,7 +75,7 @@ export function GameSituationSummary({
               color: runtimeState.socketState === "connected" ? "var(--color-success)" : "var(--color-danger)",
             }}
           >
-            {isLoading ? "同步中" : getSocketStateLabel(runtimeState.socketState)}
+            {isLoading ? t("game:situation.syncing") : getSocketStateLabel(runtimeState.socketState)}
           </div>
         </div>
       </div>
@@ -131,9 +134,9 @@ export function GameSituationSummary({
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-              <strong>国际事件</strong>
+              <strong>{t("game:situation.internationalEvents")}</strong>
               <span style={{ color: "var(--game-text-secondary)", fontSize: 13 }}>
-                {activeEvents.length > 0 ? `${activeEvents.length} 条生效中` : "本轮暂无事件"}
+                {activeEvents.length > 0 ? `${activeEvents.length} ${t("game:situation.eventsActive")}` : t("game:situation.noEventsThisRound")}
               </span>
             </div>
             <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
@@ -150,7 +153,7 @@ export function GameSituationSummary({
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
                     <strong>{event.label}</strong>
                     <span style={{ color: "var(--game-text-secondary)", fontSize: 13 }}>
-                      剩余 {event.remainingRounds} 回合
+                      {t("game:situation.remainingRounds")} {event.remainingRounds}
                     </span>
                   </div>
                   <p style={{ margin: "6px 0 0", color: "var(--game-text-secondary)", fontSize: 13 }}>
@@ -159,7 +162,7 @@ export function GameSituationSummary({
                 </article>
               )) : (
                 <div style={{ color: "var(--game-text-secondary)", fontSize: 13 }}>
-                  当前没有处于生效期的国际事件。
+                  {t("game:situation.noActiveEvents")}
                 </div>
               )}
             </div>
@@ -176,9 +179,9 @@ export function GameSituationSummary({
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                <strong>意识形态与改革</strong>
+                <strong>{t("game:situation.ideologyAndReforms")}</strong>
                 <span style={{ color: "var(--game-text-secondary)", fontSize: 13 }}>
-                  {currentPlayerState.reforms.length > 0 ? `已激活 ${currentPlayerState.reforms.length} 项改革` : "尚未激活改革"}
+                  {currentPlayerState.reforms.length > 0 ? `${currentPlayerState.reforms.length} ${t("game:situation.reformsActive")}` : t("game:situation.noReformsActive")}
                 </span>
               </div>
               <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
@@ -187,7 +190,7 @@ export function GameSituationSummary({
                   return (
                     <div key={ideologyKey}>
                       <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                        <span>{IDEOLOGY_LABELS[ideologyKey]}</span>
+                        <span>{getIdeologyLabel(ideologyKey)}</span>
                         <strong>{level} / 10</strong>
                       </div>
                       <div
@@ -228,7 +231,7 @@ export function GameSituationSummary({
                   </span>
                 )) : (
                   <span style={{ color: "var(--game-text-secondary)", fontSize: 13 }}>
-                    继续推进内需、工业和外部扩张，才能触发 5/10 级改革节点。
+                    {t("game:situation.pushReformsHint")}
                   </span>
                 )}
               </div>
@@ -242,11 +245,9 @@ export function GameSituationSummary({
 
 const IDEOLOGY_ORDER = ["liberalism", "egalitarianism", "nationalism"] as const;
 
-const IDEOLOGY_LABELS: Record<(typeof IDEOLOGY_ORDER)[number], string> = {
-  liberalism: "自由主义",
-  egalitarianism: "平等主义",
-  nationalism: "民族主义",
-};
+function getIdeologyLabel(key: string): string {
+  return i18n.t(`game:ideology.${key}`);
+}
 
 function clampIdeologyLevel(value: number): number {
   return Math.max(0, Math.min(10, Number.isFinite(value) ? value : 0));

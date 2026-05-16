@@ -1,3 +1,4 @@
+import i18n from "../i18n";
 import type {
   DecisionPlayerPhaseWorkspace,
   GamePhase,
@@ -13,11 +14,11 @@ import type {
 function getPhaseLabel(phase: GamePhase): string {
   switch (phase) {
     case "decision":
-      return "国家决策";
+      return i18n.t("game:phase.decision");
     case "market":
-      return "市场出售";
+      return i18n.t("game:phase.market");
     case "settlement":
-      return "财政结算";
+      return i18n.t("game:phase.settlement");
     default:
       return String(phase);
   }
@@ -101,7 +102,7 @@ export function createDecisionPlayerWorkspace(
 ): DecisionPlayerPhaseWorkspace {
   return {
     countryCode: "britain",
-    countryLabel: "英国",
+    countryLabel: i18n.t("game:country.britain"),
     budgetPools: {
       domesticMarket: 12,
       factory: 15,
@@ -117,14 +118,14 @@ export function createDecisionPlayerWorkspace(
     routeSummaries: [
       {
         routeId: "handicraft",
-        routeLabel: "手工业",
+        routeLabel: i18n.t("game:productionRoute.handicraft"),
         currentCapacity: 2,
         pendingCapacity: 0,
         availableBatchesThisRound: 2,
       },
       {
         routeId: "mechanized",
-        routeLabel: "机械化",
+        routeLabel: i18n.t("game:productionRoute.mechanized"),
         currentCapacity: 0,
         pendingCapacity: 0,
         availableBatchesThisRound: 0,
@@ -133,9 +134,9 @@ export function createDecisionPlayerWorkspace(
     productionOptions: [
       {
         goodsId: "coal",
-        label: "煤炭",
+        label: i18n.t("game:goods.coal"),
         routeId: "handicraft",
-        routeLabel: "手工业",
+        routeLabel: i18n.t("game:productionRoute.handicraft"),
         unitBudgetCost: 2,
         unitOutput: 1,
         domesticReferencePrice: 4,
@@ -145,13 +146,13 @@ export function createDecisionPlayerWorkspace(
         priceTrend: "up",
         maxQuantity: 2,
         lockedReason: null,
-        usageHint: "工业基础品，适合稳定出货。",
+        usageHint: i18n.t("game:factory.productionHint.stable", "工业基础品，适合稳定出货。"),
       },
       {
         goodsId: "steel",
-        label: "钢铁",
+        label: i18n.t("game:goods.steel"),
         routeId: "mechanized",
-        routeLabel: "机械化",
+        routeLabel: i18n.t("game:productionRoute.mechanized"),
         unitBudgetCost: 3,
         unitOutput: 1,
         domesticReferencePrice: 6,
@@ -160,14 +161,14 @@ export function createDecisionPlayerWorkspace(
         priceAdjustment: -1,
         priceTrend: "down",
         maxQuantity: 0,
-        lockedReason: "需要研究「珍妮纺织机」",
-        usageHint: "工业主力品，适合中期放大收入。",
+        lockedReason: i18n.t("game:research.prerequisiteNeeded", "需要研究「珍妮纺织机」"),
+        usageHint: i18n.t("game:factory.productionHint.main", "工业主力品，适合中期放大收入。"),
       },
     ],
     expansionOptions: [
       {
         routeId: "handicraft",
-        routeLabel: "手工业",
+        routeLabel: i18n.t("game:productionRoute.handicraft"),
         unitBudgetCost: 8,
         capacityDelta: 1,
         maxQuantity: 1,
@@ -178,7 +179,7 @@ export function createDecisionPlayerWorkspace(
     newFactoryOptions: [
       {
         routeId: "handicraft",
-        routeLabel: "手工业",
+        routeLabel: i18n.t("game:productionRoute.handicraft"),
         unitBudgetCost: 12,
         capacityDelta: 1,
         maxQuantity: 1,
@@ -188,17 +189,17 @@ export function createDecisionPlayerWorkspace(
     factoryActions: [
       {
         actionId: "factory_tax_contracting",
-        label: "财政承包",
+        label: i18n.t("game:factory.action.taxContracting", "财政承包"),
         cost: 0,
-        description: "牺牲本回合投料上限，换取政府财政。",
+        description: i18n.t("game:factory.action.taxContractingDesc", "牺牲本回合投料上限，换取政府财政。"),
         lockedReason: null,
         effects: { phase1ProductionRawCapacityDelta: -2, governmentFiscalBudgetDelta: 4 },
       },
       {
         actionId: "factory_raw_procurement",
-        label: "原料统购",
+        label: i18n.t("game:factory.action.rawProcurement", "原料统购"),
         cost: 3,
-        description: "立刻补充本回合原材料。",
+        description: i18n.t("game:factory.action.rawProcurementDesc", "立刻补充本回合原材料。"),
         lockedReason: null,
         effects: { rawMaterialsDelta: 4 },
       },
@@ -206,8 +207,8 @@ export function createDecisionPlayerWorkspace(
     activeEvents: [],
     nationalAbility: {
       abilityId: "workshop_of_the_world",
-      label: "世界工厂",
-      description: "本回合所有生产订单产出翻倍。",
+      label: i18n.t("game:factory.nationalAbility.workshopOfTheWorld", "世界工厂"),
+      description: i18n.t("game:factory.nationalAbility.workshopOfTheWorldDesc", "本回合所有生产订单产出翻倍。"),
       requiresTargetIdeology: false,
       isAvailable: true,
     },
@@ -215,25 +216,25 @@ export function createDecisionPlayerWorkspace(
       chains: [
         {
           chainId: "industrial",
-          label: "工业链",
+          label: i18n.t("game:research.chain.industrial", "工业链"),
           techs: [
-            { techId: "textile_tech", label: "纺织技术", budgetPool: "factory", budgetCost: 8, threshold: 3, progress: 0, effectiveThreshold: 3, isUnlocked: false, isActive: false, canResearch: true, isDiscovered: false, breakthroughAttempts: 0, unlocksGoods: [], unlocksRoutes: [] },
-            { techId: "spinning_jenny", label: "珍妮纺织机", budgetPool: "factory", budgetCost: 12, threshold: 5, progress: 0, effectiveThreshold: 5, isUnlocked: false, isActive: false, canResearch: true, isDiscovered: false, breakthroughAttempts: 0, unlocksGoods: ["steel"], unlocksRoutes: ["mechanized"] },
-            { techId: "steam_engine", label: "蒸汽引擎", budgetPool: "factory", budgetCost: 18, threshold: 8, progress: 0, effectiveThreshold: 8, isUnlocked: false, isActive: false, canResearch: false, isDiscovered: false, breakthroughAttempts: 0, unlocksGoods: [], unlocksRoutes: [] },
+            { techId: "textile_tech", label: i18n.t("game:research.tech.textileTech", "纺织技术"), budgetPool: "factory", budgetCost: 8, threshold: 3, progress: 0, effectiveThreshold: 3, isUnlocked: false, isActive: false, canResearch: true, isDiscovered: false, breakthroughAttempts: 0, unlocksGoods: [], unlocksRoutes: [] },
+            { techId: "spinning_jenny", label: i18n.t("game:technology.spinning_jenny"), budgetPool: "factory", budgetCost: 12, threshold: 5, progress: 0, effectiveThreshold: 5, isUnlocked: false, isActive: false, canResearch: true, isDiscovered: false, breakthroughAttempts: 0, unlocksGoods: ["steel"], unlocksRoutes: ["mechanized"] },
+            { techId: "steam_engine", label: i18n.t("game:technology.steam_engine"), budgetPool: "factory", budgetCost: 18, threshold: 8, progress: 0, effectiveThreshold: 8, isUnlocked: false, isActive: false, canResearch: false, isDiscovered: false, breakthroughAttempts: 0, unlocksGoods: [], unlocksRoutes: [] },
           ],
         },
         {
           chainId: "commerce",
-          label: "商业链",
+          label: i18n.t("game:research.chain.commerce", "商业链"),
           techs: [
-            { techId: "market_economy", label: "市场经济", threshold: 3, progress: 0, effectiveThreshold: 3, isUnlocked: false, isActive: false, canResearch: true, isDiscovered: false, breakthroughAttempts: 0 },
+            { techId: "market_economy", label: i18n.t("game:research.tech.marketEconomy", "市场经济"), threshold: 3, progress: 0, effectiveThreshold: 3, isUnlocked: false, isActive: false, canResearch: true, isDiscovered: false, breakthroughAttempts: 0 },
           ],
         },
         {
           chainId: "governance",
-          label: "治理链",
+          label: i18n.t("game:research.chain.governance", "治理链"),
           techs: [
-            { techId: "admin_reform", label: "行政改革", threshold: 4, progress: 0, effectiveThreshold: 4, isUnlocked: false, isActive: false, canResearch: true, isDiscovered: false, breakthroughAttempts: 0 },
+            { techId: "admin_reform", label: i18n.t("game:research.tech.adminReform", "行政改革"), threshold: 4, progress: 0, effectiveThreshold: 4, isUnlocked: false, isActive: false, canResearch: true, isDiscovered: false, breakthroughAttempts: 0 },
           ],
         },
       ],
@@ -252,9 +253,9 @@ export function createDecisionPlayerWorkspace(
       strategies: [
         {
           actionId: "market_fair",
-          label: "博览会",
+          label: i18n.t("game:government.strategy.marketFair", "博览会"),
           cost: 5,
-          description: "扩大国内市场承接能力。",
+          description: i18n.t("game:government.strategy.marketFairDesc", "扩大国内市场承接能力。"),
           techPointDelta: 0,
           militaryPointDelta: 0,
           lockedReason: null,
@@ -262,19 +263,19 @@ export function createDecisionPlayerWorkspace(
         },
         {
           actionId: "consumer_subsidy",
-          label: "消费补贴",
+          label: i18n.t("game:government.strategy.consumerSubsidy", "消费补贴"),
           cost: 8,
-          description: "提高国内市场承接能力并抬升价格。",
+          description: i18n.t("game:government.strategy.consumerSubsidyDesc", "提高国内市场承接能力并抬升价格。"),
           techPointDelta: 0,
           militaryPointDelta: 0,
-          lockedReason: "需要研究「市场经济」",
+          lockedReason: i18n.t("game:government.strategy.lockedByResearch", "需要研究「市场经济」"),
           effects: { domesticMarketCapacityDelta: 2, domesticPriceBonusDelta: 1 },
         },
         {
           actionId: "expand_research",
-          label: "建立研究院",
+          label: i18n.t("game:government.strategy.expandResearch", "建立研究院"),
           cost: 6,
-          description: "从政府财政建设一所研究院，永久增加每回合研究进度。",
+          description: i18n.t("game:government.strategy.expandResearchDesc", "从政府财政建设一所研究院，永久增加每回合研究进度。"),
           techPointDelta: 0,
           militaryPointDelta: 0,
           lockedReason: null,
@@ -300,7 +301,7 @@ export function createDecisionPlayerWorkspace(
         {
           reformId: "admin_bureau",
           path: "national",
-          label: "行政局",
+          label: i18n.t("game:government.reform.adminBureau", "行政局"),
           adminCost: 2,
           isCompleted: false,
           isBlocked: false,
@@ -310,7 +311,7 @@ export function createDecisionPlayerWorkspace(
         {
           reformId: "free_press",
           path: "freedom",
-          label: "自由报刊",
+          label: i18n.t("game:government.reform.freePress", "自由报刊"),
           adminCost: 1,
           isCompleted: false,
           isBlocked: false,
@@ -321,20 +322,20 @@ export function createDecisionPlayerWorkspace(
       availablePolicies: [
         {
           policyId: "trade_agreement",
-          label: "贸易协定",
+          label: i18n.t("game:government.policy.tradeAgreement", "贸易协定"),
           adminCostPerTurn: 1,
           budgetCost: 6,
-          description: "改善海外出售价格。",
+          description: i18n.t("game:government.policy.tradeAgreementDesc", "改善海外出售价格。"),
           isActive: false,
           requiresReform: null,
           isUnlocked: true,
         },
         {
           policyId: "industrial_policy",
-          label: "产业政策",
+          label: i18n.t("game:government.policy.industrialPolicy", "产业政策"),
           adminCostPerTurn: 1,
           budgetCost: 12,
-          description: "推动产业升级，并获得 1 点科技点。",
+          description: i18n.t("game:government.policy.industrialPolicyDesc", "推动产业升级，并获得 1 点科技点。"),
           isActive: false,
           requiresReform: "admin_bureau",
           isUnlocked: false,
@@ -355,7 +356,7 @@ export function createDecisionPlayerWorkspace(
       regionAccessStatus: [
         {
           regionId: "africa",
-          label: "非洲",
+          label: i18n.t("game:region.africa"),
           accessLevel: "concession",
           isAccessible: true,
           lockReason: null,
@@ -372,7 +373,7 @@ export function createDecisionPlayerWorkspace(
         },
         {
           regionId: "middle_east",
-          label: "中东",
+          label: i18n.t("game:region.middle_east"),
           accessLevel: "concession",
           isAccessible: true,
           lockReason: null,
@@ -391,38 +392,38 @@ export function createDecisionPlayerWorkspace(
       availableMilitaryActions: [
         {
           actionId: "naval_drill",
-          label: "海军演练",
+          label: i18n.t("game:military.action.navalDrill", "海军演练"),
           cost: 1,
           maxPerRound: 2,
-          description: "消耗军事点开展海军演练，扩展本轮海外市场承接力。",
+          description: i18n.t("game:military.action.navalDrillDesc", "消耗军事点开展海军演练，扩展本轮海外市场承接力。"),
           effects: { overseasMarketCapacityDelta: 1 },
         },
         {
           actionId: "recruit_infantry",
-          label: "征募步兵",
+          label: i18n.t("game:military.action.recruitInfantry", "征募步兵"),
           cost: 1,
           maxPerRound: 3,
-          description: "消耗军事点征募步兵部队。",
+          description: i18n.t("game:military.action.recruitInfantryDesc", "消耗军事点征募步兵部队。"),
           effects: { armyDelta: { infantry: 1 } },
         },
       ],
       availableDiplomacyActions: [
         {
           actionId: "establish_africa",
-          label: "与非洲建交",
+          label: i18n.t("game:military.diplomacy.establishAfrica", "与非洲建交"),
           cost: 7,
           targetRegion: "africa",
-          targetRegionLabel: "非洲",
-          description: "与非洲建立外交关系，永久开放贸易通道。",
+          targetRegionLabel: i18n.t("game:region.africa"),
+          description: i18n.t("game:military.diplomacy.establishAfricaDesc", "与非洲建立外交关系，永久开放贸易通道。"),
           isEstablished: false,
         },
         {
           actionId: "establish_middle_east",
-          label: "与中东建交",
+          label: i18n.t("game:military.diplomacy.establishMiddleEast", "与中东建交"),
           cost: 7,
           targetRegion: "middle_east",
-          targetRegionLabel: "中东",
-          description: "与中东建立外交关系，永久开放贸易通道。",
+          targetRegionLabel: i18n.t("game:region.middle_east"),
+          description: i18n.t("game:military.diplomacy.establishMiddleEastDesc", "与中东建立外交关系，永久开放贸易通道。"),
           isEstablished: true,
         },
       ],
@@ -436,21 +437,21 @@ export function createDecisionPlayerWorkspace(
       colonizationOptions: [
         {
           regionId: "africa",
-          regionLabel: "非洲",
+          regionLabel: i18n.t("game:region.africa"),
           controller: null,
           isColonized: false,
           militaryPointCost: 3,
           canColonize: false,
-          lockedReason: "需先永久解锁殖民扩张",
+          lockedReason: i18n.t("game:military.colonization.lockedReason", "需先永久解锁殖民扩张"),
         },
         {
           regionId: "middle_east",
-          regionLabel: "中东",
+          regionLabel: i18n.t("game:region.middle_east"),
           controller: null,
           isColonized: false,
           militaryPointCost: 3,
           canColonize: false,
-          lockedReason: "需先永久解锁殖民扩张",
+          lockedReason: i18n.t("game:military.colonization.lockedReason", "需先永久解锁殖民扩张"),
         },
       ],
       oceanNodes: [],
@@ -464,7 +465,7 @@ export function createMarketPlayerWorkspace(
 ): MarketPlayerPhaseWorkspace {
   return {
     countryCode: "britain",
-    countryLabel: "英国",
+    countryLabel: i18n.t("game:country.britain"),
     budgetPools: {
       domesticMarket: 14,
       factory: 16,
@@ -473,7 +474,7 @@ export function createMarketPlayerWorkspace(
     sellableInventory: [
       {
         goodsId: "grain",
-        label: "粮食",
+        label: i18n.t("game:goods.grain"),
         quantity: 4,
         priceAdjustment: 1,
         priceTrend: "up",
@@ -481,14 +482,14 @@ export function createMarketPlayerWorkspace(
         overseasReferencePrices: [
           {
             regionId: "asia_pacific",
-            label: "亚太",
+            label: i18n.t("game:region.asia_pacific"),
             unitPrice: 4,
           },
         ],
       },
       {
         goodsId: "steel",
-        label: "钢铁",
+        label: i18n.t("game:goods.steel"),
         quantity: 1,
         priceAdjustment: -1,
         priceTrend: "down",
@@ -496,7 +497,7 @@ export function createMarketPlayerWorkspace(
         overseasReferencePrices: [
           {
             regionId: "europe",
-            label: "欧洲",
+            label: i18n.t("game:region.europe"),
             unitPrice: 7,
           },
         ],
@@ -507,7 +508,7 @@ export function createMarketPlayerWorkspace(
     regionAccessStatus: [
       {
         regionId: "africa",
-        label: "非洲",
+        label: i18n.t("game:region.africa"),
         accessLevel: "concession",
         isAccessible: true,
         lockReason: null,
@@ -524,7 +525,7 @@ export function createMarketPlayerWorkspace(
       },
       {
         regionId: "middle_east",
-        label: "中东",
+        label: i18n.t("game:region.middle_east"),
         accessLevel: "concession",
         isAccessible: true,
         lockReason: null,
@@ -570,7 +571,7 @@ export function createSettlementPlayerWorkspace(
 ): SettlementPlayerPhaseWorkspace {
   return {
     countryCode: "britain",
-    countryLabel: "英国",
+    countryLabel: i18n.t("game:country.britain"),
     domesticSalesRevenue: 12,
     overseasSalesRevenue: 18,
     nationalIncome: 30,
@@ -597,7 +598,7 @@ function createPlayersForPhase(
         "player-1": createDecisionPlayerWorkspace(),
         "player-2": createDecisionPlayerWorkspace({
           countryCode: "france",
-          countryLabel: "法国",
+          countryLabel: i18n.t("game:country.france"),
         }),
       };
     case "market":
@@ -605,7 +606,7 @@ function createPlayersForPhase(
         "player-1": createMarketPlayerWorkspace(),
         "player-2": createMarketPlayerWorkspace({
           countryCode: "france",
-          countryLabel: "法国",
+          countryLabel: i18n.t("game:country.france"),
         }),
       };
     case "settlement":
@@ -613,7 +614,7 @@ function createPlayersForPhase(
         "player-1": createSettlementPlayerWorkspace(),
         "player-2": createSettlementPlayerWorkspace({
           countryCode: "france",
-          countryLabel: "法国",
+          countryLabel: i18n.t("game:country.france"),
         }),
       };
     default:
@@ -621,7 +622,7 @@ function createPlayersForPhase(
         "player-1": createDecisionPlayerWorkspace(),
         "player-2": createDecisionPlayerWorkspace({
           countryCode: "france",
-          countryLabel: "法国",
+          countryLabel: i18n.t("game:country.france"),
         }),
       };
   }
@@ -710,8 +711,8 @@ export function createSettlementWorkspace(
 ): PhaseSettlementWorkspace {
   return {
     settledPhase: "market",
-    phaseLabel: "市场出售",
-    headline: "市场出售阶段已经完成结算，国家收入已重新分配。",
+    phaseLabel: i18n.t("game:phase.market"),
+    headline: i18n.t("game:settlement.headline", "市场出售阶段已经完成结算，国家收入已重新分配。"),
     summaryCards: [
       {
         playerId: "player-1",
@@ -725,7 +726,7 @@ export function createSettlementWorkspace(
       },
     ],
     summaryLines: [
-      "本轮国家收入已经重新分配到民间购买力、工厂和政府财政。",
+      i18n.t("game:settlement.summaryLine", "本轮国家收入已经重新分配到民间购买力、工厂和政府财政。"),
     ],
     autoSubmittedPlayerIds: [],
     previousPhase: "market",

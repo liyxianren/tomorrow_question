@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { PageStatusBannerState } from "../../features/flow/types";
 
 
@@ -6,6 +7,7 @@ type PageStatusBannerProps = {
 };
 
 export function PageStatusBanner({ state }: PageStatusBannerProps) {
+  const { t } = useTranslation();
   return (
     <section className={`page-status-banner page-status-banner--${state.tone}`}>
       {state.eyebrow ? <p className="panel__eyebrow">{state.eyebrow}</p> : null}
@@ -13,7 +15,7 @@ export function PageStatusBanner({ state }: PageStatusBannerProps) {
       <p className="page-status-banner__detail">{state.detail}</p>
 
       {state.tags && state.tags.length > 0 ? (
-        <ul aria-label="状态标签" className="page-status-banner__tags">
+        <ul aria-label={t("common:statusTags")} className="page-status-banner__tags">
           {state.tags.map((tag) => (
             <li key={tag} className="page-status-banner__tag">
               {tag}

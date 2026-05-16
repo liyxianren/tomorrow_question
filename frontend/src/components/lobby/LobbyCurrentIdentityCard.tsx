@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   eyebrowStyle,
   sectionCardStyle,
@@ -14,9 +15,11 @@ export function LobbyCurrentIdentityCard({
   viewModel,
   onChangeIdentity,
 }: LobbyCurrentIdentityCardProps) {
+  const { t } = useTranslation("lobby");
+
   return (
     <section
-      aria-label="当前身份"
+      aria-label={t("currentIdentity.ariaLabel")}
       className="panel lobby-identity-card"
       data-testid="lobby-current-identity-panel"
       style={{
@@ -24,7 +27,7 @@ export function LobbyCurrentIdentityCard({
       }}
     >
       <p className="panel__eyebrow" style={eyebrowStyle}>
-        当前身份
+        {t("currentIdentity.eyebrow")}
       </p>
       <div className="lobby-identity-card__main">
         <strong

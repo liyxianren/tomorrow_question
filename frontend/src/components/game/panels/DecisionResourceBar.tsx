@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { DecisionPlayerPhaseWorkspace } from "../../../types";
 import type { PhaseDraftByPhase } from "../../../features/game/forms";
 import type { DecisionStepId } from "../../../features/game/flow/decisionFlow";
@@ -17,6 +18,7 @@ type DecisionResourceBarProps = {
 };
 
 export function DecisionResourceBar({ workspace, draft, activeStep }: DecisionResourceBarProps) {
+  const { t } = useTranslation();
   const spendSummary = calculateDecisionSpendSummary(workspace, draft);
   const governmentBreakdown = calculateGovernmentSpendBreakdown(workspace, draft);
   const militaryPointPreview = calculateGovernmentPointPreview(workspace, draft);
@@ -28,24 +30,24 @@ export function DecisionResourceBar({ workspace, draft, activeStep }: DecisionRe
   return (
     <div className="drb" data-testid="decision-resource-bar">
       <ResourceChip
-        label="工厂预算"
+        label={t("game:factory.factoryBudget", "Factory Budget")}
         total={workspace.budgetPools.factory}
         spent={spendSummary.factorySpend}
         active={activeChip === "factory"}
       />
       <ResourceChip
-        label="政府财政"
+        label={t("game:government.budget", "Government Fiscal")}
         total={governmentBreakdown.effectiveGovernmentBudget}
         spent={governmentBreakdown.total}
         active={activeChip === "government"}
-        breakdown={`基础 ${governmentBreakdown.baseGovernmentRemaining}/${governmentBreakdown.baseGovernmentBudget} · 市场调节 ${Math.max(0, governmentBreakdown.marketRegulationAllowance - governmentBreakdown.marketRegulation)}/${governmentBreakdown.marketRegulationAllowance}`}
+        breakdown={t("game:government.budget", "Government Fiscal") + " " + governmentBreakdown.baseGovernmentRemaining + "/" + governmentBreakdown.baseGovernmentBudget + " · " + t("game:government.marketRegulation", "Market Regulation") + " " + Math.max(0, governmentBreakdown.marketRegulationAllowance - governmentBreakdown.marketRegulation) + "/" + governmentBreakdown.marketRegulationAllowance}
       />
       <ResourceChip
-        label="军事点"
+        label={t("game:military.militaryPoints", "Military Points")}
         total={militaryPointPreview.militaryPoints}
         spent={militaryPointSpend}
         active={activeChip === "military"}
-        breakdown={`本轮购买 +${militaryPointGain} · 军事行动 ${militaryPointSpend}`}
+        breakdown={`${t("game:government.militaryPurchasedThisRound", "This Round")} +${militaryPointGain} · ${t("game:military.militaryActions", "Military Actions")} ${militaryPointSpend}`}
       />
     </div>
   );

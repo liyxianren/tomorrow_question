@@ -1,4 +1,7 @@
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, Outlet, useLocation } from "react-router-dom";
+import i18n from "../i18n";
 
 import { PageShell } from "../components/ui/PageShell";
 import { clearStoredProfileSession } from "../features/lobby/flow/identityStorage";
@@ -19,64 +22,69 @@ type TaskShellContent = {
   title: string;
 };
 
-function resolveShellContent(pathname: string): BrandShellContent | TaskShellContent {
-  if (pathname === "/") {
+function useShellContent(): BrandShellContent | TaskShellContent {
+  const { t } = useTranslation("pages");
+  const { pathname } = useLocation();
+
+  return useMemo(() => {
+    if (pathname === "/") {
+      return {
+        kind: "brand",
+        eyebrow: t("appShell.home.eyebrow"),
+        subtitle: t("appShell.home.subtitle"),
+      };
+    }
+
+    if (pathname.startsWith("/lobby")) {
+      return {
+        kind: "brand",
+        eyebrow: t("appShell.lobby.eyebrow"),
+        subtitle: t("appShell.lobby.subtitle"),
+      };
+    }
+
+    if (pathname.startsWith("/room/")) {
+      return {
+        kind: "task",
+        description: t("appShell.room.description"),
+        eyebrow: t("appShell.room.eyebrow"),
+        title: t("appShell.room.title"),
+      };
+    }
+
+    if (pathname.startsWith("/game/")) {
+      return {
+        kind: "task",
+        description: t("appShell.game.description"),
+        eyebrow: t("appShell.game.eyebrow"),
+        title: t("appShell.game.title"),
+      };
+    }
+
+    if (pathname.startsWith("/settlement/")) {
+      return {
+        kind: "task",
+        description: t("appShell.settlement.description"),
+        eyebrow: t("appShell.settlement.eyebrow"),
+        title: t("appShell.settlement.title"),
+      };
+    }
+
+    if (pathname.startsWith("/design/decision-card-demo")) {
+      return {
+        kind: "task",
+        description: t("appShell.design.description"),
+        eyebrow: t("appShell.design.eyebrow"),
+        title: t("appShell.design.title"),
+      };
+    }
+
     return {
       kind: "brand",
-      eyebrow: "历史质感策略盘",
-      subtitle: "以国家议程、资源调度与联盟博弈推进 19 世纪工业化竞逐。",
+      eyebrow: t("appShell.fallback.eyebrow"),
+      subtitle: t("appShell.fallback.subtitle"),
     };
-  }
-
-  if (pathname.startsWith("/lobby")) {
-    return {
-      kind: "brand",
-      eyebrow: "集结入口",
-      subtitle: "集结盟友、进入房间、正式开始这一局 19 世纪列强竞逐。",
-    };
-  }
-
-  if (pathname.startsWith("/room/")) {
-    return {
-      kind: "task",
-      description: "把玩家、国家和准备状态都确认好，房间满足条件后会自动开局。",
-      eyebrow: "任务界面",
-      title: "房间准备",
-    };
-  }
-
-  if (pathname.startsWith("/game/")) {
-    return {
-      kind: "task",
-      description: "先判断你当前是谁、现在该做什么，再完成本回合关键决策。",
-      eyebrow: "任务界面",
-      title: "当前对局",
-    };
-  }
-
-  if (pathname.startsWith("/settlement/")) {
-    return {
-      kind: "task",
-      description: "回看最终排名和关键结果，确认这一局是怎么收束的。",
-      eyebrow: "任务界面",
-      title: "对局结果",
-    };
-  }
-
-  if (pathname.startsWith("/design/decision-card-demo")) {
-    return {
-      kind: "task",
-      description: "对比不同卡片式决策交互，让工厂、议会厅和市场预览的职责更直观。",
-      eyebrow: "设计验证",
-      title: "决策卡片 DEMO",
-    };
-  }
-
-  return {
-    kind: "brand",
-    eyebrow: "Tomorrow Question",
-    subtitle: "把玩家组织进同一局，并让每一回合都知道该先看什么、该先做什么。",
-  };
+  }, [pathname, t]);
 }
 
 function resolveRoomCode(pathname: string): string | null {
@@ -85,8 +93,9 @@ function resolveRoomCode(pathname: string): string | null {
 }
 
 export function AppShell() {
+  const { t } = useTranslation("pages");
   const location = useLocation();
-  const shellContent = resolveShellContent(location.pathname);
+  const shellContent = useShellContent();
   const currentRoomCode = resolveRoomCode(location.pathname);
   const isLobbyRoute = location.pathname.startsWith("/lobby");
   const isWorkbenchRoute =
@@ -138,10 +147,41 @@ export function AppShell() {
               }}
               to="/lobby"
             >
-              回到大厅
+              {t("appShell.backToLobby")}
             </Link>
           </header>
         ) : null}
+
+        <div style={{ display: "flex", justifyContent: "flex-end", padding: "8px 0", gap: "8px" }}>
+          <button
+            onClick={() => i18n.changeLanguage("en")}
+            style={{
+              fontWeight: i18n.language === "en" ? 700 : 400,
+              padding: "4px 10px",
+              border: i18n.language === "en" ? "2px solid var(--color-accent)" : "1px solid #888",
+              borderRadius: "4px",
+              background: i18n.language === "en" ? "var(--color-accent-light, #e8f0fe)" : "transparent",
+              cursor: "pointer",
+              fontSize: "13px",
+            }}
+          >
+            EN
+          </button>
+          <button
+            onClick={() => i18n.changeLanguage("zh")}
+            style={{
+              fontWeight: i18n.language === "zh" ? 700 : 400,
+              padding: "4px 10px",
+              border: i18n.language === "zh" ? "2px solid var(--color-accent)" : "1px solid #888",
+              borderRadius: "4px",
+              background: i18n.language === "zh" ? "var(--color-accent-light, #e8f0fe)" : "transparent",
+              cursor: "pointer",
+              fontSize: "13px",
+            }}
+          >
+            中文
+          </button>
+        </div>
 
         <main className="app-shell__content">
           <Outlet />

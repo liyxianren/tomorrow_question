@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import { CountrySelectionPanel } from "../components/room/CountrySelectionPanel";
@@ -12,6 +13,7 @@ import "./RoomPage.css";
 
 
 export function RoomPage() {
+  const { t } = useTranslation("room");
   const navigate = useNavigate();
   const {
     pendingAction,
@@ -91,7 +93,7 @@ export function RoomPage() {
             />
           </main>
           
-          <aside className="room-page__side-rail" aria-label="房间状态和开局操作">
+          <aside className="room-page__side-rail" aria-label={t("sideRailAriaLabel")}>
             <RoomMembersPanel
               isBusy={pendingAction === "removeBot"}
               members={viewModel.members}
@@ -108,7 +110,7 @@ export function RoomPage() {
         </div>
 
         <p className="room-page__expiry" data-testid="room-expiry-notice">
-          房间长时间无活动将自动关闭。
+          {t("roomExpiryNotice")}
         </p>
       </div>
     </section>

@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18n from "../../i18n";
 import type { RoomMemberViewModel } from "../../features/room/roomPreparationViewModel";
 import { getCountryLabel } from "../../features/room/roomPreparationViewModel";
 import type { RoomContext } from "../../types";
@@ -17,20 +19,21 @@ type RoomMembersPanelLegacyProps = {
 type RoomMembersPanelProps = RoomMembersPanelViewModelProps | RoomMembersPanelLegacyProps;
 
 export function RoomMembersPanel(props: RoomMembersPanelProps) {
+  const { t } = useTranslation("room");
   const members = "members" in props ? props.members : props.room.members.map((member) => ({
     playerId: member.playerId,
     nickname: member.nickname,
     identityLabel: [
-      member.memberType === "bot" ? "AI 补位" : member.playerId === props.room.hostPlayerId ? "房主" : "成员",
-      member.playerId === props.currentPlayerId ? "你" : null,
+      member.memberType === "bot" ? "AI" : member.playerId === props.room.hostPlayerId ? i18n.t("room:members.host") : i18n.t("room:members.you"),
+      member.playerId === props.currentPlayerId ? i18n.t("room:members.you") : null,
     ].filter(Boolean).join(" / "),
     countryLabel: getCountryLabel(member.selectedCountry),
     connectionLabel: member.memberType === "bot"
-      ? "服务器托管"
+      ? "server"
       : member.connectionStatus === "online"
-        ? "在线"
-        : "离线后可恢复",
-    readyLabel: member.isReady ? "已准备开局" : "尚未准备开局",
+        ? "online"
+        : "offline",
+    readyLabel: member.isReady ? i18n.t("room:actions.ready") : i18n.t("room:actions.unready"),
     memberTypeBadge: member.memberType === "bot" ? "AI" : null,
     canRemoveBot: false,
   }));
@@ -42,9 +45,9 @@ export function RoomMembersPanel(props: RoomMembersPanelProps) {
   return (
     <section className="room-panel room-roster-panel" data-testid="room-members-panel">
       <div className="room-roster-panel__head">
-        <p className="room-panel__eyebrow">房间成员</p>
-        <h2 className="room-panel__title">房间内玩家</h2>
-        <span className="room-roster-panel__legend">玩家ID / 国家 / 状态</span>
+        <p className="room-panel__eyebrow">{t("members.title")}</p>
+        <h2 className="room-panel__title">{t("members.title")}</h2>
+        <span className="room-roster-panel__legend">{t("members.title")}</span>
       </div>
 
       <div className="room-roster-list">
@@ -58,10 +61,10 @@ export function RoomMembersPanel(props: RoomMembersPanelProps) {
               >
                 <div className="room-member-card__summary">
                   <div className="room-member-card__id">
-                    <strong>空位 {index + 1}</strong>
+                    <strong>{t("members.empty")} {index + 1}</strong>
                   </div>
-                  <strong className="room-member-card__country">待入席</strong>
-                  <span className="room-member-card__ready">未准备</span>
+                  <strong className="room-member-card__country">{t("members.empty")}</strong>
+                  <span className="room-member-card__ready">{t("actions.unready")}</span>
                 </div>
               </article>
             );
@@ -69,7 +72,7 @@ export function RoomMembersPanel(props: RoomMembersPanelProps) {
 
           return (
             <article
-              className={`room-member-card${member.readyLabel.includes("已准备") ? " room-member-card--ready" : ""}`}
+              className={`room-member-card${member.readyLabel.includes(t("actions.ready")) ? " room-member-card--ready" : ""}`}
               data-testid={`room-member-${member.playerId}`}
               key={member.playerId}
             >
@@ -97,7 +100,7 @@ export function RoomMembersPanel(props: RoomMembersPanelProps) {
                     onClick={() => onRemoveBot(member.playerId)}
                     type="button"
                   >
-                  {isBusy ? "..." : "移除"}
+                  {isBusy ? "..." : i18n.t("room:actions.leave")}
                   </button>
                 ) : null}
               </div>

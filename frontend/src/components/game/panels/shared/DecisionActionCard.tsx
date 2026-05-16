@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import "./DecisionActionCard.css";
 
 export type DecisionActionCardEffect = {
@@ -71,6 +72,7 @@ export function DecisionActionCard({
   children,
   testId,
 }: DecisionActionCardProps) {
+  const { t } = useTranslation();
   const statusClass =
     status === "selected"
       ? " dac--selected"
@@ -97,7 +99,7 @@ export function DecisionActionCard({
               key={`${effect.label}-${index}`}
               className={`dac__effect-tag${effect.temporary ? " dac__effect-tag--temporary" : ""}`}
             >
-              {effect.label} {effect.value}{effect.temporary ? " 本回合" : ""}
+              {effect.label} {effect.value}{effect.temporary ? ` ${t("game:thisRound")}` : ""}
             </span>
           ))}
         </div>
@@ -117,6 +119,7 @@ export function DecisionActionCard({
 }
 
 function DecisionActionCardControl({ control }: { control: DecisionActionCardControl }) {
+  const { t } = useTranslation();
   if (control.kind === "stepper") {
     const min = control.min ?? 0;
     const decrementDisabled = control.decrementDisabled ?? control.value <= min;
@@ -126,7 +129,7 @@ function DecisionActionCardControl({ control }: { control: DecisionActionCardCon
         <button
           type="button"
           className="dac__btn"
-          aria-label={control.decrementAriaLabel ?? "减少"}
+          aria-label={control.decrementAriaLabel ?? t("common:decrease")}
           disabled={decrementDisabled}
           onClick={() => control.onChange(Math.max(min, control.value - 1))}
         >
@@ -136,7 +139,7 @@ function DecisionActionCardControl({ control }: { control: DecisionActionCardCon
         <button
           type="button"
           className="dac__btn"
-          aria-label={control.incrementAriaLabel ?? "增加"}
+          aria-label={control.incrementAriaLabel ?? t("common:increase")}
           disabled={incrementDisabled}
           onClick={() => control.onChange(Math.min(control.max, control.value + 1))}
         >
@@ -160,8 +163,8 @@ function DecisionActionCardControl({ control }: { control: DecisionActionCardCon
     );
   }
 
-  const confirmLabel = control.confirmLabel ?? "确认";
-  const cancelLabel = control.cancelLabel ?? "撤回";
+  const confirmLabel = control.confirmLabel ?? t("common:confirm");
+  const cancelLabel = control.cancelLabel ?? t("common:revoke");
   const showCancel = !(control.hideCancelWhenNotSelected && !control.isSelected);
   return (
     <div className="dac__confirm-row">

@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18n from "../../../i18n";
 import type { IdeologyKey } from "../../../types";
 import type {
   DecisionCardViewModel,
@@ -6,11 +8,9 @@ import type {
 } from "../../../features/game/commandDeck/types";
 import "./DecisionCommandDeck.css";
 
-const IDEOLOGY_OPTIONS: Array<{ key: IdeologyKey; label: string }> = [
-  { key: "liberalism", label: "自由主义" },
-  { key: "egalitarianism", label: "平等主义" },
-  { key: "nationalism", label: "民族主义" },
-];
+function getIdeologyOptionLabel(key: IdeologyKey): string {
+  return i18n.t(`game:ideology.${key}`, key);
+}
 
 export function DecisionCommandDeck({
   viewModel,
@@ -31,11 +31,12 @@ export function DecisionCommandDeck({
   onRevoke: (card: DecisionCardViewModel) => void;
   onAbilityTargetChange: (abilityId: string, ideology: IdeologyKey) => void;
 }) {
+  const { t } = useTranslation();
   const activeLocation = viewModel.locations[viewModel.activeLocationId];
 
   return (
     <section className="decision-command-deck" data-testid="decision-command-deck">
-      <nav className="decision-command-deck__nav" aria-label="地点切换">
+      <nav className="decision-command-deck__nav" aria-label={t("game:decisionStep.tabsAriaLabel")}>
         {viewModel.tabs.map((tab) => (
           <button
             key={tab.id}
@@ -79,7 +80,7 @@ export function DecisionCommandDeck({
                 <h4>{section.title}</h4>
                 {section.description ? <p>{section.description}</p> : null}
               </div>
-              <span>{section.cards.length} 张</span>
+              <span>{section.cards.length} {t("game:flow.items")}</span>
             </div>
             <div className="decision-command-deck__card-grid">
               {section.cards.map((card) => (
@@ -122,6 +123,7 @@ function DecisionCommandDeckCard({
   onConfirm: (card: DecisionCardViewModel) => void;
   onRevoke: (card: DecisionCardViewModel) => void;
 }) {
+  const { t } = useTranslation();
   const toneClass =
     card.tone === "accent"
       ? "decision-command-deck-card--accent"
@@ -134,9 +136,9 @@ function DecisionCommandDeckCard({
     : 0;
   const selectedFlagText =
     confirmCount > 0
-      ? `已安排 ${confirmCount}`
+      ? `${t("common:decision.scheduled", { count: confirmCount })}`
       : card.selected
-        ? "已纳入"
+        ? t("common:decision.alreadyScheduled")
         : null;
 
   return (
@@ -180,7 +182,7 @@ function DecisionCommandDeckCard({
         return (
           <div className="decision-command-deck-card__stepper">
           <button
-            aria-label={`减少${ctrl.label}`}
+            aria-label={`${t("common:decrease")}${ctrl.label}`}
             className="decision-command-deck-card__stepper-btn"
             disabled={ctrl.disabled || ctrl.value <= 0}
             type="button"
@@ -189,10 +191,10 @@ function DecisionCommandDeckCard({
             −
           </button>
           <span className="decision-command-deck-card__stepper-value">
-            {ctrl.value} {ctrl.unitLabel ?? "批"}
+            {ctrl.value} {ctrl.unitLabel ?? t("game:batches")}
           </span>
           <button
-            aria-label={`增加${ctrl.label}`}
+            aria-label={`${t("common:increase")}${ctrl.label}`}
             className="decision-command-deck-card__stepper-btn"
             disabled={ctrl.disabled || ctrl.value >= ctrl.max}
             type="button"
@@ -215,16 +217,16 @@ function DecisionCommandDeckCard({
               type="button"
               onClick={() => onConfirm(card)}
             >
-              确认
+              {t("common:confirm")}
             </button>
             <button
-              aria-label={ctrl.cancelLabel ?? `撤回${card.title}`}
+              aria-label={ctrl.cancelLabel ?? `${t("common:revoke")}${card.title}`}
               className="decision-command-deck-card__confirm-btn decision-command-deck-card__confirm-btn--subtle"
               disabled={ctrl.revokeDisabled}
               type="button"
               onClick={() => onRevoke(card)}
             >
-              撤回
+              {t("common:revoke")}
             </button>
           </div>
         ) : (
@@ -234,7 +236,7 @@ function DecisionCommandDeckCard({
             type="button"
             onClick={() => (ctrl.confirmed ? onRevoke(card) : onConfirm(card))}
           >
-            {ctrl.confirmed ? (ctrl.cancelLabel ?? "取消") : ctrl.confirmLabel}
+            {ctrl.confirmed ? (ctrl.cancelLabel ?? t("common:cancel")) : ctrl.confirmLabel}
           </button>
         );
       })() : null}
@@ -250,29 +252,31 @@ function DecisionCommandDeckCard({
           />
           <span>
             {card.control.checked
-              ? card.control.activeText ?? "已选择"
+              ? card.control.activeText ?? t("common:selected")
               : card.control.disabled
-                ? card.control.disabledText ?? "暂不可用"
-                : card.control.inactiveText ?? "选择"}
+                ? card.control.disabledText ?? t("common:notAvailable")
+                : card.control.inactiveText ?? t("common:select")}
           </span>
         </label>
       ) : null}
 
       {showAbilityTargets && abilityInteraction ? (
         <fieldset className="decision-command-deck-card__radio-group">
-          <legend>意识形态目标</legend>
-          {IDEOLOGY_OPTIONS.map((ideology) => (
-            <label key={`${card.id}-${ideology.key}`} className="decision-command-deck-card__radio">
+          <legend>{t("game:government.ideologyTarget")}</legend>
+          {(["liberalism", "egalitarianism", "nationalism"] as IdeologyKey[]).map((ideologyKey) => {
+            const ideologyLabel = getIdeologyOptionLabel(ideologyKey);
+            return (
+            <label key={`${card.id}-${ideologyKey}`} className="decision-command-deck-card__radio">
               <input
-                aria-label={`${card.title} ${ideology.label}`}
-                checked={(selectedAbilityTarget ?? "liberalism") === ideology.key}
+                aria-label={`${card.title} ${ideologyLabel}`}
+                checked={(selectedAbilityTarget ?? "liberalism") === ideologyKey}
                 name={`ability-target-${abilityInteraction.abilityId}`}
                 type="radio"
-                onChange={() => onAbilityTargetChange(abilityInteraction.abilityId, ideology.key)}
+                onChange={() => onAbilityTargetChange(abilityInteraction.abilityId, ideologyKey)}
               />
-              <span>{ideology.label}</span>
+              <span>{ideologyLabel}</span>
             </label>
-          ))}
+          );})}
         </fieldset>
       ) : null}
 

@@ -1,4 +1,5 @@
 import { ApiRequestError } from "../../../services/http";
+import i18n from "../../../i18n";
 
 
 export type LobbyPendingAction = "create" | "join" | "restore" | null;
@@ -32,7 +33,7 @@ export function formatRequestError(error: unknown): string {
     return error.message;
   }
 
-  return "请求失败，请稍后再试。";
+  return i18n.t("common:loadFailed");
 }
 
 export function resolveLobbyStatusViewModel({
@@ -45,31 +46,31 @@ export function resolveLobbyStatusViewModel({
   if (pendingAction === "create") {
     return {
       tone: "neutral",
-      title: "正在创建房间",
-      description: "创建完成后会自动进入房间。",
+      title: i18n.t("lobby:statusNotice.creatingTitle"),
+      description: i18n.t("lobby:statusNotice.creatingDesc"),
     };
   }
 
   if (pendingAction === "join") {
     return {
       tone: "neutral",
-      title: "正在加入房间",
-      description: "正在核对房间码，成功后会直接带你进入房间。",
+      title: i18n.t("lobby:statusNotice.joiningTitle"),
+      description: i18n.t("lobby:statusNotice.joiningDesc"),
     };
   }
 
   if (pendingAction === "restore") {
     return {
       tone: "neutral",
-      title: "正在找回上次进度",
-      description: "如果上次会话仍然有效，你会直接回到原房间或原对局。",
+      title: i18n.t("lobby:statusNotice.restoringTitle"),
+      description: i18n.t("lobby:statusNotice.restoringDesc"),
     };
   }
 
   if (message) {
     return {
       tone: message.tone,
-      title: message.tone === "error" ? "这次操作没有完成" : "操作已更新",
+      title: message.tone === "error" ? i18n.t("lobby:statusNotice.errorTitle") : i18n.t("lobby:statusNotice.successTitle"),
       description: message.text,
     };
   }

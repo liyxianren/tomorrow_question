@@ -1,3 +1,4 @@
+import i18n from "../../i18n";
 import type {
   BudgetPools,
   DecisionActionOption,
@@ -14,15 +15,15 @@ import type {
 import type { PhaseDraftByPhase } from "./forms";
 
 const RATIO_KEY_LABELS: Record<string, string> = {
-  domesticMarket: "内需",
-  factory: "工厂",
-  governmentFiscal: "政府",
+  domesticMarket: i18n.t("game:ratioKey.domesticMarket", "内需"),
+  factory: i18n.t("game:ratioKey.factory", "工厂"),
+  governmentFiscal: i18n.t("game:ratioKey.governmentFiscal", "政府"),
 };
 
 const BUDGET_POOL_LABELS: Record<string, string> = {
-  domesticMarket: "国内预算",
-  factory: "工厂预算",
-  governmentFiscal: "政府预算",
+  domesticMarket: i18n.t("game:budgetPool.domesticMarket", "国内预算"),
+  factory: i18n.t("game:budgetPool.factory", "工厂预算"),
+  governmentFiscal: i18n.t("game:budgetPool.governmentFiscal", "政府预算"),
 };
 
 export function getMarketRegulationAllowance(workspace: DecisionPlayerPhaseWorkspace): number {
@@ -84,25 +85,6 @@ function pickFiniteNumber(...values: Array<number | undefined>): number | undefi
 function isMarketRegulationAction(action: DecisionActionOption | undefined): boolean {
   return Boolean(action?.isMarketRegulation);
 }
-
-const GOODS_LABELS: Record<string, string> = {
-  grain: "粮食",
-  cotton: "棉花",
-  tea: "茶叶",
-  coal: "煤炭",
-  minerals: "矿产",
-  steel: "钢铁",
-  silk: "丝绸",
-  oil: "石油",
-  rubber: "橡胶",
-};
-
-const ROUTE_LABELS: Record<string, string> = {
-  handicraft: "手工业",
-  mechanized: "机械化",
-  steam: "蒸汽动力",
-  electrified: "电气化",
-};
 
 /** Flatten the Phase 3 chain-based techTree into a flat array for backward compat. */
 export function flattenTechTree(techTree: TechTreeData): TechTreeChainTech[] {
@@ -415,22 +397,22 @@ export function getBudgetPoolLabel(pool: string): string {
 }
 
 export function getGoodsLabel(goodsId: string): string {
-  return GOODS_LABELS[goodsId] ?? goodsId;
+  return i18n.t(`game:goods.${goodsId}`, goodsId);
 }
 
 export function getRouteLabel(routeId: string): string {
-  return ROUTE_LABELS[routeId] ?? routeId;
+  return i18n.t(`game:productionRoute.${routeId}`, routeId);
 }
 
 export function buildGovernmentActionDescription(
   action: DecisionPlayerPhaseWorkspace["governmentActions"]["strategies"][number],
 ): string {
-  const parts = [action.description ?? "执行后会改变国家结构。"];
+  const parts = [action.description ?? i18n.t("game:effect.defaultDesc", "执行后会改变国家结构。")];
   if ((action.militaryPointDelta ?? 0) !== 0) {
-    parts.push(`军事点 ${formatSignedValue(action.militaryPointDelta ?? 0)}`);
+    parts.push(i18n.t("game:effect.militaryPointsValue", "军事点 {{value}}", { value: formatSignedValue(action.militaryPointDelta ?? 0) }));
   }
   if (action.ratioDelta && Object.keys(action.ratioDelta).length > 0) {
-    parts.push(`比例：${formatRatioDeltaSummary(action.ratioDelta)}`);
+    parts.push(i18n.t("game:effect.ratioLabel", "比例：{{ratio}}", { ratio: formatRatioDeltaSummary(action.ratioDelta) }));
   }
   return parts.join(" ");
 }
@@ -440,14 +422,14 @@ export function buildMilitaryActionDescription(
     | DecisionPlayerPhaseWorkspace["militaryWorkspace"]["availableMilitaryActions"][number]
     | DecisionPlayerPhaseWorkspace["militaryWorkspace"]["availableDiplomacyActions"][number],
 ): string {
-  const parts = [action.description ?? "执行后会改变当前海外扩张态势。"];
+  const parts = [action.description ?? i18n.t("game:effect.defaultMilitaryDesc", "执行后会改变当前海外扩张态势。")];
   if ("maxPerRound" in action) {
-    parts.push(`消耗军事点 ${action.cost}。`);
-    parts.push(`本轮上限 ${action.maxPerRound} 次。`);
+    parts.push(i18n.t("game:effect.militaryPointsCost", "消耗军事点 {{cost}}。", { cost: action.cost }));
+    parts.push(i18n.t("game:effect.maxPerRound", "本轮上限 {{max}} 次。", { max: action.maxPerRound }));
   }
   if ("targetRegionLabel" in action) {
-    parts.push(`消耗政府财政 ${action.cost}。`);
-    parts.push(`目标区域：${action.targetRegionLabel}。`);
+    parts.push(i18n.t("game:effect.governmentFiscalCost", "消耗政府财政 {{cost}}。", { cost: action.cost }));
+    parts.push(i18n.t("game:effect.targetRegion", "目标区域：{{region}}。", { region: action.targetRegionLabel }));
   }
   return parts.join(" ");
 }
@@ -455,14 +437,14 @@ export function buildMilitaryActionDescription(
 export function getRegionAccessLevelLabel(accessLevel: RegionAccessLevel): string {
   switch (accessLevel) {
     case "open":
-      return "开放市场";
+      return i18n.t("game:accessLabel.open", "开放市场");
     case "concession":
-      return "特许权市场";
+      return i18n.t("game:accessLabel.concession", "特许权市场");
     case "colony":
-      return "殖民市场";
+      return i18n.t("game:accessLabel.colony", "殖民市场");
     case "closed":
     default:
-      return "封闭市场";
+      return i18n.t("game:accessLabel.closed", "封闭市场");
   }
 }
 
@@ -470,12 +452,12 @@ export function buildRegionAccessDescription(
   status: DecisionPlayerPhaseWorkspace["militaryWorkspace"]["regionAccessStatus"][number],
 ): string {
   const parts = [
-    `市场级别：${getRegionAccessLevelLabel(status.accessLevel)}。`,
-    status.isAccessible ? "当前可进入。": "当前仍不可进入。",
-    status.isDiplomacyEstablished ? "已建交。": "尚未建交。",
+    i18n.t("game:accessLabel.marketLevel", "市场级别：{{level}}。", { level: getRegionAccessLevelLabel(status.accessLevel) }),
+    status.isAccessible ? i18n.t("game:accessLabel.accessible", "当前可进入。") : i18n.t("game:accessLabel.notAccessible", "当前仍不可进入。"),
+    status.isDiplomacyEstablished ? i18n.t("game:accessLabel.diplomacyEstablished", "已建交。") : i18n.t("game:accessLabel.diplomacyNotEstablished", "尚未建交。"),
   ];
   if (status.acceptedGoods.length > 0) {
-    parts.push(`可售：${status.acceptedGoods.map(getGoodsLabel).join("、")}。`);
+    parts.push(i18n.t("game:accessLabel.sellable", "可售：{{goods}}。", { goods: status.acceptedGoods.map(getGoodsLabel).join("、") }));
   }
   return parts.join(" ");
 }
@@ -552,7 +534,7 @@ export function calculateTechResearchPreview(
       continue;
     }
     if (!tech.canResearch) {
-      invalidReasonByTechId.set(tech.techId, "前置未满足");
+      invalidReasonByTechId.set(tech.techId, i18n.t("game:tech.prerequisiteNotMet", "前置未满足"));
       continue;
     }
     queuedTechIds.add(tech.techId);
@@ -574,7 +556,7 @@ export function getTechResearchLockedReason(
   workspace: DecisionPlayerPhaseWorkspace,
 ): string | null {
   if (tech.isUnlocked) {
-    return "已解锁";
+    return i18n.t("game:tech.unlocked", "已解锁");
   }
 
   if (preview.invalidReasonByTechId.has(tech.techId)) {
@@ -591,13 +573,13 @@ export function getTechResearchLockedReason(
     .map((prerequisite) => flattenTechTree(workspace.techTree).find((candidate) => candidate.techId === prerequisite)?.label ?? prerequisite);
 
   if (missingPrerequisites.length > 0) {
-    return `前置：${missingPrerequisites.join("、")}`;
+    return i18n.t("game:tech.prerequisiteNeeded", "前置：{{list}}", { list: missingPrerequisites.join("、") });
   }
 
   const budgetPool = "budgetPool" in tech ? tech.budgetPool : undefined;
   const budgetCost = "budgetCost" in tech ? tech.budgetCost : undefined;
   if (budgetPool && typeof budgetCost === "number" && budgetCost > 0 && preview.remainingBudgets[budgetPool as keyof BudgetPools] < budgetCost) {
-    return `${getBudgetPoolLabel(budgetPool)}不足`;
+    return i18n.t("game:tech.budgetInsufficient", "{{pool}}不足", { pool: getBudgetPoolLabel(budgetPool) });
   }
 
   return null;
@@ -612,26 +594,26 @@ export function buildTechResearchDescription(
   const budgetPool = "budgetPool" in tech ? tech.budgetPool : undefined;
   const budgetCost = "budgetCost" in tech ? tech.budgetCost : undefined;
   const budgetLabel = (typeof budgetCost === "number" && budgetCost > 0)
-    ? `消耗 ${budgetCost} ${getBudgetPoolLabel(budgetPool ?? "governmentFiscal")}。`
-    : "通过研究设施推进。";
+    ? i18n.t("game:tech.budgetConsume", "消耗 {{cost}} {{pool}}。", { cost: budgetCost, pool: getBudgetPoolLabel(budgetPool ?? "governmentFiscal") })
+    : i18n.t("game:tech.advanceByFacility", "通过研究设施推进。");
   const parts = [budgetLabel];
   const prerequisites = "prerequisites" in tech ? tech.prerequisites : [];
   if (prerequisites.length > 0) {
     const labels = prerequisites.map((prerequisite) => {
       return flattenTechTree(workspace.techTree).find((candidate) => candidate.techId === prerequisite)?.label ?? prerequisite;
     });
-    parts.push(`前置：${labels.join("、")}。`);
+    parts.push(i18n.t("game:tech.prerequisiteNeeded", "前置：{{list}}。", { list: labels.join("、") }));
   }
   const unlockSummary = buildTechUnlockSummary(tech, workspace);
   if (unlockSummary) {
     parts.push(unlockSummary);
   }
   if (tech.isUnlocked) {
-    parts.push("该科技已解锁。");
+    parts.push(i18n.t("game:tech.alreadyUnlocked", "该科技已解锁。"));
   } else if (queued) {
-    parts.push("已加入本轮研究队列。");
+    parts.push(i18n.t("game:tech.queuedForResearch", "已加入本轮研究队列。"));
   } else if (lockedReason) {
-    parts.push(`当前锁定：${lockedReason}`);
+    parts.push(i18n.t("game:tech.currentlyLocked", "当前锁定：{{reason}}", { reason: lockedReason }));
   }
   return parts.join(" ");
 }
@@ -645,10 +627,10 @@ export function buildTechUnlockSummary(
   const unlocksRoutes = "unlocksRoutes" in tech ? tech.unlocksRoutes ?? [] : [];
   const unlocksActions = "unlocksActions" in tech ? tech.unlocksActions ?? [] : [];
   if (unlocksGoods.length > 0) {
-    parts.push(`商品：${unlocksGoods.map(getGoodsLabel).join("、")}`);
+    parts.push(i18n.t("game:tech.unlocksGoods", "商品：{{list}}", { list: unlocksGoods.map(getGoodsLabel).join("、") }));
   }
   if (unlocksRoutes.length > 0) {
-    parts.push(`路线：${unlocksRoutes.map(getRouteLabel).join("、")}`);
+    parts.push(i18n.t("game:tech.unlocksRoutes", "路线：{{list}}", { list: unlocksRoutes.map(getRouteLabel).join("、") }));
   }
   if (unlocksActions.length > 0) {
     const actionLabels = unlocksActions.map((actionId) => {
@@ -657,9 +639,9 @@ export function buildTechUnlockSummary(
         ?? workspace.governmentActions.strategies.find((action) => action.actionId === actionId)?.label
         ?? actionId;
     });
-    parts.push(`动作：${actionLabels.join("、")}`);
+    parts.push(i18n.t("game:tech.unlocksActions", "动作：{{list}}", { list: actionLabels.join("、") }));
   }
-  return parts.length > 0 ? `解锁 ${parts.join("；")}。` : "";
+  return parts.length > 0 ? i18n.t("game:tech.unlockSummary", "解锁 {{list}}。", { list: parts.join("；") }) : "";
 }
 
 export function formatRatio(ratio: IncomeAllocationRatio): string {
@@ -682,12 +664,12 @@ export function formatRatioDeltaSummary(delta: Partial<IncomeAllocationRatio>): 
 
 export function formatPriceTrendText(trend: PriceTrend, adjustment: number): string {
   if (trend === "flat" || adjustment === 0) {
-    return "行情持平";
+    return i18n.t("game:effect.priceTrendFlat", "行情持平");
   }
 
   return trend === "up"
-    ? `行情上涨 +${Math.abs(adjustment)}`
-    : `行情下跌 -${Math.abs(adjustment)}`;
+    ? i18n.t("game:effect.priceTrendUp", "行情上涨 +{{adjustment}}", { adjustment: Math.abs(adjustment) })
+    : i18n.t("game:effect.priceTrendDown", "行情下跌 -{{adjustment}}", { adjustment: Math.abs(adjustment) });
 }
 
 function roundRatioValue(value: number): number {
@@ -706,24 +688,24 @@ function formatRatioValue(value: number): string {
 }
 
 const EFFECT_LABELS: Record<string, string> = {
-  handicraftCapacityDelta: "手工业产能",
-  domesticMarketCapacityDelta: "国内容量",
-  domesticPriceBonusDelta: "国内价格",
-  overseasMarketCapacityDelta: "海外容量",
-  overseasPriceBonusDelta: "海外价格",
-  militaryPointsDelta: "军事点",
-  controlledRegionsDelta: "控制区域",
-  factoryBudgetDelta: "工厂预算",
-  governmentFiscalBudgetDelta: "政府预算",
-  domesticMarketBudgetDelta: "国内预算",
-  productionOutputMultiplier: "产出倍率",
-  rawMaterialsPerTurnDelta: "每回合原材料",
-  factoryUpgradeCostReductionPercent: "升级成本",
-  factoryExpansionCostReductionPercent: "扩产成本",
-  newFactoryCostReductionPercent: "新建成本",
-  phase1ProductionOutputBonusPercent: "生产产出",
-  rawMaterialsDelta: "原材料",
-  phase1ProductionRawCapacityDelta: "投料上限",
+  handicraftCapacityDelta: i18n.t("game:effect.handicraftCapacityDelta", "手工业产能"),
+  domesticMarketCapacityDelta: i18n.t("game:effect.domesticMarketCapacityDelta", "国内容量"),
+  domesticPriceBonusDelta: i18n.t("game:effect.domesticPriceBonusDelta", "国内价格"),
+  overseasMarketCapacityDelta: i18n.t("game:effect.overseasMarketCapacityDelta", "海外容量"),
+  overseasPriceBonusDelta: i18n.t("game:effect.overseasPriceBonusDelta", "海外价格"),
+  militaryPointsDelta: i18n.t("game:effect.militaryPointsDelta", "军事点"),
+  controlledRegionsDelta: i18n.t("game:effect.controlledRegionsDelta", "控制区域"),
+  factoryBudgetDelta: i18n.t("game:effect.factoryBudgetDelta", "工厂预算"),
+  governmentFiscalBudgetDelta: i18n.t("game:effect.governmentFiscalBudgetDelta", "政府预算"),
+  domesticMarketBudgetDelta: i18n.t("game:effect.domesticMarketBudgetDelta", "国内预算"),
+  productionOutputMultiplier: i18n.t("game:effect.productionOutputMultiplier", "产出倍率"),
+  rawMaterialsPerTurnDelta: i18n.t("game:effect.rawMaterialsPerTurnDelta", "每回合原材料"),
+  factoryUpgradeCostReductionPercent: i18n.t("game:effect.factoryUpgradeCostReductionPercent", "升级成本"),
+  factoryExpansionCostReductionPercent: i18n.t("game:effect.factoryExpansionCostReductionPercent", "扩产成本"),
+  newFactoryCostReductionPercent: i18n.t("game:effect.newFactoryCostReductionPercent", "新建成本"),
+  phase1ProductionOutputBonusPercent: i18n.t("game:effect.phase1ProductionOutputBonusPercent", "生产产出"),
+  rawMaterialsDelta: i18n.t("game:effect.rawMaterialsDelta", "原材料"),
+  phase1ProductionRawCapacityDelta: i18n.t("game:effect.phase1ProductionRawCapacityDelta", "投料上限"),
 };
 
 const TEMPORARY_EFFECT_KEYS = new Set([
@@ -749,7 +731,10 @@ const COST_REDUCTION_EFFECT_KEYS = new Set([
 ]);
 
 const NESTED_EFFECT_LABELS: Record<string, Record<string, string>> = {
-  armyDelta: { infantry: "步兵", artillery: "炮兵" },
+  armyDelta: {
+    infantry: i18n.t("game:unit.infantry", "步兵"),
+    artillery: i18n.t("game:unit.artillery", "炮兵"),
+  },
 };
 
 export interface EffectMetric {
