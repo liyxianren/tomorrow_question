@@ -485,7 +485,7 @@ function buildGovernmentLocation({
 
       const govEffectMetrics = buildEffectMetrics(action.effects);
       const govExtraMetrics = govEffectMetrics
-        .filter((em) => !["科技点", "军事点"].includes(em.label))
+        .filter((em) => ![i18n.t("game:common.techPoints", "科技点"), i18n.t("game:common.militaryPoints", "军事点")].includes(em.label))
         .map((em) => ({ label: em.label, value: em.value }));
       const effectBadges = govExtraMetrics.length > 0
         ? govExtraMetrics.map((metric) => `${metric.label} ${metric.value}`)
