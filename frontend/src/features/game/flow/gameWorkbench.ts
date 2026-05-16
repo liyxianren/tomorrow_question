@@ -1,3 +1,4 @@
+import i18n from "../../../i18n";
 import type {
   IdeologyKey,
   DecisionPlayerPhaseWorkspace,
@@ -168,7 +169,7 @@ export function getPhaseSubmitBlockingReasons({
   decisionFlowState: DecisionFlowState;
 }): string[] {
   if (!currentPhase || !currentPlayerState || !currentPlayerWorkspace) {
-    return ["等待当前阶段数据同步。"];
+    return [i18n.t("game:flow.validateWaitingSync", "等待当前阶段数据同步。")];
   }
   if (currentPhase === "settlement") {
     return [];
@@ -180,7 +181,7 @@ export function getPhaseSubmitBlockingReasons({
     const contentContext = getDecisionContentContext(currentPlayerWorkspace);
     const uncheckedDecisionSteps = getUncheckedDecisionSteps(decisionFlowState, draft, contentContext);
     if (uncheckedDecisionSteps.length > 0) {
-      reasons.push(`请先完成或跳过：${uncheckedDecisionSteps.map((step) => getDecisionStepLabel(step)).join("、")}。`);
+      reasons.push(i18n.t("game:flow.validateNeedComplete", "请先完成或跳过：{{steps}}。", { steps: uncheckedDecisionSteps.map((step) => getDecisionStepLabel(step)).join("、") }));
     }
   }
 
@@ -259,10 +260,10 @@ function createResourceStripViewModel({
     ? calculateGovernmentFiscalState(decisionWorkspace, draft)
     : null;
   const metrics: ResourceStripMetric[] = [
-    { label: "民间购买力", value: visibleBudgetPools.domesticMarket },
-    { label: "工厂", value: visibleBudgetPools.factory },
+    { label: i18n.t("game:settlement.consumerPurchasingPower", "民间购买力"), value: visibleBudgetPools.domesticMarket },
+    { label: i18n.t("game:settlement.factoryBudget", "工厂"), value: visibleBudgetPools.factory },
     {
-      label: fiscalState && fiscalState.marketRegulationAllowance > 0 ? "政府财政(基础+市场)" : "政府财政",
+      label: fiscalState && fiscalState.marketRegulationAllowance > 0 ? i18n.t("game:government.budgetBasePlusMarket", "政府财政(基础+市场)") : i18n.t("game:government.budget", "政府财政"),
       value: fiscalState && fiscalState.marketRegulationAllowance > 0
         ? `${fiscalState.baseGovernmentBudget}+${fiscalState.marketRegulationAllowance}`
         : visibleBudgetPools.governmentFiscal,
@@ -339,26 +340,26 @@ function createLeftRailViewModel({
     : null;
 
   return {
-    title: "国家仪表盘",
+    title: i18n.t("game:flow.dashboard", "国家仪表盘"),
     cards: [
       {
-        eyebrow: "当前资源",
-        title: "资源与军事",
+        eyebrow: i18n.t("game:flow.currentResources", "当前资源"),
+        title: i18n.t("game:flow.resourcesAndMilitary", "资源与军事"),
         tone: "accent",
         metrics: currentPlayerState
           ? [
-              { label: "民间购买力", value: visibleBudgetPools?.domesticMarket ?? currentPlayerState.budgetPools.domesticMarket },
-              { label: "工厂", value: visibleBudgetPools?.factory ?? currentPlayerState.budgetPools.factory },
+              { label: i18n.t("game:settlement.consumerPurchasingPower", "民间购买力"), value: visibleBudgetPools?.domesticMarket ?? currentPlayerState.budgetPools.domesticMarket },
+              { label: i18n.t("game:settlement.factoryBudget", "工厂"), value: visibleBudgetPools?.factory ?? currentPlayerState.budgetPools.factory },
               {
-                label: fiscalState && fiscalState.marketRegulationAllowance > 0 ? "政府财政(基础+市场)" : "政府财政",
+                label: fiscalState && fiscalState.marketRegulationAllowance > 0 ? i18n.t("game:government.budgetBasePlusMarket", "政府财政(基础+市场)") : i18n.t("game:government.budget", "政府财政"),
                 value: fiscalState && fiscalState.marketRegulationAllowance > 0
                   ? `${fiscalState.baseGovernmentBudget}+${fiscalState.marketRegulationAllowance}`
                   : visibleBudgetPools?.governmentFiscal ?? currentPlayerState.budgetPools.governmentFiscal,
               },
-              { label: "军事点", value: visibleMilitaryPoints ?? currentPlayerState.militaryPoints },
-              { label: "陆军", value: visibleArmyTotal },
+              { label: i18n.t("game:military.militaryPoints", "军事点"), value: visibleMilitaryPoints ?? currentPlayerState.militaryPoints },
+              { label: i18n.t("game:unit.infantry", "陆军"), value: visibleArmyTotal },
               ...(researchFacilities !== null
-                ? [{ label: "研究设施", value: researchFacilities }]
+                ? [{ label: i18n.t("game:research.researchFacilities", "研究设施"), value: researchFacilities }]
                 : []),
             ]
           : [],
@@ -371,19 +372,19 @@ function createLeftRailViewModel({
         }),
       },
       {
-        eyebrow: "长期态势",
-        title: "收入、排名与最近结算",
+        eyebrow: i18n.t("game:flow.longTermTrends", "长期态势"),
+        title: i18n.t("game:flow.incomeRankAndSettlement", "收入、排名与最近结算"),
         body: currentPlayerState
-          ? `当前比例 ${formatRatio(currentPlayerState.incomeAllocationRatio)}，累计国家收入 ${currentPlayerState.cumulativeNationalIncome}。`
-          : "等待国家结构同步。",
+          ? i18n.t("game:flow.currentRatioAndIncome", "当前比例 {{ratio}}，累计国家收入 {{income}}。", { ratio: formatRatio(currentPlayerState.incomeAllocationRatio), income: currentPlayerState.cumulativeNationalIncome })
+          : i18n.t("game:flow.waitingCountrySync", "等待国家结构同步。"),
         lines: [
-          selfStanding ? `当前名次：第 ${selfStanding.rank} 名` : "当前名次：等待同步",
+          selfStanding ? i18n.t("game:flow.currentRank", "当前名次：第 {{rank}} 名", { rank: selfStanding.rank }) : i18n.t("game:flow.currentRankWaiting", "当前名次：等待同步"),
           leader
-            ? `当前榜首：${getCountryLabel(leader.countryId)} · ${leader.cumulativeNationalIncome}`
-            : "当前榜首：等待同步",
+            ? i18n.t("game:flow.currentLeader", "当前榜首：{{country}} · {{income}}", { country: getCountryLabel(leader.countryId), income: leader.cumulativeNationalIncome })
+            : i18n.t("game:flow.currentLeaderWaiting", "当前榜首：等待同步"),
           settlementWorkspace
-            ? `最近结算：${settlementWorkspace.headline}`
-            : "最近结算：暂无结算摘要",
+            ? i18n.t("game:flow.latestSettlement", "最近结算：{{headline}}", { headline: settlementWorkspace.headline })
+            : i18n.t("game:flow.latestSettlementNone", "最近结算：暂无结算摘要"),
         ],
       },
     ],
@@ -420,38 +421,38 @@ function createAssistRailViewModel({
   const blockingLines = extractBlockingLines(validationLines);
 
   return {
-    title: "检查与提交",
+    title: i18n.t("game:flow.checkAndSubmit", "检查与提交"),
     checklist: {
-      eyebrow: "步骤检查",
-      title: "步骤检查清单",
+      eyebrow: i18n.t("game:flow.stepChecklist", "步骤检查"),
+      title: i18n.t("game:flow.stepChecklistTitle", "步骤检查清单"),
       tone: uncheckedDecisionStepLabels.length > 0 ? "warning" : "default",
       lines: buildChecklistLines(currentPhase, decisionFlowState, draftPayload, currentPlayerWorkspace),
     },
     blocking: blockingLines.length > 0
       ? {
-          eyebrow: "阻断性问题",
-          title: "当前存在阻断性问题",
+          eyebrow: i18n.t("game:flow.blockingIssues", "阻断性问题"),
+          title: i18n.t("game:flow.blockingTitle", "当前存在阻断性问题"),
           tone: "warning",
           lines: blockingLines,
         }
       : null,
     submit: {
-      eyebrow: "最终提交",
-      title: currentPhase === "settlement" ? "本阶段无玩家提交" : "提交确认",
+      eyebrow: i18n.t("game:commandDock.finalConfirm", "最终提交"),
+      title: currentPhase === "settlement" ? i18n.t("game:flow.submitTitleSettlement", "本阶段无玩家提交") : i18n.t("game:flow.submitTitle", "提交确认"),
       body:
         currentPhase === "settlement"
-          ? "财政结算阶段由系统自动推进，无需玩家提交。"
+          ? i18n.t("game:flow.submitSettlementDesc", "财政结算阶段由系统自动推进，无需玩家提交。")
           : uncheckedDecisionStepLabels.length > 0
-            ? `${uncheckedDecisionStepLabels.join("、")}尚未决策。`
+            ? i18n.t("game:flow.submitUncheckedSteps", "{{steps}}尚未决策。", { steps: uncheckedDecisionStepLabels.join("、") })
             : currentSubmittedStatus === "pending"
-              ? "所有关键步骤都在这里完成最终确认。"
+              ? i18n.t("game:flow.submitAllReady", "所有关键步骤都在这里完成最终确认。")
               : currentSubmittedStatus === "submitted"
-                ? "你已完成本阶段提交，等待系统结算。"
-                : "你未在截止前完成操作，系统已代为确认当前阶段安排。",
+                ? i18n.t("game:flow.submitAlreadySubmitted", "你已完成本阶段提交，等待系统结算。")
+                : i18n.t("game:flow.submitAutoSubmitted", "你未在截止前完成操作，系统已代为确认当前阶段安排。"),
       draftSummaryLines: buildDraftSummaryLines(currentPhase, draftPayload),
       warningLines:
         currentPhase === "decision" && uncheckedDecisionStepLabels.length > 0
-          ? [`未决策：${uncheckedDecisionStepLabels.join("、")}。`]
+          ? [i18n.t("game:flow.submitUncheckedWarning", "未决策：{{steps}}。", { steps: uncheckedDecisionStepLabels.join("、") })]
           : [],
       lines: buildSubmitLines({
         currentPhase,

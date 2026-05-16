@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
+import i18n from "../../../i18n";
 
 import {
   resolveSessionRoute,
@@ -68,6 +70,7 @@ export function useGameRuntime({
   routeGameId,
   bootstrap,
 }: UseGameRuntimeArgs): UseGameRuntimeResult {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const deadlineRecoveryKeyRef = useRef<string | null>(null);
   const submissionRecoveryKeyRef = useRef<string | null>(null);
@@ -80,7 +83,7 @@ export function useGameRuntime({
 
   useEffect(() => {
     if (!routeGameId) {
-      setLoadError("缺少 gameId，无法装载游戏页。");
+      setLoadError(t("game:flow.missingGameId", "缺少 gameId，无法装载游戏页。"));
       setIsLoadingContext(false);
       return;
     }
@@ -114,7 +117,7 @@ export function useGameRuntime({
         }
 
         if (!restored?.activeGame || !restored.activeSnapshot) {
-          setLoadError("当前没有可恢复的进行中对局。");
+          setLoadError(t("game:flow.noActiveGame", "当前没有可恢复的进行中对局。"));
           return;
         }
 
@@ -534,7 +537,7 @@ function formatLoadError(error: unknown): string {
     return error.message;
   }
 
-  return "游戏上下文恢复失败，请稍后重试。";
+  return i18n.t("common:gameContextRecoveryFailed", "游戏上下文恢复失败，请稍后重试。");
 }
 
 function matchesGameEnvelope(envelope: SocketEnvelope<unknown>, routeGameId: string): boolean {

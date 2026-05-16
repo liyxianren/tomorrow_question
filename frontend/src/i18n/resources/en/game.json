@@ -770,5 +770,6 @@
   },
   "decisionStep": {
     "tabsAriaLabel": "Decision Step Tabs"
-  }
+  },
+  "thisRound": "This Round"
 }

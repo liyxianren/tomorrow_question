@@ -770,5 +770,6 @@
   },
   "decisionStep": {
     "tabsAriaLabel": "决策步骤切换"
-  }
+  },
+  "thisRound": "本轮"
 }

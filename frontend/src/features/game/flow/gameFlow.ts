@@ -229,7 +229,7 @@ export function createPhaseActionStatusViewModel({
   flowState: GameFlowState;
   runtimeState: GameRuntimeState;
 }): PhaseActionStatusViewModel {
-  const phaseLabel = currentPhase ? getPhaseLabel(currentPhase) : "当前阶段";
+  const phaseLabel = currentPhase ? getPhaseLabel(currentPhase) : i18n.t("game:situation.phaseLabel", "当前阶段");
   const currentPlayerStatus = flowState.currentPlayerId
     ? runtimeState.submissionStatusByPlayerId[flowState.currentPlayerId]
     : undefined;
@@ -240,19 +240,19 @@ export function createPhaseActionStatusViewModel({
   if (flowState.shouldRedirectToSettlement || runtimeState.finalResult) {
     return {
       kind: "finished",
-      badge: "已结束",
-      title: "本局已经结束，正在进入结果页",
-      description: "最终结果已经生成，稍后会自动跳转到结果页。",
+      badge: i18n.t("game:flow.badgeFinished", "已结束"),
+      title: i18n.t("game:flow.titleFinished", "本局已经结束，正在进入结果页"),
+      description: i18n.t("game:flow.titleFinishedDesc", "最终结果已经生成，稍后会自动跳转到结果页。"),
       showSubmitAction: false,
     };
   }
 
-  if (flowState.currentStepLabel === "恢复当前回合/阶段" || !runtimeState.snapshot || !flowState.currentPlayerState) {
+  if (flowState.currentStepLabel === GAME_FLOW_STEP_LABELS[0] || !runtimeState.snapshot || !flowState.currentPlayerState) {
     return {
       kind: "loading",
-      badge: "同步中",
-      title: "正在同步你的本阶段信息",
-      description: "请稍候，系统正在恢复当前回合、阶段和你的可操作内容。",
+      badge: i18n.t("game:flow.badgeSyncing", "同步中"),
+      title: i18n.t("game:flow.titleSyncing", "正在同步你的本阶段信息"),
+      description: i18n.t("game:flow.titleSyncingDesc", "请稍候，系统正在恢复当前回合、阶段和你的可操作内容。"),
       showSubmitAction: false,
     };
   }
@@ -260,9 +260,9 @@ export function createPhaseActionStatusViewModel({
   if (runtimeState.latestSettlement) {
     return {
       kind: "settled",
-      badge: "已结算",
-      title: "上一阶段已经结算完成",
-      description: "先阅读下方结果反馈，再准备当前阶段的新安排。",
+      badge: i18n.t("game:flow.badgeSettled", "已结算"),
+      title: i18n.t("game:flow.titleSettled", "上一阶段已经结算完成"),
+      description: i18n.t("game:flow.titleSettledDesc", "先阅读下方结果反馈，再准备当前阶段的新安排。"),
       showSubmitAction: false,
     };
   }
@@ -270,11 +270,11 @@ export function createPhaseActionStatusViewModel({
   if (currentPlayerStatus === "timeout_auto_submitted") {
     return {
       kind: "submitted",
-      badge: "系统代交",
-      title: "你已错过截止时间，系统已代你提交",
+      badge: i18n.t("game:flow.badgeAutoSubmit", "系统代交"),
+      title: i18n.t("game:flow.titleAutoSubmitted", "你已错过截止时间，系统已代你提交"),
       description: pendingOtherPlayers > 0
-        ? `这一阶段已按超时规则代交；接下来若还有玩家未提交就继续等待，全部完成后系统会结算，并在结算后展示阶段结果再推进。`
-        : "这一阶段已按超时规则代交；系统正在结算，结算完成后会先展示阶段结果，再推进到下一阶段。",
+        ? i18n.t("game:flow.titleAutoSubmittedDescPending", "这一阶段已按超时规则代交；接下来若还有玩家未提交就继续等待，全部完成后系统会结算，并在结算后展示阶段结果再推进。")
+        : i18n.t("game:flow.titleAutoSubmittedDescSettling", "这一阶段已按超时规则代交；系统正在结算，结算完成后会先展示阶段结果，再推进到下一阶段。"),
       showSubmitAction: false,
     };
   }
@@ -283,18 +283,18 @@ export function createPhaseActionStatusViewModel({
     if (pendingOtherPlayers > 0) {
       return {
         kind: "submitted",
-        badge: "等待玩家",
-        title: "你已提交，正在等待其他玩家完成本阶段",
-        description: `你已完成本阶段提交，正在等待 ${pendingOtherPlayers} 名玩家提交；结算完成后会先展示阶段结果，再推进到下一阶段。`,
+        badge: i18n.t("game:flow.badgeWaitingPlayers", "等待玩家"),
+        title: i18n.t("game:flow.titleWaitingPlayers", "你已提交，正在等待其他玩家完成本阶段"),
+        description: i18n.t("game:flow.titleWaitingPlayersDesc", "你已完成本阶段提交，正在等待 {{count}} 名玩家提交；结算完成后会先展示阶段结果，再推进到下一阶段。", { count: pendingOtherPlayers }),
         showSubmitAction: false,
       };
     }
 
     return {
       kind: "submitted",
-      badge: "系统结算中",
-      title: "所有玩家已提交，系统正在结算",
-      description: "所有玩家都已完成操作，系统正在汇总本阶段结果；结算完成后会先展示阶段结果，再推进到下一阶段。",
+      badge: i18n.t("game:flow.badgeSystemSettling", "系统结算中"),
+      title: i18n.t("game:flow.titleSystemSettling", "所有玩家已提交，系统正在结算"),
+      description: i18n.t("game:flow.titleSystemSettlingDesc", "所有玩家都已完成操作，系统正在汇总本阶段结果；结算完成后会先展示阶段结果，再推进到下一阶段。"),
       showSubmitAction: false,
     };
   }
@@ -302,18 +302,18 @@ export function createPhaseActionStatusViewModel({
   if (flowState.isEditable) {
     return {
       kind: "actionable",
-      badge: "可提交",
-      title: `现在轮到你完成${phaseLabel}安排`,
-      description: "确认本阶段操作无误后即可提交，系统会在所有玩家完成后统一结算。",
+      badge: i18n.t("game:flow.badgeActionable", "可提交"),
+      title: i18n.t("game:flow.titleActionable", "现在轮到你完成{{phase}}安排", { phase: phaseLabel }),
+      description: i18n.t("game:flow.titleActionableDesc", "确认本阶段操作无误后即可提交，系统会在所有玩家完成后统一结算。"),
       showSubmitAction: true,
     };
   }
 
   return {
     kind: "unavailable",
-    badge: "暂不可提交",
-    title: `当前还不能提交${phaseLabel}安排`,
-    description: "请先阅读阶段目标与结果反馈，等待系统同步到可操作状态。",
+    badge: i18n.t("game:flow.badgeNotAvailable", "暂不可提交"),
+    title: i18n.t("game:flow.titleUnavailable", "当前还不能提交{{phase}}安排", { phase: phaseLabel }),
+    description: i18n.t("game:flow.titleUnavailableDesc", "请先阅读阶段目标与结果反馈，等待系统同步到可操作状态。"),
     showSubmitAction: false,
   };
 }
@@ -321,11 +321,11 @@ export function createPhaseActionStatusViewModel({
 function getPhaseLabel(phase: GamePhase): string {
   switch (phase) {
     case "decision":
-      return "国家决策";
+      return i18n.t("game:phase.decision", "国家决策");
     case "market":
-      return "市场出售";
+      return i18n.t("game:phase.market", "市场出售");
     case "settlement":
-      return "财政结算";
+      return i18n.t("game:phase.settlement", "财政结算");
     default:
       return phase;
   }

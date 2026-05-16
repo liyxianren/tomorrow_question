@@ -1,4 +1,6 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "../../../../i18n";
 import type { Phase1ProductionMode } from "../../../../types";
 import { getTechnologyLabel } from "../../../../features/game/panelGlossary";
 import "./Phase1ProductionPanel.css";
@@ -12,12 +14,9 @@ const MODE_ICON: Record<string, string> = {
   electrified: "⚡",
 };
 
-const MODE_HINT: Record<string, string> = {
-  handicraft: "基础工坊",
-  mechanized: "机械化",
-  steam: "蒸汽动力",
-  electrified: "电气工业",
-};
+function getModeHint(mode: string, fallback: string): string {
+  return i18n.t(`game:factory.modeHints.${mode}`, fallback);
+}
 
 interface ProductionRouteViewModel {
   mode: Phase1ProductionMode;
@@ -55,6 +54,7 @@ export function Phase1ProductionPanel({
   outputMultiplier?: number;
   onAssignmentChange?: (mode: string, quantity: number) => void;
 }) {
+  const { t } = useTranslation();
   const productiveModes = [...modes]
     .filter((mode) => mode.mode !== "idle")
     .sort((a, b) => {
@@ -121,31 +121,31 @@ export function Phase1ProductionPanel({
     <section className="phase1-panel" data-testid="phase1-production-panel">
       <header className="phase1-panel__header">
         <div>
-          <h4>本轮生产投料</h4>
-          <p>原材料、工厂预算和投料上限共同限制本轮产出。</p>
+          <h4>{t("game:factory.productionTitle")}</h4>
+          <p>{t("game:factory.productionDesc")}</p>
         </div>
         <div className="phase1-panel__output-meter">
-          <span>预计产出</span>
+          <span>{t("game:factory.expectedOutput")}</span>
           <strong>{formatNumber(totalOutput)}</strong>
         </div>
       </header>
 
-      <div className="phase1-panel__control-room" aria-label="工厂总览">
+      <div className="phase1-panel__control-room" aria-label={t("game:factory.factoryOverview")}>
         <FactoryMeter
-          label="原材料"
+          label={t("game:factory.rawMaterials")}
           value={remainingRawMaterials}
           total={rawMaterials}
           progress={rawMaterialProgress}
           tone={capacityShortfall ? "warning" : undefined}
         />
         <FactoryMeter
-          label="工厂预算"
+          label={t("game:factory.factoryBudget")}
           value={remainingFactoryBudget}
           total={factoryBudget}
           progress={budgetProgress}
         />
         <FactoryMeter
-          label="投料上限"
+          label={t("game:factory.capacityLimit")}
           value={totalAssigned}
           total={totalCapacity}
           progress={capacityProgress}
@@ -153,13 +153,13 @@ export function Phase1ProductionPanel({
       </div>
 
       <div className="phase1-panel__workspace">
-        <div className="phase1-routes" aria-label="工厂生产线">
+        <div className="phase1-routes" aria-label={t("game:factory.productionRoutes")}>
           <div className="phase1-routes__head">
             <div>
-              <h5>生产路线</h5>
-              <p>优先把原材料投向已解锁且产出倍率更高的路线。</p>
+              <h5>{t("game:factory.productionRoutes")}</h5>
+              <p>{t("game:factory.productionRoutesHint")}</p>
             </div>
-            <span>{totalAssigned} / {rawMaterials} 已投料</span>
+            <span>{t("game:factory.allocatedCount", { assigned: totalAssigned, total: rawMaterials })}</span>
           </div>
           <div className="phase1-routes__list">
             {routeViewModels.map((route) => (
@@ -172,38 +172,38 @@ export function Phase1ProductionPanel({
           </div>
         </div>
 
-        <aside className="phase1-panel__status-card" aria-label="工厂状态">
-          <h5>市场与产能核对</h5>
+        <aside className="phase1-panel__status-card" aria-label={t("game:factory.factoryOverview")}>
+          <h5>{t("game:factory.marketAndCapacityCheck")}</h5>
           <div className="phase1-panel__status-grid">
             <span className="phase1-panel__status-chip">
-              库存 <strong>{goodsInventory}</strong>
+              {t("game:factory.inventory")} <strong>{goodsInventory}</strong>
             </span>
             <span className="phase1-panel__status-chip">
-              国内需求 <strong>{formatNumber(domesticDemand)}</strong>
+              {t("game:factory.domesticDemand")} <strong>{formatNumber(domesticDemand)}</strong>
             </span>
-            <span className="phase1-panel__status-chip" title={`均衡价 ${formatNumber(equilibriumPrice)}`}>
-              预估价格 <strong>{formatNumber(domesticPricePreview)}</strong>
+            <span className="phase1-panel__status-chip" title={`${t("game:domestic.equilibriumPriceLabel")} ${formatNumber(equilibriumPrice)}`}>
+              {t("game:factory.estimatedPrice")} <strong>{formatNumber(domesticPricePreview)}</strong>
             </span>
             <span className="phase1-panel__status-chip phase1-panel__status-chip--idle" data-testid="idle-status-chip">
-              空置产能 <strong>{idleCapacity}</strong>
+              {t("game:factory.idleCapacity")} <strong>{idleCapacity}</strong>
             </span>
             <span className="phase1-panel__status-chip">
-              未投入产能 <strong>{unusedProductiveCapacity}</strong>
+              {t("game:factory.unusedCapacity")} <strong>{unusedProductiveCapacity}</strong>
             </span>
             {outputMultiplier > 1 ? (
               <span className="phase1-panel__status-chip">
-                产出倍率 <strong>x{outputMultiplier}</strong>
+                {t("game:factory.outputMultiplier")} <strong>x{outputMultiplier}</strong>
               </span>
             ) : null}
           </div>
           {capacityShortfall ? (
             <p className="phase1-panel__status-warning" data-testid="capacity-warning">
-              {unprocessedRawMaterials} 原材料会留到下回合，因为当前投料上限不足。
+              {t("game:factory.capacityWarning", { count: unprocessedRawMaterials })}
             </p>
           ) : null}
           {productionCapacityDelta < 0 ? (
             <p className="phase1-panel__status-warning">
-              工厂调度占用 {-productionCapacityDelta} 投料上限。
+              {t("game:factory.dispatchCapacityWarning", { count: -productionCapacityDelta })}
             </p>
           ) : null}
         </aside>
@@ -211,11 +211,11 @@ export function Phase1ProductionPanel({
 
       <div className="phase1-panel__footer">
         <span className="phase1-panel__footer-row">
-          <span className="phase1-panel__footer-label">总分配原材料</span>
+          <span className="phase1-panel__footer-label">{t("game:factory.totalAllocatedMaterials")}</span>
           <span className="phase1-panel__footer-value">{totalAssigned} / {rawMaterials}</span>
         </span>
         <span className="phase1-panel__footer-row">
-          <span className="phase1-panel__footer-label">总预计产出</span>
+          <span className="phase1-panel__footer-label">{t("game:factory.totalExpectedOutput")}</span>
           <span className="phase1-panel__footer-value phase1-panel__footer-value--highlight">{formatNumber(totalOutput)}</span>
         </span>
       </div>
@@ -262,6 +262,7 @@ function ProductionRouteNode({
   route: ProductionRouteViewModel;
   onAssignmentChange?: (mode: string, quantity: number) => void;
 }) {
+  const { t } = useTranslation();
   const { mode, assigned, expectedOutput, isLocked, noCapacity, disabled, maxAlloc, requiredTechLabel } = route;
   const nodeClass = [
     "phase1-route-row",
@@ -272,8 +273,8 @@ function ProductionRouteNode({
     .filter(Boolean)
     .join(" ");
   const detailTitle = isLocked
-    ? `解锁条件：${requiredTechLabel ?? "未解锁"}`
-    : `${MODE_HINT[mode.mode] ?? mode.label} · 产能 ${formatNumber(mode.currentCapacity)} · 投入 1 原材料产出 ${formatNumber(mode.outputRatio)}`;
+    ? `${t("game:factory.lockedByTech", { tech: requiredTechLabel ?? t("game:factory.notUnlocked") })}`
+    : `${getModeHint(mode.mode, mode.label)} · ${t("game:factory.capacityLimit")} ${formatNumber(mode.currentCapacity)} · ${t("game:factory.input")} 1 ${t("game:factory.output")} ${formatNumber(mode.outputRatio)}`;
 
   const handleDelta = useCallback((delta: number) => {
     if (!onAssignmentChange) return;
@@ -305,30 +306,30 @@ function ProductionRouteNode({
           <strong>{mode.label}</strong>
           <small>
             {isLocked
-              ? `需 ${requiredTechLabel ?? "解锁"}`
-              : `${MODE_HINT[mode.mode] ?? mode.label} · 1 原料产出 ${formatNumber(mode.outputRatio)}`}
+              ? t("game:factory.lockedByTech", { tech: requiredTechLabel ?? "" })
+              : `${getModeHint(mode.mode, mode.label)} · 1 ${t("game:factory.input")} ${t("game:factory.output")} ${formatNumber(mode.outputRatio)}`}
           </small>
         </span>
       </header>
 
-      <div className="phase1-route-row__metrics" aria-label={`${mode.label}生产数据`}>
+      <div className="phase1-route-row__metrics" aria-label={`${mode.label} ${t("game:production")}`}>
         <span>
           <strong>{assigned}</strong>
-          <small>投入</small>
+          <small>{t("game:factory.input")}</small>
         </span>
         <span>
           <strong>{formatNumber(expectedOutput)}</strong>
-          <small>产出</small>
+          <small>{t("game:factory.output")}</small>
         </span>
       </div>
 
       <div className="phase1-route-row__capacity">
         {isLocked ? (
-          <span>未解锁</span>
+          <span>{t("game:factory.notUnlocked")}</span>
         ) : (
           <>
-            <span>产能 {formatNumber(mode.currentCapacity)}</span>
-            {assigned > 0 && assigned === mode.currentCapacity ? <strong>已满</strong> : null}
+            <span>{t("game:factory.capacityLimit")} {formatNumber(mode.currentCapacity)}</span>
+            {assigned > 0 && assigned === mode.currentCapacity ? <strong>{t("game:factory.full")}</strong> : null}
           </>
         )}
       </div>
@@ -340,7 +341,7 @@ function ProductionRouteNode({
             className="phase1-route-row__stepper-btn"
             disabled={disabled || assigned <= 0}
             onClick={() => handleDelta(-1)}
-            aria-label={`${mode.label} 减少`}
+            aria-label={`${mode.label} ${t("common:decrease")}`}
           >
             −
           </button>
@@ -349,9 +350,9 @@ function ProductionRouteNode({
             className="phase1-route-row__stepper-zero"
             disabled={disabled || assigned <= 0}
             onClick={handleZero}
-            aria-label={`${mode.label} 清零`}
+            aria-label={`${mode.label} ${t("common:clear")}`}
           >
-            清
+            {t("game:factory.clear")}
           </button>
           <span className="phase1-route-row__stepper-value">{assigned}</span>
           <button
@@ -359,7 +360,7 @@ function ProductionRouteNode({
             className="phase1-route-row__stepper-btn"
             disabled={disabled || assigned >= maxAlloc}
             onClick={() => handleDelta(1)}
-            aria-label={`${mode.label} 增加`}
+            aria-label={`${mode.label} ${t("common:increase")}`}
           >
             +
           </button>
@@ -368,9 +369,9 @@ function ProductionRouteNode({
             className="phase1-route-row__stepper-max"
             disabled={disabled || assigned >= maxAlloc}
             onClick={handleMax}
-            aria-label={`${mode.label} 最大`}
+            aria-label={`${mode.label} ${t("common:max")}`}
           >
-            满
+            {t("game:factory.full")}
           </button>
         </div>
       ) : null}
