@@ -1051,24 +1051,24 @@ function GovernmentReformPanel({
     <article className="gp-card" data-testid="government-reform-panel">
       <div className="gp-step-header__top">
         <div>
-          <p className="gp-step-eyebrow">{t("game:government.reformAndPolicy", "改革与政策")}</p>
-          <h3 style={{ margin: "4px 0 0" }}>{t("game:government.reformAndPolicyTitle", "政府改革 / 常规政策")}</h3>
+          <p className="gp-step-eyebrow">{i18n.t("game:government.reformAndPolicy", "改革与政策")}</p>
+          <h3 style={{ margin: "4px 0 0" }}>{i18n.t("game:government.reformAndPolicyTitle", "政府改革 / 常规政策")}</h3>
           <p className="gp-step-desc" style={{ marginTop: 6 }}>
-            {t("game:government.reformAndPolicyDesc", "实施改革会沿三条路径推进国家定型；常规政策每回合占用行政能力与预算。")}
+            {i18n.t("game:government.reformAndPolicyDesc", "实施改革会沿三条路径推进国家定型；常规政策每回合占用行政能力与预算。")}
           </p>
         </div>
         <div className="gp-step-header__pills">
-          <span className="gp-step-pill">{t("game:government.adminCapacityLabel", "行政能力")} <strong>{reforms.administrationCapacity}</strong></span>
-          <span className="gp-step-pill">{t("game:government.remainingThisRoundLabel", "本轮剩余")} <strong>{remainingCapacity}</strong></span>
-          <span className="gp-step-pill">{t("game:government.reformQueueLabel", "改革排队")} <strong>{queuedReformIds.size}</strong></span>
-          <span className="gp-step-pill">{t("game:government.policyChangeLabel", "政策变更")} <strong>{queuedActivateIds.size + queuedDeactivateIds.size}</strong></span>
+          <span className="gp-step-pill">{i18n.t("game:government.adminCapacityLabel", "行政能力")} <strong>{reforms.administrationCapacity}</strong></span>
+          <span className="gp-step-pill">{i18n.t("game:government.remainingThisRoundLabel", "本轮剩余")} <strong>{remainingCapacity}</strong></span>
+          <span className="gp-step-pill">{i18n.t("game:government.reformQueueLabel", "改革排队")} <strong>{queuedReformIds.size}</strong></span>
+          <span className="gp-step-pill">{i18n.t("game:government.policyChangeLabel", "政策变更")} <strong>{queuedActivateIds.size + queuedDeactivateIds.size}</strong></span>
         </div>
       </div>
 
       {reforms.availableReforms.length > 0 ? (
         <details open className="gp-card" style={{ marginTop: 12 }}>
           <summary className="gp-collapse">
-            {t("game:government.reformOptions", "改革选项")} <span className="gp-collapse__hint">{t("game:government.reformOptionsHint", "推进自由 / 平等 / 民族路径")}</span>
+            {i18n.t("game:government.reformOptions", "改革选项")} <span className="gp-collapse__hint">{i18n.t("game:government.reformOptionsHint", "推进自由 / 平等 / 民族路径")}</span>
           </summary>
           <div className="gp-grid" style={{ marginTop: 14 }}>
             {reforms.availableReforms.map((reform) => {
@@ -1076,14 +1076,14 @@ function GovernmentReformPanel({
               const overCapacity = !queued && remainingCapacity < reform.adminCost;
               const isDisabled = reform.isCompleted || reform.isBlocked || (overCapacity && !queued);
               const status = reform.isCompleted
-                ? t("game:government.statusImplemented", "已实施")
+                ? i18n.t("game:government.statusImplemented", "已实施")
                 : reform.isBlocked
-                  ? t("game:government.statusBlocked", "已封锁")
+                  ? i18n.t("game:government.statusBlocked", "已封锁")
                   : queued
-                    ? t("game:government.statusQueued", "本轮排入")
+                    ? i18n.t("game:government.statusQueued", "本轮排入")
                     : overCapacity
-                      ? t("game:government.statusInsufficientCapacity", "行政能力不足")
-                      : t("game:government.statusCanImplement", { cost: reform.adminCost, defaultValue: `可实施（行政 ${reform.adminCost}）` });
+                      ? i18n.t("game:government.statusInsufficientCapacity", "行政能力不足")
+                      : i18n.t("game:government.statusCanImplement", { cost: reform.adminCost, defaultValue: `可实施（行政 ${reform.adminCost}）` });
               return (
                 <article key={reform.reformId} className="gp-toggle">
                   <div className="gp-toggle__header">
@@ -1098,20 +1098,20 @@ function GovernmentReformPanel({
                       {REFORM_PATH_LABELS[reform.path]}
                     </span>
                   </div>
-                  <span className=”gp-toggle__desc”>{t(“game:government.adminCostConsumed”, { cost: reform.adminCost, defaultValue: `行政能力消耗 ${reform.adminCost}。` })}</span>
+                  <span className="gp-toggle__desc">{i18n.t("game:government.adminCostConsumed", { cost: reform.adminCost, defaultValue: `行政能力消耗 ${reform.adminCost}。` })}</span>
                   {queued ? (
-                    <span className=”gp-input-card__feedback”>{t(“game:government.queuedForSubmit”, { label: reform.label, defaultValue: `已排入本轮，提交后将进入”${reform.label}”。` })}</span>
+                    <span className="gp-input-card__feedback">{i18n.t("game:government.queuedForSubmit", { label: reform.label, defaultValue: `已排入本轮，提交后将进入"${reform.label}"。` })}</span>
                   ) : null}
-                  <div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginTop: 8 }}>
-                    <span className=”gp-toggle__hint”>{status}</span>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+                    <span className="gp-toggle__hint">{status}</span>
                     <button
-                      aria-label={t(“game:government.ariaEnactReform”, { label: reform.label, defaultValue: `实施改革：${reform.label}` })}
-                      className={queued ? “gp-btn gp-btn--primary” : “gp-btn”}
+                      aria-label={i18n.t("game:government.ariaEnactReform", { label: reform.label, defaultValue: `实施改革：${reform.label}` })}
+                      className={queued ? "gp-btn gp-btn--primary" : "gp-btn"}
                       disabled={isDisabled}
                       onClick={() => handleEnactReform(reform.reformId)}
-                      type=”button”
+                      type="button"
                     >
-                      {reform.isCompleted ? t(“game:government.btnImplemented”, “已实施”) : reform.isBlocked ? t(“game:government.btnBlocked”, “已封锁”) : queued ? t(“game:government.btnRevoke”, “撤回”) : t(“game:government.btnImplement”, “实施”)}
+                      {reform.isCompleted ? i18n.t("game:government.btnImplemented", "已实施") : reform.isBlocked ? i18n.t("game:government.btnBlocked", "已封锁") : queued ? i18n.t("game:government.btnRevoke", "撤回") : i18n.t("game:government.btnImplement", "实施")}
                     </button>
                   </div>
                 </article>
@@ -1124,7 +1124,7 @@ function GovernmentReformPanel({
       {activePolicies.length > 0 ? (
         <details open className="gp-card" style={{ marginTop: 12 }}>
           <summary className="gp-collapse">
-            {t("game:government.activePolicies", "已生效政策")} <span className="gp-collapse__hint">{t("game:government.activePoliciesHint", "本轮可标记停用，下回合不再生效")}</span>
+            {i18n.t("game:government.activePolicies", "已生效政策")} <span className="gp-collapse__hint">{i18n.t("game:government.activePoliciesHint", "本轮可标记停用，下回合不再生效")}</span>
           </summary>
           <div className="gp-grid" style={{ marginTop: 14 }}>
             {activePolicies.map((policy) => {
@@ -1140,24 +1140,24 @@ function GovernmentReformPanel({
                           : "gp-toggle__hint gp-toggle__hint--inactive"
                       }
                     >
-                      {active ? t("game:government.statusActive", "已激活") : t("game:government.statusDeactivatedThisRound", "本轮停用")}
+                      {active ? i18n.t("game:government.statusActive", "已激活") : i18n.t("game:government.statusDeactivatedThisRound", "本轮停用")}
                     </span>
                   </div>
                   <span className="gp-toggle__desc">{policy.description}</span>
                   <span className="gp-toggle__desc">
-                    {t("game:government.perTurnAdminAndBudget", { admin: policy.adminCostPerTurn, budget: policy.budgetCost, defaultValue: `每回合行政 ${policy.adminCostPerTurn} · 预算 ${policy.budgetCost}` })}
+                    {i18n.t("game:government.perTurnAdminAndBudget", { admin: policy.adminCostPerTurn, budget: policy.budgetCost, defaultValue: `每回合行政 ${policy.adminCostPerTurn} · 预算 ${policy.budgetCost}` })}
                   </span>
                   {!active ? (
-                    <span className="gp-input-card__feedback">{t("game:government.queuedForDeactivation", "已排入本轮停用。")}</span>
+                    <span className="gp-input-card__feedback">{i18n.t("game:government.queuedForDeactivation", "已排入本轮停用。")}</span>
                   ) : null}
                   <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
                     <button
-                      aria-label={active ? t("game:government.ariaDeactivatePolicy", { label: policy.label, defaultValue: `停用政策：${policy.label}` }) : t("game:government.ariaUndoDeactivate", { label: policy.label, defaultValue: `撤回停用：${policy.label}` })}
+                      aria-label={active ? i18n.t("game:government.ariaDeactivatePolicy", { label: policy.label, defaultValue: `停用政策：${policy.label}` }) : i18n.t("game:government.ariaUndoDeactivate", { label: policy.label, defaultValue: `撤回停用：${policy.label}` })}
                       className={active ? "gp-btn" : "gp-btn gp-btn--primary"}
                       onClick={() => handleTogglePolicy(policy.policyId, !active)}
                       type="button"
                     >
-                      {active ? t("game:government.btnDeactivate", "停用") : t("game:government.btnUndoDeactivate", "撤回停用")}
+                      {active ? i18n.t("game:government.btnDeactivate", "停用") : i18n.t("game:government.btnUndoDeactivate", "撤回停用")}
                     </button>
                   </div>
                 </article>
@@ -1170,20 +1170,20 @@ function GovernmentReformPanel({
       {inactivePolicies.length > 0 ? (
         <details open className="gp-card" style={{ marginTop: 12 }}>
           <summary className="gp-collapse">
-            {t("game:government.activatablePolicies", "可激活政策")} <span className="gp-collapse__hint">{t("game:government.activatablePoliciesHint", "每回合占用行政能力与预算")}</span>
+            {i18n.t("game:government.activatablePolicies", "可激活政策")} <span className="gp-collapse__hint">{i18n.t("game:government.activatablePoliciesHint", "每回合占用行政能力与预算")}</span>
           </summary>
           <div className="gp-grid" style={{ marginTop: 14 }}>
             {inactivePolicies.map((policy) => {
               const active = isPolicyActiveAfter(policy.policyId, policy.isActive);
               const lockedReason = !policy.isUnlocked
                 ? policy.requiresReform
-                  ? t("game:government.requiresReform", { reform: policy.requiresReform, defaultValue: `需改革：${policy.requiresReform}` })
-                  : t("game:government.notUnlocked", "未解锁")
+                  ? i18n.t("game:government.requiresReform", { reform: policy.requiresReform, defaultValue: `需改革：${policy.requiresReform}` })
+                  : i18n.t("game:government.notUnlocked", "未解锁")
                 : null;
               const isDisabled = lockedReason !== null && !active;
               const hintText = active
-                ? t("game:government.activatedThisRound", "本轮激活")
-                : lockedReason ?? t("game:government.perTurnAdminAndBudget", { admin: policy.adminCostPerTurn, budget: policy.budgetCost, defaultValue: `每回合行政 ${policy.adminCostPerTurn} · 预算 ${policy.budgetCost}` });
+                ? i18n.t("game:government.activatedThisRound", "本轮激活")
+                : lockedReason ?? i18n.t("game:government.perTurnAdminAndBudget", { admin: policy.adminCostPerTurn, budget: policy.budgetCost, defaultValue: `每回合行政 ${policy.adminCostPerTurn} · 预算 ${policy.budgetCost}` });
               return (
                 <article key={policy.policyId} className="gp-toggle">
                   <div className="gp-toggle__header">
@@ -1200,18 +1200,18 @@ function GovernmentReformPanel({
                   </div>
                   <span className="gp-toggle__desc">{policy.description}</span>
                   <span className="gp-toggle__desc">
-                    {t("game:government.perTurnAdminAndBudget", { admin: policy.adminCostPerTurn, budget: policy.budgetCost, defaultValue: `每回合行政 ${policy.adminCostPerTurn} · 预算 ${policy.budgetCost}` })}
+                    {i18n.t("game:government.perTurnAdminAndBudget", { admin: policy.adminCostPerTurn, budget: policy.budgetCost, defaultValue: `每回合行政 ${policy.adminCostPerTurn} · 预算 ${policy.budgetCost}` })}
                   </span>
-                  {active ? <span className="gp-input-card__feedback">{t("game:government.queuedForActivation", "已排入本轮激活。")}</span> : null}
+                  {active ? <span className="gp-input-card__feedback">{i18n.t("game:government.queuedForActivation", "已排入本轮激活。")}</span> : null}
                   <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
                     <button
-                      aria-label={t("game:government.ariaActivatePolicy", { label: policy.label, defaultValue: `激活政策：${policy.label}` })}
+                      aria-label={i18n.t("game:government.ariaActivatePolicy", { label: policy.label, defaultValue: `激活政策：${policy.label}` })}
                       className={active ? "gp-btn gp-btn--primary" : "gp-btn"}
                       disabled={isDisabled}
                       onClick={() => handleTogglePolicy(policy.policyId, !active)}
                       type="button"
                     >
-                      {active ? t("game:government.btnUndoActivate", "撤回激活") : t("game:government.btnActivate", "激活")}
+                      {active ? i18n.t("game:government.btnUndoActivate", "撤回激活") : i18n.t("game:government.btnActivate", "激活")}
                     </button>
                   </div>
                 </article>

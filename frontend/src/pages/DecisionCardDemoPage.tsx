@@ -27,7 +27,6 @@ import type {
   DecisionLocationId,
 } from "../features/game/demo/types";
 import { createInitialPhaseDraft, type PhaseDraftByPhase } from "../features/game/forms";
-import i18n from "../i18n";
 import type { IdeologyKey } from "../types";
 import "./DecisionCardDemoPage.css";
 
