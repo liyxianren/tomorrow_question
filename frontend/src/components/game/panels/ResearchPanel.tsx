@@ -245,11 +245,11 @@ const CHAIN_META: Record<string, { icon: string; color: string }> = {
 
 function getTechUnlockHint(techId: string, t: (key: string, options?: Record<string, unknown>) => string): string | undefined {
   const map: Record<string, string> = {
-    spinning_jenny: t("game:factory.modeHints.mechanized", "Mechanized"),
-    lathe: t("game:factory.modeHints.steam", "Steam Power"),
-    watt_engine: t("game:factory.modeHints.steam", "Steam Power"),
-    power_generation: t("game:factory.modeHints.electrified", "Electrified Industry"),
-    combustion_engine: t("game:factory.modeHints.electrified", "Electrified Industry"),
+    spinning_jenny: t("game:factory.modeHints.mechanized", { defaultValue: "Mechanized" }),
+    lathe: t("game:factory.modeHints.steam", { defaultValue: "Steam Power" }),
+    watt_engine: t("game:factory.modeHints.steam", { defaultValue: "Steam Power" }),
+    power_generation: t("game:factory.modeHints.electrified", { defaultValue: "Electrified Industry" }),
+    combustion_engine: t("game:factory.modeHints.electrified", { defaultValue: "Electrified Industry" }),
   };
   return map[techId];
 }

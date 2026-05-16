@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import i18n from "../../../i18n";
 
 import type {
   BudgetPools,
@@ -23,13 +24,13 @@ function getLockReasonLabel(
   t: (key: string, options?: Record<string, unknown>) => string,
 ): string {
   const map: Record<string, string> = {
-    diplomacy_not_established: t("game:validateCompetitionNeedDiplomacy", "Requires diplomacy first"),
-    route_blocked: t("game:validateCompetitionRouteBlocked", "Route is blockaded"),
+    diplomacy_not_established: t("game:validateCompetitionNeedDiplomacy", { defaultValue: "Requires diplomacy first" }),
+    route_blocked: t("game:validateCompetitionRouteBlocked", { defaultValue: "Route is blockaded" }),
   };
   if (reason && reason in map) {
     return map[reason];
   }
-  return t("game:validateCompetitionNotAvailable", "Cannot enter");
+  return t("game:validateCompetitionNotAvailable", { defaultValue: "Cannot enter" });
 }
 
 function getCompetitionLockReasonLabel(
@@ -37,14 +38,14 @@ function getCompetitionLockReasonLabel(
   t: (key: string, options?: Record<string, unknown>) => string,
 ): string {
   const map: Record<string, string> = {
-    diplomacy_not_established: t("game:validateCompetitionNeedDiplomacy", "Requires diplomacy first"),
-    route_blocked: t("game:validateCompetitionRouteBlocked", "Route is blockaded"),
-    no_army: t("game:validateCompetitionNoArmy", "No deployable army"),
+    diplomacy_not_established: t("game:validateCompetitionNeedDiplomacy", { defaultValue: "Requires diplomacy first" }),
+    route_blocked: t("game:validateCompetitionRouteBlocked", { defaultValue: "Route is blockaded" }),
+    no_army: t("game:validateCompetitionNoArmy", { defaultValue: "No deployable army" }),
   };
   if (reason && reason in map) {
     return map[reason];
   }
-  return t("game:validateCompetitionNotAvailable", "Cannot compete");
+  return t("game:validateCompetitionNotAvailable", { defaultValue: "Cannot compete" });
 }
 
 type OverseasCompetitionConfig = {
@@ -602,7 +603,7 @@ function UnitStepper({
         className="phase1-market__stepper-btn"
         disabled={readOnly || value <= 0}
         onClick={() => onDelta(-1)}
-        aria-label={t("game:market.reduceUnit", { unit: label })}
+        aria-label={i18n.t("game:market.reduceUnit", { unit: label })}
       >
         −
       </button>
@@ -612,7 +613,7 @@ function UnitStepper({
         className="phase1-market__stepper-btn"
         disabled={readOnly || value >= max}
         onClick={() => onDelta(1)}
-        aria-label={t("game:market.increaseUnit", { unit: label })}
+        aria-label={i18n.t("game:market.increaseUnit", { unit: label })}
       >
         +
       </button>

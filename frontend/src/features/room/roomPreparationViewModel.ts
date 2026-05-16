@@ -35,7 +35,7 @@ export type RoomHeaderViewModel = {
   roomStatusLabel: string;
   playerName: string;
   roleLabel: string;
-  playerStatusLabel: RoomPreparationStatusLabel;
+  playerStatusLabel: string;
   countryLabel: string;
   helperMessage: string | null;
 };
