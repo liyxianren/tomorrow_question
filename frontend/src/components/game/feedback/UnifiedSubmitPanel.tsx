@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "../../../i18n";
 
 import type { SubmitPhaseResponse } from "../../../services/game";
 import { submitPhase } from "../../../services/game";
@@ -52,7 +54,7 @@ function formatSubmitError(error: unknown): SubmitErrorState {
 
   return {
     code: null,
-    message: error instanceof Error ? error.message : "提交失败。",
+    message: error instanceof Error ? error.message : i18n.t("game:submit.submitFailed"),
     detailReason: null,
     rejectedActions: [],
   };
@@ -67,10 +69,10 @@ function resolveButtonLabel({
   currentStatus: PlayerSubmissionStatus;
   isSubmitting: boolean;
 }): string {
-  if (isSubmitting) return "提交中...";
-  if (currentStatus === "timeout_auto_submitted") return "系统已代为确认";
-  if (currentStatus === "submitted") return "已提交";
-  return canSubmit ? "确认提交" : "当前不可提交";
+  if (isSubmitting) return i18n.t("game:submit.submitting");
+  if (currentStatus === "timeout_auto_submitted") return i18n.t("game:submit.autoSubmitted");
+  if (currentStatus === "submitted") return i18n.t("game:submit.alreadySubmitted");
+  return canSubmit ? i18n.t("game:submit.confirmSubmit") : i18n.t("game:submit.cannotSubmit");
 }
 
 export function UnifiedSubmitPanel({
@@ -85,6 +87,7 @@ export function UnifiedSubmitPanel({
   submissionStatusByPlayerId,
   onSubmitted,
 }: UnifiedSubmitPanelProps) {
+  const { t } = useTranslation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<SubmitErrorState | null>(null);
   const [localStatus, setLocalStatus] = useState<LocalStatusState | null>(null);
@@ -148,10 +151,10 @@ export function UnifiedSubmitPanel({
       {hasSubmitted ? (
         <p className="gp-submit__status gp-submit__status--done">
           {currentStatus === "timeout_auto_submitted"
-            ? "系统已代为确认。"
+            ? t("game:submit.systemAutoSubmitted")
             : pendingOtherPlayers > 0
-              ? `等待其他 ${pendingOtherPlayers} 名玩家...`
-              : "全部玩家已提交，等待结算。"}
+              ? t("game:submit.waitingPlayers", { count: pendingOtherPlayers })
+              : t("game:submit.allSubmitted")}
         </p>
       ) : null}
 
@@ -171,7 +174,7 @@ export function UnifiedSubmitPanel({
           ) : null}
           {submitError.rejectedActions.length > 0 ? (
             <div style={{ marginTop: 6, fontSize: 13 }}>
-              <span>以下操作被拒绝：</span>
+              <span>{t("game:submit.rejectedHeader")}</span>
               <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
                 {submitError.rejectedActions.map((rejection, index) => (
                   <li key={`${rejection.actionId ?? "rejected"}-${index}`}>

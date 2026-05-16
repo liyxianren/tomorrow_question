@@ -127,9 +127,106 @@
     "hint": "The page you're looking for doesn't exist or may have been moved.",
     "action": "Back to Home"
   },
+  "flow": {
+    "lobbyTitle": "Lobby",
+    "lobbyDesc": "Create a room, join a room, or restore an existing session.",
+    "roomTitle": "Room",
+    "roomDesc": "Confirm members, pick a nation, and complete pre-game preparation.",
+    "gameTitle": "Match",
+    "gameDesc": "Submit per phase and wait for settlement.",
+    "settlementTitle": "Settlement",
+    "settlementDesc": "View final rankings and return to the lobby or room for the next match.",
+    "lobbyBannerTitle": "Currently in Lobby Stage",
+    "lobbyBannerDetail": "The shell only provides flow entry explanation and restoration hints; creating, joining, and restoring actions are still handled by the page itself.",
+    "roomBannerTitle": "Currently in Room Stage",
+    "roomBannerDetail": "The page only shows preparation-phase information; room sync and game start are still handled by the room page consuming context on its own.",
+    "gameBannerTitle": "Currently in Match Stage",
+    "gameBannerDetail": "The shell only expresses flow position and does not directly drive phase submission, snapshot sync, or settlement navigation.",
+    "settlementBannerTitle": "Currently in Settlement Stage",
+    "settlementBannerDetail": "The settlement page should only consume final results and recovery state; the shell remains display-only and does not create additional session side effects.",
+    "unknownBannerTitle": "Currently on Unrecognized Page",
+    "unknownBannerDetail": "This page is not in the standard main flow; the shell only retains navigation and flow explanation.",
+    "tagTestable": "Testable",
+    "tagDemoable": "Demoable",
+    "tagRecoverable": "Recoverable",
+    "tagNoSideEffect": "No Shell Side Effects",
+    "tagPhaseChain": "Phase Chain",
+    "tagSelfConsume": "Self-Consumed Flow",
+    "tagBackToLobby": "Return to Lobby",
+    "tagReadonly": "Results Read-Only",
+    "tagConfirmRoute": "Route Pending"
+  },
   "settlement": {
     "title": "Fiscal Settlement",
     "loading": "Loading settlement...",
     "noData": "No settlement data available."
+  },
+  "decisionCardDemo": {
+    "eyebrow": "Decision Card Demo",
+    "title": "Decision Card DEMO",
+    "description": "This page only compares selection methods, it doesn't connect to real submission. Using the same Austrian decision data, it demonstrates 3 card organization approaches side by side.",
+    "currentData": "Current Data",
+    "restoringLiveGame": " · Restoring live game...",
+    "ratioPreview": "Ratio Preview",
+    "ratioLegend": "Domestic / Factory / Government",
+    "consumerPower": "Consumer Purchasing Power",
+    "domesticBenchmark": "Domestic Baseline",
+    "factoryZone": "Industrial Zone",
+    "remainingBudget": "Remaining Budget",
+    "parliament": "Parliament",
+    "militaryReserve": "Military Reserve",
+    "availableMilitaryPoints": "Available Military Points",
+    "currentPreview": "Current Preview",
+    "locationHint": "Click any location to open a large modal. Different variants share the same draft—your input won't be lost when switching styles.",
+    "locationNav": "Location Switch",
+    "cardsCount": "{{count}} cards",
+    "selectedFlag": "Included",
+    "reduceLabel": "Reduce {{label}}",
+    "increaseLabel": "Increase {{label}}",
+    "batches": "{{count}} batches",
+    "confirmAction": "Confirm",
+    "revokeAction": "Revoke {{title}}",
+    "revokeButton": "Revoke",
+    "confirmButton": "Confirm",
+    "toggleSelected": "Selected",
+    "toggleUnavailable": "Unavailable",
+    "toggleSelect": "Select",
+    "ideologyTarget": "Ideology Target",
+    "modalTitle": "Decision Card DEMO"
+  },
+  "appShell": {
+    "home": {
+      "eyebrow": "History-Textured Strategy Board",
+      "subtitle": "Advance 19th-century industrialization through national agendas, resource allocation, and alliance games."
+    },
+    "lobby": {
+      "eyebrow": "Muster Entrance",
+      "subtitle": "Gather allies, enter a room, and officially begin this game of 19th-century great power competition."
+    },
+    "room": {
+      "eyebrow": "Task Interface",
+      "title": "Room Preparation",
+      "description": "Confirm all players, nations, and readiness—the room will auto-start when conditions are met."
+    },
+    "game": {
+      "eyebrow": "Task Interface",
+      "title": "Current Game",
+      "description": "Determine who you are and what to do now, then complete this round's key decisions."
+    },
+    "settlement": {
+      "eyebrow": "Task Interface",
+      "title": "Game Results",
+      "description": "Review final rankings and key results to see how this game concluded."
+    },
+    "design": {
+      "eyebrow": "Design Validation",
+      "title": "Decision Card DEMO",
+      "description": "Compare different card-based decision interactions to make factory, parliament, and market preview responsibilities more intuitive."
+    },
+    "fallback": {
+      "eyebrow": "Tomorrow Question",
+      "subtitle": "Organize players into the same game, and let everyone know what to see and do each round."
+    },
+    "backToLobby": "Back to Lobby"
   }
 }

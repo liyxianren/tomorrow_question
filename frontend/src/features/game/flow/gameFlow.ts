@@ -1,16 +1,17 @@
+import i18n from "../../../i18n";
 import type { GamePhase, GameSnapshot, PlayerState, PlayerSubmissionStatus, RoomMember } from "../../../types";
 
 import type { GameRuntimeState } from "../runtime/types";
 
 
 export const GAME_FLOW_STEP_LABELS = [
-  "恢复当前回合/阶段",
-  "查看局势",
-  "填写阶段",
-  "提交",
-  "等待结算",
-  "查看阶段结果",
-  "进入下一阶段/最终结算",
+  i18n.t("game:flow.stepRestoring", "恢复当前回合/阶段"),
+  i18n.t("game:flow.stepViewing", "查看局势"),
+  i18n.t("game:flow.stepFilling", "填写阶段"),
+  i18n.t("game:flow.stepSubmitting", "提交"),
+  i18n.t("game:flow.stepWaitingSettlement", "等待结算"),
+  i18n.t("game:flow.stepViewingResults", "查看阶段结果"),
+  i18n.t("game:flow.stepNextPhase", "进入下一阶段/最终结算"),
 ] as const;
 
 export type GameFlowStepLabel = (typeof GAME_FLOW_STEP_LABELS)[number];
@@ -64,11 +65,11 @@ export function createGameFlowState({
         runtimeState,
         member: null,
       })
-    : "等待同步";
+    : i18n.t("game:flow.waitingSync", "等待同步");
   const hasSubmitted =
     Boolean(runtimeState.finalResult) ||
-    currentSubmissionStatus === "已提交" ||
-    currentSubmissionStatus === "超时自动补交" ||
+    currentSubmissionStatus === i18n.t("game:flow.submitted", "已提交") ||
+    currentSubmissionStatus === i18n.t("game:flow.timeoutAutoSubmitted", "超时自动补交") ||
     runtimeState.isCurrentPlayerSubmitted;
   const shouldRedirectToSettlement = Boolean(settlementTargetPath && runtimeState.finalResult);
   const isEditable = Boolean(
@@ -137,26 +138,26 @@ function resolveCurrentStepLabel({
   isWaitingSettlement: boolean;
 }): GameFlowStepLabel {
   if (hasFinalResult) {
-    return "进入下一阶段/最终结算";
+    return i18n.t("game:flow.stepNextPhase", "进入下一阶段/最终结算");
   }
 
   if (isLoadingContext || !hasCurrentSnapshot || !hasCurrentPlayerState) {
-    return "恢复当前回合/阶段";
+    return i18n.t("game:flow.stepRestoring", "恢复当前回合/阶段");
   }
 
   if (hasLatestSettlement) {
-    return "查看阶段结果";
+    return i18n.t("game:flow.stepViewingResults", "查看阶段结果");
   }
 
   if (isWaitingSettlement) {
-    return "等待结算";
+    return i18n.t("game:flow.stepWaitingSettlement", "等待结算");
   }
 
   if (isEditable) {
-    return "填写阶段";
+    return i18n.t("game:flow.stepFilling", "填写阶段");
   }
 
-  return "查看局势";
+  return i18n.t("game:flow.stepViewing", "查看局势");
 }
 
 function resolveStatusMessage({
@@ -171,26 +172,26 @@ function resolveStatusMessage({
   isWaitingSettlement: boolean;
 }): string {
   if (hasFinalResult) {
-    return "最终结果已经生成，正在进入结算页。";
+    return i18n.t("game:flow.statusFinalResult", "最终结果已经生成，正在进入结算页。");
   }
 
-  if (currentStepLabel === "恢复当前回合/阶段") {
-    return "正在恢复当前回合与阶段，请稍候。";
+  if (currentStepLabel === GAME_FLOW_STEP_LABELS[0]) {
+    return i18n.t("game:flow.statusRestoring", "正在恢复当前回合与阶段，请稍候。");
   }
 
-  if (currentStepLabel === "查看阶段结果") {
-    return "本阶段已经完成结算，请先查看结果并等待进入下一阶段。";
+  if (currentStepLabel === GAME_FLOW_STEP_LABELS[5]) {
+    return i18n.t("game:flow.statusViewResults", "本阶段已经完成结算，请先查看结果并等待进入下一阶段。");
   }
 
   if (isWaitingSettlement) {
-    return "你已提交，系统会在所有玩家完成后开始结算。";
+    return i18n.t("game:flow.statusWaitingSettlement", "你已提交，系统会在所有玩家完成后开始结算。");
   }
 
   if (isEditable) {
-    return "当前可以填写并提交本阶段操作。";
+    return i18n.t("game:flow.statusEditable", "当前可以填写并提交本阶段操作。");
   }
 
-  return "请先查看当前局势，再决定本阶段要执行的操作。";
+  return i18n.t("game:flow.statusViewingSituation", "请先查看当前局势，再决定本阶段要执行的操作。");
 }
 
 function resolveSubmissionStatus({
@@ -209,13 +210,13 @@ function resolveSubmissionStatus({
 function formatSubmissionStatus(status: PlayerSubmissionStatus | undefined, hasGameState: boolean): string {
   switch (status) {
     case "pending":
-      return "待提交";
+      return i18n.t("game:flow.pendingSubmit", "待提交");
     case "submitted":
-      return "已提交";
+      return i18n.t("game:flow.submitted", "已提交");
     case "timeout_auto_submitted":
-      return "超时自动补交";
+      return i18n.t("game:flow.timeoutAutoSubmitted", "超时自动补交");
     default:
-      return hasGameState ? "待提交" : "等待同步";
+      return hasGameState ? i18n.t("game:flow.pendingSubmit", "待提交") : i18n.t("game:flow.waitingSync", "等待同步");
   }
 }
 

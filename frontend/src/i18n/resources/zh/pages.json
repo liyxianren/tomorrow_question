@@ -127,9 +127,106 @@
     "hint": "你访问的页面不存在或可能已被移动。",
     "action": "返回首页"
   },
+  "flow": {
+    "lobbyTitle": "大厅",
+    "lobbyDesc": "创建房间、加入房间或恢复既有会话。",
+    "roomTitle": "房间",
+    "roomDesc": "确认成员、选国并完成开局准备。",
+    "gameTitle": "对局",
+    "gameDesc": "按阶段提交并等待结算。",
+    "settlementTitle": "结算",
+    "settlementDesc": "查看最终排名，并返回大厅或房间继续下一局。",
+    "lobbyBannerTitle": "当前位于大厅阶段",
+    "lobbyBannerDetail": "壳层只提供流程入口说明与恢复提示，创建、加入、恢复等动作仍由页面自身负责。",
+    "roomBannerTitle": "当前位于房间阶段",
+    "roomBannerDetail": "页面只展示准备阶段所需信息，房间同步和开局仍由房间页自身消费上下文完成。",
+    "gameBannerTitle": "当前位于对局阶段",
+    "gameBannerDetail": "壳层只表达流程位置，不直接驱动阶段提交、快照同步或结算跳转。",
+    "settlementBannerTitle": "当前位于结算阶段",
+    "settlementBannerDetail": "结算页应只消费最终结果与恢复态，壳层保持纯展示，不额外创建会话副作用。",
+    "unknownBannerTitle": "当前位于未识别页面",
+    "unknownBannerDetail": "该页面不在标准主流程内，壳层仅保留导航与流程说明。",
+    "tagTestable": "可测试",
+    "tagDemoable": "可演示",
+    "tagRecoverable": "可恢复",
+    "tagNoSideEffect": "无壳层副作用",
+    "tagPhaseChain": "阶段链路",
+    "tagSelfConsume": "页面自消费 flow 输出",
+    "tagBackToLobby": "可回退大厅",
+    "tagReadonly": "结果只读",
+    "tagConfirmRoute": "待确认路由"
+  },
   "settlement": {
     "title": "财政结算",
     "loading": "正在加载结算...",
     "noData": "暂无结算数据。"
+  },
+  "decisionCardDemo": {
+    "eyebrow": "Decision Card Demo",
+    "title": "决策卡片 DEMO",
+    "description": "这页只比较选择方式，不接真实提交。当前用同一份奥地利决策数据，横向演示 3 套卡片组织方式。",
+    "currentData": "当前数据",
+    "restoringLiveGame": " · 正在尝试恢复实时对局",
+    "ratioPreview": "比例预告",
+    "ratioLegend": "内需 / 工厂 / 政府",
+    "consumerPower": "民间购买力",
+    "domesticBenchmark": "内需基准",
+    "factoryZone": "工业区",
+    "remainingBudget": "剩余预算",
+    "parliament": "议会厅",
+    "militaryReserve": "军事储备",
+    "availableMilitaryPoints": "可用军事点",
+    "currentPreview": "当前预览",
+    "locationHint": "点击任一地点，会进入大弹窗。不同方案共用同一份 draft，本轮输入不会因为切换样式而丢失。",
+    "locationNav": "地点切换",
+    "cardsCount": "{{count}} 张",
+    "selectedFlag": "已纳入",
+    "reduceLabel": "减少{{label}}",
+    "increaseLabel": "增加{{label}}",
+    "batches": "{{count}} 批",
+    "confirmAction": "确认",
+    "revokeAction": "撤回{{title}}",
+    "revokeButton": "撤回",
+    "confirmButton": "确认",
+    "toggleSelected": "已选择",
+    "toggleUnavailable": "暂不可用",
+    "toggleSelect": "选择",
+    "ideologyTarget": "意识形态目标",
+    "modalTitle": "决策卡片 DEMO"
+  },
+  "appShell": {
+    "home": {
+      "eyebrow": "历史质感策略盘",
+      "subtitle": "以国家议程、资源调度与联盟博弈推进 19 世纪工业化竞逐。"
+    },
+    "lobby": {
+      "eyebrow": "集结入口",
+      "subtitle": "集结盟友、进入房间、正式开始这一局 19 世纪列强竞逐。"
+    },
+    "room": {
+      "eyebrow": "任务界面",
+      "title": "房间准备",
+      "description": "把玩家、国家和准备状态都确认好，房间满足条件后会自动开局。"
+    },
+    "game": {
+      "eyebrow": "任务界面",
+      "title": "当前对局",
+      "description": "先判断你当前是谁、现在该做什么，再完成本回合关键决策。"
+    },
+    "settlement": {
+      "eyebrow": "任务界面",
+      "title": "对局结果",
+      "description": "回看最终排名和关键结果，确认这一局是怎么收束的。"
+    },
+    "design": {
+      "eyebrow": "设计验证",
+      "title": "决策卡片 DEMO",
+      "description": "对比不同卡片式决策交互，让工厂、议会厅和市场预览的职责更直观。"
+    },
+    "fallback": {
+      "eyebrow": "Tomorrow Question",
+      "subtitle": "把玩家组织进同一局，并让每一回合都知道该先看什么、该先做什么。"
+    },
+    "backToLobby": "回到大厅"
   }
 }

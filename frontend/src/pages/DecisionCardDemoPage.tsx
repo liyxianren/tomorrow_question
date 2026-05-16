@@ -37,7 +37,7 @@ const IDEOLOGY_OPTIONS: Array<{ key: IdeologyKey; label: string }> = [
 ];
 
 export function DecisionCardDemoPage() {
-  const { t } = useTranslation("pages");
+  const { t } = useTranslation(["pages", "common"]);
   const seedScenario = useMemo(() => createSeedDecisionCardDemoScenario(), []);
   const [scenario, setScenario] = useState(seedScenario);
   const [selectedVariant, setSelectedVariant] = useState<DecisionCardDemoVariant>("command-deck");
@@ -196,51 +196,51 @@ export function DecisionCardDemoPage() {
       <header className="decision-demo__hero">
         <div className="decision-demo__hero-copy">
           <p className="decision-demo__eyebrow">Decision Card Demo</p>
-          <h1>决策卡片 DEMO</h1>
+          <h1>{t("pages:decisionCardDemo.title")}</h1>
           <p className="decision-demo__lead">
-            这页只比较选择方式，不接真实提交。当前用同一份奥地利决策数据，横向演示 3 套卡片组织方式。
+            {t("pages:decisionCardDemo.description")}
           </p>
         </div>
 
         <aside className="decision-demo__status-stack">
           <div className="decision-demo__status-card decision-demo__status-card--accent">
-            <span className="decision-demo__status-label">当前数据</span>
+            <span className="decision-demo__status-label">{t("pages:decisionCardDemo.currentData")}</span>
             <strong>{viewModel.countryLabel}</strong>
             <p>
               {viewModel.sourceLabel}
-              {isResolvingLiveData ? " · 正在尝试恢复实时对局" : ""}
+              {isResolvingLiveData ? t("pages:decisionCardDemo.restoringLiveGame") : ""}
             </p>
           </div>
           <div className="decision-demo__status-card">
-            <span className="decision-demo__status-label">比例预告</span>
+            <span className="decision-demo__status-label">{t("pages:decisionCardDemo.ratioPreview")}</span>
             <strong>
               {viewModel.summary.ratioPreview.domesticMarket} / {viewModel.summary.ratioPreview.factory} / {viewModel.summary.ratioPreview.governmentFiscal}
             </strong>
-            <p>内需 / 工厂 / 政府</p>
+            <p>{t("pages:decisionCardDemo.ratioLegend")}</p>
           </div>
         </aside>
       </header>
 
       <section className="decision-demo__summary-grid">
         <article className="decision-demo__summary-card">
-          <span>民间购买力</span>
+          <span>{t("pages:decisionCardDemo.consumerPower")}</span>
           <strong>{viewModel.summary.remainingBudgets.domesticMarket}</strong>
-          <p>内需基准</p>
+          <p>{t("pages:decisionCardDemo.domesticBenchmark")}</p>
         </article>
         <article className="decision-demo__summary-card">
-          <span>工业区</span>
+          <span>{t("pages:decisionCardDemo.factoryZone")}</span>
           <strong>{viewModel.summary.remainingBudgets.factory}</strong>
-          <p>剩余预算</p>
+          <p>{t("pages:decisionCardDemo.remainingBudget")}</p>
         </article>
         <article className="decision-demo__summary-card">
-          <span>议会厅</span>
+          <span>{t("pages:decisionCardDemo.parliament")}</span>
           <strong>{viewModel.summary.remainingBudgets.governmentFiscal}</strong>
-          <p>剩余预算</p>
+          <p>{t("pages:decisionCardDemo.remainingBudget")}</p>
         </article>
         <article className="decision-demo__summary-card">
-          <span>军事储备</span>
+          <span>{t("pages:decisionCardDemo.militaryReserve")}</span>
           <strong>{viewModel.summary.militaryPoints}</strong>
-          <p>可用军事点</p>
+          <p>{t("pages:decisionCardDemo.availableMilitaryPoints")}</p>
         </article>
       </section>
 
@@ -254,7 +254,7 @@ export function DecisionCardDemoPage() {
 
           <section className="decision-demo__stage">
             <div className="decision-demo__stage-intro panel">
-              <p className="decision-demo__eyebrow">当前预览</p>
+              <p className="decision-demo__eyebrow">{t("pages:decisionCardDemo.currentPreview")}</p>
               <div className="decision-demo__stage-heading">
                 <div>
                   <h2>{selectedVariantMeta.label}</h2>
@@ -263,7 +263,7 @@ export function DecisionCardDemoPage() {
                 <span className="decision-demo__accent-tag">{selectedVariantMeta.accent}</span>
               </div>
               <p className="decision-demo__stage-note">
-                点击任一地点，会进入大弹窗。不同方案共用同一份 draft，本轮输入不会因为切换样式而丢失。
+                {t("pages:decisionCardDemo.locationHint")}
               </p>
             </div>
 
@@ -295,7 +295,7 @@ export function DecisionCardDemoPage() {
 
       <GameMapModal
         isOpen={activeLocationViewModel !== null}
-        title={activeLocationViewModel?.label ?? "决策卡片 DEMO"}
+        title={activeLocationViewModel?.label ?? t("pages:decisionCardDemo.modalTitle")}
         onClose={() => setActiveLocation(null)}
       >
         {activeLocationViewModel ? (
@@ -306,7 +306,7 @@ export function DecisionCardDemoPage() {
               onSelect={setSelectedVariant}
             />
 
-            <nav className="decision-demo__modal-nav" aria-label="地点切换">
+            <nav className="decision-demo__modal-nav" aria-label={t("pages:decisionCardDemo.locationNav")}>
               {Object.values(viewModel.locations).map((location) => (
                 <button
                   key={`modal-${location.id}`}
@@ -371,7 +371,7 @@ export function DecisionCardDemoPage() {
                           <h4>{section.title}</h4>
                           {section.description ? <p>{section.description}</p> : null}
                         </div>
-                        <span>{section.cards.length} 张</span>
+                        <span>{t("pages:decisionCardDemo.cardsCount", { count: section.cards.length })}</span>
                       </div>
                       <div className="decision-demo__card-grid">
                         {section.cards.map((card) => (
@@ -455,6 +455,7 @@ function DecisionDemoCard({
   onRevoke: (card: DecisionCardViewModel) => void;
   onToggleChange: (card: DecisionCardViewModel, checked: boolean) => void;
 }) {
+  const { t } = useTranslation(["pages", "common"]);
   const toneClass =
     card.tone === "accent"
       ? "decision-demo-card--accent"
@@ -470,7 +471,7 @@ function DecisionDemoCard({
           <h5>{card.title}</h5>
           {card.subtitle ? <p className="decision-demo-card__subtitle">{card.subtitle}</p> : null}
         </div>
-        {card.selected ? <span className="decision-demo-card__flag">已纳入</span> : null}
+        {card.selected ? <span className="decision-demo-card__flag">{t("pages:decisionCardDemo.selectedFlag")}</span> : null}
       </header>
 
       {card.description ? <p className="decision-demo-card__description">{card.description}</p> : null}
@@ -498,7 +499,7 @@ function DecisionDemoCard({
       {card.control.kind === "quantity" ? (
         <div className="decision-demo-card__stepper">
           <button
-            aria-label={`减少${card.control.label}`}
+            aria-label={t("pages:decisionCardDemo.reduceLabel", { label: card.control.label })}
             className="decision-demo-card__stepper-btn"
             disabled={card.control.disabled || card.control.value <= 0}
             type="button"
@@ -507,10 +508,10 @@ function DecisionDemoCard({
             −
           </button>
           <span className="decision-demo-card__stepper-value">
-            {card.control.value} 批
+            {t("pages:decisionCardDemo.batches", { count: card.control.value })}
           </span>
           <button
-            aria-label={`增加${card.control.label}`}
+            aria-label={t("pages:decisionCardDemo.increaseLabel", { label: card.control.label })}
             className="decision-demo-card__stepper-btn"
             disabled={card.control.disabled || card.control.value >= card.control.max}
             type="button"
@@ -533,16 +534,16 @@ function DecisionDemoCard({
                 type="button"
                 onClick={() => onConfirm(card)}
               >
-                确认
+                {t("pages:decisionCardDemo.confirmButton")}
               </button>
               <button
-                aria-label={ctrl.cancelLabel ?? `撤回${card.title}`}
+                aria-label={ctrl.cancelLabel ?? t("pages:decisionCardDemo.revokeAction", { title: card.title })}
                 className="decision-demo-card__confirm-btn decision-demo-card__confirm-btn--subtle"
                 disabled={ctrl.revokeDisabled}
                 type="button"
                 onClick={() => onRevoke(card)}
               >
-                撤回
+                {t("pages:decisionCardDemo.revokeButton")}
               </button>
             </div>
           ) : (
@@ -568,14 +569,14 @@ function DecisionDemoCard({
             onChange={(event) => onToggleChange(card, event.target.checked)}
           />
           <span aria-hidden="true">
-            {card.control.checked ? "已选择" : card.control.disabled ? "暂不可用" : "选择"}
+            {card.control.checked ? t("pages:decisionCardDemo.toggleSelected") : card.control.disabled ? t("pages:decisionCardDemo.toggleUnavailable") : t("pages:decisionCardDemo.toggleSelect")}
           </span>
         </label>
       ) : null}
 
       {showAbilityTargets && abilityInteraction ? (
         <fieldset className="decision-demo-card__radio-group">
-          <legend>意识形态目标</legend>
+          <legend>{t("pages:decisionCardDemo.ideologyTarget")}</legend>
           {IDEOLOGY_OPTIONS.map((ideology) => (
             <label key={`${card.id}-${ideology.key}`} className="decision-demo-card__radio">
               <input

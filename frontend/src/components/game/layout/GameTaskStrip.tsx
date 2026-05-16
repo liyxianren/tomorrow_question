@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 type TaskStripMetric = {
   label: string;
   value: string | number;
@@ -31,10 +33,11 @@ type GameTaskStripProps = {
 };
 
 export function GameTaskStrip({ viewModel }: GameTaskStripProps) {
+  const { t } = useTranslation();
   return (
     <div data-testid="game-task-strip">
       <div className="game-task-strip__loop" data-testid="game-loop-strip">
-        <div className="game-task-strip__loop-eyebrow">经营循环</div>
+        <div className="game-task-strip__loop-eyebrow">{t("game:commandDock.operationLoop")}</div>
         <div className="game-task-strip__loop-body">{viewModel.loopStrip.body}</div>
         <div className="game-task-strip__line-list">
           {viewModel.loopStrip.steps.map((step) => (
