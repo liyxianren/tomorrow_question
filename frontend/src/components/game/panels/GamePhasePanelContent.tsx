@@ -376,30 +376,31 @@ export function MilitaryDecisionStep({
     return remainingMilitaryPoints >= cost;
   }
 
+  const { t } = useTranslation();
   return (
     <>
       <article className="gp-card gp-card--primary gp-step-header">
         <div className="gp-step-header__top">
           <div>
-            <p className="gp-step-eyebrow">步骤 4 / 4</p>
-            <h2 className="gp-step-title">军事要塞</h2>
+            <p className="gp-step-eyebrow">{t("game:military.stepEyebrow_military")}</p>
+            <h2 className="gp-step-title">{t("game:military.stepTitle_military")}</h2>
           </div>
           <div className="gp-step-header__pills">
-            <span className="gp-step-pill">财政剩余 <strong>{remainingBudget}</strong></span>
-            <span className="gp-step-pill">军事点可用 <strong>{availableMilitaryPoints}</strong></span>
-            <span className="gp-step-pill">军事点余量 <strong>{remainingMilitaryPoints}</strong></span>
-            <span className="gp-step-pill">海外承接 <strong>{militaryWorkspace.overseasCapacity}</strong></span>
-            <span className="gp-step-pill">已建交 <strong>{militaryWorkspace.establishedDiplomacy.length}</strong> 区</span>
+            <span className="gp-step-pill">{t("game:military.fiscalRemaining")} <strong>{remainingBudget}</strong></span>
+            <span className="gp-step-pill">{t("game:military.militaryPointsAvailable")} <strong>{availableMilitaryPoints}</strong></span>
+            <span className="gp-step-pill">{t("game:military.militaryPointsRemainingPill")} <strong>{remainingMilitaryPoints}</strong></span>
+            <span className="gp-step-pill">{t("game:military.overseasCapacityPill")} <strong>{militaryWorkspace.overseasCapacity}</strong></span>
+            <span className="gp-step-pill">{t("game:military.establishedDiplomacyPill", { count: militaryWorkspace.establishedDiplomacy.length })}</span>
           </div>
         </div>
       </article>
       <article className="gp-card">
         <div className="gp-inner-group" style={{ gap: 14 }}>
           <div>
-            <p className="gp-step-eyebrow">区域情报</p>
-            <h3 style={{ margin: "4px 0 0" }}>海外区域状态</h3>
+            <p className="gp-step-eyebrow">{t("game:military.regionIntel")}</p>
+            <h3 style={{ margin: "4px 0 0" }}>{t("game:military.overseasRegionStatus")}</h3>
             <p className="gp-step-desc" style={{ marginTop: 6 }}>
-              这里展示当前哪些区域已经开放、哪些仍依赖军事点或外交建交。
+              {t("game:military.overseasRegionStatusDesc")}
             </p>
           </div>
           <div className="gp-grid">
@@ -417,9 +418,9 @@ export function MilitaryDecisionStep({
         <article className="gp-card">
           <div className="gp-inner-group" style={{ gap: 14 }}>
             <div>
-              <p className="gp-step-eyebrow">海军建设</p>
-              <h3 style={{ margin: "4px 0 0" }}>海军建设</h3>
-              <p className="gp-step-desc" style={{ marginTop: 6 }}>扩充舰队，直接抬升海外承接与投送能力。</p>
+              <p className="gp-step-eyebrow">{t("game:military.navalBuilding")}</p>
+              <h3 style={{ margin: "4px 0 0" }}>{t("game:military.navalBuildingTitle")}</h3>
+              <p className="gp-step-desc" style={{ marginTop: 6 }}>{t("game:military.navalBuildingDesc")}</p>
             </div>
             <div className="gp-grid">
               {navalActions.map((action) => (
@@ -443,9 +444,9 @@ export function MilitaryDecisionStep({
         <article className="gp-card">
           <div className="gp-inner-group" style={{ gap: 14 }}>
             <div>
-              <p className="gp-step-eyebrow">陆军征募</p>
-              <h3 style={{ margin: "4px 0 0" }}>陆军征募</h3>
-              <p className="gp-step-desc" style={{ marginTop: 6 }}>补充陆军与重武器，提升军事影响力。</p>
+              <p className="gp-step-eyebrow">{t("game:military.armyRecruitment")}</p>
+              <h3 style={{ margin: "4px 0 0" }}>{t("game:military.armyRecruitmentTitle")}</h3>
+              <p className="gp-step-desc" style={{ marginTop: 6 }}>{t("game:military.armyRecruitmentDesc")}</p>
             </div>
             <div className="gp-grid">
               {armyActions.map((action) => (
@@ -468,9 +469,9 @@ export function MilitaryDecisionStep({
       <article className="gp-card">
         <div className="gp-inner-group" style={{ gap: 14 }}>
           <div>
-            <p className="gp-step-eyebrow">外交行动 / 军事远征</p>
-            <h3 style={{ margin: "4px 0 0" }}>外交行动 / 军事远征</h3>
-            <p className="gp-step-desc" style={{ marginTop: 6 }}>通过建交永久开放区域，或通过军事动作补充本轮海外投送与威慑能力。</p>
+            <p className="gp-step-eyebrow">{t("game:military.diplomacyAction")}</p>
+            <h3 style={{ margin: "4px 0 0" }}>{t("game:military.diplomacyActionTitle")}</h3>
+            <p className="gp-step-desc" style={{ marginTop: 6 }}>{t("game:military.diplomacyActionDesc")}</p>
           </div>
           {supportActions.length > 0 ? (
             <div className="gp-grid">
