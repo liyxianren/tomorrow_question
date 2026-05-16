@@ -218,7 +218,7 @@ def build_decision_player_workspace(snapshot: GameSnapshot, player: PlayerState)
         "overseasMarketCapacity": resolve_overseas_market_capacity(player),
         "incomeAllocationRatio": deepcopy(player.income_allocation_ratio),
         "techPoints": player.tech_points,
-        "militaryPoints": player.military_points,
+        "armyCap": player.army_cap,
         "routeSummaries": _build_route_summaries(player),
         "productionOptions": _build_production_options(snapshot, player),
         "expansionOptions": _build_expansion_options(player),
@@ -237,6 +237,7 @@ def build_decision_player_workspace(snapshot: GameSnapshot, player: PlayerState)
         "researchWorkspace": _build_research_workspace(snapshot, player),
         "governmentReforms": {
             "administrationCapacity": int(player.administration_capacity),
+            "baseAdminCapacity": int(player.base_admin_capacity),
             "adminPurchaseCost": int(balance.politics.administration_cost),
             "completedReforms": list(player.completed_reforms),
             "activePolicies": list(player.active_policies),
@@ -281,6 +282,7 @@ def build_decision_player_workspace(snapshot: GameSnapshot, player: PlayerState)
                     "effects": deepcopy(policy.effects),
                     "isActive": policy_id in player.active_policies,
                     "requiresReform": policy.requires_reform,
+                    "requiresReformLabel": _resolve_reform_label(balance, policy.requires_reform),
                     "isUnlocked": policy.requires_reform is None or policy.requires_reform in player.completed_reforms,
                 }
                 for policy_id, policy in balance.reforms.regular_policies.items()
@@ -299,6 +301,15 @@ def _player_with_active_event_preview(snapshot: GameSnapshot, player: PlayerStat
         if isinstance(effects, dict):
             apply_effects(preview_player, effects)
     return preview_player
+
+
+def _resolve_reform_label(balance, reform_id: str | None) -> str | None:
+    if reform_id is None:
+        return None
+    for reform in balance.reforms.reforms.values():
+        if reform.reform_id == reform_id:
+            return reform.label
+    return None
 
 
 def _is_reform_blocked_for_workspace(player: PlayerState, reform: Any, balance: Any) -> bool:
@@ -396,8 +407,9 @@ def _preview_colony_income(snapshot: GameSnapshot, player: PlayerState) -> int:
 def _settlement_phase1_economy(player: PlayerState, national_income: int) -> dict[str, Any]:
     payload: dict[str, Any] = dict(player.phase1_economy.to_payload())
     allocation = _preview_budget_allocation(national_income, player.income_allocation_ratio)
+    # consumption pool is frozen — domesticMarket receives 0 allocation
     payload["poolDeltaPreview"] = {
-        "consumption": float(allocation["domesticMarket"]),
+        "consumption": 0.0,
         "investment": float(allocation["factory"]),
         "fiscal": float(allocation["governmentFiscal"]),
     }
@@ -442,7 +454,6 @@ def _build_phase1_market_preview(snapshot: GameSnapshot, player: PlayerState) ->
     balance = get_balance_config()
     capacity_by_mode = player.phase1_economy.capacity_by_mode
     goods_inventory = int(player.phase1_economy.goods_inventory)
-    consumption_pool = int(player.budget_pools.get("domesticMarket", 0))
     goods_config = balance.production.goods.get("phase1_goods")
     domestic_price_ceiling = int(goods_config.price_ceiling) if goods_config is not None else 8
     overseas_price_ceiling = int(goods_config.overseas_price_ceiling) if goods_config is not None else 24
@@ -450,7 +461,7 @@ def _build_phase1_market_preview(snapshot: GameSnapshot, player: PlayerState) ->
     overseas_price_bonus = int(get_effect_bonus(player, "overseasPriceBonus"))
 
     demand = calculate_domestic_demand(capacity_by_mode)
-    equilibrium = calculate_equilibrium_price(consumption_pool=consumption_pool, demand=demand)
+    equilibrium = calculate_equilibrium_price(demand=demand)
     price_drift = int(getattr(snapshot, "market_price_adjustments", {}).get("phase1_goods", 0))
     if price_drift:
         equilibrium = max(Decimal("1"), equilibrium + Decimal(str(price_drift)))
@@ -609,9 +620,10 @@ def _submitted_player_ids(
 
 def _build_military_workspace(snapshot: GameSnapshot, player: PlayerState) -> dict[str, Any]:
     balance = get_balance_config()
+    army_total = int(player.army.get("army", 0))
     return {
-        "militaryPoints": int(player.military_points),
-        "army": deepcopy(player.army),
+        "army": {"army": army_total},
+        "armyCap": int(player.army_cap),
         "navy": deepcopy(player.navy),
         "controlledRegions": int(player.controlled_regions_bonus),
         "establishedDiplomacy": list(player.established_diplomacy),
@@ -622,7 +634,7 @@ def _build_military_workspace(snapshot: GameSnapshot, player: PlayerState) -> di
             {
                 "actionId": action.action_id,
                 "label": action.label,
-                "cost": action.military_point_cost,
+                "cost": action.budget_pool_cost,
                 "maxPerRound": action.max_per_round,
                 "description": _build_action_description(action.description, action.effects),
                 "effects": deepcopy(action.effects),
@@ -645,7 +657,7 @@ def _build_military_workspace(snapshot: GameSnapshot, player: PlayerState) -> di
         "colonizationCapability": {
             "isUnlocked": bool(player.colonization_unlocked),
             "unlockCost": int(balance.military.colonization_unlock_cost),
-            "militaryPointCost": int(balance.military.colonization_military_point_cost),
+            "budgetCost": int(balance.military.colonization_budget_cost),
             "incomePerColonyPerRound": int(balance.military.colonization_income_per_colony_per_round),
             "maxColonizationsPerRound": int(balance.military.max_colonizations_per_round),
         },
@@ -706,10 +718,7 @@ def _build_research_workspace(snapshot: GameSnapshot, player: PlayerState) -> di
 def _build_region_access_status(snapshot: GameSnapshot, player: PlayerState) -> list[dict[str, Any]]:
     balance = get_balance_config()
     competition = balance.market.overseas_competition
-    army_power = (
-        int(player.army.get("infantry", 0)) * int(competition.infantry_power)
-        + int(player.army.get("artillery", 0)) * int(competition.artillery_power)
-    )
+    army_power = int(player.army.get("army", 0)) * 3
     statuses: list[dict[str, Any]] = []
     for region in snapshot.region_states:
         route_blocked = not check_route_accessible(
@@ -755,7 +764,7 @@ def _build_region_access_status(snapshot: GameSnapshot, player: PlayerState) -> 
 
 def _build_colonization_options(snapshot: GameSnapshot, player: PlayerState) -> list[dict[str, Any]]:
     balance = get_balance_config()
-    military_point_cost = int(balance.military.colonization_military_point_cost)
+    budget_cost = int(balance.military.colonization_budget_cost)
     options = []
     for region in snapshot.region_states:
         blueprint = balance.regions.region_blueprints.get(region.region_id)
@@ -764,14 +773,14 @@ def _build_colonization_options(snapshot: GameSnapshot, player: PlayerState) -> 
         already_colonized = region.controller is not None
         is_unlocked = bool(player.colonization_unlocked)
         has_diplomacy = region.region_id in player.established_diplomacy
-        has_military = player.military_points >= military_point_cost
+        has_budget = int(player.budget_pools.get("governmentFiscal", 0)) >= budget_cost
         options.append({
             "regionId": region.region_id,
             "regionLabel": region_label(region.region_id),
             "controller": region.controller,
             "isColonized": already_colonized,
-            "militaryPointCost": military_point_cost,
-            "canColonize": not already_colonized and is_unlocked and has_diplomacy and has_military,
+            "budgetCost": budget_cost,
+            "canColonize": not already_colonized and is_unlocked and has_diplomacy and has_budget,
             "independence": int(region.independence),
             "garrison": dict(region.garrison),
             "resourceLimit": dict(blueprint.resource_limit),
@@ -779,7 +788,7 @@ def _build_colonization_options(snapshot: GameSnapshot, player: PlayerState) -> 
                 "已被殖民" if already_colonized
                 else "需先永久解锁殖民扩张" if not is_unlocked
                 else "需先建交" if not has_diplomacy
-                else f"需要{military_point_cost}军事点" if not has_military
+                else f"需要{budget_cost}政府财政" if not has_budget
                 else None
             ),
         })
@@ -787,15 +796,14 @@ def _build_colonization_options(snapshot: GameSnapshot, player: PlayerState) -> 
 
 
 def _preview_budget_allocation(national_income: int, ratio: dict[str, float]) -> dict[str, int]:
-    total_weight = float(sum(ratio.values()) or 0)
+    total_weight = float(ratio.get("factory", 0.0) + ratio.get("governmentFiscal", 0.0))
     if national_income <= 0 or total_weight <= 0:
         return {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
 
-    domestic = int(national_income * (float(ratio.get("domesticMarket", 0.0)) / total_weight))
     factory = int(national_income * (float(ratio.get("factory", 0.0)) / total_weight))
-    government = int(national_income) - domestic - factory
+    government = int(national_income) - factory
     return {
-        "domesticMarket": domestic,
+        "domesticMarket": 0,
         "factory": factory,
         "governmentFiscal": government,
     }
@@ -878,7 +886,7 @@ _EFFECT_LABELS: dict[str, str] = {
     "overseasMarketCapacityDelta": "海外容量",
     "overseasPriceBonusDelta": "海外价格",
     "techPointsDelta": "科技点",
-    "militaryPointsDelta": "军事点",
+    "armyCapDelta": "军事上限",
     "controlledRegionsDelta": "控制区域",
     "factoryBudgetDelta": "工厂预算",
     "governmentFiscalBudgetDelta": "政府预算",
@@ -890,7 +898,7 @@ _EFFECT_LABELS: dict[str, str] = {
 
 _NESTED_EFFECT_LABELS: dict[str, dict[str, str]] = {
     "navyDelta": {"fleets": "舰队"},
-    "armyDelta": {"infantry": "步兵", "artillery": "炮兵"},
+    "armyDelta": {"army": "陆军"},
 }
 
 

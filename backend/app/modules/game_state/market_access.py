@@ -46,7 +46,6 @@ def region_lock_reason(
 
 def is_region_accessible(
     access_level: RegionAccessLevel,
-    military_points: int,
     *,
     region_id: str = "",
     established_diplomacy: list[str] | None = None,

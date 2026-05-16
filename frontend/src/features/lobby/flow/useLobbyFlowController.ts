@@ -5,6 +5,7 @@ import { resolveSessionRoute, restoreSessionContext } from "../../../app/session
 import { fetchWaitingRooms } from "../../../services/lobby";
 import { apiRequest, getSessionId, setSessionId } from "../../../services/http";
 import type { SessionContextResponse } from "../../../types";
+import i18n from "../../../i18n";
 import {
   bindStoredProfileSession,
   rememberRecentRoomCode,
@@ -148,7 +149,7 @@ export function useLobbyFlowController(
 
     const normalizedTargetRoomCode = normalizeRoomCode(targetRoomCode);
     if (!normalizedTargetRoomCode) {
-      setMessage(createErrorMessage("请输入房间码后再加入房间。"));
+      setMessage(createErrorMessage(i18n.t("lobby:messages.roomCodeRequired")));
       return;
     }
 
@@ -166,7 +167,7 @@ export function useLobbyFlowController(
         sessionId: existingSessionId,
       });
 
-      setMessage(createSuccessMessage("已加入房间，正在进入房间。"));
+      setMessage(createSuccessMessage(i18n.t("lobby:messages.roomJoined")));
       navigateFromSessionContext(response);
     } catch (error) {
       setMessage(createErrorMessage(formatRequestError(error)));
@@ -192,7 +193,7 @@ export function useLobbyFlowController(
         sessionId: null,
       });
 
-      setMessage(createSuccessMessage("房间已创建，正在进入房间。"));
+      setMessage(createSuccessMessage(i18n.t("lobby:messages.roomCreated")));
       navigateFromSessionContext(response);
     } catch (error) {
       setMessage(createErrorMessage(formatRequestError(error)));

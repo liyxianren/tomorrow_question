@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 import type { RecoverableGameBannerViewModel } from "../../features/lobby/flow/viewModel";
 import {
@@ -12,6 +13,8 @@ type LobbyContinueBannerProps = {
 };
 
 export function LobbyContinueBanner({ viewModel }: LobbyContinueBannerProps) {
+  const { t } = useTranslation("lobby");
+
   if (!viewModel) {
     return null;
   }
@@ -26,7 +29,7 @@ export function LobbyContinueBanner({ viewModel }: LobbyContinueBannerProps) {
     >
       <div>
         <p className="panel__eyebrow" style={eyebrowStyle}>
-          已保存进度
+          {t("continueBanner.eyebrow")}
         </p>
         <h2>{viewModel.title}</h2>
         <p>{viewModel.description}</p>

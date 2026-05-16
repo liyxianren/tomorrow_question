@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { buildRecoverableSessionViewModel, type RecoverableSessionViewModel } from "../../features/lobby/flow/viewModel";
 import {
   actionRowStyle,
@@ -31,6 +32,8 @@ export function LobbyRecoveryCard({
   onRestore,
   onClear,
 }: LobbyRecoveryCardProps) {
+  const { t } = useTranslation("lobby");
+
   const resolvedViewModel =
     viewModel ??
     buildRecoverableSessionViewModel({
@@ -51,20 +54,20 @@ export function LobbyRecoveryCard({
 
   return (
     <section
-      aria-label="恢复进度"
+      aria-label={t("recoveryCard.title")}
       className="panel"
       data-testid="lobby-recovery-card"
       style={sectionCardStyle}
     >
       <p className="panel__eyebrow" style={eyebrowStyle}>
-        保存进度
+        {t("recoveryCard.eyebrow")}
       </p>
-      <h2 style={sectionTitleStyle}>恢复进度</h2>
+      <h2 style={sectionTitleStyle}>{t("recoveryCard.title")}</h2>
       <p style={bodyTextStyle}>{resolvedViewModel.description}</p>
 
       <div style={infoGridStyle}>
         <div style={{ ...subCardStyle, display: "grid", gap: 6 }}>
-          <strong>当前身份</strong>
+          <strong>{t("recoveryCard.currentIdentityLabel")}</strong>
           <span data-testid="lobby-recovery-profile-name">{resolvedViewModel.profileDisplayName}</span>
           <span data-testid="lobby-recovery-profile-id" style={mutedMonoStyle}>
             {resolvedViewModel.profileIdValue}

@@ -91,7 +91,7 @@ export interface NationalState {
   incomeAllocationRatio: IncomeAllocationRatio;
   budgetPools: BudgetPools;
   techPoints: number;
-  militaryPoints: number;
+  armyCap: number;
   productionCapacity: Record<string, number>;
   pendingProductionCapacity: Record<string, number>;
   goodsStock: Record<string, number>;
@@ -225,8 +225,7 @@ export interface ColonizationActionSelection {
 
 export interface ConquestActionSelection {
   regionId: string;
-  infantry: number;
-  artillery: number;
+  army: number;
 }
 
 export interface LootingActionSelection {
@@ -247,7 +246,7 @@ export interface ColonizationOption {
   regionLabel: string;
   controller: string | null;
   isColonized: boolean;
-  militaryPointCost: number;
+  budgetCost: number;
   canColonize: boolean;
   lockedReason: string | null;
   independence?: number;
@@ -258,7 +257,7 @@ export interface ColonizationOption {
 export interface ColonizationCapability {
   isUnlocked: boolean;
   unlockCost: number;
-  militaryPointCost: number;
+  budgetCost: number;
   incomePerColonyPerRound: number;
   maxColonizationsPerRound: number;
 }
@@ -401,7 +400,7 @@ export interface DecisionActionOption {
   cost: number;
   description?: string;
   techPointCost?: number;
-  militaryPointCost?: number;
+  armyCapDelta?: number;
   techPointDelta?: number;
   militaryPointDelta?: number;
   ratioDelta?: Partial<IncomeAllocationRatio>;
@@ -551,7 +550,7 @@ export interface DecisionPlayerPhaseWorkspace {
   overseasMarketCapacity?: number;
   incomeAllocationRatio: IncomeAllocationRatio;
   techPoints: number;
-  militaryPoints: number;
+  armyCap: number;
   routeSummaries: FactoryRouteSummary[];
   productionOptions: FactoryProductionOption[];
   expansionOptions: FactoryExpansionOption[];
@@ -570,7 +569,7 @@ export interface DecisionPlayerPhaseWorkspace {
     strategies: DecisionActionOption[];
   };
   militaryWorkspace: {
-    militaryPoints: number;
+    armyCap: number;
     army: Record<string, number>;
     navy: Record<string, number>;
     controlledRegions: number;

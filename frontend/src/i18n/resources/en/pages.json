@@ -1,0 +1,232 @@
+{
+  "home": {
+    "eyebrow": "5-Player Turn-Based Great Power Strategy",
+    "title": "Jump right in, even on your first game",
+    "description": "A 5-player turn-based great power management game. Each turn you make limited choices across three phases—National Decision, Market Sales, and Fiscal Settlement—see the results roll into the next round, and compete for the highest cumulative total income.",
+    "badges": {
+      "multiplayer": "Multiplayer Strategy",
+      "turns": "15 Rounds",
+      "threePhase": "Three-Phase Agenda"
+    },
+    "heroActions": {
+      "enterLobby": "Enter Lobby",
+      "rule1": "5-Player Fixed Game",
+      "rule2": "Pick a Nation",
+      "rule3": "All Ready Up",
+      "rule4": "Auto Start"
+    },
+    "asideCard": {
+      "eyebrow": "You only need to know 4 steps before entering the lobby",
+      "title": "4 Steps to Your First Game",
+      "description": "No need to read long rules upfront. The system guides you through identity confirmation, room preparation, and auto-start.",
+      "steps": [
+        "Confirm your nickname—the system uses it as your identity on this device.",
+        "Enter the lobby, then create a room or join one that's waiting.",
+        "After entering a room, pick a nation to represent in this match.",
+        "Once everyone clicks ready, the system auto-starts Round 1."
+      ]
+    },
+    "cycleCard": {
+      "eyebrow": "How to Play",
+      "title": "The Three-Phase Cycle",
+      "description": "You won't need to memorize a wall of rules. Just follow this fixed cycle each round—results from one phase flow into the next round's operations.",
+      "phases": {
+        "decision": {
+          "title": "National Decision",
+          "desc": "Allocate budgets across factories, government policies, market previews, military, and research—setting the stage for the phases ahead."
+        },
+        "market": {
+          "title": "Market Sales",
+          "desc": "Sell goods on domestic and overseas markets. Supply and demand determine prices; sales convert directly into national income."
+        },
+        "settlement": {
+          "title": "Fiscal Settlement",
+          "desc": "Aggregate income and redistribute it proportionally into consumer purchasing power, factories, and government finance—rolling into the next round."
+        }
+      }
+    },
+    "lobbyCard": {
+      "eyebrow": "What Happens in the Lobby",
+      "title": "Your Path to a Room",
+      "description": "The home page tells you what this game is. Creating rooms, picking games, and resuming progress all happen in the lobby.",
+      "steps": [
+        "Confirm your nickname, then follow the lobby's guided flow.",
+        "The lobby shows which rooms are waiting for players and how to resume your last session.",
+        "Join a room, pick your nation, click Ready. The game starts automatically when everyone's ready."
+      ]
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "eyebrow": "Parameter Panel",
+    "numericConfigTitle": "Numeric Configuration",
+    "numericConfigDescription": "Above are common balance items; the bottom 'All JSON Numeric Values' section auto-lists remaining numbers from config files. Saving writes back to backend/config/balance/*.json and clears the config cache.",
+    "saveButton": "Save",
+    "savingButton": "Saving...",
+    "allJsonValuesTitle": "All JSON Numeric Values",
+    "allJsonValuesEyebrow": "balance/*.json",
+    "allJsonValuesDescription": "Lists all numeric values not shown in the dedicated panels above. Chinese names are for reference; the gray path indicates the JSON location. Modify and click Save at the top to apply.",
+    "loadErrorTitle": "Settings Panel",
+    "loadErrorDescription": "Failed to load settings",
+    "productionCost": {
+      "title": "Production Costs",
+      "eyebrow": "production",
+      "routeColumn": "Production Method",
+      "newCostColumn": "New Factory Cost",
+      "upgradeCostColumn": "Upgrade Cost"
+    },
+    "rawMaterials": {
+      "title": "Country Raw Materials",
+      "eyebrow": "countries",
+      "countryColumn": "Country",
+      "initialColumn": "Initial Raw Materials",
+      "perTurnColumn": "Per-Turn Increase"
+    },
+    "market": {
+      "title": "Market Parameters",
+      "eyebrow": "market",
+      "baseIncomeLabel": "baseIncomePerRound (Guaranteed Income per Round)",
+      "regionColumn": "Region",
+      "priceMultiplierColumn": "Price Multiplier"
+    },
+    "government": {
+      "title": "Government Parameters",
+      "eyebrow": "government",
+      "adminCostLabel": "Administration Cost (administrationCost)",
+      "ideologyMinLabel": "Ideology Range - Min",
+      "ideologyMaxLabel": "Max",
+      "thresholdColumns": {
+        "ideology": "Ideology",
+        "highThreshold": "High Threshold",
+        "lowThreshold": "Low Threshold"
+      }
+    },
+    "jsonValueColumns": {
+      "name": "Name",
+      "value": "Value"
+    },
+    "configFiles": {
+      "abilities.json": "National Abilities",
+      "countries.json": "Country Initial Values",
+      "decision_actions.json": "Actions / Policies",
+      "events.json": "Events",
+      "global.json": "Global",
+      "market.json": "Market",
+      "military.json": "Military",
+      "military_actions.json": "Military Actions",
+      "politics.json": "Politics / Ideologies",
+      "production.json": "Production",
+      "reforms.json": "Reforms",
+      "regions.json": "Regions",
+      "research_actions.json": "Tech Tree",
+      "technology.json": "Technology Tree"
+    }
+  },
+  "notFound": {
+    "title": "Page Not Found",
+    "hint": "The page you're looking for doesn't exist or may have been moved.",
+    "action": "Back to Home"
+  },
+  "flow": {
+    "lobbyTitle": "Lobby",
+    "lobbyDesc": "Create a room, join a room, or restore an existing session.",
+    "roomTitle": "Room",
+    "roomDesc": "Confirm members, pick a nation, and complete pre-game preparation.",
+    "gameTitle": "Match",
+    "gameDesc": "Submit per phase and wait for settlement.",
+    "settlementTitle": "Settlement",
+    "settlementDesc": "View final rankings and return to the lobby or room for the next match.",
+    "lobbyBannerTitle": "Currently in Lobby Stage",
+    "lobbyBannerDetail": "The shell only provides flow entry explanation and restoration hints; creating, joining, and restoring actions are still handled by the page itself.",
+    "roomBannerTitle": "Currently in Room Stage",
+    "roomBannerDetail": "The page only shows preparation-phase information; room sync and game start are still handled by the room page consuming context on its own.",
+    "gameBannerTitle": "Currently in Match Stage",
+    "gameBannerDetail": "The shell only expresses flow position and does not directly drive phase submission, snapshot sync, or settlement navigation.",
+    "settlementBannerTitle": "Currently in Settlement Stage",
+    "settlementBannerDetail": "The settlement page should only consume final results and recovery state; the shell remains display-only and does not create additional session side effects.",
+    "unknownBannerTitle": "Currently on Unrecognized Page",
+    "unknownBannerDetail": "This page is not in the standard main flow; the shell only retains navigation and flow explanation.",
+    "tagTestable": "Testable",
+    "tagDemoable": "Demoable",
+    "tagRecoverable": "Recoverable",
+    "tagNoSideEffect": "No Shell Side Effects",
+    "tagPhaseChain": "Phase Chain",
+    "tagSelfConsume": "Self-Consumed Flow",
+    "tagBackToLobby": "Return to Lobby",
+    "tagReadonly": "Results Read-Only",
+    "tagConfirmRoute": "Route Pending"
+  },
+  "settlement": {
+    "title": "Fiscal Settlement",
+    "loading": "Loading settlement...",
+    "noData": "No settlement data available."
+  },
+  "decisionCardDemo": {
+    "eyebrow": "Decision Card Demo",
+    "title": "Decision Card DEMO",
+    "description": "This page only compares selection methods, it doesn't connect to real submission. Using the same Austrian decision data, it demonstrates 3 card organization approaches side by side.",
+    "currentData": "Current Data",
+    "restoringLiveGame": " · Restoring live game...",
+    "ratioPreview": "Ratio Preview",
+    "ratioLegend": "Domestic / Factory / Government",
+    "consumerPower": "Consumer Purchasing Power",
+    "domesticBenchmark": "Domestic Baseline",
+    "factoryZone": "Industrial Zone",
+    "remainingBudget": "Remaining Budget",
+    "parliament": "Parliament",
+    "militaryReserve": "Military Reserve",
+    "availableMilitaryPoints": "Available Military Points",
+    "currentPreview": "Current Preview",
+    "locationHint": "Click any location to open a large modal. Different variants share the same draft—your input won't be lost when switching styles.",
+    "locationNav": "Location Switch",
+    "cardsCount": "{{count}} cards",
+    "selectedFlag": "Included",
+    "reduceLabel": "Reduce {{label}}",
+    "increaseLabel": "Increase {{label}}",
+    "batches": "{{count}} batches",
+    "confirmAction": "Confirm",
+    "revokeAction": "Revoke {{title}}",
+    "revokeButton": "Revoke",
+    "confirmButton": "Confirm",
+    "toggleSelected": "Selected",
+    "toggleUnavailable": "Unavailable",
+    "toggleSelect": "Select",
+    "ideologyTarget": "Ideology Target",
+    "modalTitle": "Decision Card DEMO"
+  },
+  "appShell": {
+    "home": {
+      "eyebrow": "History-Textured Strategy Board",
+      "subtitle": "Advance 19th-century industrialization through national agendas, resource allocation, and alliance games."
+    },
+    "lobby": {
+      "eyebrow": "Muster Entrance",
+      "subtitle": "Gather allies, enter a room, and officially begin this game of 19th-century great power competition."
+    },
+    "room": {
+      "eyebrow": "Task Interface",
+      "title": "Room Preparation",
+      "description": "Confirm all players, nations, and readiness—the room will auto-start when conditions are met."
+    },
+    "game": {
+      "eyebrow": "Task Interface",
+      "title": "Current Game",
+      "description": "Determine who you are and what to do now, then complete this round's key decisions."
+    },
+    "settlement": {
+      "eyebrow": "Task Interface",
+      "title": "Game Results",
+      "description": "Review final rankings and key results to see how this game concluded."
+    },
+    "design": {
+      "eyebrow": "Design Validation",
+      "title": "Decision Card DEMO",
+      "description": "Compare different card-based decision interactions to make factory, parliament, and market preview responsibilities more intuitive."
+    },
+    "fallback": {
+      "eyebrow": "Tomorrow Question",
+      "subtitle": "Organize players into the same game, and let everyone know what to see and do each round."
+    },
+    "backToLobby": "Back to Lobby"
+  }
+}

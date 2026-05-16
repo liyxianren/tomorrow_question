@@ -204,6 +204,7 @@ class ExpandAdministrationE2ETest(unittest.TestCase):
         self.seed_active_game()
         snapshot = self._load_snapshot()
         britain = self._player(snapshot, "player-1")
+        britain.base_admin_capacity = 5
         britain.administration_capacity = 5
         britain.budget_pools["governmentFiscal"] = 100
         self._save_snapshot(snapshot)
@@ -214,48 +215,53 @@ class ExpandAdministrationE2ETest(unittest.TestCase):
         britain = self._player(snapshot, "player-1")
 
         self.assertIn("expand_administration", britain.active_policies)
-        # admin_cost_per_turn is now deducted exclusively at settlement, not at activation
-        self.assertEqual(britain.administration_capacity, 5)
+        # 激活政策消耗 1 行政点数 (5 → 4)，上限不变（结算时生效）
+        self.assertEqual(britain.administration_capacity, 4)
+        self.assertEqual(britain.base_admin_capacity, 5)
 
     def test_settlement_net_admin_zero(self):
-        """expand_administration: −1 cost + 1 delta = net 0 per settlement."""
+        """expand_administration: 激活消耗 1 行政点。结算时 base +1。下回合 admin 重置为新 base。"""
         self.seed_active_game()
         snapshot = self._load_snapshot()
         britain = self._player(snapshot, "player-1")
-        britain.administration_capacity = 5
-        britain.budget_pools["governmentFiscal"] = 100
-        initial_admin = britain.administration_capacity
-        self._save_snapshot(snapshot)
-
-        # Activate
-        payload = _decision_payload(activate_policies=["expand_administration"])
-        snapshot = self._full_round(payload, snapshot)
-        britain = self._player(snapshot, "player-1")
-
-        # After settlement: admin should be same as initial (−1 settlement cost, +1 delta, no activation deduction)
-        # Settlement: admin goes from 5 → 4 (cost) → 5 (delta) = 5
-        # Round 2 starts with admin = 5
-        self.assertIn("expand_administration", britain.active_policies)
-        self.assertEqual(britain.administration_capacity, initial_admin)
-
-    def test_policy_stays_active_across_turns(self):
-        """Policy remains active when admin capacity is sufficient."""
-        self.seed_active_game()
-        snapshot = self._load_snapshot()
-        britain = self._player(snapshot, "player-1")
+        britain.base_admin_capacity = 5
         britain.administration_capacity = 5
         britain.budget_pools["governmentFiscal"] = 100
         self._save_snapshot(snapshot)
 
-        # Turn 1: activate
+        # Activate + settlement (full round)
         payload = _decision_payload(activate_policies=["expand_administration"])
         snapshot = self._full_round(payload, snapshot)
+        britain = self._player(snapshot, "player-1")
 
-        # Turn 2: just settle
+        # 结算后：base 从 5 → 6，admin 重置为 base (6)
+        self.assertEqual(britain.base_admin_capacity, 6)
+        self.assertEqual(britain.administration_capacity, 6)
+
+    def test_policy_clears_at_decision_start(self):
+        """政策单回合生效 + 结算后 base 永久增长。"""
+        self.seed_active_game()
+        snapshot = self._load_snapshot()
+        britain = self._player(snapshot, "player-1")
+        britain.base_admin_capacity = 5
+        britain.administration_capacity = 5
+        britain.budget_pools["governmentFiscal"] = 100
+        self._save_snapshot(snapshot)
+
+        # Turn 1: activate + settlement
+        payload = _decision_payload(activate_policies=["expand_administration"])
+        snapshot = self._full_round(payload, snapshot)
+        britain = self._player(snapshot, "player-1")
+
+        # 结算后 base 从 5 → 6，admin 重置为 base
+        self.assertEqual(britain.base_admin_capacity, 6)
+        self.assertEqual(britain.administration_capacity, 6)
+
+        # Turn 2: 空提交 — 政策在 DECISION 开局被清空
         snapshot = self._full_round(_empty_decision_payload(), snapshot)
         britain = self._player(snapshot, "player-1")
-
-        self.assertIn("expand_administration", britain.active_policies)
+        self.assertNotIn("expand_administration", britain.active_policies)
+        self.assertEqual(britain.base_admin_capacity, 6)
 
     def test_insufficient_admin_prevents_activation(self):
         self.seed_active_game()

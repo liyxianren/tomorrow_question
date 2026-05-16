@@ -21,7 +21,7 @@ class CountryBalanceConfig:
     budget_pools: dict[str, int]
     income_allocation_ratio: dict[str, float]
     tech_points: int
-    military_points: int
+    army_cap: int
     production_capacity: dict[str, int]
     goods_stock: dict[str, int]
     army: dict[str, int]
@@ -130,9 +130,10 @@ class MilitaryBalanceConfig:
     ocean_control_threshold: int
     independence_threshold: int
     colonization_unlock_cost: int = 10
-    colonization_military_point_cost: int = 3
+    colonization_budget_cost: int = 4
     colonization_income_per_colony_per_round: int = 5
     max_colonizations_per_round: int = 1
+    army_cap_base: int = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,7 +144,6 @@ class MilitaryActionConfig:
     max_per_round: int
     effects: dict[str, Any] = field(default_factory=dict)
     description: str = ""
-    military_point_cost: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,7 +161,6 @@ class DecisionActionConfig:
     label: str
     budget_pool_cost: int
     tech_point_cost: int = 0
-    military_point_cost: int = 0
     ratio_delta: dict[str, float] = field(default_factory=dict)
     effects: dict[str, Any] = field(default_factory=dict)
     description: str = ""

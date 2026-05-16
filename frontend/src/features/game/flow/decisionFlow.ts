@@ -1,3 +1,4 @@
+import i18n from "../../../i18n";
 import type { PhaseDraftByPhase } from "../forms";
 
 export type DecisionStepId = "factory" | "domestic" | "government" | "military" | "research";
@@ -30,33 +31,20 @@ export function createInitialDecisionFlowState(): DecisionFlowState {
 }
 
 export function getDecisionStepLabel(step: DecisionStepId): string {
-  switch (step) {
-    case "factory":
-      return "工厂决策";
-    case "domestic":
-      return "市场预览";
-    case "government":
-      return "政府政策";
-    case "military":
-      return "军事要塞";
-    case "research":
-      return "研究院";
-    default:
-      return step;
-  }
+  return i18n.t(`game:stepLabel.${step}`, step);
 }
 
 export function getDecisionStepReviewLabel(state: DecisionStepReviewState): string {
   switch (state) {
     case "checked":
-      return "已检查";
+      return i18n.t("game:stepReview.checked", "Checked");
     case "no_op":
-      return "跳过";
+      return i18n.t("game:stepReview.noOp", "Skipped");
     case "needs_recheck":
-      return "已修改";
+      return i18n.t("game:stepReview.needsRecheck", "Modified");
     case "unreviewed":
     default:
-      return "未决策";
+      return i18n.t("game:stepReview.unreviewed", "Not Decided");
   }
 }
 
@@ -87,7 +75,7 @@ export function hasDecisionStepContent(
       draft.militaryPlan.diplomacyActions.length > 0 ||
       draft.militaryPlan.colonizationActions.length > 0 ||
       Object.keys(draft.militaryPlan.navalDeployment ?? {}).length > 0 ||
-      (draft.militaryPlan.conquestActions ?? []).some((action) => action.infantry > 0 || action.artillery > 0) ||
+      (draft.militaryPlan.conquestActions ?? []).some((action) => action.army > 0) ||
       (draft.militaryPlan.lootingActions ?? []).length > 0
     );
   }
@@ -247,35 +235,35 @@ export function getDecisionStepCompletionSummary(
       draft.factoryPlan.upgradeOrders.reduce((sum, item) => sum + item.quantity, 0) +
       draft.factoryPlan.newFactoryOrders.reduce((sum, item) => sum + item.quantity, 0);
     const factoryActions = draft.factoryPlan.factoryActions?.length ?? 0;
-    const actionSummary = factoryActions > 0 ? ` / 调度 ${factoryActions} 项` : "";
+    const actionSummary = factoryActions > 0 ? ` / ${i18n.t("game:factory.factoryDispatch", "Dispatch")} ${factoryActions} ${i18n.t("game:flow.itemUnit", "items")}` : "";
     if (phase1RawMaterials > 0) {
-      return `投料 ${phase1RawMaterials} 原材料 / 建设 ${construction} 次${actionSummary}`;
+      return `${i18n.t("game:factory.input", "Input")} ${phase1RawMaterials} ${i18n.t("game:factory.rawMaterials", "Raw Materials")} / ${i18n.t("game:factory.constructionAndUpgrade", "Construction")} ${construction} ${i18n.t("game:flow.times", "times")}${actionSummary}`;
     }
-    return `生产 ${production} 批 / 建设 ${construction} 次${actionSummary}`;
+    return `${i18n.t("game:flow.production", "Production")} ${production} ${i18n.t("game:flow.batches", "batches")} / ${i18n.t("game:factory.constructionAndUpgrade", "Construction")} ${construction} ${i18n.t("game:flow.times", "times")}${actionSummary}`;
   }
 
   if (step === "domestic") {
-    return "市场预览";
+    return i18n.t("game:stepLabel.domestic", "Market Preview");
   }
 
   if (step === "military") {
-    return `军事动作 ${draft.militaryPlan.militaryActions.length} 次 / 建交 ${draft.militaryPlan.diplomacyActions.length} 项`;
+    return `${i18n.t("game:military.militaryActions", "Military Actions")} ${draft.militaryPlan.militaryActions.length} ${i18n.t("game:flow.times", "times")} / ${i18n.t("game:military.establishedDiplomacy", "Established Diplomacy")} ${draft.militaryPlan.diplomacyActions.length} ${i18n.t("game:flow.items", "items")}`;
   }
 
   if (step === "research") {
     const facility = draft.governmentPlan.strategySelections.some((selection) => selection.actionId === "expand_research") ? 1 : 0;
     if (context.activeResearch && draft.governmentPlan.techResearch.length === 0 && facility === 0) {
-      return `当前研究中：${context.activeResearch}`;
+      return `${i18n.t("game:research.currentlyResearching", "Currently Researching")}: ${context.activeResearch}`;
     }
-    return `研究 ${draft.governmentPlan.techResearch.length} 项 / 设施 ${facility}`;
+    return `${i18n.t("game:research.research", "Research")} ${draft.governmentPlan.techResearch.length} ${i18n.t("game:flow.items", "items")} / ${i18n.t("game:research.researchFacilities", "Facilities")} ${facility}`;
   }
 
   const purchases = draft.governmentPlan.pointPurchases.reduce((sum, item) => sum + item.quantity, 0);
   const strategies = draft.governmentPlan.strategySelections.filter((selection) => selection.actionId !== "expand_research").length;
   const policies = (draft.activatePolicies ?? []).length + (draft.deactivatePolicies ?? []).length;
   const reforms = (draft.reforms ?? []).length;
-  const ability = draft.abilitySelection ? "已启用" : "未启用";
-  return `点数 ${purchases} / 策略 ${strategies} / 政策 ${policies} / 改革 ${reforms} / 能力 ${ability}`;
+  const ability = draft.abilitySelection ? i18n.t("game:government.abilityEnabledThisRound", "Enabled") : i18n.t("game:government.abilityNotEnabled", "Not Enabled");
+  return `${i18n.t("game:flow.points", "Points")} ${purchases} / ${i18n.t("game:flow.strategies", "Strategies")} ${strategies} / ${i18n.t("game:flow.policies", "Policies")} ${policies} / ${i18n.t("game:flow.reforms", "Reforms")} ${reforms} / ${i18n.t("game:government.nationalAbility", "Ability")} ${ability}`;
 }
 
 export function getNextDecisionStep(step: DecisionStepId): DecisionStepId | null {

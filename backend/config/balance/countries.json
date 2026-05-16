@@ -12,7 +12,7 @@
         "governmentFiscal": 3.0
       },
       "techPoints": 1,
-      "militaryPoints": 1,
+      "armyCap": 4,
       "productionCapacity": {
         "idle": 0,
         "handicraft": 8,
@@ -24,8 +24,7 @@
         "phase1_goods": 0
       },
       "army": {
-        "infantry": 0,
-        "artillery": 0
+        "army": 0
       },
       "navy": {
         "fleets": 1
@@ -60,7 +59,7 @@
         "governmentFiscal": 3.0
       },
       "techPoints": 1,
-      "militaryPoints": 0,
+      "armyCap": 3,
       "productionCapacity": {
         "idle": 0,
         "handicraft": 7,
@@ -72,8 +71,7 @@
         "phase1_goods": 0
       },
       "army": {
-        "infantry": 1,
-        "artillery": 0
+        "army": 1
       },
       "navy": {
         "fleets": 1
@@ -108,7 +106,7 @@
         "governmentFiscal": 3.0
       },
       "techPoints": 1,
-      "militaryPoints": 1,
+      "armyCap": 4,
       "productionCapacity": {
         "idle": 0,
         "handicraft": 6,
@@ -120,8 +118,7 @@
         "phase1_goods": 0
       },
       "army": {
-        "infantry": 1,
-        "artillery": 0
+        "army": 1
       },
       "navy": {
         "fleets": 0
@@ -156,7 +153,7 @@
         "governmentFiscal": 3.0
       },
       "techPoints": 1,
-      "militaryPoints": 1,
+      "armyCap": 3,
       "productionCapacity": {
         "idle": 0,
         "handicraft": 7,
@@ -168,8 +165,7 @@
         "phase1_goods": 0
       },
       "army": {
-        "infantry": 0,
-        "artillery": 0
+        "army": 0
       },
       "navy": {
         "fleets": 0
@@ -204,7 +200,7 @@
         "governmentFiscal": 3.0
       },
       "techPoints": 1,
-      "militaryPoints": 1,
+      "armyCap": 4,
       "productionCapacity": {
         "idle": 0,
         "handicraft": 8,
@@ -216,8 +212,7 @@
         "phase1_goods": 0
       },
       "army": {
-        "infantry": 1,
-        "artillery": 0
+        "army": 1
       },
       "navy": {
         "fleets": 0

@@ -99,7 +99,7 @@ class NationalStatePayload(TypedDict):
     incomeAllocationRatio: IncomeAllocationRatioPayload
     budgetPools: BudgetPoolsPayload
     techPoints: int
-    militaryPoints: int
+    armyCap: int
     productionCapacity: dict[str, int]
     pendingProductionCapacity: dict[str, int]
     # Deprecated (1.0): only key 'phase1_goods' used post-Phase1; dict retained for legacy compatibility
@@ -112,6 +112,7 @@ class NationalStatePayload(TypedDict):
     army: dict[str, int]
     navy: dict[str, int]
     administrationCapacity: int
+    baseAdministrationCapacity: int = 0
     ideologyLevels: dict[str, int]
     reforms: list[str]
     policies: list[str]

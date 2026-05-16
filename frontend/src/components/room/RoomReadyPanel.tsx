@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18n from "../../i18n";
 import type { RoomAiControlsViewModel, RoomPrimaryActionViewModel } from "../../features/room/roomPreparationViewModel";
 import type { RoomContext, RoomMember } from "../../types";
 
@@ -27,6 +29,7 @@ export function RoomReadyPanel({
   onFillBots,
   ...rest
 }: RoomReadyPanelProps) {
+  const { t } = useTranslation("room");
   const viewModel = "viewModel" in rest ? rest.viewModel : createLegacyPrimaryActionViewModel(rest);
   const aiControls = "viewModel" in rest ? rest.aiControls ?? null : null;
 
@@ -34,8 +37,8 @@ export function RoomReadyPanel({
     <section className="room-panel room-ready-panel">
       <div className="room-ready-panel__head">
         <div>
-          <p className="room-panel__eyebrow">第 2 步</p>
-          <h2 className="room-panel__title">准备开局</h2>
+          <p className="room-panel__eyebrow">{t("eyebrow")}</p>
+          <h2 className="room-panel__title">{t("actions.ready")}</h2>
         </div>
         <span className="room-chip">{viewModel.readySummary}</span>
       </div>
@@ -52,21 +55,21 @@ export function RoomReadyPanel({
           onClick={onToggleReady}
           type="button"
         >
-          {isBusy ? "准备状态更新中..." : viewModel.buttonLabel}
+          {isBusy ? t("common:loading") : viewModel.buttonLabel}
         </button>
       </div>
 
       <div className="room-ready-panel__status">
         <div>
-          <span>你的当前状态</span>
+          <span>{viewModel.title}</span>
           <strong>{viewModel.title}</strong>
         </div>
         <div>
-          <span>当前国家</span>
+          <span>{t("countrySelection.title")}</span>
           <strong>{viewModel.selectedCountrySummary}</strong>
         </div>
         <div>
-          <span>进房人数</span>
+          <span>{t("members.title")}</span>
           <strong>{viewModel.memberSummary}</strong>
         </div>
       </div>
@@ -93,7 +96,7 @@ export function RoomReadyPanel({
       ) : null}
 
       <details className="room-ready-panel__details">
-        <summary>规则与待办</summary>
+        <summary>{t("status.readying")}</summary>
         <div className="room-ready-panel__details-body">
           <div className="room-ready-panel__checklist">
             <strong>{viewModel.startChecklistTitle}</strong>
@@ -105,13 +108,13 @@ export function RoomReadyPanel({
           </div>
 
           <div className="room-ready-panel__note">
-            <strong>自动开局规则</strong>
+            <strong>{t("status.readying")}</strong>
             <p>{viewModel.autoStartRule}</p>
           </div>
 
           {viewModel.blockingReason ? (
             <div className="room-ready-panel__blocking">
-              <strong>为什么现在还不能直接开局</strong>
+              <strong>{t("status.waiting")}</strong>
               <p>{viewModel.blockingReason}</p>
             </div>
           ) : null}
@@ -140,32 +143,34 @@ function createLegacyPrimaryActionViewModel({
 }: Pick<RoomReadyPanelLegacyProps, "room" | "currentPlayer" | "statusMessage">): RoomPrimaryActionViewModel {
   const readyCount = room.members.filter((member) => member.isReady).length;
   const title = room.status === "in_game"
-    ? "房间已开局，正在进入游戏"
+    ? i18n.t("room:status.in_game")
     : currentPlayer?.isReady
-      ? "已准备"
+      ? i18n.t("room:actions.ready")
       : currentPlayer?.selectedCountry
-        ? "已选国家"
-        : "未选国家";
+        ? i18n.t("room:countrySelection.title")
+        : i18n.t("room:countrySelection.noSelection");
 
   return {
     title,
-    nextStepTitle: "下一步",
+    nextStepTitle: i18n.t("room:countrySelection.confirm"),
     nextStepDescription: statusMessage,
-    buttonLabel: currentPlayer?.isReady ? "取消准备" : "准备开局",
+    buttonLabel: currentPlayer?.isReady ? i18n.t("room:actions.unready") : i18n.t("room:actions.ready"),
     buttonDisabled: !currentPlayer?.selectedCountry,
     canToggleReady: Boolean(currentPlayer?.selectedCountry),
-    readySummary: `${readyCount} / ${room.members.length || 5} 人已准备开局`,
-    memberSummary: `${room.members.length} / 5 人已进入房间`,
+    readySummary: i18n.t("room:readyCount", { ready: readyCount, total: room.members.length || 5 }),
+    memberSummary: i18n.t("room:memberCount", { count: room.members.length, max: 5 }),
     selectedCountrySummary: currentPlayer?.selectedCountry
-      ? `已选国家：${currentPlayer.selectedCountry}`
-      : "你尚未选定国家",
-    readyStateSummary: currentPlayer?.isReady ? "你已准备开局" : "你尚未准备开局",
-    waitingTitle: "等待开局",
+      ? `${i18n.t("room:countrySelection.title")}: ${currentPlayer.selectedCountry}`
+      : i18n.t("room:countrySelection.noSelection"),
+    readyStateSummary: currentPlayer?.isReady
+      ? i18n.t("room:actions.ready")
+      : i18n.t("room:actions.unready"),
+    waitingTitle: i18n.t("room:status.waiting"),
     waitingDescription: statusMessage,
     waitingItems: [],
-    startChecklistTitle: "开局前检查清单",
+    startChecklistTitle: i18n.t("room:status.readying"),
     startChecklist: [],
-    autoStartRule: "自动开局规则：所有玩家选好国家并全部点下准备后，系统会自动进入第 1 回合。",
+    autoStartRule: i18n.t("room:status.readying"),
     blockingReason: null,
   };
 }

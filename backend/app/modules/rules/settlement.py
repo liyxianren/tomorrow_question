@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import random
-from decimal import Decimal
 
 from app.contracts.enums import RegionAccessLevel
 from app.modules.balance_config import get_balance_config
@@ -45,10 +44,6 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
         )
         for key, value in allocation.items():
             player_state.budget_pools[key] = int(player_state.budget_pools.get(key, 0)) + int(value)
-        # 消费池消耗率：打断"收入→消费池→价格→收入"的指数增长正反馈
-        consumption_pool = int(player_state.budget_pools.get("domesticMarket", 0))
-        drain_rate = Decimal("0.4")
-        player_state.budget_pools["domesticMarket"] = int(Decimal(str(consumption_pool)) * (1 - drain_rate))
         player_state.cumulative_national_income = int(player_state.cumulative_national_income) + effective_income
         for route_key, pending in list(player_state.pending_production_capacity.items()):
             player_state.production_capacity[route_key] = int(player_state.production_capacity.get(route_key, 0)) + int(pending)
@@ -157,16 +152,25 @@ def _is_phase1_economy_active(player_state) -> bool:
 
 
 def _allocate_income_phase1(*, national_income: int, ratio: dict[str, float] | None = None) -> dict[str, int]:
-    """Split income by the player's current three-pool weights."""
+    """Split income by the player's current three-pool weights.
+    
+    domesticMarket pool is frozen — its share is redistributed proportionally
+    between factory and governmentFiscal based on their original weights.
+    """
     if national_income <= 0:
         return {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
-    normalized_ratio = _phase1_ratio_from_legacy(ratio)
-    delta = allocate_revenue_to_pools(Decimal(int(national_income)), ratio=normalized_ratio)
-    domestic = int(delta.consumption)
-    factory = int(delta.investment)
-    government = int(national_income) - domestic - factory
+    legacy = ratio or {}
+    factory_w = max(0.0, float(legacy.get("factory", 3.0)))
+    gov_w = max(0.0, float(legacy.get("governmentFiscal", 4.0)))
+    total_remaining = factory_w + gov_w
+    if total_remaining <= 0:
+        factory = int(national_income * 0.5)
+        government = int(national_income) - factory
+    else:
+        factory = int(national_income * (factory_w / total_remaining))
+        government = int(national_income) - factory
     return {
-        "domesticMarket": domestic,
+        "domesticMarket": 0,
         "factory": factory,
         "governmentFiscal": government,
     }
@@ -238,7 +242,7 @@ def _build_market_price_adjustments(
 def _build_ideology_signals(player_state) -> dict[str, int]:
     return {
         "industryStrength": int(player_state.budget_pools.get("factory", 0)),
-        "domesticStrength": int(player_state.budget_pools.get("domesticMarket", 0)),
+        "domesticStrength": int(player_state.domestic_sales_revenue),
         "externalBalance": int(player_state.overseas_sales_revenue)
         - int(player_state.domestic_sales_revenue),
     }
@@ -387,28 +391,24 @@ def _apply_permanent_effects(player_state, permanent: dict) -> None:
                     int(player_state.budget_pools.get(to_pool, 0)) + amount
                 )
 
+    army_cap_delta = permanent.get("armyCapDelta")
+    if army_cap_delta is not None:
+        player_state.army_cap = max(
+            0, int(player_state.army_cap) + int(army_cap_delta)
+        )
+
 
 def _apply_active_policy_effects(player_state, balance) -> None:
+    """Apply this turn's active policy effects. Policies are single-turn and auto-cleared at next DECISION start."""
     for policy_id in list(player_state.active_policies):
         policy = balance.reforms.regular_policies.get(policy_id)
         if policy is None:
-            continue
-        if int(player_state.administration_capacity) < int(policy.admin_cost_per_turn):
-            if policy_id in player_state.active_policies:
-                player_state.active_policies.remove(policy_id)
-                _reverse_policy_ratio_effect(player_state, policy.effects)
             continue
         recurring_effects = {
             key: value
             for key, value in policy.effects.items()
             if key != "ratioDelta"
         }
-        if "administrationCapacityDelta" in recurring_effects:
-            next_admin_delta = int(recurring_effects["administrationCapacityDelta"]) - int(policy.admin_cost_per_turn)
-            if next_admin_delta == 0:
-                recurring_effects.pop("administrationCapacityDelta")
-            else:
-                recurring_effects["administrationCapacityDelta"] = next_admin_delta
         _apply_reform_or_policy_effects(player_state, recurring_effects)
         permanent = policy.effects.get("permanent") if isinstance(policy.effects, dict) else None
         if isinstance(permanent, dict):

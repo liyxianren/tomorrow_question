@@ -144,7 +144,7 @@ class PlayerState:
         default_factory=lambda: {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
     )
     tech_points: int = 1
-    military_points: int = 0
+    army_cap: int = 3
     production_capacity: dict[str, int] = field(default_factory=dict)
     pending_production_capacity: dict[str, int] = field(default_factory=dict)
     # Only key 'phase1_goods' used post-Phase1; dict retained for legacy compatibility
@@ -159,7 +159,8 @@ class PlayerState:
     goods_allocation: dict[str, int] = field(default_factory=dict)
     army: dict[str, int] = field(default_factory=dict)
     navy: dict[str, int] = field(default_factory=dict)
-    administration_capacity: int = 3
+    administration_capacity: int = 1
+    base_admin_capacity: int = 1
     ideology_levels: dict[str, int] = field(default_factory=dict)
     reforms: list[str] = field(default_factory=list)
     policies: list[str] = field(default_factory=list)
@@ -184,7 +185,7 @@ class PlayerState:
             "incomeAllocationRatio": _copy_float_mapping(self.income_allocation_ratio),
             "budgetPools": _copy_int_mapping(self.budget_pools),
             "techPoints": int(self.tech_points),
-            "militaryPoints": int(self.military_points),
+            "armyCap": int(self.army_cap),
             "productionCapacity": _copy_int_mapping(self.production_capacity),
             "pendingProductionCapacity": _copy_int_mapping(self.pending_production_capacity),
             "goodsStock": _copy_int_mapping(self.goods_stock),
@@ -199,6 +200,7 @@ class PlayerState:
             "army": _copy_int_mapping(self.army),
             "navy": _copy_int_mapping(self.navy),
             "administrationCapacity": int(self.administration_capacity),
+            "baseAdministrationCapacity": int(self.base_admin_capacity),
             "ideologyLevels": _copy_int_mapping(self.ideology_levels),
             "reforms": _copy_string_list(self.reforms),
             "policies": _copy_string_list(self.policies),
@@ -225,7 +227,7 @@ class PlayerState:
             income_allocation_ratio=_copy_float_mapping(payload["incomeAllocationRatio"]),
             budget_pools=_copy_int_mapping(payload["budgetPools"]),
             tech_points=int(payload["techPoints"]),
-            military_points=int(payload["militaryPoints"]),
+            army_cap=int(payload.get("armyCap", 3)),
             production_capacity=_copy_int_mapping(payload["productionCapacity"]),
             pending_production_capacity=_copy_int_mapping(payload["pendingProductionCapacity"]),
             goods_stock=_copy_int_mapping(payload["goodsStock"]),
@@ -240,6 +242,7 @@ class PlayerState:
             army=_copy_int_mapping(payload["army"]),
             navy=_copy_int_mapping(payload["navy"]),
             administration_capacity=int(payload["administrationCapacity"]),
+            base_admin_capacity=int(payload.get("baseAdministrationCapacity", int(payload["administrationCapacity"]))),
             ideology_levels=_copy_int_mapping(payload["ideologyLevels"]),
             reforms=_copy_string_list(payload["reforms"]),
             policies=_copy_string_list(payload["policies"]),

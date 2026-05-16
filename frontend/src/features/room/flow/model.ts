@@ -1,3 +1,4 @@
+import i18n from "../../../i18n";
 import { ApiRequestError } from "../../../services/http";
 import type { GameContext, GameSnapshot, PlayerSession, RoomContext, RoomMember } from "../../../types";
 
@@ -32,7 +33,7 @@ export function formatRequestError(error: unknown): string {
     return error.message;
   }
 
-  return "请求失败，请稍后再试。";
+  return i18n.t("room:errors.genericError");
 }
 
 export function createFallbackRoom(roomCode: string): RoomContext {
@@ -150,32 +151,32 @@ function getDefaultMessage({
     case "enter_room":
       return {
         tone: loadError ? "error" : "neutral",
-        text: loadError ?? "正在进入房间并恢复上下文。",
+        text: loadError ?? i18n.t("common:loading"),
       };
     case "identify_player":
       return {
         tone: "neutral",
-        text: "正在识别你的玩家身份，请稍候。",
+        text: i18n.t("common:loading"),
       };
     case "select_country":
       return {
         tone: "neutral",
-        text: "先选择你要代表的国家，然后再准备。",
+        text: i18n.t("room:countrySelection.title"),
       };
     case "ready":
       return {
         tone: "neutral",
-        text: `已选择国家：${currentMember?.selectedCountry ?? "未选国家"}，现在可以点击准备。`,
+        text: `${i18n.t("game:country." + (currentMember?.selectedCountry ?? "britain"))} - ${i18n.t("room:actions.ready")}`,
       };
     case "wait_for_others":
       return {
         tone: "neutral",
-        text: "你已准备完成，等待其他玩家准备后自动开局。",
+        text: i18n.t("room:status.readying"),
       };
     case "start_game":
       return {
         tone: "success",
-        text: "房间已开局，正在进入游戏。",
+        text: i18n.t("room:status.in_game"),
       };
   }
 }

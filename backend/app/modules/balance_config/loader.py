@@ -217,10 +217,7 @@ def _build_countries_config(payload: dict[str, Any]) -> dict[str, CountryBalance
                 f"countries.{country_key}.incomeAllocationRatio",
             ),
             tech_points=_require_non_negative_int(country_value.get("techPoints"), f"countries.{country_key}.techPoints"),
-            military_points=_require_non_negative_int(
-                country_value.get("militaryPoints"),
-                f"countries.{country_key}.militaryPoints",
-            ),
+            army_cap=_require_non_negative_int(country_value.get("armyCap"), f"countries.{country_key}.armyCap"),
             production_capacity=_require_int_mapping(country_value.get("productionCapacity"), f"countries.{country_key}.productionCapacity"),
             goods_stock=_require_int_mapping(country_value.get("goodsStock"), f"countries.{country_key}.goodsStock"),
             army=_require_int_mapping(country_value.get("army"), f"countries.{country_key}.army"),
@@ -446,9 +443,9 @@ def _build_military_config(payload: dict[str, Any]) -> MilitaryBalanceConfig:
             payload.get("colonizationUnlockCost", 10),
             "military.colonizationUnlockCost",
         ),
-        colonization_military_point_cost=_require_non_negative_int(
-            payload.get("colonizationMilitaryPointCost", 3),
-            "military.colonizationMilitaryPointCost",
+        colonization_budget_cost=_require_non_negative_int(
+            payload.get("colonizationBudgetCost", 4),
+            "military.colonizationBudgetCost",
         ),
         colonization_income_per_colony_per_round=_require_non_negative_int(
             payload.get("colonizationIncomePerColonyPerRound", 5),
@@ -460,6 +457,10 @@ def _build_military_config(payload: dict[str, Any]) -> MilitaryBalanceConfig:
                 payload.get("maxColonizationsPerRound", 1),
                 "military.maxColonizationsPerRound",
             ),
+        ),
+        army_cap_base=_require_non_negative_int(
+            payload.get("armyCapBase", 3),
+            "military.armyCapBase",
         ),
     )
 
@@ -697,7 +698,7 @@ def _build_reforms_config(
                 f"decision_actions.regularPolicies.{policy_id}.label",
             ),
             admin_cost_per_turn=_require_non_negative_int(
-                policy.get("adminCostPerTurn"),
+                policy.get("adminCostPerTurn", 0),
                 f"decision_actions.regularPolicies.{policy_id}.adminCostPerTurn",
             ),
             budget_cost=_require_non_negative_int(
@@ -738,10 +739,6 @@ def _build_action_mapping(value: Any, field_name: str) -> dict[str, DecisionActi
                 action.get("techPointCost", 0),
                 f"{field_name}.{action_id}.techPointCost",
             ),
-            military_point_cost=_require_non_negative_int(
-                action.get("militaryPointCost", 0),
-                f"{field_name}.{action_id}.militaryPointCost",
-            ),
             ratio_delta=_require_float_mapping(
                 action.get("ratioDelta", {}),
                 f"{field_name}.{action_id}.ratioDelta",
@@ -770,7 +767,6 @@ def _build_military_action_mapping(value: Any, field_name: str) -> dict[str, Mil
             ),
             effects=_require_dict(action.get("effects"), f"{field_name}.{action_id}.effects"),
             description=str(action.get("description") or ""),
-            military_point_cost=int(action.get("militaryPointCost", 0)),
         )
     return normalized
 

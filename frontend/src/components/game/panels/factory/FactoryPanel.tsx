@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18n, { translateBackend } from "../../../../i18n";
 import type { DecisionPlayerPhaseWorkspace, FactoryExpansionOption, FactoryNewFactoryOption, FactoryUpgradeOption } from "../../../../types";
 import type { PhaseDraftByPhase } from "../../../../features/game/forms";
 import {
@@ -36,6 +38,7 @@ export function FactoryPanel({
   onTechnologyToggle: (techId: string, checked: boolean) => void;
   onPhase1RawMaterialAssignmentChange?: (mode: string, quantity: number) => void;
 }) {
+  const { t } = useTranslation();
   const techPreview = calculateTechResearchPreview(workspace, draft);
   const phase1Economy = workspace.phase1Economy;
   const factoryActions = (workspace.factoryActions ?? []).filter(
@@ -67,7 +70,7 @@ export function FactoryPanel({
   return (
     <section className="factory-panel" data-testid="factory-panel">
       <div className="factory-panel__header">
-        <h3 className="factory-panel__title">🏭 工业区</h3>
+        <h3 className="factory-panel__title">🏭 {t("game:factory.title")}</h3>
       </div>
 
       <div className="factory-panel--v2">
@@ -94,7 +97,7 @@ export function FactoryPanel({
             <div className="factory-panel__section">
               <h4 className="factory-section-label">
                 <span className="factory-section-label__icon">⚙️</span>
-                工厂调度
+                {t("game:factory.factoryDispatch")}
               </h4>
               <div className="factory-command-list">
                 {factoryActions.map((action) => {
@@ -114,21 +117,21 @@ export function FactoryPanel({
                     >
                       <div className="factory-command-row__main">
                         <div className="factory-command-row__title-line">
-                          <h5>{action.label}</h5>
-                          <span>{action.cost > 0 ? `${action.cost} 工厂` : "无成本"}</span>
+                          <h5>{translateBackend(action.label)}</h5>
+                          <span>{action.cost > 0 ? `${action.cost} ${t("game:factory.factoryBudget")}` : t("game:factory.noCost")}</span>
                         </div>
-                        <p>{isLocked ? `锁定：${action.lockedReason}` : action.description}</p>
+                        <p>{isLocked ? `${t("common:decision.lockedBy", { reason: translateBackend(action.lockedReason) })}` : translateBackend(action.description)}</p>
                         {renderEffectTags(effects)}
                       </div>
                       <div className="factory-command-row__control">
-                        <span>{selected ? "本轮执行" : noBudget ? "预算不足" : isLocked ? "未解锁" : "可选"}</span>
+                        <span>{selected ? t("game:factory.selectedForExecution") : noBudget ? t("game:factory.budgetInsufficient") : isLocked ? t("game:factory.notUnlocked") : t("game:factory.available")}</span>
                         <button
                           type="button"
                           disabled={disabled && !selected}
                           onClick={() => onFactoryActionToggle(action.actionId, !selected)}
-                          aria-label={`${selected ? "取消" : "选择"}工厂调度：${action.label}`}
+                          aria-label={`${selected ? t("common:revoke") : t("common:select")}${t("game:factory.factoryDispatch")}：${action.label}`}
                         >
-                          {selected ? "撤回" : "选择"}
+                          {selected ? t("common:revoke") : t("common:select")}
                         </button>
                       </div>
                     </article>
@@ -142,7 +145,7 @@ export function FactoryPanel({
             <div className="factory-panel__section">
               <h4 className="factory-section-label">
                 <span className="factory-section-label__icon">🏗️</span>
-                建设与升级
+                {t("game:factory.constructionAndUpgrade")}
               </h4>
               <div className="factory-command-list">
                 {workspace.expansionOptions.map((option) =>
@@ -175,13 +178,13 @@ export function FactoryPanel({
     const title = getConstructionTitle(option, kind);
 
     const description = isLocked
-      ? `🔒 ${option.lockedReason}`
+      ? `🔒 ${translateBackend(option.lockedReason)}`
       : option.maxQuantity < 999
-        ? `最多 ${option.maxQuantity} 次`
+        ? `${i18n.t("common:max")} ${option.maxQuantity} ${i18n.t("game:times")}`
         : undefined;
     const effects = isLocked
       ? undefined
-      : [{ label: `产能 +${option.capacityDelta}`, value: "" }];
+      : [{ label: `${t("game:factory.capacityLimit")} +${option.capacityDelta}`, value: "" }];
     return (
       <article
         key={`${kind}-${option.routeId}`}
@@ -195,9 +198,9 @@ export function FactoryPanel({
         <div className="factory-command-row__main">
           <div className="factory-command-row__title-line">
             <h5>{title}</h5>
-            <span>{option.unitBudgetCost} 工厂</span>
+            <span>{option.unitBudgetCost} {t("game:factory.factoryBudget")}</span>
           </div>
-          <p>{description ?? `${getConstructionKindLabel(kind)}产线，提升后续生产能力。`}</p>
+          <p>{description ?? `${getConstructionKindLabel(kind)}${t("game:factory.constructionLine")}`}</p>
           {renderEffectTags(effects)}
         </div>
         <div className="factory-command-row__stepper">
@@ -205,7 +208,7 @@ export function FactoryPanel({
             type="button"
             disabled={!canRemove}
             onClick={() => onConstructionQuantityChange(option.routeId, kind, Math.max(0, quantity - 1))}
-            aria-label={`${title} 减少`}
+            aria-label={`${title} ${t("common:decrease")}`}
           >
             −
           </button>
@@ -214,11 +217,11 @@ export function FactoryPanel({
             type="button"
             disabled={!canAdd}
             onClick={() => onConstructionQuantityChange(option.routeId, kind, Math.min(option.maxQuantity, quantity + 1))}
-            aria-label={`${title} 增加`}
+            aria-label={`${title} ${t("common:increase")}`}
           >
             +
           </button>
-          <span>{quantity > 0 ? `已选 ${quantity}` : noBudget ? "预算不足" : isLocked ? "未解锁" : "可建"}</span>
+          <span>{quantity > 0 ? t("game:factory.selectedCount", { count: quantity }) : noBudget ? t("game:factory.budgetInsufficient") : isLocked ? t("game:factory.notUnlocked") : t("game:factory.canBuild")}</span>
         </div>
       </article>
     );
@@ -233,7 +236,7 @@ function renderEffectTags(effects: { label: string; value: string | number; temp
     <div className="factory-command-row__effects">
       {effects.map((effect) => (
         <span key={`${effect.label}-${effect.value}`}>
-          {effect.value ? `${effect.label} ${effect.value}` : effect.label}
+          {effect.value ? `${translateBackend(effect.label)} ${effect.value}` : translateBackend(effect.label)}
         </span>
       ))}
     </div>
@@ -276,19 +279,19 @@ export function getConstructionTitle(
   kind: "expansion" | "upgrade" | "newFactory",
 ): string {
   if (kind === "expansion") {
-    return `扩产 ${option.routeLabel}`;
+    return i18n.t("game:factory.expandAction", { label: translateBackend(option.routeLabel) });
   }
   if (kind === "upgrade") {
-    return `升级到 ${option.routeLabel}`;
+    return i18n.t("game:factory.upgradeAction", { label: translateBackend(option.routeLabel) });
   }
-  return `新建 ${option.routeLabel} 工厂`;
+  return i18n.t("game:factory.newFactoryAction", { label: translateBackend(option.routeLabel) });
 }
 
 export function getConstructionKindLabel(kind: "expansion" | "upgrade" | "newFactory"): string {
   switch (kind) {
-    case "expansion": return "扩产";
-    case "upgrade": return "升级";
-    case "newFactory": return "新建";
+    case "expansion": return i18n.t("game:factory.expandLabel");
+    case "upgrade": return i18n.t("game:factory.upgradeLabel");
+    case "newFactory": return i18n.t("game:factory.newFactoryLabel");
     default: return kind;
   }
 }

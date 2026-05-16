@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 type GameMapModalProps = {
   isOpen: boolean;
@@ -10,6 +11,7 @@ type GameMapModalProps = {
 };
 
 export function GameMapModal({ isOpen, title, variant, resetKey, onClose, children }: GameMapModalProps) {
+  const { t } = useTranslation();
   const bodyRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -39,7 +41,7 @@ export function GameMapModal({ isOpen, title, variant, resetKey, onClose, childr
       >
         <div className="game-map-modal__header">
           <h2 className="game-map-modal__title">{title}</h2>
-          <button className="game-map-modal__close" onClick={onClose} type="button" aria-label="关闭">
+          <button className="game-map-modal__close" onClick={onClose} type="button" aria-label={t("common:close")}>
             ✕
           </button>
         </div>

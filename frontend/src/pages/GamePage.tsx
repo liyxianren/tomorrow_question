@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { GameMapView } from "../components/game/layout/GameMapView";
@@ -16,6 +17,7 @@ import { createGameWorkbenchViewModel, getPhaseSubmitBlockingReasons } from "../
 import { useGamePageController } from "../features/game/flow/useGamePageController";
 import { useMapViewState } from "../features/game/flow/useMapViewState";
 import { useGameRuntime } from "../features/game/runtime/useGameRuntime";
+import i18n from "../i18n";
 import type { SubmitPhaseResponse } from "../services/game";
 import type {
   DecisionPlayerPhaseWorkspace,
@@ -29,11 +31,11 @@ type GameRouteState = {
 };
 
 const DECISION_STEP_MODAL_TITLE: Record<DecisionStepId, string> = {
-  factory: "工业区",
-  domestic: "市民广场",
-  government: "议会厅",
-  military: "军事要塞",
-  research: "研究院",
+  factory: i18n.t("game:building.factory"),
+  domestic: i18n.t("game:building.domestic"),
+  government: i18n.t("game:building.government"),
+  military: i18n.t("game:building.military"),
+  research: i18n.t("game:building.research"),
 };
 
 export function GamePage() {
@@ -142,7 +144,10 @@ export function GamePage() {
       />
     ) : (
       <div style={{ color: "var(--game-text-secondary)", fontSize: 14, textAlign: "center" }}>
-        结算完成，{runtimeState.secondsRemaining != null && runtimeState.secondsRemaining > 0 ? `${runtimeState.secondsRemaining} 秒后` : "即将"}进入{isFinalRoundSettlement ? "终局档案" : "下一回合"}
+        {i18n.t("game:settlement.countdownInSeconds", {
+          seconds: runtimeState.secondsRemaining ?? 0,
+          target: isFinalRoundSettlement ? i18n.t("game:settlement.countdownFinalArchive") : i18n.t("game:settlement.countdownNextRound"),
+        })}
       </div>
     );
 

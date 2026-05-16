@@ -2,8 +2,8 @@
 E2E tests for remaining regularPolicies:
 - expand_army (budgetCost=8, militaryPointsDelta=1)
 - reduce_army (fiscalRefund=5)
-- raise_consumption_tax (ratioDelta + ideologyDelta) — already unit-tested, API-level here
-- lower_consumption_tax (ratioDelta + ideologyDelta)
+- raise_commercial_tax (ratioDelta + ideologyDelta)
+- lower_commercial_tax (ratioDelta + ideologyDelta)
 - expand_administration (budgetCost=15, administrationCapacityDelta=1)
 """
 
@@ -251,10 +251,10 @@ class RegularPoliciesE2ETest(unittest.TestCase):
         # Military: -1 per settlement
         self.assertEqual(britain.military_points, initial_military - 1)
 
-    # ── raise_consumption_tax ──
+    # ── raise_commercial_tax ──
 
-    def test_raise_consumption_tax_api_level(self):
-        """raise_consumption_tax: ratioDelta + ideologyDelta via API."""
+    def test_raise_commercial_tax_api_level(self):
+        """raise_commercial_tax: ratioDelta + ideologyDelta via API."""
         self.seed_active_game()
         snapshot = self._load_snapshot()
         britain = self._player(snapshot, "player-1")
@@ -262,12 +262,12 @@ class RegularPoliciesE2ETest(unittest.TestCase):
         britain.budget_pools["governmentFiscal"] = 50
         self._save_snapshot(snapshot)
 
-        payload = _decision_payload(activate_policies=["raise_consumption_tax"])
+        payload = _decision_payload(activate_policies=["raise_commercial_tax"])
         self._submit_decisions_for_all({"session-1": payload})
         snapshot = self._load_snapshot()
         britain = self._player(snapshot, "player-1")
 
-        self.assertIn("raise_consumption_tax", britain.active_policies)
+        self.assertIn("raise_commercial_tax", britain.active_policies)
 
 
 if __name__ == "__main__":

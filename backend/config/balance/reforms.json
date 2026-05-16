@@ -87,7 +87,7 @@
         "effects": {
           "ratioDelta": {
             "factory": 1.0,
-            "consumption": -1.0
+            "governmentFiscal": -1.0
           },
           "upgradeCostMultiplier": 0.7,
           "ideologyDelta": {
@@ -180,8 +180,7 @@
         "effects": {
           "ratioOverride": {
             "factory": 0,
-            "consumption": 6,
-            "fiscal": 4
+            "governmentFiscal": 10
           },
           "ideologyDelta": {
             "liberalism": 5

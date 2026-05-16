@@ -1,0 +1,24 @@
+{
+  "phases": {
+    "production": {
+      "phaseRole": "The Production phase turns budgets, inventory, and production lines into industrial output ready for the next round—goods to sell, upgrade, and expand.",
+      "whyNow": "This is the starting point of the entire economic cycle. You're not making money yet—you're deciding how much inventory, how many production lines, and how much growth potential you'll have when this round ends.",
+      "loopPositionText": "The full cycle is Production → Market → Military/Politics → influencing the next round's operations. You're now at step one: preparing goods and production lines."
+    },
+    "market": {
+      "phaseRole": "The Market phase converts existing inventory into revenue and channels this round's results back into consumption, investment, and fiscal pools.",
+      "whyNow": "Goods prepared in the previous phase only become spendable funds in the consumption, investment, and fiscal pools once sold here.",
+      "loopPositionText": "The full cycle is Production → Market → Military/Politics → influencing the next round's operations. You're now at the step that directly realizes revenue."
+    },
+    "military": {
+      "phaseRole": "The Military phase determines naval power, regional control, and sea lane security—results that directly affect future market access and operational space.",
+      "whyNow": "This isn't just combat—it's about whether you can safely sell goods next round, access critical regions, and whether someone can cut your economic chain.",
+      "loopPositionText": "The full cycle is Production → Market → Military/Politics → influencing the next round's operations. You're now paving the way for the next round's market and regional operations."
+    },
+    "politics": {
+      "phaseRole": "The Politics phase adjusts administration, shapes ideology, pushes reforms and research—giving the nation more stable operating conditions in subsequent rounds.",
+      "whyNow": "This determines how the state machine runs. Administration, policies, reforms, and research together decide how money flows, what technology unlocks, and where risks emerge in the coming rounds.",
+      "loopPositionText": "The full cycle is Production → Market → Military/Politics → influencing the next round's operations. You're now setting the tone for the next several rounds of operational efficiency and institutional conditions."
+    }
+  }
+}

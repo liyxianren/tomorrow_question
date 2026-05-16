@@ -9,6 +9,7 @@ import {
 } from "../../../services/http";
 import type { SessionContextResponse } from "../../../types";
 import { resolveSessionRoute } from "../../../app/sessionRecovery";
+import i18n from "../../../i18n";
 
 import {
   bindStoredProfileSession,
@@ -78,14 +79,14 @@ export function useIdentityGateController(options: UseIdentityGateControllerOpti
   function handleContinue(): void {
     const normalizedNickname = nickname.trim();
     if (!normalizedNickname) {
-      setMessage(createErrorMessage("请先填写你想在本局使用的显示姓名。"));
+      setMessage(createErrorMessage(i18n.t("lobby:messages.nicknameRequired")));
       return;
     }
 
     const profile = upsertStoredProfile(normalizedNickname);
     setProfileId(profile.profileId);
     setStoredSessionId(profile.boundSessionId);
-    setMessage(createSuccessMessage("身份已确认，可以开始进入大厅操作。"));
+    setMessage(createSuccessMessage(i18n.t("lobby:messages.identityConfirmed")));
     setPendingAction("continue");
     options.onIdentityConfirmed?.();
     setPendingAction(null);
@@ -94,7 +95,7 @@ export function useIdentityGateController(options: UseIdentityGateControllerOpti
   async function handleRestore(): Promise<void> {
     const recoverableSessionId = getRecoverableSessionId();
     if (!recoverableSessionId) {
-      setMessage(createErrorMessage("当前没有可以继续的上次会话。"));
+      setMessage(createErrorMessage(i18n.t("lobby:messages.noRecoverableSession")));
       return;
     }
 
@@ -107,14 +108,14 @@ export function useIdentityGateController(options: UseIdentityGateControllerOpti
         sessionId: recoverableSessionId,
       });
 
-      setMessage(createSuccessMessage("已找回你上次离开的进度。"));
+      setMessage(createSuccessMessage(i18n.t("lobby:messages.progressRecovered")));
       navigateFromSessionContext(response);
     } catch (error) {
       if (error instanceof ApiRequestError && error.code === "INVALID_SESSION") {
         clearSessionId();
         clearStoredProfileSession();
         setStoredSessionId(null);
-        setMessage(createErrorMessage("没能找回你上次离开的进度，但当前身份仍然保留。"));
+        setMessage(createErrorMessage(i18n.t("lobby:messages.recoveryFailedIdentityKept")));
       } else {
         setMessage(createErrorMessage(formatRequestError(error)));
       }
@@ -127,7 +128,7 @@ export function useIdentityGateController(options: UseIdentityGateControllerOpti
     clearSessionId();
     clearStoredProfileSession();
     setStoredSessionId(null);
-    setMessage(createSuccessMessage("已清除这台设备保存的上次会话记录。"));
+    setMessage(createSuccessMessage(i18n.t("lobby:messages.sessionCleared")));
   }
 
   function handleClearIdentity(): void {
@@ -136,7 +137,7 @@ export function useIdentityGateController(options: UseIdentityGateControllerOpti
     setNickname("");
     setProfileId(null);
     setStoredSessionId(null);
-    setMessage(createSuccessMessage("这台设备上的身份和会话记录都已清除。"));
+    setMessage(createSuccessMessage(i18n.t("lobby:messages.identityCleared")));
   }
 
   return {

@@ -109,7 +109,7 @@
       "3": {
         "label": "国防动员",
         "effects": {
-          "militaryPointsDelta": 1
+          "overseasMarketCapacityDelta": 1
         }
       },
       "5": {

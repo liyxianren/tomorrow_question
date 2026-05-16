@@ -153,7 +153,7 @@
         "branch": "military",
         "techPointCost": 1,
         "description": "研习现代军事理论，提升军事投射能力。",
-        "permanentEffects": { "militaryPointsDelta": 1 }
+        "permanentEffects": { "armyCapDelta": 1 }
       },
       "mil_fleet_expansion": {
         "label": "舰队扩张",
@@ -167,7 +167,7 @@
         "branch": "military",
         "techPointCost": 3,
         "description": "军民融合发展，军事能力与海外贸易价格同步提升。",
-        "permanentEffects": { "militaryPointsDelta": 1, "overseasPriceBonusDelta": 1 }
+        "permanentEffects": { "armyCapDelta": 1, "overseasPriceBonusDelta": 1 }
       },
       "mil_naval_supremacy": {
         "label": "海权制霸",
@@ -181,7 +181,7 @@
         "branch": "military",
         "techPointCost": 5,
         "description": "全面动员国家战争机器，军事、海外全方位碾压。",
-        "permanentEffects": { "militaryPointsDelta": 2, "controlledRegionsDelta": 1, "overseasMarketCapacityDelta": 3 }
+        "permanentEffects": { "armyCapDelta": 2, "controlledRegionsDelta": 1, "overseasMarketCapacityDelta": 3 }
       }
     }
   }

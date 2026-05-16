@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 type ScenarioCard = {
   title: string;
@@ -29,17 +30,18 @@ type GameCommandDockProps = {
 };
 
 export function GameCommandDock({ actionNode, statusNode, viewModel }: GameCommandDockProps) {
+  const { t } = useTranslation();
   return (
     <div className="game-command-dock__stack">
-      <DockCard eyebrow="链路状态" title="当前状态">
+      <DockCard eyebrow={t("game:commandDock.linkStatus")} title={t("game:commandDock.currentStatus")}>
         {statusNode}
       </DockCard>
 
-      <DockCard eyebrow="当前草稿" title="草稿摘要">
+      <DockCard eyebrow={t("game:commandDock.draftSummary")} title={t("game:commandDock.draftSummary")}>
         <LineList emptyText={viewModel.draftSummary.emptyText} lines={viewModel.draftSummary.lines} />
       </DockCard>
 
-      <DockCard eyebrow="提交后会怎样" title="结果预演">
+      <DockCard eyebrow={t("game:commandDock.outcomeHeadline")} title={t("game:commandDock.outcomePreview")}>
         <p className="game-command-dock__headline">{viewModel.outcomePreview.headline}</p>
         <LineList emptyText={viewModel.outcomePreview.emptyText} lines={viewModel.outcomePreview.lines} />
         {viewModel.outcomePreview.scenarioCards.map((card) => (
@@ -54,11 +56,11 @@ export function GameCommandDock({ actionNode, statusNode, viewModel }: GameComma
         ))}
       </DockCard>
 
-      <DockCard eyebrow="风险雷达" title="当前风险">
+      <DockCard eyebrow={t("game:commandDock.riskRadar")} title={t("game:commandDock.currentRisk")}>
         <LineList emptyText={viewModel.riskPanel.emptyText} lines={viewModel.riskPanel.lines} tone="warning" />
       </DockCard>
 
-      <DockCard eyebrow="最终确认" title="提交动作">
+      <DockCard eyebrow={t("game:commandDock.finalConfirm")} title={t("game:commandDock.submitAction")}>
         {actionNode}
       </DockCard>
     </div>

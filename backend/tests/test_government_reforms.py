@@ -116,8 +116,7 @@ class ReformEnactmentTests(unittest.TestCase):
 
         self.assertIn("planned_economy", player.completed_reforms)
         self.assertEqual(player.income_allocation_ratio["factory"], 0.0)
-        self.assertEqual(player.income_allocation_ratio["domesticMarket"], 6.0)
-        self.assertEqual(player.income_allocation_ratio["governmentFiscal"], 4.0)
+        self.assertEqual(player.income_allocation_ratio["governmentFiscal"], 10.0)
 
 
 class PolicyActivationTests(unittest.TestCase):
@@ -133,14 +132,14 @@ class PolicyActivationTests(unittest.TestCase):
         }
 
         activated = _apply_policy_plan(
-            player, {"activatePolicies": ["raise_consumption_tax"]}, balance
+            player, {"activatePolicies": ["raise_commercial_tax"]}, balance
         )
 
-        self.assertEqual(activated, ["raise_consumption_tax"])
-        # Policies reserve admin capacity but do not permanently consume it.
-        self.assertEqual(player.administration_capacity, 5)
-        self.assertIn("raise_consumption_tax", player.active_policies)
-        self.assertEqual(player.income_allocation_ratio["domesticMarket"], 4.0)
+        self.assertEqual(activated, ["raise_commercial_tax"])
+        # 激活政策消耗 1 行政点数
+        self.assertEqual(player.administration_capacity, 4)
+        self.assertIn("raise_commercial_tax", player.active_policies)
+        self.assertEqual(player.income_allocation_ratio["factory"], 2.0)
         self.assertEqual(player.income_allocation_ratio["governmentFiscal"], 3.0)
 
     def test_deactivate_policy(self) -> None:
@@ -153,16 +152,16 @@ class PolicyActivationTests(unittest.TestCase):
             "factory": 3.0,
             "governmentFiscal": 2.0,
         }
-        _apply_policy_plan(player, {"activatePolicies": ["raise_consumption_tax"]}, balance)
-        self.assertIn("raise_consumption_tax", player.active_policies)
-        self.assertEqual(player.income_allocation_ratio["domesticMarket"], 4.0)
+        _apply_policy_plan(player, {"activatePolicies": ["raise_commercial_tax"]}, balance)
+        self.assertIn("raise_commercial_tax", player.active_policies)
+        self.assertEqual(player.income_allocation_ratio["factory"], 2.0)
 
         _apply_policy_plan(
-            player, {"deactivatePolicies": ["raise_consumption_tax"]}, balance
+            player, {"deactivatePolicies": ["raise_commercial_tax"]}, balance
         )
 
-        self.assertNotIn("raise_consumption_tax", player.active_policies)
-        self.assertEqual(player.income_allocation_ratio["domesticMarket"], 5.0)
+        self.assertNotIn("raise_commercial_tax", player.active_policies)
+        self.assertEqual(player.income_allocation_ratio["factory"], 3.0)
         self.assertEqual(player.income_allocation_ratio["governmentFiscal"], 2.0)
 
     def test_activate_policy_respects_existing_policy_upkeep(self) -> None:
@@ -171,12 +170,12 @@ class PolicyActivationTests(unittest.TestCase):
         player = _get_player(snapshot, "player-1")
         player.administration_capacity = 1
 
-        first = _apply_policy_plan(player, {"activatePolicies": ["raise_consumption_tax"]}, balance)
-        second = _apply_policy_plan(player, {"activatePolicies": ["lower_consumption_tax"]}, balance)
+        first = _apply_policy_plan(player, {"activatePolicies": ["raise_commercial_tax"]}, balance)
+        second = _apply_policy_plan(player, {"activatePolicies": ["lower_commercial_tax"]}, balance)
 
-        self.assertEqual(first, ["raise_consumption_tax"])
+        self.assertEqual(first, ["raise_commercial_tax"])
         self.assertEqual(second, [])
-        self.assertEqual(player.active_policies, ["raise_consumption_tax"])
+        self.assertEqual(player.active_policies, ["raise_commercial_tax"])
 
 
 class SettlementEffectsTests(unittest.TestCase):
@@ -190,17 +189,17 @@ class SettlementEffectsTests(unittest.TestCase):
             "factory": 3.0,
             "governmentFiscal": 4.0,
         }
-        _apply_policy_plan(player, {"activatePolicies": ["raise_consumption_tax"]}, balance)
+        _apply_policy_plan(player, {"activatePolicies": ["raise_commercial_tax"]}, balance)
 
         resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
         updated = _get_player(resolution.updated_snapshot, "player-1")
 
-        # ratioDelta is normalized: consumption→domesticMarket (-1), fiscal→governmentFiscal (+1).
-        self.assertEqual(updated.income_allocation_ratio["domesticMarket"], 2.0)
+        # ratioDelta: factory (-1), governmentFiscal (+1).
+        self.assertEqual(updated.income_allocation_ratio["factory"], 2.0)
         self.assertEqual(updated.income_allocation_ratio["governmentFiscal"], 5.0)
-        self.assertEqual(updated.income_allocation_ratio["factory"], 3.0)
-        # Policy upkeep reserves capacity but does not permanently reduce it.
-        self.assertEqual(updated.administration_capacity, 5)
+        self.assertEqual(updated.income_allocation_ratio["domesticMarket"], 3.0)
+        # 激活政策消耗了 1 行政点数（5 → 4）
+        self.assertEqual(updated.administration_capacity, 4)
 
     def test_policy_with_insufficient_admin_is_removed_without_negative_capacity(self) -> None:
         balance = get_balance_config()
@@ -212,16 +211,19 @@ class SettlementEffectsTests(unittest.TestCase):
             "factory": 3.0,
             "governmentFiscal": 2.0,
         }
-        _apply_policy_plan(player, {"activatePolicies": ["raise_consumption_tax"]}, balance)
+        _apply_policy_plan(player, {"activatePolicies": ["raise_commercial_tax"]}, balance)
+        # 行政点数消耗后归零，但不影响政策在结算阶段生效
         player.administration_capacity = 0
 
         resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
         updated = _get_player(resolution.updated_snapshot, "player-1")
 
         self.assertEqual(updated.administration_capacity, 0)
-        self.assertNotIn("raise_consumption_tax", updated.active_policies)
-        self.assertEqual(updated.income_allocation_ratio["domesticMarket"], 5.0)
-        self.assertEqual(updated.income_allocation_ratio["governmentFiscal"], 2.0)
+        # 新系统：政策在结算阶段不会被自动撤销
+        self.assertIn("raise_commercial_tax", updated.active_policies)
+        # 商业税效果：factory -1, gov +1
+        self.assertEqual(updated.income_allocation_ratio["factory"], 2.0)
+        self.assertEqual(updated.income_allocation_ratio["governmentFiscal"], 3.0)
 
     def test_permanent_reform_tech_points(self) -> None:
         balance = get_balance_config()

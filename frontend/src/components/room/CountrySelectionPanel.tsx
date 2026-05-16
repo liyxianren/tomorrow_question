@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { CountryCode } from "../../types";
 import type { RoomCountrySlotViewModel } from "../../features/room/roomPreparationViewModel";
 import { getCountryLabel } from "../../features/room/roomPreparationViewModel";
@@ -24,6 +25,7 @@ export function CountrySelectionPanel({
   onSelectCountry,
   ...rest
 }: CountrySelectionPanelProps) {
+  const { t } = useTranslation("room");
   const slots = "slots" in rest
     ? rest.slots
     : Object.entries(rest.room.countrySlots).map(([country, occupantId]) => {
@@ -33,8 +35,8 @@ export function CountrySelectionPanel({
         return {
           country: country as CountryCode,
           label: getCountryLabel(country as CountryCode),
-          occupantLabel: occupant?.nickname ?? "空闲",
-          statusLabel: isSelected ? "当前是你" : occupant ? "已被选择" : "可选择",
+          occupantLabel: occupant?.nickname ?? t("members.empty"),
+          statusLabel: isSelected ? t("members.you") : occupant ? t("countrySelection.taken") : t("countrySelection.title"),
           isSelectable: !occupantId || occupantId === rest.currentPlayerId,
           isSelected,
         };
@@ -44,10 +46,10 @@ export function CountrySelectionPanel({
     <section className="room-panel room-country-panel" data-testid="room-country-panel">
       <div className="room-country-panel__head">
         <div>
-          <p className="room-panel__eyebrow">第 1 步</p>
-          <h2 className="room-panel__title">选择你的国家</h2>
+          <p className="room-panel__eyebrow">{t("eyebrow")}</p>
+          <h2 className="room-panel__title">{t("countrySelection.title")}</h2>
         </div>
-        <p className="room-panel__body">五国席位确认后，准备按钮才会进入开局等待。</p>
+        <p className="room-panel__body">{t("status.waiting")}</p>
       </div>
 
       <div className="room-country-grid">
@@ -64,9 +66,9 @@ export function CountrySelectionPanel({
               type="button"
             >
               <div>
-                <span className="room-country-card__kicker">国家席位</span>
+                <span className="room-country-card__kicker">{t("countrySelection.title")}</span>
                 <strong className="room-country-card__name">{slot.label}</strong>
-                <div className="room-country-card__occupant">席位：{slot.occupantLabel}</div>
+                <div className="room-country-card__occupant">{slot.occupantLabel}</div>
               </div>
               <span className="room-country-card__badge">
                 {slot.statusLabel}

@@ -1,15 +1,7 @@
+import i18n from "../../i18n";
 import type { CountryCode, GameContext, RoomContext, RoomMember } from "../../types";
 
 import type { PendingRoomAction, RoomFlowMessage } from "./flow/model";
-
-
-const countryLabels: Record<CountryCode, string> = {
-  britain: "英国",
-  france: "法国",
-  prussia: "普鲁士",
-  austria: "奥地利",
-  russia: "俄罗斯",
-};
 
 const countryOrder: CountryCode[] = [
   "britain",
@@ -20,18 +12,30 @@ const countryOrder: CountryCode[] = [
 ];
 
 export type RoomPreparationStatusLabel =
-  | "未选国家"
-  | "已选国家"
-  | "已准备开局"
-  | "等待其他玩家"
-  | "房间已开局，正在进入游戏";
+  | "no_country"
+  | "has_country"
+  | "is_ready"
+  | "waiting_for_others"
+  | "game_starting";
+
+const statusLabelDisplay: Record<RoomPreparationStatusLabel, string> = {
+  no_country: "room:countrySelection.noSelection",
+  has_country: "room:status.readying",
+  is_ready: "room:actions.ready",
+  waiting_for_others: "room:status.waiting",
+  game_starting: "room:status.in_game",
+};
+
+function statusLabelText(key: RoomPreparationStatusLabel): string {
+  return i18n.t(statusLabelDisplay[key]);
+}
 
 export type RoomHeaderViewModel = {
   roomCode: string;
-  roomStatusLabel: "等待其他玩家" | "房间已开局，正在进入游戏";
+  roomStatusLabel: string;
   playerName: string;
   roleLabel: string;
-  playerStatusLabel: RoomPreparationStatusLabel;
+  playerStatusLabel: string;
   countryLabel: string;
   helperMessage: string | null;
 };
@@ -105,10 +109,10 @@ type CreateRoomPreparationViewModelParams = {
 
 export function getCountryLabel(country: CountryCode | null): string {
   if (!country) {
-    return "未选国家";
+    return i18n.t("room:countrySelection.noSelection");
   }
 
-  return countryLabels[country];
+  return i18n.t(`game:country.${country}`);
 }
 
 function getCurrentStatusLabel(
@@ -117,28 +121,28 @@ function getCurrentStatusLabel(
   room: RoomContext,
 ): RoomPreparationStatusLabel {
   if (activeGame?.gameId || room.currentGameId || room.status === "in_game") {
-    return "房间已开局，正在进入游戏";
+    return "game_starting";
   }
 
   if (!currentMember?.selectedCountry) {
-    return "未选国家";
+    return "no_country";
   }
 
   if (!currentMember.isReady) {
-    return "已选国家";
+    return "has_country";
   }
 
-  return "已准备开局";
+  return "is_ready";
 }
 
 function getRoomStatusLabel(
   currentStatusLabel: RoomPreparationStatusLabel,
-): RoomHeaderViewModel["roomStatusLabel"] {
-  if (currentStatusLabel === "房间已开局，正在进入游戏") {
-    return currentStatusLabel;
+): string {
+  if (currentStatusLabel === "game_starting") {
+    return i18n.t("room:status.in_game");
   }
 
-  return "等待其他玩家";
+  return i18n.t("room:status.waiting");
 }
 
 function getActionDescription(
@@ -146,20 +150,20 @@ function getActionDescription(
   waitingItems: string[],
 ): string {
   switch (currentStatusLabel) {
-    case "未选国家":
-      return "先选择一个国家，再点准备开局。满足后会自动开局。";
-    case "已选国家":
-      return "现在点准备开局，之后就只需要等待自动开局。满足后会自动开局。";
-    case "已准备开局":
+    case "no_country":
+      return statusLabelText("no_country");
+    case "has_country":
+      return statusLabelText("has_country");
+    case "is_ready":
       if (waitingItems.length === 0) {
-        return "所有条件都已经满足，房间会自动进入第 1 回合。";
+        return i18n.t("room:status.readying");
       }
 
-      return "你已准备，接下来只需要等其他玩家补齐条件。";
-    case "等待其他玩家":
-      return "等待其他玩家。";
-    case "房间已开局，正在进入游戏":
-      return "房间已开局，正在进入游戏。";
+      return statusLabelText("waiting_for_others");
+    case "waiting_for_others":
+      return statusLabelText("waiting_for_others");
+    case "game_starting":
+      return statusLabelText("game_starting");
   }
 }
 
@@ -168,16 +172,16 @@ function getActionTitle(
   currentMember: RoomMember | null,
 ): string {
   switch (currentStatusLabel) {
-    case "未选国家":
-      return "你尚未选定国家";
-    case "已选国家":
-      return `已选国家：${getCountryLabel(currentMember?.selectedCountry ?? null)}`;
-    case "已准备开局":
-      return "你已准备开局";
-    case "等待其他玩家":
-      return "等待其他玩家";
-    case "房间已开局，正在进入游戏":
-      return "房间已开局，正在进入游戏";
+    case "no_country":
+      return i18n.t("room:countrySelection.noSelection");
+    case "has_country":
+      return `${i18n.t("room:countrySelection.title")}: ${getCountryLabel(currentMember?.selectedCountry ?? null)}`;
+    case "is_ready":
+      return i18n.t("room:actions.ready");
+    case "waiting_for_others":
+      return i18n.t("room:status.waiting");
+    case "game_starting":
+      return i18n.t("room:status.in_game");
   }
 }
 
@@ -186,14 +190,16 @@ function getActionButtonLabel(
   currentMember: RoomMember | null,
 ): string {
   if (pendingAction === "ready") {
-    return currentMember?.isReady ? "正在取消准备..." : "正在准备开局...";
+    return currentMember?.isReady
+      ? `${i18n.t("room:actions.unready")}...`
+      : `${i18n.t("room:actions.ready")}...`;
   }
 
   if (currentMember?.isReady) {
-    return "取消准备";
+    return i18n.t("room:actions.unready");
   }
 
-  return "准备开局";
+  return i18n.t("room:actions.ready");
 }
 
 function createWaitingItems(room: RoomContext, currentMember: RoomMember | null): string[] {
@@ -203,11 +209,11 @@ function createWaitingItems(room: RoomContext, currentMember: RoomMember | null)
     }
 
     if (!member.selectedCountry) {
-      return [`${member.nickname}：还没有选国家`];
+      return [`${member.nickname}: ${i18n.t("room:countrySelection.noSelection")}`];
     }
 
     if (!member.isReady) {
-      return [`${member.nickname}：尚未准备开局`];
+      return [`${member.nickname}: ${i18n.t("room:actions.unready")}`];
     }
 
     return [];
@@ -215,7 +221,7 @@ function createWaitingItems(room: RoomContext, currentMember: RoomMember | null)
   const remainingSeats = Math.max(5 - room.members.length, 0);
 
   if (remainingSeats > 0) {
-    waitingItems.push(`还差 ${remainingSeats} 人进入房间`);
+    waitingItems.push(i18n.t("room:memberCount", { count: room.members.length, max: 5 }));
   }
 
   return waitingItems;
@@ -226,25 +232,25 @@ function getWaitingDescription(
   isHost: boolean,
   waitingItems: string[],
 ): string {
-  if (currentStatusLabel === "房间已开局，正在进入游戏") {
-    return "房间已开局，正在进入游戏。";
+  if (currentStatusLabel === "game_starting") {
+    return i18n.t("room:status.in_game");
   }
 
-  if (currentStatusLabel === "未选国家") {
-    return "先完成你的选国，再回来点准备开局。";
+  if (currentStatusLabel === "no_country") {
+    return i18n.t("room:countrySelection.noSelection");
   }
 
-  if (currentStatusLabel === "已选国家") {
-    return "点准备后，这一项就会变成已完成，接下来只等房间自动开局。";
+  if (currentStatusLabel === "has_country") {
+    return i18n.t("room:countrySelection.confirm");
   }
 
   if (waitingItems.length === 0) {
-    return "房间已满足开局条件，接下来会自动进入第 1 回合引导。";
+    return i18n.t("room:status.readying");
   }
 
   return isHost
-    ? "你是房主，全员准备开局后会自动开局。"
-    : "你已准备，接下来等待房主和其他玩家。";
+    ? i18n.t("room:members.host")
+    : i18n.t("room:status.waiting");
 }
 
 function createStartChecklist(
@@ -254,14 +260,14 @@ function createStartChecklist(
 ): string[] {
   return [
     currentMember?.selectedCountry
-      ? `已完成：你当前代表 ${getCountryLabel(currentMember.selectedCountry)}。`
-      : "待完成：先选择一个国家。",
+      ? `${i18n.t("room:countrySelection.title")}: ${getCountryLabel(currentMember.selectedCountry)}`
+      : i18n.t("room:countrySelection.noSelection"),
     currentMember?.isReady
-      ? "已完成：你已经点了准备。"
-      : "待完成：选择国家后再点准备。",
+      ? i18n.t("room:actions.ready")
+      : i18n.t("room:actions.unready"),
     waitingItems.length === 0
-      ? "已满足：房间人数和准备状态已经满足自动开局条件。"
-      : `待完成：房间还有 ${waitingItems.length} 项条件未满足。`,
+      ? i18n.t("room:status.readying")
+      : i18n.t("room:status.waiting"),
   ];
 }
 
@@ -270,20 +276,20 @@ function resolveBlockingReason(
   currentMember: RoomMember | null,
   waitingItems: string[],
 ): string | null {
-  if (currentStatusLabel === "房间已开局，正在进入游戏") {
+  if (currentStatusLabel === "game_starting") {
     return null;
   }
 
   if (!currentMember?.selectedCountry) {
-    return "你还没有选国家，所以还不能进入准备流程。这里没有单独的手动开始按钮，因为只有所有人都准备完毕后系统才会自动开局。";
+    return i18n.t("room:countrySelection.noSelection");
   }
 
   if (!currentMember.isReady) {
-    return "你可以先点准备。这里没有单独的手动开始按钮，因为房间会在所有玩家都准备完成后自动开局。";
+    return i18n.t("room:actions.unready");
   }
 
   if (waitingItems.length > 0) {
-    return "你已经准备好了。这里没有单独的手动开始按钮，因为房间只能在所有玩家都准备完成后自动开局。";
+    return i18n.t("room:status.waiting");
   }
 
   return null;
@@ -300,9 +306,9 @@ function createHeaderViewModel(
   return {
     roomCode: room.roomCode,
     roomStatusLabel: getRoomStatusLabel(currentStatusLabel),
-    playerName: currentMember?.nickname ?? "等待识别",
-    roleLabel: isHost ? "房主" : "成员",
-    playerStatusLabel: currentStatusLabel,
+    playerName: currentMember?.nickname ?? i18n.t("room:members.empty"),
+    roleLabel: isHost ? i18n.t("room:members.host") : i18n.t("room:members.you"),
+    playerStatusLabel: statusLabelText(currentStatusLabel),
     countryLabel: getCountryLabel(currentMember?.selectedCountry ?? null),
     helperMessage: helperMessage?.tone === "error" ? helperMessage.text : null,
   };
@@ -328,10 +334,14 @@ function createCountrySlotsViewModel(
       label: getCountryLabel(country),
       occupantLabel: occupant
         ? occupant.memberType === "bot"
-          ? `${occupant.nickname}（AI）`
+          ? `${occupant.nickname} (AI)`
           : occupant.nickname
-        : "空闲",
-      statusLabel: isSelected ? "当前是你" : occupant ? "已被选择" : "可选择",
+        : i18n.t("room:members.empty"),
+      statusLabel: isSelected
+        ? i18n.t("room:members.you")
+        : occupant
+          ? i18n.t("room:countrySelection.taken")
+          : i18n.t("room:countrySelection.title"),
       isSelectable,
       isSelected,
     };
@@ -343,11 +353,11 @@ function createMemberViewModel(room: RoomContext, currentMember: RoomMember | nu
   return room.members.map((member) => {
     const isBot = member.memberType === "bot";
     const identityParts = isBot
-      ? ["AI 补位"]
-      : [member.playerId === room.hostPlayerId ? "房主" : "成员"];
+      ? ["AI"]
+      : [member.playerId === room.hostPlayerId ? i18n.t("room:members.host") : i18n.t("room:members.you")];
 
     if (member.playerId === currentMember?.playerId) {
-      identityParts.push("你");
+      identityParts.push(i18n.t("room:members.you"));
     }
 
     return {
@@ -356,11 +366,11 @@ function createMemberViewModel(room: RoomContext, currentMember: RoomMember | nu
       identityLabel: identityParts.join(" / "),
       countryLabel: getCountryLabel(member.selectedCountry),
       connectionLabel: isBot
-        ? "服务器托管"
+        ? i18n.t("common:backendUnavailable")
         : member.connectionStatus === "online"
-          ? "在线"
-          : "离线后可恢复",
-      readyLabel: member.isReady ? "已准备开局" : "尚未准备开局",
+          ? "online"
+          : "offline",
+      readyLabel: member.isReady ? i18n.t("room:actions.ready") : i18n.t("room:actions.unready"),
       memberTypeBadge: isBot ? "AI" : null,
       canRemoveBot: Boolean(isHost && isBot && room.status !== "in_game" && room.status !== "finished"),
     };
@@ -376,13 +386,13 @@ function createPrimaryActionViewModel(
   const readyCount = room.members.filter((member) => member.isReady).length;
   const isHost = currentMember?.playerId === room.hostPlayerId;
   const canToggleReady =
-    currentStatusLabel !== "房间已开局，正在进入游戏" && Boolean(currentMember?.selectedCountry);
+    currentStatusLabel !== "game_starting" && Boolean(currentMember?.selectedCountry);
   const waitingItems = createWaitingItems(room, currentMember);
   const selectedCountryLabel = getCountryLabel(currentMember?.selectedCountry ?? null);
 
   return {
     title: getActionTitle(currentStatusLabel, currentMember),
-    nextStepTitle: "下一步",
+    nextStepTitle: i18n.t("room:countrySelection.confirm"),
     nextStepDescription: getActionDescription(
       currentStatusLabel,
       waitingItems,
@@ -390,17 +400,23 @@ function createPrimaryActionViewModel(
     buttonLabel: getActionButtonLabel(pendingAction, currentMember),
     buttonDisabled: !canToggleReady || pendingAction === "country" || !currentMember,
     canToggleReady,
-    readySummary: `${readyCount} / ${room.members.length || 5} 人已准备开局`,
-    memberSummary: `${room.members.length} / 5 人已进入房间`,
+    readySummary: i18n.t("room:readyCount", { ready: readyCount, total: room.members.length || 5 }),
+    memberSummary: i18n.t("room:memberCount", { count: room.members.length, max: 5 }),
     selectedCountrySummary:
-      currentMember?.selectedCountry ? `已选国家：${selectedCountryLabel}` : "你尚未选定国家",
-    readyStateSummary: currentMember?.isReady ? "你已准备开局" : "你尚未准备开局",
-    waitingTitle: waitingItems.length > 0 ? "离开局还差什么" : "开局条件已齐",
+      currentMember?.selectedCountry
+        ? `${i18n.t("room:countrySelection.title")}: ${selectedCountryLabel}`
+        : i18n.t("room:countrySelection.noSelection"),
+    readyStateSummary: currentMember?.isReady
+      ? i18n.t("room:actions.ready")
+      : i18n.t("room:actions.unready"),
+    waitingTitle: waitingItems.length > 0
+      ? i18n.t("room:status.waiting")
+      : i18n.t("room:status.readying"),
     waitingDescription: getWaitingDescription(currentStatusLabel, Boolean(isHost), waitingItems),
     waitingItems,
-    startChecklistTitle: "开局前检查清单",
+    startChecklistTitle: i18n.t("room:status.readying"),
     startChecklist: createStartChecklist(room, currentMember, waitingItems),
-    autoStartRule: "自动开局规则：5 名玩家全部进入房间、都选好国家并全部点下准备后，系统会自动跳转到第 1 回合，不提供单独的手动开始按钮。",
+    autoStartRule: i18n.t("room:status.readying"),
     blockingReason: resolveBlockingReason(currentStatusLabel, currentMember, waitingItems),
   };
 }
@@ -418,17 +434,17 @@ function createAiControlsViewModel(
   const botCount = room.members.filter((member) => member.memberType === "bot").length;
   const emptySeats = Math.max(5 - room.members.length, 0);
   return {
-    title: "AI 补位",
-    description: "需要快速开局时，房主可以把剩余席位补成服务器托管的 AI，并让它们自动参与后续每个阶段。",
+    title: "AI",
+    description: i18n.t("room:members.empty"),
     helperText: botCount > 0
-      ? "当前房间里已有 AI。若想让真人加入，先踢出 AI 释放席位。"
-      : "当前还没有 AI。补满后，AI 会自动选国、自动 ready，并在对局中自动提交。",
+      ? i18n.t("room:status.waiting")
+      : i18n.t("room:status.readying"),
     fillButtonLabel:
       pendingAction === "fillBots"
-        ? "正在补满 AI..."
+        ? i18n.t("common:loading")
         : emptySeats > 0
-          ? `一键补满 AI（还差 ${emptySeats} 席）`
-          : "房间已满",
+          ? i18n.t("room:memberCount", { count: 0, max: 5 })
+          : i18n.t("room:errors.roomFull"),
     fillButtonDisabled: pendingAction === "fillBots" || emptySeats <= 0,
     showFillButton: true,
   };

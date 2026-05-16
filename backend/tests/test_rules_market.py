@@ -83,7 +83,6 @@ class MarketRulesTests(unittest.TestCase):
 
         updated = get_player(resolution.updated_snapshot, "player-1")
         expected_equilibrium = calculate_equilibrium_price(
-            consumption_pool=Decimal(12),
             demand=Decimal(4),
         )
         expected_final = calculate_domestic_price(
@@ -92,7 +91,6 @@ class MarketRulesTests(unittest.TestCase):
             demand=Decimal(4),
             minimum_price=1,
         )
-
         self.assertAlmostEqual(
             updated.phase1_economy.market_metrics["finalPrice"],
             float(expected_final),
@@ -127,8 +125,8 @@ class MarketRulesTests(unittest.TestCase):
         )
 
         updated = get_player(resolution.updated_snapshot, "player-1")
-        self.assertEqual(updated.phase1_economy.market_metrics["finalPrice"], 10.0)
-        self.assertEqual(updated.domestic_sales_revenue, 30)
+        self.assertEqual(updated.phase1_economy.market_metrics["finalPrice"], 5.0)
+        self.assertEqual(updated.domestic_sales_revenue, 15)
 
     def test_phase1_overseas_price_bonus_applies_to_external_sales(self) -> None:
         snapshot = build_snapshot()
@@ -163,7 +161,7 @@ class MarketRulesTests(unittest.TestCase):
         )
 
         updated = get_player(resolution.updated_snapshot, "player-1")
-        self.assertEqual(updated.overseas_sales_revenue, 10)
+        self.assertEqual(updated.overseas_sales_revenue, 5)
 
     def test_external_competition_win_grants_extra_capacity_and_price(self) -> None:
         snapshot = build_snapshot()

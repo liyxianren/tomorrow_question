@@ -53,6 +53,10 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
         _apply_active_event_effects(player_state, updated_snapshot.active_events)
         _apply_ability_selection(player_state, payload.get("abilitySelection"), balance)
 
+        # ── 行政力每回合重置 ──
+        player_state.active_policies.clear()
+        player_state.administration_capacity = int(player_state.base_admin_capacity)
+
         phase1_production = payload.get("phase1Production") or {}
         upgrade_orders = (
             payload.get("factoryPlan", {}).get("upgradeOrders", [])
@@ -108,7 +112,7 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
                     "governmentFiscalSpent": government_spent,
                     "militaryFiscalSpent": military_spent,
                     "techPoints": player_state.tech_points,
-                    "militaryPoints": player_state.military_points,
+                    "armyCap": int(player_state.army_cap),
                 },
                 "createdAt": None,
             }
@@ -358,30 +362,19 @@ def _resolve_government_strategy_action(balance, action_id: str):
     if market_action is not None:
         return market_action, True
     government_action = balance.decision_actions.government_actions.get(action_id)
-    if government_action is None:
-        return None, False
-    return government_action, False
+    if government_action is not None:
+        return government_action, False
+    factory_action = balance.decision_actions.factory_actions.get(action_id)
+    if factory_action is not None:
+        return factory_action, False
+    return None, False
 
 
 def _apply_government_plan(player_state, government_plan: dict[str, Any], balance) -> int:
-    """Phase-2 government plan: spend fiscal on admin capacity, points, and strategy actions."""
+    """Phase-2 government plan: spend fiscal on points and strategy actions."""
     spent = 0
     remaining_budget = int(player_state.budget_pools.get("governmentFiscal", 0))
     remaining_market_allowance = market_regulation_allowance(player_state)
-    admin_cost = max(1, int(balance.politics.administration_cost))
-
-    raw_admin_purchase = government_plan.get("adminPurchases")
-    try:
-        admin_quantity = max(0, int(raw_admin_purchase or 0))
-    except (TypeError, ValueError):
-        admin_quantity = 0
-    if admin_quantity > 0:
-        affordable = min(admin_quantity, (remaining_budget - spent) // admin_cost)
-        if affordable > 0:
-            spent += affordable * admin_cost
-            player_state.administration_capacity = (
-                int(player_state.administration_capacity) + affordable
-            )
 
     # Process point purchases (tech/military)
     point_costs = POINT_PURCHASE_COSTS
@@ -396,8 +389,6 @@ def _apply_government_plan(player_state, government_plan: dict[str, Any], balanc
             spent += affordable * cost_per_point
             if point_type == "tech":
                 player_state.tech_points = int(player_state.tech_points) + affordable
-            elif point_type == "military":
-                player_state.military_points = int(player_state.military_points) + affordable
 
     # Process strategy selections (government actions)
     from app.modules.game_state.effects import apply_effects
@@ -405,6 +396,9 @@ def _apply_government_plan(player_state, government_plan: dict[str, Any], balanc
         action_id = str(selection.get("actionId") or "")
         action, is_market_regulation = _resolve_government_strategy_action(balance, action_id)
         if action is None:
+            continue
+        # 行政点数消耗：每个策略行动消耗 1 点（必须在预算扣除之前检查）
+        if int(player_state.administration_capacity) < 1:
             continue
         cost = int(action.budget_pool_cost)
         if is_market_regulation:
@@ -417,6 +411,8 @@ def _apply_government_plan(player_state, government_plan: dict[str, Any], balanc
             if spent + cost > remaining_budget:
                 continue
             spent += cost
+        player_state.administration_capacity = int(player_state.administration_capacity) - 1
+
         apply_effects(player_state, action.effects)
         for pool_key, delta in action.ratio_delta.items():
             player_state.income_allocation_ratio[pool_key] = max(
@@ -450,6 +446,8 @@ def _apply_phase3_research_plan(player_state, payload: dict[str, Any], balance) 
 def _apply_military_plan(player_state, military_plan: dict[str, Any], balance, snapshot=None) -> int:
     spent = 0
     remaining_budget = int(player_state.budget_pools.get("governmentFiscal", 0))
+    army_current = int(player_state.army.get("army", 0))
+    army_cap = int(player_state.army_cap)
 
     for selection in military_plan.get("militaryActions", []):
         action_id = str(selection.get("actionId") or "")
@@ -457,14 +455,15 @@ def _apply_military_plan(player_state, military_plan: dict[str, Any], balance, s
         if action is None:
             continue
         budget_cost = int(action.budget_pool_cost)
-        military_point_cost = int(action.military_point_cost)
         if remaining_budget < budget_cost:
             continue
-        if int(player_state.military_points) < military_point_cost:
+        # Army cap check for recruit actions
+        if action_id == "recruit_army" and army_current >= army_cap:
             continue
         remaining_budget -= budget_cost
         spent += budget_cost
-        player_state.military_points = max(0, int(player_state.military_points) - military_point_cost)
+        if action_id == "recruit_army":
+            army_current += 1
         apply_effects(player_state, action.effects)
 
     if snapshot is not None:
@@ -530,7 +529,7 @@ def _apply_colonization_actions(
 
     regions_by_id = {region.region_id: region for region in snapshot.region_states}
     country_key = player_state.country.value
-    mp_cost = int(balance.military.colonization_military_point_cost)
+    mp_cost = int(balance.military.colonization_budget_cost)
     max_per_round = int(balance.military.max_colonizations_per_round)
     colonized_count = 0
 
@@ -561,11 +560,12 @@ def _apply_colonization_actions(
         if not check_route_accessible(country_key, region_id, snapshot, balance):
             continue
 
-        # Must have enough military points
-        if player_state.military_points < mp_cost:
+        # Must have enough government budget
+        if remaining_budget < mp_cost:
             continue
 
-        player_state.military_points -= mp_cost
+        remaining_budget -= mp_cost
+        spent += mp_cost
         target_region.controller = country_key
         target_region.access_level = RegionAccessLevel.COLONY
         colonized_count += 1
@@ -877,12 +877,6 @@ def _apply_reform_or_policy_effects(player_state, effects: dict[str, Any]) -> No
                     int(player_state.production_capacity.get(raw_key, 0)) + delta_int,
                 )
 
-    military_delta = effects.get("militaryPointsDelta")
-    if military_delta is not None:
-        player_state.military_points = max(
-            0, int(player_state.military_points) + int(military_delta)
-        )
-
     research_facility_delta = effects.get("researchFacilityDelta")
     if isinstance(research_facility_delta, dict):
         for key, delta in research_facility_delta.items():
@@ -892,8 +886,20 @@ def _apply_reform_or_policy_effects(player_state, effects: dict[str, Any]) -> No
 
     admin_delta = effects.get("administrationCapacityDelta")
     if admin_delta is not None:
-        player_state.administration_capacity = max(
-            0, int(player_state.administration_capacity) + int(admin_delta)
+        player_state.base_admin_capacity = max(
+            0, int(player_state.base_admin_capacity) + int(admin_delta)
+        )
+
+    base_admin_delta = effects.get("baseAdministrationCapacityDelta")
+    if base_admin_delta is not None:
+        player_state.base_admin_capacity = max(
+            0, int(player_state.base_admin_capacity) + int(base_admin_delta)
+        )
+
+    army_cap_delta = effects.get("armyCapDelta")
+    if army_cap_delta is not None:
+        player_state.army_cap = max(
+            0, int(player_state.army_cap) + int(army_cap_delta)
         )
 
     fiscal_refund = effects.get("fiscalRefund")
@@ -920,7 +926,7 @@ def _apply_reform_or_policy_effects(player_state, effects: dict[str, Any]) -> No
             converted = int(current * ratio)
             player_state.production_capacity[cap_key] = current - converted
             total_mp += converted * mp_per_unit
-        player_state.military_points = int(player_state.military_points) + total_mp
+        player_state.army["army"] = int(player_state.army.get("army", 0)) + total_mp
 
     suppression = effects.get("suppressIdeology")
     if isinstance(suppression, dict):
@@ -928,8 +934,8 @@ def _apply_reform_or_policy_effects(player_state, effects: dict[str, Any]) -> No
         delta = int(suppression.get("delta", 0))
         target = str(suppression.get("targetIdeology") or "")
         if cost > 0 and delta != 0:
-            if int(player_state.military_points) >= cost:
-                player_state.military_points = int(player_state.military_points) - cost
+            if int(player_state.budget_pools.get("governmentFiscal", 0)) >= cost:
+                player_state.budget_pools["governmentFiscal"] = int(player_state.budget_pools.get("governmentFiscal", 0)) - cost
                 if target == "all":
                     for key in list(player_state.ideology_levels.keys()):
                         player_state.ideology_levels[key] = max(
@@ -1013,9 +1019,10 @@ def _apply_policy_plan(player_state, payload: dict[str, Any], balance) -> list[s
             continue
         if policy.requires_reform is not None and policy.requires_reform not in player_state.completed_reforms:
             continue
-        active_upkeep = _active_policy_upkeep(player_state, balance)
-        if int(player_state.administration_capacity) < active_upkeep + int(policy.admin_cost_per_turn):
+        # 行政点数消耗：每个政策激活消耗 1 点
+        if int(player_state.administration_capacity) < 1:
             continue
+        player_state.administration_capacity = int(player_state.administration_capacity) - 1
 
         budget_cost = int(policy.budget_cost)
         if budget_cost > 0:

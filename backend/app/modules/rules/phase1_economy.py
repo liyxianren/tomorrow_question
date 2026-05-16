@@ -39,10 +39,14 @@ PRODUCTION_MODE_DEMAND_COEFFICIENTS: Mapping[str, Decimal] = {
     "electrified": Decimal("3.5"),
 }
 
+# 固定均衡基准价：替代原「消费池余额 / 需求」公式。
+# 供需浮动由 calculate_domestic_price 处理。
+DEFAULT_EQUILIBRIUM_BASE_PRICE: Decimal = Decimal("3")
+
 # 价格下限：避免极端过剩时本国价格归零或为负。
 DEFAULT_MINIMUM_DOMESTIC_PRICE: Decimal = Decimal("1")
 
-# 价格上限：避免消费池膨胀时均衡价失真。
+# 价格上限。
 DEFAULT_MAXIMUM_DOMESTIC_PRICE: Decimal = Decimal("8")
 
 # 供需价格阻尼系数（与前端 priceCurves.ts 一致）。
@@ -91,17 +95,12 @@ def calculate_domestic_demand(capacities: Mapping[str, Number]) -> Decimal:
     return total
 
 
-def calculate_equilibrium_price(*, consumption_pool: Number, demand: Number) -> Decimal:
-    """均衡价格 = 阶段开始时消费池 / 本国需求。"""
+def calculate_equilibrium_price(*, demand: Number) -> Decimal:
+    """均衡价格 = 固定基准价。高需求本身不抬价，供需浮动由 calculate_domestic_price 处理。"""
     demand_d = _to_decimal(demand)
     if demand_d == 0:
         return Decimal("0")
-    raw = _to_decimal(consumption_pool) / demand_d
-    if raw < DEFAULT_MINIMUM_DOMESTIC_PRICE:
-        return DEFAULT_MINIMUM_DOMESTIC_PRICE
-    if raw > DEFAULT_MAXIMUM_DOMESTIC_PRICE:
-        return DEFAULT_MAXIMUM_DOMESTIC_PRICE
-    return raw
+    return DEFAULT_EQUILIBRIUM_BASE_PRICE
 
 
 def calculate_domestic_price(
@@ -158,16 +157,13 @@ def resolve_domestic_market(
     *,
     supply: Number,
     demand: Number,
-    consumption_pool: Number,
     minimum_price: Number = DEFAULT_MINIMUM_DOMESTIC_PRICE,
 ) -> DomesticMarketOutcome:
     """Compute price, sold quantity, revenue, and unsold quantity."""
     supply_d = _to_decimal(supply)
     demand_d = _to_decimal(demand)
 
-    equilibrium = calculate_equilibrium_price(
-        consumption_pool=consumption_pool, demand=demand_d
-    )
+    equilibrium = calculate_equilibrium_price(demand=demand_d)
     final_price = calculate_domestic_price(
         equilibrium_price=equilibrium,
         supply=supply_d,

@@ -130,7 +130,7 @@
       "description": "列强海军扩张竞赛，军事力量增强但财政负担加重。",
       "roundRange": [4, 12],
       "conditions": {},
-      "globalEffects": { "militaryPointsDelta": 1, "navyDelta": { "fleets": 1 }, "governmentFiscalBudgetDelta": -2 }
+      "globalEffects": { "navyDelta": { "fleets": 1 }, "governmentFiscalBudgetDelta": -2 }
     },
     {
       "eventId": "free_trade_wave",
@@ -162,7 +162,7 @@
       "description": "殖民地爆发反抗运动，海外控制力被削弱。",
       "roundRange": [5, 12],
       "conditions": { "anyPlayerControlledRegionsAtLeast": 1 },
-      "globalEffects": { "controlledRegionsDelta": -1, "militaryPointsDelta": 1 }
+      "globalEffects": { "controlledRegionsDelta": -1 }
     },
     {
       "eventId": "banking_crisis",
@@ -211,7 +211,7 @@
       "description": "列强争相瓜分非洲殖民地，军事扩张与民族情绪并起。",
       "roundRange": [8, 15],
       "conditions": {},
-      "globalEffects": { "overseasMarketCapacityDelta": 2, "militaryPointsDelta": 1, "controlledRegionsDelta": 1, "ideologyLevelDelta": { "nationalism": 1 } }
+      "globalEffects": { "overseasMarketCapacityDelta": 2, "controlledRegionsDelta": 1, "ideologyLevelDelta": { "nationalism": 1 } }
     },
     {
       "eventId": "economic_depression",
@@ -235,7 +235,7 @@
       "description": "民族意识觉醒，军事热情高涨但内需受损。",
       "roundRange": [7, 15],
       "conditions": {},
-      "globalEffects": { "ideologyLevelDelta": { "nationalism": 2 }, "militaryPointsDelta": 1, "domesticMarketCapacityDelta": -1 }
+      "globalEffects": { "ideologyLevelDelta": { "nationalism": 2 }, "domesticMarketCapacityDelta": -1 }
     },
     {
       "eventId": "oil_discovery",
@@ -259,7 +259,7 @@
       "description": "列强军备竞赛白热化，军事力量急剧膨胀。",
       "roundRange": [10, 15],
       "conditions": {},
-      "globalEffects": { "militaryPointsDelta": 2, "governmentFiscalBudgetDelta": -3, "ideologyLevelDelta": { "nationalism": 1 } }
+      "globalEffects": { "governmentFiscalBudgetDelta": -3, "ideologyLevelDelta": { "nationalism": 1 } }
     }
   ]
 }

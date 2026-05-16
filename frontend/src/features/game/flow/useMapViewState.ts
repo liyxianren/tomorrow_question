@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
+import i18n from "../../../i18n";
 
 import type {
   CountryCode,
@@ -158,7 +159,7 @@ function buildBuildingDefs(
 
   const pos = POSITIONS_BY_COUNTRY[countryId] ?? DEFAULT_POSITIONS;
   const budgetPools = decisionWorkspace?.budgetPools ?? playerState.budgetPools;
-  const militaryPoints = decisionWorkspace?.militaryWorkspace.militaryPoints ?? playerState.militaryPoints;
+  const militaryPoints = decisionWorkspace?.militaryWorkspace?.armyCap ?? (playerState as any)?.armyCap ?? 0;
   const army: Record<string, number> = decisionWorkspace?.militaryWorkspace.army ?? playerState.army ?? {};
   const armyTotal = Object.values(army).reduce((sum, value) => sum + Math.max(0, Math.floor(value)), 0);
   const marketRegulationAllowance = Math.max(0, Math.floor(decisionWorkspace?.marketRegulationAllowance ?? 0));
@@ -174,41 +175,41 @@ function buildBuildingDefs(
     return [
       {
         id: "factory",
-        label: "工业区",
-        subtitle: "工厂决策",
-        metric: `预算 ${budgetPools.factory}`,
+        label: i18n.t("game:building.factory", "工业区"),
+        subtitle: i18n.t("game:buildingSubtitle.factory", "工厂决策"),
+        metric: i18n.t("game:buildingMetric.factory", "预算") + ` ${budgetPools.factory}`,
         x: pos.factory.x,
         y: pos.factory.y,
       },
       {
         id: "government",
-        label: "议会厅",
-        subtitle: "政府政策",
-        metric: `预算 ${governmentBudgetMetric}`,
+        label: i18n.t("game:building.government", "议会厅"),
+        subtitle: i18n.t("game:buildingSubtitle.government", "政府政策"),
+        metric: i18n.t("game:buildingMetric.government", "预算") + ` ${governmentBudgetMetric}`,
         x: pos.domestic.x,
         y: pos.domestic.y,
       },
       {
         id: "domestic",
-        label: "市民广场",
-        subtitle: "市场预览",
-        metric: `购买力 ${budgetPools.domesticMarket}`,
+        label: i18n.t("game:building.domestic", "市民广场"),
+        subtitle: i18n.t("game:buildingSubtitle.domestic", "市场预览"),
+        metric: i18n.t("game:buildingMetric.domestic", "购买力") + ` ${budgetPools.domesticMarket}`,
         x: pos.government.x,
         y: pos.government.y,
       },
       {
         id: "military",
-        label: "军事要塞",
-        subtitle: "军事行动",
-        metric: `军事点 ${militaryPoints} / 陆军 ${armyTotal}`,
+        label: i18n.t("game:building.military", "军事要塞"),
+        subtitle: i18n.t("game:buildingSubtitle.military", "军事行动"),
+        metric: i18n.t("game:military.militaryPoints", "军事点") + ` ${militaryPoints} / ` + i18n.t("game:unit.infantry", "陆军") + ` ${armyTotal}`,
         x: pos.military.x,
         y: pos.military.y,
       },
       {
         id: "research",
-        label: "研究院",
-        subtitle: "科学研究",
-        metric: "政府财政研究",
+        label: i18n.t("game:building.research", "研究院"),
+        subtitle: i18n.t("game:buildingSubtitle.research", "科学研究"),
+        metric: i18n.t("game:government.budget", "政府财政研究"),
         x: pos.research.x,
         y: pos.research.y,
       },
@@ -219,9 +220,9 @@ function buildBuildingDefs(
     return [
       {
         id: "market",
-        label: "贸易港",
-        subtitle: "市场出售",
-        metric: "库存待售",
+        label: i18n.t("game:building.market", "贸易港"),
+        subtitle: i18n.t("game:buildingSubtitle.market", "市场出售"),
+        metric: i18n.t("game:buildingMetric.market", "库存待售"),
         x: pos.market.x,
         y: pos.market.y,
       },

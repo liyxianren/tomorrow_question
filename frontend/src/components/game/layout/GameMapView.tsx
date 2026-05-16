@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 import { MapBuilding } from "../map/MapBuilding";
@@ -33,10 +34,11 @@ export function GameMapView({
   bottomDock,
   inlineContent,
 }: GameMapViewProps) {
+  const { t } = useTranslation();
   return (
     <div className="game-map-view" data-testid="game-map-view">
       <aside className="game-map-sidebar">
-        <Link className="game-map-sidebar__back" to="/lobby">回到大厅</Link>
+        <Link className="game-map-sidebar__back" to="/lobby">{t("common:backToLobby")}</Link>
         <div className="game-map-sidebar__info">
           {situationBar}
         </div>

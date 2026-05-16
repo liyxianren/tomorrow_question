@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { translateBackend } from "../../../i18n";
 import { getTechnologyLabel as fallbackTechLabel } from "../../../features/game/panelGlossary";
 import type { TechTreeData, TechTreeChainTech } from "../../../types";
 import "./ResearchPanel.css";
@@ -20,6 +22,7 @@ export function ResearchPanel({
   remainingGovernmentBudget,
   isResearchFacilitySelected,
 }: ResearchPanelProps) {
+  const { t } = useTranslation();
   const { chains, researchFacilities, facilityCost, progressPerFacility, activeResearch } = techTree;
   const breakthroughDieSides = techTree.breakthroughDieSides ?? 10;
   const canAffordResearchFacility = remainingGovernmentBudget >= facilityCost;
@@ -27,7 +30,7 @@ export function ResearchPanel({
   const activeTech = activeResearch
     ? chains.flatMap((c) => c.techs).find((t) => t.techId === activeResearch)
     : undefined;
-  const activeTechLabel = activeTech?.label ?? (activeResearch ? fallbackTechLabel(activeResearch) : null);
+  const activeTechLabel = translateBackend(activeTech?.label ?? "") ?? (activeResearch ? fallbackTechLabel(activeResearch) : null);
   const activeProgressDisplay = activeTech
     ? Math.min(activeTech.progress, activeTech.effectiveThreshold)
     : 0;
@@ -39,7 +42,7 @@ export function ResearchPanel({
     ? Math.max(0, Math.ceil((activeTech.effectiveThreshold - activeTech.progress) / perTurnProgress))
     : null;
   const activeSuccessChance = activeTech
-    ? formatBreakthroughChance(activeTech.effectiveThreshold, breakthroughDieSides)
+    ? formatBreakthroughChance(activeTech.effectiveThreshold, breakthroughDieSides, t)
     : null;
   const nextPerTurnProgress = (researchFacilities + 1) * progressPerFacility;
 
@@ -59,7 +62,7 @@ export function ResearchPanel({
         <div className="talent-tree--v2__left">
           {/* Active Research Status Card */}
           <div className="research-status-card">
-            <h4 className="research-status-card__heading">当前研究</h4>
+            <h4 className="research-status-card__heading">{t("game:research.currentResearch")}</h4>
             {activeResearch ? (
               <>
                 <div className="research-status-card__title">{activeTechLabel}</div>
@@ -79,15 +82,15 @@ export function ResearchPanel({
                     {activeEtaTurns !== null ? (
                       <div className="research-status-card__meta">
                         {activeTech.progress >= activeTech.effectiveThreshold
-                          ? "进度已满；每次结算都会尝试突破，失败会保留进度并下轮继续"
-                          : `预计 ${activeEtaTurns} 回合后进入突破`}
+                          ? t("game:research.progressFull")
+                          : t("game:research.etaRounds", { turns: activeEtaTurns })}
                       </div>
                     ) : null}
                     <div className="research-status-card__meta">
-                      正在研究会自动确认本步；不更换目标也可以直接提交决策。
+                      {t("game:research.autoConfirm")}
                     </div>
                     <div className="research-status-card__meta">
-                      当前突破判定：1D{breakthroughDieSides} 掷出 {activeTech.effectiveThreshold} 或以上成功
+                      {t("game:research.breakthroughCheck", { die: breakthroughDieSides, threshold: activeTech.effectiveThreshold })}
                       {activeSuccessChance ? `（${activeSuccessChance}）` : ""}。
                     </div>
                   </>
@@ -95,71 +98,71 @@ export function ResearchPanel({
               </>
             ) : (
               <div className="research-status-card__hint">
-                点击右侧科技选择研究目标，提交决策后开始研究
+                {t("game:research.notResearching")}
               </div>
             )}
           </div>
 
           <div className="research-status-card">
-            <h4 className="research-status-card__heading">突破规则</h4>
+            <h4 className="research-status-card__heading">{t("game:research.breakthroughRules")}</h4>
             <div className="research-status-card__metrics">
               <div className="research-status-card__metric">
-                <span className="research-status-card__metric-label">推进方式</span>
+                <span className="research-status-card__metric-label">{t("game:research.advanceMethod")}</span>
                 <span className="research-status-card__metric-value">
-                  {progressPerFacility}/设施/回合
+                  {t("game:research.advanceMethodValue", { progress: progressPerFacility })}
                 </span>
               </div>
               <div className="research-status-card__metric">
-                <span className="research-status-card__metric-label">突破骰</span>
+                <span className="research-status-card__metric-label">{t("game:research.breakthroughDie")}</span>
                 <span className="research-status-card__metric-value">
                   1D{breakthroughDieSides}
                 </span>
               </div>
             </div>
             <div className="research-build-summary">
-              <span>进度达到有效阈值后，在财政结算时尝试突破</span>
-              <span>掷骰结果不低于有效阈值才会解锁</span>
-              <span>失败保留进度，失败次数会让下次有效阈值降低 1，最低为 1</span>
-              <span>若其他国家已发现该科技，进度达到原阈值 2 倍可直接解锁</span>
+              <span>{t("game:research.breakthroughSummary1")}</span>
+              <span>{t("game:research.breakthroughSummary2")}</span>
+              <span>{t("game:research.breakthroughSummary3")}</span>
+              <span>{t("game:research.breakthroughSummary4")}</span>
             </div>
           </div>
 
           {/* Research Facilities Card */}
           <div className="research-status-card">
-            <h4 className="research-status-card__heading">🔬 研究设施</h4>
+            <h4 className="research-status-card__heading">🔬 {t("game:research.researchFacilities")}</h4>
             <div className="research-status-card__metrics">
               <div className="research-status-card__metric">
-                <span className="research-status-card__metric-label">设施数</span>
-                <span className="research-status-card__metric-value">{researchFacilities} 所</span>
+                <span className="research-status-card__metric-label">{t("game:research.facilityCount")}</span>
+                <span className="research-status-card__metric-value">{researchFacilities} {t("game:flow.items")}</span>
               </div>
               <div className="research-status-card__metric">
-                <span className="research-status-card__metric-label">单所产出</span>
+                <span className="research-status-card__metric-label">{t("game:research.perFacilityOutput")}</span>
                 <span className="research-status-card__metric-value">
-                  {progressPerFacility} 进度/回合
+                  {t("game:research.advanceMethodValue", { progress: progressPerFacility })}
                 </span>
               </div>
               <div className="research-status-card__metric">
-                <span className="research-status-card__metric-label">本轮总进度</span>
+                <span className="research-status-card__metric-label">{t("game:research.perRoundProgress")}</span>
                 <span className="research-status-card__metric-value">
                   {perTurnProgress}
                 </span>
               </div>
               <div className="research-status-card__metric">
-                <span className="research-status-card__metric-label">建设条件</span>
+                <span className="research-status-card__metric-label">{t("game:research.buildCondition")}</span>
                 <span className="research-status-card__metric-value">
-                  {facilityCost} 财政
+                  {t("game:research.buildConditionFiscal", { cost: facilityCost })}
                 </span>
               </div>
             </div>
             <div className="research-build-summary">
-              <span>财政余额 {remainingGovernmentBudget}</span>
-              <span>建成后 {nextPerTurnProgress} 进度/回合</span>
+              <span>{t("game:research.fiscalBalance")} {remainingGovernmentBudget}</span>
+              <span>{t("game:research.projectedAfterBuild", { progress: nextPerTurnProgress })}</span>
               {isResearchFacilitySelected ? (
-                <span>本轮已排入计划</span>
+                <span>{t("game:research.plannedThisRound")}</span>
               ) : canAffordResearchFacility ? (
-                <span>条件满足</span>
+                <span>{t("game:research.conditionMet")}</span>
               ) : (
-                <span className="research-build-summary__warn">财政不足</span>
+                <span className="research-build-summary__warn">{t("game:research.fiscalInsufficient")}</span>
               )}
             </div>
             <button
@@ -168,7 +171,7 @@ export function ResearchPanel({
               disabled={!isResearchFacilitySelected && !canAffordResearchFacility}
               onClick={() => onToggleResearchFacility(!isResearchFacilitySelected)}
             >
-              {isResearchFacilitySelected ? "取消建立研究院" : "🏗️ 建立研究院"}
+              {isResearchFacilitySelected ? t("game:research.cancelBuildFacility") : "🏗️ " + t("game:research.buildFacility")}
             </button>
           </div>
         </div>
@@ -191,7 +194,7 @@ export function ResearchPanel({
                   aria-pressed={isActive}
                 >
                   <span className="talent-branch-card__icon">{meta.icon}</span>
-                  <span className="talent-branch-card__name">{chain.label}</span>
+                  <span className="talent-branch-card__name">{translateBackend(chain.label)}</span>
                   <div className="talent-branch-card__progress-bar">
                     <div
                       className="talent-branch-card__progress-fill"
@@ -199,7 +202,7 @@ export function ResearchPanel({
                     />
                   </div>
                   <span className="talent-branch-card__info">
-                    {unlockedCount}/{chain.techs.length} 已解锁
+                    {unlockedCount}/{chain.techs.length} {t("game:research.unlocked")}
                   </span>
                 </button>
               );
@@ -215,7 +218,7 @@ export function ResearchPanel({
               activeResearch={activeResearch}
             />
           ) : (
-            <p className="talent-tree__hint">暂无科技链。</p>
+            <p className="talent-tree__hint">{t("game:research.noTechChains")}</p>
           )}
 
         </div>
@@ -224,13 +227,14 @@ export function ResearchPanel({
   );
 }
 
-function formatBreakthroughChance(effectiveThreshold: number, dieSides: number): string | null {
+function formatBreakthroughChance(effectiveThreshold: number, dieSides: number, t: (key: string, options?: Record<string, unknown>) => string): string | null {
   if (effectiveThreshold <= 0 || dieSides <= 0) {
     return null;
   }
   const successOutcomes = Math.max(0, dieSides - effectiveThreshold + 1);
   const clamped = Math.min(successOutcomes, dieSides);
-  return `${Math.round((clamped / dieSides) * 100)}% 成功率`;
+  const percent = Math.round((clamped / dieSides) * 100);
+  return t("game:research.breakthroughPercent", { percent: `${percent}%` });
 }
 
 const CHAIN_META: Record<string, { icon: string; color: string }> = {
@@ -240,13 +244,16 @@ const CHAIN_META: Record<string, { icon: string; color: string }> = {
   steam:      { icon: "♨️", color: "#fc8181" },
 };
 
-const TECH_UNLOCK_HINTS: Record<string, string> = {
-  spinning_jenny: "机械化条件",
-  lathe: "蒸汽条件",
-  watt_engine: "蒸汽条件",
-  power_generation: "电气条件",
-  combustion_engine: "电气条件",
-};
+function getTechUnlockHint(techId: string, t: (key: string, options?: Record<string, unknown>) => string): string | undefined {
+  const map: Record<string, string> = {
+    spinning_jenny: t("game:factory.modeHints.mechanized", { defaultValue: "Mechanized" }),
+    lathe: t("game:factory.modeHints.steam", { defaultValue: "Steam Power" }),
+    watt_engine: t("game:factory.modeHints.steam", { defaultValue: "Steam Power" }),
+    power_generation: t("game:factory.modeHints.electrified", { defaultValue: "Electrified Industry" }),
+    combustion_engine: t("game:factory.modeHints.electrified", { defaultValue: "Electrified Industry" }),
+  };
+  return map[techId];
+}
 
 function ChainDetail({
   chain,
@@ -259,13 +266,14 @@ function ChainDetail({
   onToggleTech: (techId: string, checked: boolean) => void;
   activeResearch: string | null;
 }) {
+  const { t } = useTranslation();
   const meta = CHAIN_META[chain.chainId] ?? { icon: "🔬", color: "#888" };
   const [expandedTechId, setExpandedTechId] = useState<string | null>(null);
 
   return (
     <div className="talent-detail" style={{ "--branch-color": meta.color } as React.CSSProperties}>
       <h4 className="talent-detail__branch-title">
-        {meta.icon} {chain.label}
+        {meta.icon} {translateBackend(chain.label)}
       </h4>
 
       <div className="talent-detail__chain">
@@ -294,11 +302,11 @@ function ChainDetail({
         const lockReason = tech.isUnlocked
           ? null
             : !prerequisiteMet
-              ? `需先解锁「${chain.techs[index - 1]?.label ?? "前置"}」`
+              ? t("game:research.prerequisiteNeeded", { tech: translateBackend(chain.techs[index - 1]?.label ?? "") ?? "???" })
             : isActive
               ? null
               : !tech.canResearch
-                ? "需先完成前置科技"
+                ? t("game:research.prerequisiteTechNeeded")
                 : null;
 
         return (
@@ -313,7 +321,7 @@ function ChainDetail({
               <div className="talent-node__head">
                 <h4 className="talent-node__name">
                   {tech.isUnlocked ? "✅" : isActive ? "⚡" : isSelected ? "◉" : tech.canResearch ? "🔓" : "🔒"}{" "}
-                  {tech.label}
+                  {translateBackend(tech.label)}
                 </h4>
                 {!tech.isUnlocked && (
                   <span className="talent-node__cost">
@@ -325,16 +333,16 @@ function ChainDetail({
               {!tech.isUnlocked && (
                 <div className="talent-node__effects">
                   <span className="talent-node__effect-tag">
-                    进度 {progressPercent}%
+                    {t("game:research.advanceMethod")} {progressPercent}%
                   </span>
-                  {TECH_UNLOCK_HINTS[tech.techId] ? (
+                  {getTechUnlockHint(tech.techId, t) ? (
                     <span className="talent-node__effect-tag">
-                      {TECH_UNLOCK_HINTS[tech.techId]}
+                      {getTechUnlockHint(tech.techId, t)}
                     </span>
                   ) : null}
                   {tech.breakthroughAttempts > 0 && (
                     <span className="talent-node__effect-tag">
-                      突破失败 {tech.breakthroughAttempts} 次
+                      {t("game:research.breakthroughDie")} {tech.breakthroughAttempts} {t("game:flow.times")}
                     </span>
                   )}
                 </div>
@@ -344,20 +352,20 @@ function ChainDetail({
                 <div style={{ marginTop: 8 }}>
                   {tech.unlocksGoods && tech.unlocksGoods.length > 0 && (
                     <p className="talent-tree__hint">
-                      解锁商品：{tech.unlocksGoods.join("、")}
+                      {t("game:research.unlocksGoods", { goods: tech.unlocksGoods.join("、") })}
                     </p>
                   )}
                   {tech.unlocksRoutes && tech.unlocksRoutes.length > 0 && (
                     <p className="talent-tree__hint">
-                      解锁生产方式：{tech.unlocksRoutes.map(getRouteLabel).join("、")}
+                      {t("game:research.unlocksRoutes", { routes: tech.unlocksRoutes.map(getRouteLabel).join("、") })}
                     </p>
                   )}
                   {isActive && (
-                    <p className="talent-tree__hint">⚡ 正在研究中</p>
+                    <p className="talent-tree__hint">⚡ {t("game:research.currentlyResearching")}</p>
                   )}
                   {tech.canResearch && !tech.isUnlocked && !isActive && (
                     <p className="talent-tree__hint">
-                      {isSelected ? "已选中，提交决策后开始研究" : "点击解锁按钮选择研究"}
+                      {isSelected ? t("game:research.selectedAndSubmit") : t("game:research.clickToResearch")}
                     </p>
                   )}
                 </div>
@@ -371,11 +379,11 @@ function ChainDetail({
             <div className="talent-node__action">
               {tech.isUnlocked ? (
                 <span className="talent-node__btn talent-node__btn--unlocked">
-                  ✓ 已解锁
+                  ✓ {t("game:research.unlocked")}
                 </span>
               ) : isActive ? (
                 <span className="talent-node__btn talent-node__btn--unlocked" style={{ color: "#fceb9c" }}>
-                  ⚡ 研究中
+                  ⚡ {t("game:research.researching")}
                 </span>
               ) : isSelected ? (
                 <button
@@ -383,7 +391,7 @@ function ChainDetail({
                   onClick={(e) => { e.stopPropagation(); onToggleTech(tech.techId, false); }}
                   type="button"
                 >
-                  ✓ 已选择
+                  ✓ {t("game:research.selected")}
                 </button>
               ) : (
                 <button
@@ -392,7 +400,7 @@ function ChainDetail({
                   onClick={(e) => { e.stopPropagation(); onToggleTech(tech.techId, true); }}
                   type="button"
                 >
-                  研究
+                  {t("game:research.research")}
                 </button>
               )}
             </div>
@@ -405,10 +413,12 @@ function ChainDetail({
 }
 
 function getRouteLabel(routeId: string): string {
-  return {
-    handicraft: "手工业",
-    mechanized: "机械化",
-    steam: "蒸汽工业",
-    electrified: "电气工业",
-  }[routeId] ?? routeId;
+  const { t } = useTranslation();
+  const map: Record<string, string> = {
+    handicraft: t("game:productionRoute.handicraft", "Handicraft"),
+    mechanized: t("game:productionRoute.mechanized", "Mechanized Industry"),
+    steam: t("game:productionRoute.steam", "Steam Industry"),
+    electrified: t("game:productionRoute.electrified", "Electrified Industry"),
+  };
+  return map[routeId] ?? routeId;
 }

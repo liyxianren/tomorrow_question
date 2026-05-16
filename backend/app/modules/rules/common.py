@@ -7,7 +7,7 @@ from app.contracts.models import GameLogPayload
 from app.modules.game_state.models import GameSnapshot
 from app.modules.game_state.turn_input import PlayerTurnInput
 
-POINT_PURCHASE_COSTS: dict[str, int] = {"tech": 2, "military": 6}
+POINT_PURCHASE_COSTS: dict[str, int] = {"tech": 2}
 
 PHASE_INPUT_FIELDS: dict[str, tuple[str, ...]] = {
     "decision": (

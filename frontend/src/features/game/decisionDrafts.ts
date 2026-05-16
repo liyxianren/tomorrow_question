@@ -246,16 +246,14 @@ export function removeColonizationAction(
 export function setConquestAction(
   draft: PhaseDraftByPhase["decision"],
   regionId: string,
-  infantry: number,
-  artillery: number,
+  army: number,
 ): PhaseDraftByPhase["decision"] {
-  const safeInfantry = normalizeQuantity(infantry);
-  const safeArtillery = normalizeQuantity(artillery);
+  const safeArmy = normalizeQuantity(army);
   const remaining = (draft.militaryPlan.conquestActions ?? []).filter(
     (a) => a.regionId !== regionId,
   );
-  const next = safeInfantry > 0 || safeArtillery > 0
-    ? [...remaining, { regionId, infantry: safeInfantry, artillery: safeArtillery }]
+  const next = safeArmy > 0
+    ? [...remaining, { regionId, army: safeArmy }]
     : remaining;
   return {
     ...draft,

@@ -55,7 +55,7 @@ def apply_effects(player_state, effects: dict[str, Any]) -> None:
         for key, value in navy_delta.items():
             player_state.navy[str(key)] = int(player_state.navy.get(str(key), 0)) + int(value)
 
-    ideology_delta = effects.get("ideologyLevelDelta")
+    ideology_delta = effects.get("ideologyLevelDelta") or effects.get("ideologyDelta")
     if isinstance(ideology_delta, dict):
         balance = get_balance_config().politics
         for key, value in ideology_delta.items():
@@ -82,9 +82,6 @@ def apply_effects(player_state, effects: dict[str, Any]) -> None:
 
     if "techPointsDelta" in effects:
         player_state.tech_points = max(0, int(player_state.tech_points) + int(effects["techPointsDelta"]))
-
-    if "militaryPointsDelta" in effects:
-        player_state.military_points = max(0, int(player_state.military_points) + int(effects["militaryPointsDelta"]))
 
     research_facility_delta = effects.get("researchFacilityDelta")
     if isinstance(research_facility_delta, dict):

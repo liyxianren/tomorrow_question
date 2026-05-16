@@ -1,4 +1,5 @@
 import type { SessionContextResponse } from "../../../types";
+import i18n from "../../../i18n";
 import {
   calculateDecisionSpendSummary,
   calculateGovernmentPointPreview,
@@ -16,21 +17,21 @@ import type {
 export const DECISION_CARD_DEMO_VARIANTS: DecisionCardDemoVariantMeta[] = [
   {
     id: "command-deck",
-    label: "方案 A：指挥台卡组",
-    summary: "预算反馈最强，最接近正式可用稿。",
-    accent: "预算先行",
+    label: i18n.t("pages:decisionCardDemo.variantALabel", "方案 A：指挥台卡组"),
+    summary: i18n.t("pages:decisionCardDemo.variantASummary", "预算反馈最强，最接近正式可用稿。"),
+    accent: i18n.t("pages:decisionCardDemo.variantAAccent", "预算先行"),
   },
   {
     id: "archive-folio",
-    label: "方案 B：档案册卡组",
-    summary: "强调解锁条件、说明文案和研究链路。",
-    accent: "信息密度",
+    label: i18n.t("pages:decisionCardDemo.variantBLabel", "方案 B：档案册卡组"),
+    summary: i18n.t("pages:decisionCardDemo.variantBSummary", "强调解锁条件、说明文案和研究链路。"),
+    accent: i18n.t("pages:decisionCardDemo.variantBAccent", "信息密度"),
   },
   {
     id: "action-stack",
-    label: "方案 C：行动栈卡组",
-    summary: "更像桌游行动牌，单卡更大、更有戏剧性。",
-    accent: "决策氛围",
+    label: i18n.t("pages:decisionCardDemo.variantCLabel", "方案 C：行动栈卡组"),
+    summary: i18n.t("pages:decisionCardDemo.variantCSummary", "更像桌游行动牌，单卡更大、更有戏剧性。"),
+    accent: i18n.t("pages:decisionCardDemo.variantCAccent", "决策氛围"),
   },
 ];
 
@@ -43,7 +44,7 @@ export function createDecisionCardDemoScenario({
 }): DecisionCardDemoScenario {
   return {
     source,
-    sourceLabel: source === "live" ? "实时对局" : "内置种子",
+    sourceLabel: source === "live" ? i18n.t("pages:decisionCardDemo.liveSource", "实时对局") : i18n.t("pages:decisionCardDemo.seedSource", "内置种子"),
     countryCode: workspace.countryCode,
     countryLabel: workspace.countryLabel,
     workspace,

@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { translateBackend } from "../../../i18n";
 import type { DecisionPlayerPhaseWorkspace } from "../../../types";
 import type { PhaseDraftByPhase } from "../../../features/game/forms";
-import { buildEffectMetrics, calculateGovernmentPointPreview } from "../../../features/game/decisionShared";
+import { buildEffectMetrics } from "../../../features/game/decisionShared";
 import { DecisionStatStrip } from "./shared/DecisionStatStrip";
 import { DecisionActionCard } from "./shared/DecisionActionCard";
 import { MilitaryWorldMap, type MapSelection } from "./military/MilitaryWorldMap";
@@ -29,7 +31,7 @@ export interface MilitaryPanelProps {
   onColonize: (regionId: string) => void;
   onCancelColonize: (regionId: string) => void;
   onNavalDeploymentChange: (nodeId: string, count: number) => void;
-  onConquestChange: (regionId: string, infantry: number, artillery: number) => void;
+  onConquestChange: (regionId: string, army: number) => void;
   onLootingToggle: (regionId: string, resourceType: string) => void;
 }
 
@@ -65,16 +67,13 @@ export function MilitaryPanel({
   const navalDeployment = draft.militaryPlan.navalDeployment ?? {};
   const selectedFleetDelta = sumSelectedFleetDelta(mil.availableMilitaryActions, draft);
   const effectiveTotalFleets = Math.max(0, totalFleets + selectedFleetDelta);
-  const availableMilitaryPoints = calculateGovernmentPointPreview(workspace, draft).militaryPoints;
-  const selectedMilitaryPointSpend = draft.militaryPlan.militaryActions.reduce((sum, selection) => {
+  const selectedMilitarySpend = draft.militaryPlan.militaryActions.reduce((sum, selection) => {
     const action = mil.availableMilitaryActions.find((item) => item.actionId === selection.actionId);
     return sum + (action?.cost ?? 0);
   }, 0);
-  const selectedColonizationPointSpend = draft.militaryPlan.colonizationActions.length * capability.militaryPointCost;
-  const remainingMilitaryPoints = Math.max(
-    0,
-    availableMilitaryPoints - selectedMilitaryPointSpend - selectedColonizationPointSpend,
-  );
+  const selectedColonizationSpend = draft.militaryPlan.colonizationActions.length * (capability.budgetCost ?? 0);
+  const totalMilitarySpend = selectedMilitarySpend + selectedColonizationSpend;
+  const maxArmyAvailable = Math.max(0, Math.floor(mil.army.army ?? 0));
   const totalDeployed = oceanNodes.reduce((sum, node) => {
     const draftCount = navalDeployment[node.nodeId];
     return sum + (typeof draftCount === "number" ? draftCount : node.myFleet);
@@ -91,28 +90,31 @@ export function MilitaryPanel({
   const maxInfantryAvailable = Math.max(0, Math.floor(mil.army.infantry ?? 0));
   const maxArtilleryAvailable = Math.max(0, Math.floor(mil.army.artillery ?? 0));
 
+  const { t } = useTranslation();
   const [selectedNode, setSelectedNode] = useState<MapSelection>(null);
 
   return (
     <div className="military-panel" data-testid="military-panel">
       <div className="military-panel__header">
-        <h3 className="military-panel__title">⚔️ 军事要塞</h3>
-        <span className="military-panel__budget">军事点余量 {remainingMilitaryPoints}</span>
+        <h3 className="military-panel__title">⚔️ {t("game:military.title")}</h3>
+        <span className="military-panel__budget">
+          {t("game:military.army")} {mil.army.army ?? 0}/{mil.armyCap ?? 3} · {t("game:military.deployableFleets")} {totalFleets}
+        </span>
       </div>
 
       <DecisionStatStrip
         items={[
-          { icon: "⚔️", value: availableMilitaryPoints, label: "军事点" },
-          { icon: "⛵", value: selectedFleetDelta > 0 ? `${totalFleets}+${selectedFleetDelta}` : totalFleets, label: "可调度舰队" },
-          { icon: "🌍", value: mil.overseasCapacity, label: "海外承接" },
-          { icon: "🏳️", value: mil.establishedDiplomacy.length, label: "已建交" },
+          { icon: "🛡️", value: `${mil.army.army ?? 0}/${mil.armyCap ?? 3}`, label: t("game:military.army") },
+          { icon: "⛵", value: selectedFleetDelta > 0 ? `${totalFleets}+${selectedFleetDelta}` : totalFleets, label: t("game:military.deployableFleets") },
+          { icon: "🌍", value: mil.overseasCapacity, label: t("game:military.overseasCapacity") },
+          { icon: "🏳️", value: mil.establishedDiplomacy.length, label: t("game:military.establishedDiplomacy") },
         ]}
       />
       <p className="military-panel__rule-note">
-        舰队可调度 = 现有舰队 + 本轮已选建造舰队 - 地图已部署舰队；海域控制需要在该航线达到门槛且数量领先。殖民地控制不提供舰队，只影响市场权限、收入与排名比较。
+        {t("game:military.fleetRuleNote")}
       </p>
 
-      <h4 className="military-section-label">🌐 世界地图</h4>
+      <h4 className="military-section-label">🌐 {t("game:military.worldMap")}</h4>
       <div className="mwm-stage">
         <MilitaryWorldMap
           oceanNodes={oceanNodes}
@@ -127,7 +129,7 @@ export function MilitaryPanel({
           onPinSelect={setSelectedNode}
           onNavalDeploymentChange={onNavalDeploymentChange}
         />
-        <div className="mnd-overlay" aria-label="区域详情">
+        <div className="mnd-overlay" aria-label={t("game:military.regionDetail")}>
           {mil.regionAccessStatus.map((region) => {
             const opt = colonizationByRegion.get(region.regionId) ?? null;
             const diplomacyAction = diplomacyByRegion.get(region.regionId) ?? null;
@@ -157,13 +159,11 @@ export function MilitaryPanel({
                 capability={capability}
                 previewIsUnlocked={previewIsUnlocked}
                 previewHasDiplomacy={previewHasDiplomacy}
-                militaryPoints={remainingMilitaryPoints}
-                remainingGovernmentBudget={remainingGovernmentBudget}
+                remainingGovernmentBudget={remainingGovernmentBudget - totalMilitarySpend}
                 colonizationSelected={colonizationSelected}
                 conquestEntry={conquestEntry}
                 lootedSet={lootedSet}
-                maxInfantryAvailable={maxInfantryAvailable}
-                maxArtilleryAvailable={maxArtilleryAvailable}
+                maxArmyAvailable={maxArmyAvailable}
                 onToggleDiplomacy={onToggleDiplomacy}
                 onColonize={onColonize}
                 onCancelColonize={onCancelColonize}
@@ -200,7 +200,7 @@ export function MilitaryPanel({
         </div>
       </div>
 
-      <h4 className="military-section-label">👑 殖民扩张</h4>
+      <h4 className="military-section-label">👑 {t("game:military.colonizationTitle")}</h4>
       <div className="military-actions">
         {(() => {
           const unlockStatus = capability.isUnlocked
@@ -211,36 +211,36 @@ export function MilitaryPanel({
                 ? "disabled"
                 : "available";
           const statusText = capability.isUnlocked
-            ? "✅ 已永久解锁"
+            ? "✅ " + t("game:military.permanentlyUnlocked")
             : unlockSelected
-              ? "✓ 本轮解锁"
-              : "未解锁";
+              ? "✓ " + t("game:military.unlockThisRound")
+              : t("game:military.notUnlocked");
           return (
             <DecisionActionCard
               icon="👑"
-              title="殖民扩张"
-              costLabel={`${capability.unlockCost} 政府财政`}
-              description={`支付 ${capability.unlockCost} 政府财政永久解锁殖民能力。解锁后，殖民执行只消耗 ${capability.militaryPointCost} 军事点。`}
+              title={t("game:military.colonizationTitle")}
+              costLabel={`${capability.unlockCost} ${t("game:government.budget")}`}
+              description={t("game:military.colonizationDesc", { cost: capability.unlockCost, pointCost: capability.budgetCost })}
               status={unlockStatus}
               statusText={statusText}
               control={capability.isUnlocked ? undefined : {
                 kind: "toggle",
                 checked: unlockSelected,
                 onChange: (next) => onToggleColonizationUnlock(next),
-                label: unlockSelected ? "取消" : "解锁",
+                label: unlockSelected ? t("common:cancel") : t("common:unlock"),
                 disabled: !unlockSelected && remainingGovernmentBudget < capability.unlockCost,
               }}
-              doneBadge={capability.isUnlocked ? "已解锁" : undefined}
+              doneBadge={capability.isUnlocked ? t("common:unlock") : undefined}
             />
           );
         })()}
       </div>
 
-      <h4 className="military-section-label">🛡️ 军事行动</h4>
+      <h4 className="military-section-label">🛡️ {t("game:military.militaryActions")}</h4>
       <div className="military-actions">
         {mil.availableMilitaryActions.map((action) => {
           const count = getCount(action.actionId);
-          const canAdd = count < action.maxPerRound && remainingMilitaryPoints >= action.cost;
+          const canAdd = count < action.maxPerRound && (remainingGovernmentBudget - totalMilitarySpend) >= action.cost;
           const effectMetrics = buildEffectMetrics(action.effects);
           const status = count > 0
             ? "selected"
@@ -252,9 +252,9 @@ export function MilitaryPanel({
             <DecisionActionCard
               key={action.actionId}
               icon={ACTION_ICONS[action.actionId] ?? "⚙️"}
-              title={action.label}
-              costLabel={`${action.cost} 军事点`}
-              description={action.description}
+              title={translateBackend(action.label)}
+              costLabel={`${action.cost} ${t("game:government.budget")}`}
+              description={translateBackend(action.description)}
               effects={effectMetrics}
               status={status}
               statusText={`${count}/${action.maxPerRound}`}
@@ -266,8 +266,8 @@ export function MilitaryPanel({
                 onCancel: () => onRemoveMilitary(action.actionId),
                 confirmLabel: "+",
                 cancelLabel: "-",
-                confirmAriaLabel: `确认动作：${action.label}`,
-                cancelAriaLabel: `撤回动作：${action.label}`,
+                confirmAriaLabel: t("game:military.confirmAction", { label: translateBackend(action.label) }),
+                cancelAriaLabel: t("game:military.revokeAction", { label: translateBackend(action.label) }),
                 hideCancelWhenNotSelected: true,
               }}
             />

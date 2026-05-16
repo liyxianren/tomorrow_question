@@ -97,9 +97,12 @@
     "factory_overtime_shift": {
       "label": "加班轮班",
       "budgetPoolCost": 6,
-      "description": "支付加班和维护成本，本回合统一商品产出翻倍。",
+      "description": "支付加班和维护成本，本回合统一商品产出翻倍。加剧平等主义思潮。",
       "effects": {
-        "productionOutputMultiplier": 2
+        "productionOutputMultiplier": 2,
+        "ideologyDelta": {
+          "egalitarianism": 1
+        }
       }
     },
     "factory_technical_drill": {
@@ -193,39 +196,92 @@
         "overseasMarketCapacityDelta": 2,
         "overseasPriceBonusDelta": 1
       }
+    },
+    "market_subsidy": {
+      "label": "市场补贴",
+      "budgetPoolCost": 6,
+      "description": "政府补贴国内市场，扩大本回合国内承接量。",
+      "effects": {
+        "domesticMarketCapacityDelta": 2
+      },
+      "maxPerRound": 1
+    },
+    "trade_promotion": {
+      "label": "贸易促进",
+      "budgetPoolCost": 8,
+      "description": "推动海外贸易，扩大本回合海外市场容量。",
+      "effects": {
+        "overseasMarketCapacityDelta": 2
+      },
+      "maxPerRound": 1
+    },
+    "price_control": {
+      "label": "价格管制",
+      "budgetPoolCost": 5,
+      "description": "政府调控国内价格，提高本回合收购价格。",
+      "effects": {
+        "domesticPriceBonusDelta": 2
+      },
+      "maxPerRound": 1
+    },
+    "market_fair": {
+      "label": "博览会",
+      "budgetPoolCost": 5,
+      "description": "举办商品博览会，低成本扩大本回合国内承接量。",
+      "effects": {
+        "domesticMarketCapacityDelta": 2
+      }
+    },
+    "consumer_subsidy": {
+      "label": "消费补贴",
+      "budgetPoolCost": 8,
+      "description": "追加消费补贴，同时提高本回合国内承接量和收购价格。",
+      "effects": {
+        "domesticMarketCapacityDelta": 2,
+        "domesticPriceBonusDelta": 1
+      }
+    },
+    "import_substitution": {
+      "label": "进口替代",
+      "budgetPoolCost": 7,
+      "description": "限制进口替代品，提高本回合国内承接量和收购价格。",
+      "effects": {
+        "domesticMarketCapacityDelta": 1,
+        "domesticPriceBonusDelta": 2
+      }
     }
   },
   "regularPolicies": {
-    "raise_consumption_tax": {
-      "label": "增收消费税",
+    "raise_commercial_tax": {
+      "label": "提高商业税",
       "adminCostPerTurn": 1,
       "budgetCost": 0,
       "effects": {
         "ratioDelta": {
-          "consumption": -1.0,
-          "fiscal": 1.0
+          "factory": -1.0,
+          "governmentFiscal": 1.0
         },
         "ideologyDelta": {
           "egalitarianism": 1
         }
       },
-      "description": "提高消费税，将更多收入转入财政池，激化平等主义思潮。",
+      "description": "提高商业税，将更多工厂收入转入财政池，激化平等主义思潮。",
       "maxPerRound": 1
     },
-    "lower_consumption_tax": {
-      "label": "降低消费税",
+    "lower_commercial_tax": {
+      "label": "降低商业税",
       "adminCostPerTurn": 1,
       "budgetCost": 0,
       "effects": {
         "ratioDelta": {
-          "consumption": 1.0,
-          "fiscal": -1.0
+          "factory": 1.0,
+          "governmentFiscal": -1.0
         },
         "ideologyDelta": {
           "egalitarianism": -1
         }
       },
-      "description": "降低消费税，收入更多流向消费池，缓和平等主义激进。",
+      "description": "降低商业税，收入更多流向工厂，缓和平等主义激进。",
       "maxPerRound": 1
     },
     "expand_army": {
@@ -233,9 +289,9 @@
       "adminCostPerTurn": 1,
       "budgetCost": 8,
       "effects": {
-        "militaryPointsDelta": 1
+        "armyCapDelta": 1
       },
-      "description": "扩充常备军；从本回合结算后开始，每回合增加 1 军事点。",
+      "description": "扩充常备军编制；从本回合结算后开始，永久增加 1 军事力量上限。",
       "maxPerRound": 2
     },
     "reduce_army": {
@@ -243,20 +299,154 @@
       "adminCostPerTurn": 1,
       "budgetCost": 0,
       "effects": {
-        "militaryPointsDelta": -1,
+        "armyCapDelta": -1,
         "fiscalRefund": 5
       },
-      "description": "裁减军队规模，回笼财政资金。",
+      "description": "裁减军队编制，回笼财政资金，军事上限降低。",
       "maxPerRound": 1
     },
     "expand_administration": {
       "label": "扩张行政机构",
-      "adminCostPerTurn": 1,
       "budgetCost": 15,
       "effects": {
-        "administrationCapacityDelta": 1
+        "baseAdministrationCapacityDelta": 1
       },
       "description": "扩建行政机构，永久增加行政能力。",
+      "maxPerRound": 1
+    },
+    "people_petition": {
+      "label": "民众请愿",
+      "adminCostPerTurn": 1,
+      "budgetCost": 0,
+      "requiresReform": "parliament",
+      "effects": {
+        "ratioDelta": {
+          "consumption": 0.5,
+          "fiscal": -0.5
+        },
+        "ideologyDelta": {
+          "liberalism": 1
+        }
+      },
+      "description": "开放民众请愿渠道，收入向消费池倾斜，自由主义上升。",
+      "maxPerRound": 1
+    },
+    "private_research": {
+      "label": "私人研发",
+      "adminCostPerTurn": 1,
+      "budgetCost": 3,
+      "requiresReform": "patent_system",
+      "effects": {
+        "ratioDelta": {
+          "factory": 0.5,
+          "fiscal": -0.5
+        },
+        "researchFacilityDelta": {
+          "academy": 1
+        }
+      },
+      "description": "鼓励私人资本投入研发，每回合额外推进研究进度，收入向工厂倾斜。",
+      "maxPerRound": 1
+    },
+    "capital_tax_increase": {
+      "label": "提高资本税",
+      "adminCostPerTurn": 1,
+      "budgetCost": 0,
+      "requiresReform": "social_redistribution",
+      "effects": {
+        "ratioDelta": {
+          "consumption": 1.0,
+          "factory": -1.0
+        },
+        "ideologyDelta": {
+          "egalitarianism": -1,
+          "liberalism": 1
+        }
+      },
+      "description": "提高资本税，收入从工厂转向消费池，满足平等诉求但刺激自由主义。",
+      "maxPerRound": 1
+    },
+    "capital_tax_decrease": {
+      "label": "降低资本税",
+      "adminCostPerTurn": 1,
+      "budgetCost": 0,
+      "requiresReform": "social_redistribution",
+      "effects": {
+        "ratioDelta": {
+          "factory": 1.0,
+          "consumption": -1.0
+        },
+        "ideologyDelta": {
+          "egalitarianism": 1,
+          "liberalism": -1
+        }
+      },
+      "description": "降低资本税，收入从消费池转向工厂，刺激投资但激化平等主义。",
+      "maxPerRound": 1
+    },
+    "political_agitation": {
+      "label": "政治鼓动",
+      "adminCostPerTurn": 1,
+      "budgetCost": 2,
+      "requiresReform": "state_media",
+      "effects": {
+        "ideologyDelta": {
+          "nationalism": 2,
+          "egalitarianism": -1
+        }
+      },
+      "description": "通过媒体鼓动民族情绪，提升民族主义，抑制平等主义。",
+      "maxPerRound": 1
+    },
+    "open_trade": {
+      "label": "开放贸易",
+      "adminCostPerTurn": 1,
+      "budgetCost": 3,
+      "requiresReform": "modern_customs",
+      "effects": {
+        "ratioDelta": {
+          "fiscal": 0.5,
+          "factory": -0.5
+        },
+        "productionCapacityDelta": {
+          "all": 1
+        }
+      },
+      "description": "开放贸易口岸，提升全品类产能，收入向财政倾斜。",
+      "maxPerRound": 1
+    },
+    "close_trade": {
+      "label": "关闭贸易",
+      "adminCostPerTurn": 1,
+      "budgetCost": 3,
+      "requiresReform": "modern_customs",
+      "effects": {
+        "ratioDelta": {
+          "factory": 0.5,
+          "consumption": -0.5
+        },
+        "productionCapacityDelta": {
+          "all": -1
+        }
+      },
+      "description": "关闭贸易口岸保护国内市场，产能下降但收入向工厂倾斜。",
+      "maxPerRound": 1
+    },
+    "work_relief": {
+      "label": "以工代赈",
+      "adminCostPerTurn": 1,
+      "budgetCost": 6,
+      "requiresReform": "keynesianism",
+      "effects": {
+        "ratioDelta": {
+          "fiscal": -0.5,
+          "consumption": 0.5
+        },
+        "productionCapacityDelta": {
+          "handicraft": 2
+        }
+      },
+      "description": "政府出资兴办公共工程，提升手工业产能，收入向消费池倾斜。",
       "maxPerRound": 1
     }
   }

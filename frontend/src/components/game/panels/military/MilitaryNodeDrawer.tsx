@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { translateBackend } from "../../../../i18n";
 import type {
   ColonizationCapability,
   ColonizationOption,
@@ -7,15 +9,8 @@ import type {
   OceanNodeOption,
   RegionAccessStatus,
 } from "../../../../types";
+import { getOceanNodeLabel, getGoodsLabel } from "../../../../features/game/panelGlossary";
 import "./MilitaryNodeDrawer.css";
-
-const OCEAN_NODE_LABELS: Record<string, string> = {
-  north_atlantic: "北大西洋",
-  south_atlantic: "南大西洋",
-  indian_ocean: "印度洋",
-  pacific: "太平洋",
-  mediterranean: "地中海",
-};
 
 const REGION_ICONS: Record<string, string> = {
   europe: "🏰",
@@ -23,12 +18,6 @@ const REGION_ICONS: Record<string, string> = {
   africa: "🦁",
   middle_east: "🕌",
   asia_pacific: "🏯",
-};
-
-const GOODS_LABELS: Record<string, string> = {
-  coal: "煤炭", steel: "钢铁", grain: "粮食", cotton: "棉花",
-  oil: "石油", rubber: "橡胶", minerals: "矿产", tea: "茶叶", silk: "丝绸",
-  iron: "铁矿",
 };
 
 function independenceColor(value: number): string {
@@ -61,17 +50,15 @@ type RegionDrawerProps = {
   capability: ColonizationCapability;
   previewIsUnlocked: boolean;
   previewHasDiplomacy: boolean;
-  militaryPoints: number;
   remainingGovernmentBudget: number;
   colonizationSelected: boolean;
   conquestEntry: ConquestActionSelection | null;
   lootedSet: Set<string>;
-  maxInfantryAvailable: number;
-  maxArtilleryAvailable: number;
+  maxArmyAvailable: number;
   onToggleDiplomacy: (actionId: string, checked: boolean) => void;
   onColonize: (regionId: string) => void;
   onCancelColonize: (regionId: string) => void;
-  onConquestChange: (regionId: string, infantry: number, artillery: number) => void;
+  onConquestChange: (regionId: string, army: number) => void;
   onLootingToggle: (regionId: string, resourceType: string) => void;
 };
 
@@ -94,37 +81,38 @@ function OceanDrawer({
   myCountry,
   onNavalDeploymentChange,
 }: OceanDrawerProps) {
-  const label = OCEAN_NODE_LABELS[nodeId] ?? nodeId;
+  const { t } = useTranslation();
+  const label = getOceanNodeLabel(nodeId);
   const breakdown = Object.entries(oceanNode.navyByCountry ?? {})
     .filter(([, n]) => n > 0)
     .sort(([, a], [, b]) => b - a);
   const controllerText = oceanNode.controller
     ? oceanNode.controller === myCountry
-      ? `控制：${oceanNode.controller}（你）`
-      : `控制：${oceanNode.controller}`
-    : "控制：无";
+      ? t("game:military.oceanControlledByYou", { controller: oceanNode.controller })
+      : t("game:military.oceanControl", { controller: oceanNode.controller })
+    : t("game:military.oceanNone");
 
   return (
     <aside
       className={`mnd mnd--ocean${open ? " mnd--open" : ""}`}
-      aria-label={`${label} 详情`}
+      aria-label={`${label} ${t("game:military.regionDetail")}`}
     >
       <header className="mnd__head">
         <span className="mnd__title">
           🌊 {label}
-          {oceanNode.isBlockaded ? " 🚫 封锁中" : ""}
+          {oceanNode.isBlockaded ? ` 🚫 ${t("game:military.regionDetail")}` : ""}
         </span>
         <button
           type="button"
           className="mnd__close"
-          aria-label="关闭详情"
+          aria-label={t("game:military.closeDetail")}
           onClick={onClose}
         >×</button>
       </header>
 
       <div className="mnd__body">
         <div className="mnd__row">
-          <span className="mnd__row-label">我方舰队</span>
+          <span className="mnd__row-label">{t("game:military.myFleet")}</span>
           <span className="mnd__row-value">{myFleet}</span>
         </div>
         <div className="mnd__row">
@@ -133,11 +121,11 @@ function OceanDrawer({
 
         {breakdown.length > 0 && (
           <div className="mnd__breakdown">
-            <div className="mnd__breakdown-label">各国部署</div>
+            <div className="mnd__breakdown-label">{t("game:military.nationsDeployed")}</div>
             <ul className="mnd__breakdown-list">
               {breakdown.map(([country, count]) => (
                 <li key={country}>
-                  <span>{country}{country === myCountry ? "（你）" : ""}</span>
+                  <span>{country}{country === myCountry ? t("game:military.oceanControlledByYou", { controller: "" }).replace(/Control: \(You\)/, " (You)") : ""}</span>
                   <strong>{count}</strong>
                 </li>
               ))}
@@ -146,10 +134,10 @@ function OceanDrawer({
         )}
 
         <div className="mnd__deploy">
-          <span className="mnd__deploy-label">调整部署</span>
+          <span className="mnd__deploy-label">{t("game:military.adjustDeployment")}</span>
           <div className="mnd__deploy-controls">
             <button
-              aria-label={`减少在${label}的舰队部署`}
+              aria-label={t("game:military.navalDeployReduce", { label })}
               type="button"
               className="mnd__btn"
               disabled={myFleet <= 0}
@@ -157,7 +145,7 @@ function OceanDrawer({
             >−</button>
             <span className="mnd__deploy-value">{myFleet}</span>
             <button
-              aria-label={`增加在${label}的舰队部署`}
+              aria-label={t("game:military.navalDeployIncrease", { label })}
               type="button"
               className="mnd__btn"
               disabled={remainingFleets <= 0}
@@ -165,7 +153,7 @@ function OceanDrawer({
             >+</button>
           </div>
           <span className="mnd__hint">
-            可用舰队 {remainingFleets}
+            {t("game:military.availableFleets")} {remainingFleets}
           </span>
         </div>
       </div>
@@ -184,52 +172,50 @@ function RegionDrawer({
   capability,
   previewIsUnlocked,
   previewHasDiplomacy,
-  militaryPoints,
   remainingGovernmentBudget,
   colonizationSelected,
   conquestEntry,
   lootedSet,
-  maxInfantryAvailable,
-  maxArtilleryAvailable,
+  maxArmyAvailable,
   onToggleDiplomacy,
   onColonize,
   onCancelColonize,
   onConquestChange,
   onLootingToggle,
 }: RegionDrawerProps) {
+  const { t } = useTranslation();
   const icon = REGION_ICONS[nodeId] ?? "🌐";
   const accessBadge = region.isAccessible ? "✅" : "🔒";
-  const goodsLine = region.acceptedGoods.map((g) => GOODS_LABELS[g] ?? g).join("·");
+  const goodsLine = region.acceptedGoods.map((g) => getGoodsLabel(g)).join("·");
 
   // Colonization preview logic (mirrors original MilitaryPanel)
   const opt = colonizationOption;
-  const previewHasMilitary = militaryPoints >= capability.militaryPointCost;
+  const previewHasMilitary = remainingGovernmentBudget >= capability.budgetCost;
   const previewCanColonize = !!opt && !opt.isColonized && previewIsUnlocked && previewHasDiplomacy && previewHasMilitary;
   const lockReasonParts: string[] = [];
   if (opt && !opt.isColonized) {
-    if (!previewIsUnlocked) lockReasonParts.push("需先解锁殖民");
-    if (!previewHasDiplomacy) lockReasonParts.push("建立外交关系");
-    if (!previewHasMilitary) lockReasonParts.push(`${capability.militaryPointCost}军事点`);
+    if (!previewIsUnlocked) lockReasonParts.push(t("game:military.needUnlockColonization"));
+    if (!previewHasDiplomacy) lockReasonParts.push(t("game:military.establishDiplomacyRequired"));
+    if (!previewHasMilitary) lockReasonParts.push(t("game:military.militaryPointsRequired", { points: capability.budgetCost }));
   }
   const previewLockedReason = !opt
     ? null
     : opt.isColonized
-      ? "已被殖民"
+      ? t("game:military.alreadyColonized")
       : lockReasonParts.length > 0
         ? `🔒 ${lockReasonParts.join(" + ")}`
         : null;
   const colStatusText = !opt
     ? null
     : opt.isColonized
-      ? "👑 已殖民"
+      ? `👑 ${t("game:military.alreadyColonized")}`
       : colonizationSelected
-        ? "✓ 已选择"
-        : previewLockedReason ?? "可殖民";
+        ? `✓ ${t("common:selected")}`
+        : previewLockedReason ?? t("game:military.canColonize");
 
   // Conquest data
-  const infantry = conquestEntry?.infantry ?? 0;
-  const artillery = conquestEntry?.artillery ?? 0;
-  const power = infantry + artillery * 2;
+  const army = conquestEntry?.army ?? 0;
+  const power = army * 3;
   const garrisonInf = Number(opt?.garrison?.infantry ?? 0);
   const garrisonArt = Number(opt?.garrison?.artillery ?? 0);
   const defenderPower = garrisonInf + garrisonArt * 2;
@@ -244,16 +230,16 @@ function RegionDrawer({
   return (
     <aside
       className={`mnd mnd--region${open ? " mnd--open" : ""}`}
-      aria-label={`${region.label} 详情`}
+      aria-label={`${translateBackend(region.label)} ${t("game:military.regionDetail")}`}
     >
       <header className="mnd__head">
         <span className="mnd__title">
-          {icon} {region.label} {accessBadge}
+          {icon} {translateBackend(region.label)} {accessBadge}
         </span>
         <button
           type="button"
           className="mnd__close"
-          aria-label="关闭详情"
+          aria-label={t("game:military.closeDetail")}
           onClick={onClose}
         >×</button>
       </header>
@@ -261,25 +247,25 @@ function RegionDrawer({
       <div className="mnd__body">
         {goodsLine && (
           <div className="mnd__row">
-            <span className="mnd__row-label">特产</span>
+            <span className="mnd__row-label">{t("game:military.specialty")}</span>
             <span className="mnd__row-value">{goodsLine}</span>
           </div>
         )}
 
         {diplomacyAction && (
           <div className="mnd__section">
-            <div className="mnd__section-label">🤝 外交</div>
+            <div className="mnd__section-label">🤝 {t("game:military.diplomacy")}</div>
             {diploEstablished ? (
               <div className="mnd__inline-status mnd__inline-status--done">
-                {diplomacyAction.targetRegionLabel} 已建交
+                {t("game:military.diplomacyEstablished", { region: diplomacyAction.targetRegionLabel })}
               </div>
             ) : (
               <div className="mnd__diplo">
                 <span className="mnd__hint">
-                  {diplomacyAction.description ?? `与${diplomacyAction.targetRegionLabel}建立外交关系`} · 花费 {diplomacyAction.cost}
+                  {diplomacyAction.description ?? `${t("game:military.diplomacy")}${translateBackend(diplomacyAction.targetRegionLabel)}`} · {t("game:government.budget")} {diplomacyAction.cost}
                 </span>
                 <span className="mnd__hint mnd__hint--benefit">
-                  建交后解锁该区域海外市场，可向其出售商品。
+                  {t("game:military.diplomacyBenefit")}
                 </span>
                 <div className="mnd__diplo-controls">
                   {diplomacySelected ? (
@@ -287,15 +273,15 @@ function RegionDrawer({
                       type="button"
                       className="mnd__btn mnd__btn--cancel"
                       onClick={() => onToggleDiplomacy(diplomacyAction.actionId, false)}
-                    >取消</button>
+                    >{t("common:cancel")}</button>
                   ) : (
                     <button
                       type="button"
                       className="mnd__btn mnd__btn--primary"
                       disabled={!diploCanAfford}
-                      aria-label={diplomacyAction.label}
+                      aria-label={translateBackend(diplomacyAction.label)}
                       onClick={() => onToggleDiplomacy(diplomacyAction.actionId, true)}
-                    >建交</button>
+                    >{t("game:military.establishDiplomacy")}</button>
                   )}
                 </div>
               </div>
@@ -305,16 +291,16 @@ function RegionDrawer({
 
         {opt && (
           <div className="mnd__section">
-            <div className="mnd__section-label">👑 殖民</div>
+            <div className="mnd__section-label">👑 {t("game:military.colony")}</div>
             <div className="mnd__row">
-              <span className="mnd__row-label">状态</span>
+              <span className="mnd__row-label">{t("common:statusLabels.current")}</span>
               <span className="mnd__row-value">{colStatusText}</span>
             </div>
 
             {!opt.isColonized && (
               <div className="mnd__diplo">
                 <span className="mnd__hint">
-                  殖民成功后，每回合获得 {capability.incomePerColonyPerRound} 点国家收入。
+                  {t("game:military.colonizationBenefit", { income: capability.incomePerColonyPerRound })}
                 </span>
                 <div className="mnd__diplo-controls">
                   {colonizationSelected ? (
@@ -322,15 +308,15 @@ function RegionDrawer({
                       type="button"
                       className="mnd__btn mnd__btn--cancel"
                       onClick={() => onCancelColonize(opt.regionId)}
-                    >取消</button>
+                    >{t("common:cancel")}</button>
                   ) : (
                     <button
                       type="button"
                       className="mnd__btn mnd__btn--primary"
                       disabled={!previewCanColonize}
-                      aria-label={`殖民${opt.regionLabel}`}
+                      aria-label={`${t("game:military.colonize")}${translateBackend(opt.regionLabel)}`}
                       onClick={() => onColonize(opt.regionId)}
-                    >殖民</button>
+                    >{t("game:military.colonize")}</button>
                   )}
                 </div>
               </div>
@@ -339,7 +325,7 @@ function RegionDrawer({
             {opt.isColonized && typeof opt.independence === "number" && (
               <div className="mnd__indep">
                 <div className="mnd__indep-text">
-                  独立度 {opt.independence}%
+                  {t("game:military.independence")} {opt.independence}%
                   {opt.independence >= 60 ? " ⚠️" : ""}
                 </div>
                 <div className="mnd__indep-bar">
@@ -352,41 +338,41 @@ function RegionDrawer({
                   />
                 </div>
                 <div className="mnd__indep-hint">
-                  供需失衡会提高独立倾向，守备会抵消；掠夺额外 +2。
+                  {t("game:military.independenceHint")}
                 </div>
               </div>
             )}
 
             {opt.isColonized && garrisonEntries.length > 0 && (
               <div className="mnd__garrison">
-                驻军: {garrisonEntries.map(([country, n]) => `${country}×${n}`).join(" ")}
+                {t("game:military.garrison")}: {garrisonEntries.map(([country, n]) => `${country}×${n}`).join(" ")}
               </div>
             )}
 
             {opt.isColonized && resourceEntries.length > 0 && (
               <div className="mnd__loot">
                 <div className="mnd__loot-line">
-                  资源: {resourceEntries.map(([res, n]) => `${GOODS_LABELS[res] ?? res}×${n}`).join(" ")}
+                  {t("game:military.resources")}: {resourceEntries.map(([res, n]) => `${getGoodsLabel(res)}×${n}`).join(" ")}
                 </div>
                 <div className="mnd__loot-buttons">
                   {resourceEntries.map(([res]) => {
-                    const resLabel = GOODS_LABELS[res] ?? res;
+                    const resLabel = getGoodsLabel(res);
                     const isLooted = lootedSet.has(res);
                     return (
                       <button
                         key={res}
-                        aria-label={`掠夺${opt.regionLabel}${resLabel}`}
+                        aria-label={t("game:military.lootResource", { resource: resLabel })}
                         className={`mnd__btn${isLooted ? " mnd__btn--active" : ""}`}
                         type="button"
                         onClick={() => onLootingToggle(opt.regionId, res)}
                       >
-                        掠夺{resLabel}
+                        {t("game:military.lootResource", { resource: resLabel })}
                       </button>
                     );
                   })}
                 </div>
                 <div className="mnd__loot-hint">
-                  掠夺会增加殖民地独立倾向 (+2)
+                  {t("game:military.lootHint")}
                 </div>
               </div>
             )}
@@ -398,49 +384,32 @@ function RegionDrawer({
             className="mnd__section"
             data-testid={`conquest-${opt.regionId}`}
           >
-            <div className="mnd__section-label">⚔️ 征服</div>
+            <div className="mnd__section-label">⚔️ {t("game:military.conquest")}</div>
             <div className="mnd__conquest-row">
-              <span className="mnd__conquest-label">步兵: {infantry} / {maxInfantryAvailable}（投入已有部队）</span>
+              <span className="mnd__conquest-label">{t("game:military.army")}: {army} / {maxArmyAvailable}</span>
               <button
-                aria-label={`减少${opt.regionLabel}步兵`}
+                aria-label={`${t("game:market.reduceDomestic")}${translateBackend(opt.regionLabel)}${t("game:military.army")}`}
                 className="mnd__btn"
                 type="button"
-                disabled={infantry <= 0}
-                onClick={() => onConquestChange(opt.regionId, infantry - 1, artillery)}
+                disabled={army <= 0}
+                onClick={() => onConquestChange(opt.regionId, army - 1)}
               >−</button>
               <button
-                aria-label={`增加${opt.regionLabel}步兵`}
+                aria-label={`${t("game:market.increaseDomestic")}${translateBackend(opt.regionLabel)}${t("game:military.army")}`}
                 className="mnd__btn"
                 type="button"
-                disabled={infantry >= maxInfantryAvailable}
-                onClick={() => onConquestChange(opt.regionId, infantry + 1, artillery)}
-              >+</button>
-            </div>
-            <div className="mnd__conquest-row">
-              <span className="mnd__conquest-label">炮兵: {artillery} / {maxArtilleryAvailable}（投入已有部队）</span>
-              <button
-                aria-label={`减少${opt.regionLabel}炮兵`}
-                className="mnd__btn"
-                type="button"
-                disabled={artillery <= 0}
-                onClick={() => onConquestChange(opt.regionId, infantry, artillery - 1)}
-              >−</button>
-              <button
-                aria-label={`增加${opt.regionLabel}炮兵`}
-                className="mnd__btn"
-                type="button"
-                disabled={artillery >= maxArtilleryAvailable}
-                onClick={() => onConquestChange(opt.regionId, infantry, artillery + 1)}
+                disabled={army >= maxArmyAvailable}
+                onClick={() => onConquestChange(opt.regionId, army + 1)}
               >+</button>
             </div>
             <div className="mnd__conquest-power">
-              战力 = {power}（步兵 {infantry} + 炮兵×2 {artillery * 2}）
+              {t("game:military.militaryPoints")} = {power}（{t("game:military.army")} {army} × 3）
               {defenderPower > 0
-                ? ` · 守军战力 = ${defenderPower}（步兵 ${garrisonInf} + 炮兵×2 ${garrisonArt * 2}）· 需≥${conquestThreshold}`
+                ? ` · ${t("game:military.garrison")}${t("game:military.militaryPoints")} = ${defenderPower}（${t("game:military.infantry")} ${garrisonInf} + ${t("game:military.artillery")}×2 ${garrisonArt * 2}）· ≥${conquestThreshold}`
                 : ""}
             </div>
             <div className="mnd__conquest-benefit">
-              征服后可获得该区域控制权（每回合国家收入），并可掠夺该区域资源。
+              {t("game:military.conquestBenefit")}
             </div>
           </div>
         )}

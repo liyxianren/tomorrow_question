@@ -260,7 +260,6 @@ def _validate_market_payload(*, snapshot: GameSnapshot, player_state, payload: d
             )
         if not is_region_accessible(
             region_state.access_level,
-            player_state.military_points,
             region_id=region_id,
             established_diplomacy=player_state.established_diplomacy,
         ):
@@ -1128,29 +1127,20 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
             if region_id not in available_diplomacy:
                 continue
             valid_colonization_count += 1
-        military_point_spend += valid_colonization_count * int(balance.military.colonization_military_point_cost)
+        military_point_spend += valid_colonization_count * int(balance.military.colonization_budget_cost)
 
-    available_military_points = int(player_state.military_points)
-    for purchase in payload.get("governmentPlan", {}).get("pointPurchases", []):
-        if str(purchase.get("pointType") or "") != "military":
-            continue
-        available_military_points += max(0, int(purchase.get("quantity", 0)))
-
-    for selection in payload.get("governmentPlan", {}).get("strategySelections", []):
-        action_id = str(selection.get("actionId") or "")
-        action = balance.decision_actions.government_actions.get(action_id)
-        if action is None:
-            continue
-        available_military_points += int(action.effects.get("militaryPointsDelta", 0))
-
-    if military_point_spend > available_military_points:
+    # Validate total military spend against remaining government fiscal budget
+    remaining_budget = int(player_state.budget_pools.get("governmentFiscal", 0))
+    # Subtract what was already allocated by government plan
+    remaining_budget -= int(payload.get("governmentPlan", {}).get("totalSpend", 0) or 0)
+    if military_point_spend > remaining_budget:
         raise PhaseSubmissionError(
             ErrorCode.INVALID_SUBMISSION,
-            "Military points exceeded for the submitted plan.",
+            "Government fiscal exceeded for the submitted military plan.",
             details={
                 "reason": (
-                    f"军事点不足：计划 {military_point_spend} > "
-                    f"可用 {available_military_points}"
+                    f"政府财政不足：军事计划 {military_point_spend} > "
+                    f"可用 {remaining_budget}"
                 ),
             },
         )

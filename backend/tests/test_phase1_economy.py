@@ -113,17 +113,17 @@ class CalculateDomesticDemandTests(unittest.TestCase):
 
 
 class CalculateEquilibriumPriceTests(unittest.TestCase):
-    """均衡价格 = 阶段开始时消费池 / 本国需求。"""
+    """均衡价格 = 固定基准价 3（消费池已冻结）。"""
 
-    def test_doc_example_pool_700_demand_70(self):
-        # 700/70 = 10, capped at DEFAULT_MAXIMUM_DOMESTIC_PRICE (8).
-        price = calculate_equilibrium_price(consumption_pool=700, demand=70)
-        self.assertEqual(price, Decimal("8"))
+    def test_returns_fixed_base_price(self):
+        # Always returns 3 for any positive demand.
+        price = calculate_equilibrium_price(demand=70)
+        self.assertEqual(price, Decimal("3"))
 
     def test_zero_demand_returns_zero(self):
-        # 防御除零：demand=0 时返回 0，避免运行时崩溃。
+        # 防御除零：demand=0 时返回 0。
         self.assertEqual(
-            calculate_equilibrium_price(consumption_pool=500, demand=0),
+            calculate_equilibrium_price(demand=0),
             Decimal("0"),
         )
 
@@ -182,44 +182,44 @@ class CalculateDomesticPriceTests(unittest.TestCase):
 
 
 class ResolveDomesticMarketTests(unittest.TestCase):
-    """本国市场结算：价格、成交量、销售额、未售出。"""
+    """本国市场结算：价格、成交量、销售额、未售出（均衡价固定 3）。"""
 
-    def test_doc_example_supply_50(self):
-        # supply 50, demand 70, pool 700: equilibrium 10 capped to 8;
-        # 短缺加价 8*(1+2/7)≈10.286 也被上限 8 截断；revenue = 50*8 = 400。
+    def test_supply_shortage(self):
+        # supply=50, demand=70, equilibrium=3.
+        # 短缺率 20/70, price = 3*(1+2/7*0.5) = 3*1.142857 = 3.428571
         outcome = resolve_domestic_market(
-            supply=50, demand=70, consumption_pool=700
+            supply=50, demand=70
         )
         self.assertIsInstance(outcome, DomesticMarketOutcome)
         self.assertEqual(outcome.demand, Decimal("70"))
         self.assertEqual(outcome.supply, Decimal("50"))
-        self.assertEqual(outcome.equilibrium_price, Decimal("8"))
-        self.assertEqual(outcome.final_price, Decimal("8"))
+        self.assertEqual(outcome.equilibrium_price, Decimal("3"))
+        self.assertAlmostEqual(float(outcome.final_price), 3.428571, places=5)
         self.assertEqual(outcome.sold_quantity, Decimal("50"))
-        self.assertEqual(outcome.revenue, Decimal("400"))
+        self.assertAlmostEqual(float(outcome.revenue), 171.42857, places=4)
         self.assertEqual(outcome.unsold_quantity, Decimal("0"))
 
-    def test_doc_example_supply_90(self):
-        # supply 90, demand 70, pool 700: equilibrium 10 capped to 8。
-        # 过剩阻尼: scale=max(0.5, 1-2/7*0.3)=32/35, price=8*32/35=256/35≈7.314；
-        # revenue = 70 * 256/35 = 512。
+    def test_supply_surplus(self):
+        # supply=90, demand=70, equilibrium=3.
+        # 过剩率 20/70, scale=max(0.5, 1-2/7*0.3)=32/35≈0.914286
+        # price=3*32/35=96/35≈2.742857, revenue=70*96/35=192
         outcome = resolve_domestic_market(
-            supply=90, demand=70, consumption_pool=700
+            supply=90, demand=70
         )
-        self.assertAlmostEqual(float(outcome.final_price), 7.314285714, places=6)
+        self.assertAlmostEqual(float(outcome.final_price), 2.74285714, places=6)
         self.assertEqual(outcome.sold_quantity, Decimal("70"))
-        self.assertAlmostEqual(float(outcome.revenue), 512.0, places=4)
-        # 过剩商品 90-70=20 进入未成交。
+        self.assertAlmostEqual(float(outcome.revenue), 192.0, places=4)
         self.assertEqual(outcome.unsold_quantity, Decimal("20"))
 
-    def test_doc_example_supply_70_equilibrium(self):
-        # equilibrium 10 capped to 8；supply==demand → final_price = 8。
+    def test_supply_equals_demand(self):
+        # supply==demand → final_price = equilibrium（3）。
         outcome = resolve_domestic_market(
-            supply=70, demand=70, consumption_pool=700
+            supply=70, demand=70
         )
-        self.assertEqual(outcome.final_price, Decimal("8"))
+        self.assertEqual(outcome.equilibrium_price, Decimal("3"))
+        self.assertEqual(outcome.final_price, Decimal("3"))
         self.assertEqual(outcome.sold_quantity, Decimal("70"))
-        self.assertEqual(outcome.revenue, Decimal("560"))
+        self.assertEqual(outcome.revenue, Decimal("210"))
         self.assertEqual(outcome.unsold_quantity, Decimal("0"))
 
 

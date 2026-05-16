@@ -92,14 +92,11 @@ def _apply_phase1_market(
     balance = get_balance_config()
     capacity_by_mode = player_state.phase1_economy.capacity_by_mode
     demand = calculate_domestic_demand(capacity_by_mode)
-    consumption_pool = Decimal(int(player_state.budget_pools.get("domesticMarket", 0)))
     available_inventory = int(player_state.phase1_economy.goods_inventory)
     original_inventory = available_inventory
     supply = Decimal(original_inventory)
 
-    equilibrium_price = calculate_equilibrium_price(
-        consumption_pool=consumption_pool, demand=demand
-    )
+    equilibrium_price = calculate_equilibrium_price(demand=demand)
     goods_config = balance.production.goods.get(PHASE1_GOODS_KEY)
     domestic_price_ceiling = int(goods_config.price_ceiling) if goods_config is not None else 8
     overseas_price_ceiling = int(goods_config.overseas_price_ceiling) if goods_config is not None else 24
@@ -155,7 +152,6 @@ def _apply_phase1_market(
         region_state = region_states_by_id.get(region_id)
         if region_state is None or not is_region_accessible(
             region_state.access_level,
-            player_state.military_points,
             region_id=region_id,
             established_diplomacy=player_state.established_diplomacy,
         ):
@@ -316,10 +312,7 @@ def _mirror_phase1_market_metrics(
 ) -> None:
     demand = calculate_domestic_demand(player_state.phase1_economy.capacity_by_mode)
     supply = Decimal(int(player_state.phase1_economy.goods_inventory))
-    consumption_pool = Decimal(int(player_state.budget_pools.get("domesticMarket", 0)))
-    equilibrium_price = calculate_equilibrium_price(
-        consumption_pool=consumption_pool, demand=demand
-    )
+    equilibrium_price = calculate_equilibrium_price(demand=demand)
     final_price = calculate_domestic_price(
         equilibrium_price=equilibrium_price,
         supply=supply,

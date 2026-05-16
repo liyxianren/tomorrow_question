@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "../../../i18n";
 import "./PhaseAnnounce.css";
 
 type PhaseAnnounceProps = {
@@ -6,16 +8,16 @@ type PhaseAnnounceProps = {
   round: number;
 };
 
-const PHASE_TITLE: Record<string, string> = {
-  decision: "决策",
-  market: "出售",
-  settlement: "结算中",
-};
+function getPhaseTitle(phase: string): string {
+  const key = (["decision", "market", "settlement"] as string[]).includes(phase) ? `game:phaseAnnounce.${phase}` : null;
+  return key ? i18n.t(key) : phase;
+}
 
-// 需要显示特效的阶段（decision 和 market 需要特效，settlement 跟随 market 之后自动进入）
+// Phases that need announce animation (decision and market need it; settlement follows market automatically)
 const ANNOUNCE_PHASES = new Set(["decision", "market"]);
 
 export function PhaseAnnounce({ phase, round }: PhaseAnnounceProps) {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
   const [displayPhase, setDisplayPhase] = useState<string | null>(null);
   const [displayRound, setDisplayRound] = useState(0);
@@ -39,7 +41,7 @@ export function PhaseAnnounce({ phase, round }: PhaseAnnounceProps) {
 
   if (!visible || !displayPhase) return null;
 
-  const title = PHASE_TITLE[displayPhase] ?? displayPhase;
+  const phaseTitle = getPhaseTitle(displayPhase);
 
   return (
     <div
@@ -49,7 +51,7 @@ export function PhaseAnnounce({ phase, round }: PhaseAnnounceProps) {
     >
       <div className="phase-announce__content">
         <h1 className="phase-announce__title">
-          第{displayRound}回合：{title}
+          {t("game:situation.roundText")} {displayRound}：{phaseTitle}
         </h1>
         <div className="phase-announce__line" />
       </div>
