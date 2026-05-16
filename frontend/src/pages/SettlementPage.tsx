@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useLocation, useParams } from "react-router-dom";
 
 import { GameLeftRail } from "../components/game/layout/GameLeftRail";
@@ -8,19 +9,20 @@ import { createSettlementPageState } from "../features/game/flow/settlementFlow"
 import { getCountryLabel } from "../features/game/panelGlossary";
 import type { GameFinishedPayload } from "../features/game/runtime/types";
 import { fetchFinalResult } from "../services/game";
+import i18n from "../i18n";
 import type { GameLog } from "../types/domain";
 
 const LOG_CATEGORY_ORDER = ["final", "military", "diplomacy", "decision", "events", "economy", "other"] as const;
 type LogCategory = (typeof LOG_CATEGORY_ORDER)[number];
 
 const LOG_CATEGORY_META: Record<LogCategory, { label: string; emoji: string }> = {
-  final: { label: "终局裁定", emoji: "🏆" },
-  events: { label: "事件与异常", emoji: "⚠️" },
-  economy: { label: "经济与财政", emoji: "💰" },
-  military: { label: "军事与征服", emoji: "⚔️" },
-  diplomacy: { label: "外交关系", emoji: "🤝" },
-  decision: { label: "国家决策", emoji: "🏛" },
-  other: { label: "其他记录", emoji: "📋" },
+  final: { label: i18n.t("pages:settlement.logCategory.final"), emoji: "🏆" },
+  events: { label: i18n.t("pages:settlement.logCategory.events"), emoji: "⚠️" },
+  economy: { label: i18n.t("pages:settlement.logCategory.economy"), emoji: "💰" },
+  military: { label: i18n.t("pages:settlement.logCategory.military"), emoji: "⚔️" },
+  diplomacy: { label: i18n.t("pages:settlement.logCategory.diplomacy"), emoji: "🤝" },
+  decision: { label: i18n.t("pages:settlement.logCategory.decision"), emoji: "🏛" },
+  other: { label: i18n.t("pages:settlement.logCategory.other"), emoji: "📋" },
 };
 
 const LOG_TRUNCATE_LENGTH = 80;
@@ -47,6 +49,7 @@ type SettlementPageProps = {
 };
 
 export function SettlementPage({ result, roomCode }: SettlementPageProps) {
+  const { t } = useTranslation("pages");
   const { gameId } = useParams();
   const location = useLocation();
   const routeState = (location.state as SettlementRouteState | null) ?? null;
@@ -120,7 +123,7 @@ export function SettlementPage({ result, roomCode }: SettlementPageProps) {
   if (isLoadingResult && !pageState.finalResult) {
     return (
       <section className="panel settlement-dossier settlement-dossier--loading">
-        <p style={{ margin: 0 }}>正在整理这局的终局档案，请稍候。</p>
+        <p style={{ margin: 0 }}>{i18n.t("pages:settlement.loadingArchives")}</p>
       </section>
     );
   }
@@ -128,87 +131,87 @@ export function SettlementPage({ result, roomCode }: SettlementPageProps) {
   const leftRailCards = pageState.finalResult
     ? [
         {
-          eyebrow: "最终国家档案",
-          title: "档案摘要",
+          eyebrow: i18n.t("pages:settlement.finalArchiveEyebrow"),
+          title: i18n.t("pages:settlement.archiveSummary"),
           tone: "accent" as const,
           body: pageState.heroDescription,
           metrics: pageState.archiveStats.map((item) => ({ label: item.label, value: item.value })),
         },
         {
-          eyebrow: "关键转折",
-          title: "这局是怎么转向的",
+          eyebrow: i18n.t("pages:settlement.keyTurningPoints"),
+          title: i18n.t("pages:settlement.howItTurned"),
           lines: pageState.turningPointCards.map((card) => `${card.title} · ${card.detail}`),
         },
       ]
     : [
         {
-          eyebrow: "最终国家档案",
-          title: "暂无结果",
-          body: pageState.missingResultMessage ?? "当前还没有可展示的对局结果。",
+          eyebrow: i18n.t("pages:settlement.finalArchiveEyebrow"),
+          title: i18n.t("pages:settlement.noResult"),
+          body: pageState.missingResultMessage ?? i18n.t("pages:settlement.noResultAvailable"),
         },
       ];
 
   const assistRailCards = pageState.finalResult
     ? [
         {
-          eyebrow: "终局判断辅助",
-          title: "关键结果摘要",
+          eyebrow: i18n.t("pages:settlement.assistEyebrow"),
+          title: i18n.t("pages:settlement.keyResultsSummary"),
           tone: "accent" as const,
           lines: pageState.highlights,
         },
         {
-          eyebrow: "排名复盘",
-          title: "为什么停在这里",
+          eyebrow: i18n.t("pages:settlement.rankingReview"),
+          title: i18n.t("pages:settlement.whyStoppedHere"),
           lines: pageState.whyRankChanged,
         },
         {
-          eyebrow: "下局建议",
-          title: "如果再来一局",
+          eyebrow: i18n.t("pages:settlement.nextGameAdvice"),
+          title: i18n.t("pages:settlement.ifAnotherGame"),
           lines: pageState.replayGuidance,
         },
       ]
     : [
         {
-          eyebrow: "终局判断辅助",
-          title: "等待结果同步",
-          body: pageState.missingResultMessage ?? "当前还没有可展示的对局结果。",
+          eyebrow: i18n.t("pages:settlement.assistEyebrow"),
+          title: i18n.t("pages:settlement.waitingResultSync"),
+          body: pageState.missingResultMessage ?? i18n.t("pages:settlement.noResultAvailable"),
         },
       ];
 
   return (
     <GamePageShell
-      assistRail={<GameLeftRail cards={assistRailCards} title="终局判断辅助" />}
-      assistRailLabel="终局判断辅助"
+      assistRail={<GameLeftRail cards={assistRailCards} title={i18n.t("pages:settlement.assistEyebrow")} />}
+      assistRailLabel={i18n.t("pages:settlement.assistEyebrow")}
       assistRailTestId="settlement-assist-rail"
       layoutPreset="wide-a"
       centerStage={
         <div className="game-center-stage__stack settlement-center-stage">
           <PhaseHeaderBar
             body={pageState.heroDescription}
-            eyebrow="终局复盘"
+            eyebrow={i18n.t("pages:settlement.finalReviewEyebrow")}
             pills={pageState.archiveStats.map((item) => `${item.label} ${item.value}`)}
             title={pageState.heroTitle}
           />
           <div className="settlement-dossier__actions settlement-dossier__actions--stage">
             <Link className="button button--primary" data-testid="settlement-back-lobby" to={pageState.lobbyTargetPath}>
-              凯旋并返回大厅
+              {i18n.t("pages:settlement.backToLobbyTriumph")}
             </Link>
             <Link
               className="button"
               data-testid="settlement-back-room"
               to={pageState.roomTargetPath}
             >
-              重开纪元
+              {i18n.t("pages:settlement.restartEra")}
             </Link>
           </div>
 
           {pageState.finalResult ? (
             <div className="settlement-command-center">
               <section className="panel settlement-dossier__panel" data-testid="settlement-ranking-panel">
-                <p className="panel__eyebrow settlement-dossier__panel-eyebrow">最终排名主表</p>
-                <h2 className="settlement-dossier__panel-title">最后谁站在榜首</h2>
+                <p className="panel__eyebrow settlement-dossier__panel-eyebrow">{i18n.t("pages:settlement.finalRankingTable")}</p>
+                <h2 className="settlement-dossier__panel-title">{i18n.t("pages:settlement.whoStandsOnTop")}</h2>
                 {pageState.rankingRows.length === 0 ? (
-                  <p>当前结算结果未附带最终排名。</p>
+                  <p>{i18n.t("pages:settlement.noRankingData")}</p>
                 ) : (
                   <ol className="settlement-dossier__ranking-list">
                     {pageState.rankingRows.map((row) => {
@@ -218,17 +221,17 @@ export function SettlementPage({ result, roomCode }: SettlementPageProps) {
                       return (
                         <li key={`${row.rank}-${row.playerId}`} className="settlement-dossier__ranking-row">
                           <div className="settlement-dossier__ranking-header">
-                            <strong>第 {row.rank} 名</strong>
+                            <strong>{i18n.t("pages:settlement.rankPosition", { rank: row.rank })}</strong>
                             <span>{row.countryLabel}</span>
                             <span className="settlement-dossier__ranking-player">{row.nickname}</span>
                           </div>
                           <p className="settlement-dossier__ranking-income">
-                            累计国家收入：{row.cumulativeNationalIncome}
+                            {i18n.t("pages:settlement.cumulativeIncomeLabel")}：{row.cumulativeNationalIncome}
                             {delta != null ? (
                               <RankingDelta delta={delta} isLeader={row.rank === 1} />
                             ) : null}
                           </p>
-                          <p className="settlement-dossier__ranking-tiebreak">同分比较：{row.tieBreakSummary}</p>
+                          <p className="settlement-dossier__ranking-tiebreak">{i18n.t("pages:settlement.tieBreakLabel")}：{row.tieBreakSummary}</p>
                         </li>
                       );
                     })}
@@ -237,10 +240,10 @@ export function SettlementPage({ result, roomCode }: SettlementPageProps) {
               </section>
 
               <section className="panel settlement-dossier__panel settlement-dossier__panel--timeline" data-testid="settlement-final-logs">
-                <p className="panel__eyebrow settlement-dossier__panel-eyebrow">终局日志时间线</p>
-                <h2 className="settlement-dossier__panel-title">最后几条决定性记录</h2>
+                <p className="panel__eyebrow settlement-dossier__panel-eyebrow">{i18n.t("pages:settlement.finalLogTimeline")}</p>
+                <h2 className="settlement-dossier__panel-title">{i18n.t("pages:settlement.lastDecisiveRecords")}</h2>
                 {finalLogs.length === 0 ? (
-                  <p>当前结果未附带最终日志。</p>
+                  <p>{i18n.t("pages:settlement.noFinalLogs")}</p>
                 ) : (
                   <div className="settlement-dossier__timeline-groups">
                     {groupedLogs.map((group) => (
@@ -252,7 +255,7 @@ export function SettlementPage({ result, roomCode }: SettlementPageProps) {
                         <header className="settlement-dossier__timeline-group-header">
                           <span aria-hidden="true">{LOG_CATEGORY_META[group.category].emoji}</span>
                           <strong>{LOG_CATEGORY_META[group.category].label}</strong>
-                          <span className="settlement-dossier__timeline-group-count">{group.entries.length} 条</span>
+                          <span className="settlement-dossier__timeline-group-count">{i18n.t("pages:settlement.entryCount", { count: group.entries.length })}</span>
                         </header>
                         <ol className="settlement-dossier__timeline">
                           {group.entries.map((entry, index) => (
@@ -282,16 +285,16 @@ export function SettlementPage({ result, roomCode }: SettlementPageProps) {
         </div>
       }
       centerStageTestId="settlement-center-stage"
-      leftRail={<GameLeftRail cards={leftRailCards} title="最终国家档案" />}
-      leftRailLabel="最终国家档案"
+      leftRail={<GameLeftRail cards={leftRailCards} title={i18n.t("pages:settlement.finalArchiveEyebrow")} />}
+      leftRailLabel={i18n.t("pages:settlement.finalArchiveEyebrow")}
       leftRailTestId="settlement-left-rail"
       situationBar={
         <div className="settlement-status-bar">
-          <div className="settlement-status-bar__title">终局档案号：{pageState.gameIdLabel}</div>
+          <div className="settlement-status-bar__title">{i18n.t("pages:settlement.archiveIdLabel")}：{pageState.gameIdLabel}</div>
           <div className="settlement-status-bar__meta">
             {pageState.finalResult
-              ? `终局回合 ${pageState.finalResult.game.currentRound} / ${pageState.finalResult.game.totalRounds}`
-              : "等待终局结果同步"}
+              ? `${i18n.t("pages:settlement.finalRoundLabel")} ${pageState.finalResult.game.currentRound} / ${pageState.finalResult.game.totalRounds}`
+              : i18n.t("pages:settlement.waitingResultSync")}
           </div>
         </div>
       }
@@ -393,11 +396,11 @@ function getLogTimeValue(createdAt: string | null): number {
 function formatPhaseLabel(phase: string): string {
   switch (phase) {
     case "decision":
-      return "国家决策";
+      return i18n.t("game:phase.decision");
     case "settlement":
-      return "财政结算";
+      return i18n.t("game:phase.settlement");
     case "market":
-      return "市场出售";
+      return i18n.t("game:phase.market");
     default:
       return phase;
   }
@@ -407,26 +410,26 @@ function sanitizeFinalLogMessage(message: string, roundNo: number, phase: string
   const trimmed = message.trim();
   if (trimmed.includes("completed national income allocation")) {
     const countryKey = trimmed.split(" ", 1)[0];
-    return `${getCountryLabel(countryKey)}完成第 ${roundNo} 回合财政分配。`;
+    return `${getCountryLabel(countryKey)}${i18n.t("pages:settlement.completedAllocation", { round: roundNo })}`;
   }
   if (trimmed === "settlement settled.") {
-    return "终局财政结算已完成。";
+    return i18n.t("pages:settlement.finalSettlementComplete");
   }
   if (trimmed === "market settled.") {
-    return "市场出售阶段已完成。";
+    return i18n.t("pages:settlement.marketSettlementComplete");
   }
   if (trimmed === "decision settled.") {
-    return "国家决策阶段已完成。";
+    return i18n.t("pages:settlement.decisionSettlementComplete");
   }
   if (trimmed.endsWith(" settled.") && phase) {
-    return `${formatPhaseLabel(phase)}阶段已完成。`;
+    return `${formatPhaseLabel(phase)}${i18n.t("pages:settlement.phaseSettlementComplete")}`;
   }
   return message;
 }
 
 function formatLogMeta(roundNo: number, createdAt: string | null): string {
-  const roundLabel = Number.isFinite(roundNo) ? `第 ${roundNo} 回合` : "未知回合";
-  const timeLabel = createdAt ? createdAt.replace("T", " ").replace("Z", "") : "时间未记录";
+  const roundLabel = Number.isFinite(roundNo) ? i18n.t("pages:settlement.roundLabel", { round: roundNo }) : i18n.t("pages:settlement.unknownRound");
+  const timeLabel = createdAt ? createdAt.replace("T", " ").replace("Z", "") : i18n.t("pages:settlement.timeNotRecorded");
   return `${roundLabel} · ${timeLabel}`;
 }
 
@@ -450,7 +453,7 @@ function LogMessage({ message }: { message: string }) {
         style={{ marginTop: 6, padding: "2px 10px", fontSize: 12 }}
         type="button"
       >
-        {expanded ? "收起" : "展开"}
+        {expanded ? i18n.t("pages:settlement.collapse") : i18n.t("pages:settlement.expand")}
       </button>
     </div>
   );
@@ -460,14 +463,16 @@ function RankingDelta({ delta, isLeader }: { delta: number; isLeader: boolean })
   if (delta === 0) {
     return (
       <span className="settlement-dossier__ranking-delta" style={{ marginLeft: 8, color: "var(--game-text-secondary)" }}>
-        持平
+        {i18n.t("pages:settlement.even")}
       </span>
     );
   }
 
   const arrow = delta > 0 ? "▲" : "▼";
   const color = delta > 0 ? "#3fb27f" : "#e76161";
-  const label = isLeader ? `领先 ${Math.abs(delta)}` : `落后 ${Math.abs(delta)}`;
+  const label = isLeader
+    ? i18n.t("pages:settlement.leadingBy", { amount: Math.abs(delta) })
+    : i18n.t("pages:settlement.trailingBy", { amount: Math.abs(delta) });
 
   return (
     <span

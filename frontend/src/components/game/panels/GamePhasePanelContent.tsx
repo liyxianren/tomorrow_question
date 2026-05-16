@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Phase1MarketPanel } from "./Phase1MarketPanel";
 import { MilitaryPanel } from "./MilitaryPanel";
@@ -104,11 +105,13 @@ export function GamePhasePanelContent({
   secondsRemaining,
   isFinalRoundSettlement = false,
 }: GamePhasePanelContentProps) {
+  const { t } = useTranslation();
+
   if (!currentPhase || !currentPlayerWorkspace) {
     return (
       <div className="gp-card">
-        <strong>{currentPhase ? getPhaseLabel(currentPhase) : "正在恢复当前阶段"}</strong>
-        <p style={{ margin: 0 }}>正在同步当前阶段数据，稍后就可以开始本阶段操作。</p>
+        <strong>{currentPhase ? getPhaseLabel(currentPhase) : t("game:government.syncingPhase", "Syncing current phase...")}</strong>
+        <p style={{ margin: 0 }}>{t("game:government.syncingPhaseDesc", "Syncing current phase data...")}</p>
       </div>
     );
   }
@@ -173,12 +176,14 @@ export function DecisionWorkbench({
   onDecisionFlowChange: Dispatch<SetStateAction<DecisionFlowState>>;
   onComplete?: () => void;
 }) {
+  const { t } = useTranslation();
+
   const activeStep = decisionFlowState.activeStep;
   const activeStepReviewState = decisionFlowState.stepReviewStateByStep[activeStep];
   const stepContentContext = { activeResearch: workspace.techTree.activeResearch };
   const activeStepHasContent = hasDecisionStepContent(draft, activeStep, stepContentContext);
   const activeStepStatusLabel = activeStepHasContent
-    ? "已决策"
+    ? t("game:stepStatus.decided", "Decided")
     : getDecisionStepReviewLabel(activeStepReviewState);
 
   function handleStepSwitch(step: DecisionStepId) {
@@ -531,12 +536,14 @@ function DecisionStepFooter({
   onMarkNoOp: () => void;
   onComplete?: () => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <article className="decision-command-deck__footer">
       <div className="gp-footer-actions" style={{ display: "flex", alignItems: "center", gap: 12, width: "100%" }}>
         {previousStep ? (
           <button className="gp-btn" onClick={() => onPreviousStepChange(previousStep)} type="button">
-            上一步：{getDecisionStepLabel(previousStep)}
+            {t("game:footer.previousStep", "Previous")}：{getDecisionStepLabel(previousStep)}
           </button>
         ) : null}
         <div className="decision-command-deck__footer-spacer" />
@@ -544,18 +551,18 @@ function DecisionStepFooter({
           {activeStepStatusLabel}
         </span>
         <button className="gp-btn" onClick={onMarkNoOp} type="button">
-          本步跳过
+          {t("game:footer.skipStep", "Skip")}
         </button>
         <button className="gp-btn" onClick={onMarkChecked} type="button">
-          已检查
+          {t("game:footer.markChecked", "Mark Checked")}
         </button>
         {nextStep ? (
           <button className="gp-btn gp-btn--primary" onClick={() => onNextStepChange(nextStep)} type="button">
-            下一步：{getDecisionStepLabel(nextStep)}
+            {t("game:footer.nextStep", "Next")}：{getDecisionStepLabel(nextStep)}
           </button>
         ) : (
           <button className="gp-btn gp-btn--primary" onClick={onComplete} type="button">
-            决策完成
+            {t("game:footer.decisionComplete", "Complete Decision")}
           </button>
         )}
       </div>
@@ -679,19 +686,21 @@ export function MarketWorkbench({
       )
     : 0;
 
+  const { t } = useTranslation();
+
   return (
     <section data-testid="market-workbench" className="gp-section">
       <article className="gp-card gp-card--primary gp-step-header">
         <div className="gp-step-header__top">
           <div>
-            <p className="gp-step-eyebrow">市场出售台</p>
-            <h2 className="gp-step-title">{workspace.countryLabel}的本轮销售</h2>
+            <p className="gp-step-eyebrow">{t("game:market.title", "Market Sales Desk")}</p>
+            <h2 className="gp-step-title">{t("game:market.countrySales", { country: workspace.countryLabel })}</h2>
           </div>
           <div className="gp-step-header__pills">
-            <span className="gp-step-pill">商品库存 <strong>{phase1GoodsInventory}</strong></span>
-            <span className="gp-step-pill">预计收入 <strong>{estimatedRevenue}</strong></span>
-            <span className="gp-step-pill">国内投放 <strong>{displayDomesticAllocation}</strong></span>
-            <span className="gp-step-pill">海外投放 <strong>{externalTotal}</strong></span>
+            <span className="gp-step-pill">{t("game:market.goodsInventory")} <strong>{phase1GoodsInventory}</strong></span>
+            <span className="gp-step-pill">{t("game:market.estimatedRevenue")} <strong>{estimatedRevenue}</strong></span>
+            <span className="gp-step-pill">{t("game:market.domesticAllocated")} <strong>{displayDomesticAllocation}</strong></span>
+            <span className="gp-step-pill">{t("game:market.overseasAllocated")} <strong>{externalTotal}</strong></span>
           </div>
         </div>
       </article>
@@ -729,6 +738,7 @@ export function SettlementWorkbench({
   secondsRemaining: number | null;
   isFinalRound?: boolean;
 }) {
+  const { t } = useTranslation();
   const marketIncome = workspace.marketIncome ?? (workspace.domesticSalesRevenue + workspace.overseasSalesRevenue);
   const colonyIncome = workspace.colonyIncome ?? Math.max(0, workspace.nationalIncome - marketIncome);
   const projectedCumulativeIncome =
@@ -743,49 +753,48 @@ export function SettlementWorkbench({
       <SettlementCountdownBanner isFinalRound={isFinalRound} secondsRemaining={secondsRemaining} />
       <article className="gp-card gp-card--primary">
         <div>
-          <p className="gp-step-eyebrow">财政结算台</p>
-          <h2 className="gp-step-title">{workspace.countryLabel}的国家收入分账结果</h2>
-          <p className="gp-step-desc">本阶段为只读结算，展示本回合收入如何回流到民间购买力、工厂和政府财政。</p>
+          <p className="gp-step-eyebrow">{t("game:settlement.eyebrow", "Fiscal Settlement Desk")}</p>
+          <h2 className="gp-step-title">{t("game:settlement.countryResultTitle", { country: workspace.countryLabel, defaultValue: `${workspace.countryLabel}'s National Income Distribution Results` })}</h2>
+          <p className="gp-step-desc">{t("game:settlement.readonlyHint", "This phase is read-only...")}</p>
         </div>
         <div className="gp-grid">
-          <MetricCard hint="当回合国内市场形成的销售额。" label="本回合国内销售额" value={`${workspace.domesticSalesRevenue} 财政`} />
-          <MetricCard hint="当回合海外市场形成的销售额。" label="本回合海外销售额" value={`${workspace.overseasSalesRevenue} 财政`} />
+          <MetricCard hint={t("game:settlement.domesticSalesHint")} label={t("game:settlement.domesticSales")} value={`${workspace.domesticSalesRevenue} ${t("game:settlement.fiscalUnit")}`} />
+          <MetricCard hint={t("game:settlement.overseasSalesHint")} label={t("game:settlement.overseasSales")} value={`${workspace.overseasSalesRevenue} ${t("game:settlement.fiscalUnit")}`} />
           {colonyIncome > 0 ? (
-            <MetricCard hint="已控制殖民地在本次财政结算中追加的收入。" label="殖民地收入" value={`${colonyIncome} 财政`} />
+            <MetricCard hint={t("game:settlement.colonyIncomeHint")} label={t("game:settlement.colonyIncome")} value={`${colonyIncome} ${t("game:settlement.fiscalUnit")}`} />
           ) : null}
           <MetricCard
-            hint={colonyIncome > 0 ? "市场销售收入与殖民地收入合计。" : "本回合市场销售收入合计。"}
-            label="本回合国家收入"
-            value={`${workspace.nationalIncome} 财政`}
+            hint={colonyIncome > 0 ? t("game:settlement.nationalIncomeHintWithColony") : t("game:settlement.nationalIncomeHint")}
+            label={t("game:settlement.nationalIncome")}
+            value={`${workspace.nationalIncome} ${t("game:settlement.fiscalUnit")}`}
           />
-          <MetricCard hint="国内 / 工厂 / 政府财政。" label="下一轮收入分配比例" value={formatRatio(workspace.nextRatio)} />
-          <MetricCard hint="终局主指标，包含本回合结算收入。" label="结算后累计收入" value={`${projectedCumulativeIncome} 财政`} />
+          <MetricCard hint={t("game:settlement.nextRatioHint")} label={t("game:settlement.nextRatio")} value={formatRatio(workspace.nextRatio)} />
+          <MetricCard hint={isFinalRound ? t("game:settlement.cumulativeIncomeHintFinal") : t("game:settlement.cumulativeIncomeHintNext")} label={t("game:settlement.cumulativeIncome")} value={`${projectedCumulativeIncome} ${t("game:settlement.fiscalUnit")}`} />
           <MetricCard
-            hint={isFinalRound ? "结算完成后进入终局档案。" : "结算完成后会进入下一轮国家决策。"}
-            label="当前国家"
+            hint={isFinalRound ? t("game:settlement.cumulativeIncomeHintFinal") : t("game:settlement.cumulativeIncomeHintNext")}
+            label={t("game:settlement.currentCountry")}
             value={getCountryLabel(workspace.countryCode)}
           />
         </div>
       </article>
       <article className="gp-card">
-        <h3 style={{ margin: 0 }}>收入重新分配结果</h3>
+        <h3 style={{ margin: 0 }}>{t("game:settlement.redistributionTitle")}</h3>
         <div className="gp-grid">
-          <MetricCard hint="结算后形成下回合内需购买力，用于市场需求和价格基础。" label="民间购买力" value={`${workspace.budgetAllocation.domesticMarket} 财政`} />
-          <MetricCard hint="结算后回到工厂预算池。" label="工厂" value={`${workspace.budgetAllocation.factory} 财政`} />
-          <MetricCard hint="结算后回到政府财政预算池。" label="政府财政" value={`${workspace.budgetAllocation.governmentFiscal} 财政`} />
+          <MetricCard hint={t("game:settlement.consumerPurchasingPowerHint")} label={t("game:settlement.consumerPurchasingPower")} value={`${workspace.budgetAllocation.domesticMarket} ${t("game:settlement.fiscalUnit")}`} />
+          <MetricCard hint={t("game:settlement.factoryBudgetHint")} label={t("game:settlement.factoryBudget")} value={`${workspace.budgetAllocation.factory} ${t("game:settlement.fiscalUnit")}`} />
+          <MetricCard hint={t("game:settlement.governmentFiscalHint")} label={t("game:settlement.governmentFiscal")} value={`${workspace.budgetAllocation.governmentFiscal} ${t("game:settlement.fiscalUnit")}`} />
         </div>
       </article>
       {workspace.phase1Economy?.consumptionPool != null && workspace.phase1Economy?.poolDeltaPreview && (
         <article className="gp-card">
-          <h3 style={{ margin: 0 }}>💰 民间购买力变化</h3>
+          <h3 style={{ margin: 0 }}>💰 {t("game:settlement.consumptionPoolTitle")}</h3>
           <p className="gp-step-desc" style={{ marginTop: 4 }}>
-            上期余额 {workspace.phase1Economy.consumptionPool} 财政 + 新增 {Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)} 财政 = {consumptionPoolAfterAllocation} 财政
-            ，经过 40% 自然消费后结余 {consumptionPoolAfterDrain} 财政
+            {t("game:settlement.consumptionPoolFormula", { prev: workspace.phase1Economy.consumptionPool, add: Math.round(workspace.phase1Economy.poolDeltaPreview.consumption), after: consumptionPoolAfterAllocation, remainder: consumptionPoolAfterDrain })}
           </p>
           <div className="gp-grid">
-            <MetricCard hint="上一轮民间购买力余额。" label="上期余额" value={`${workspace.phase1Economy.consumptionPool} 财政`} />
-            <MetricCard hint={`本回合收入按当前 ${formatRatio(workspace.nextRatio)} 分配到民间购买力的部分。`} label="新增分配" value={`${Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)} 财政`} />
-            <MetricCard hint="经过自然消费后的最终民间购买力。" label="结余" value={`${consumptionPoolAfterDrain} 财政`} />
+            <MetricCard hint={t("game:settlement.previousBalanceHint")} label={t("game:settlement.previousBalance")} value={`${workspace.phase1Economy.consumptionPool} ${t("game:settlement.fiscalUnit")}`} />
+            <MetricCard hint={t("game:settlement.newAllocationHint", { ratio: formatRatio(workspace.nextRatio) })} label={t("game:settlement.newAllocation")} value={`${Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)} ${t("game:settlement.fiscalUnit")}`} />
+            <MetricCard hint={t("game:settlement.remainderHint")} label={t("game:settlement.remainder")} value={`${consumptionPoolAfterDrain} ${t("game:settlement.fiscalUnit")}`} />
           </div>
         </article>
       )}
@@ -800,14 +809,16 @@ function SettlementCountdownBanner({
   secondsRemaining: number | null;
   isFinalRound: boolean;
 }) {
+  const { t } = useTranslation();
+
   if (secondsRemaining === null) {
     return null;
   }
 
-  const targetLabel = isFinalRound ? "终局档案" : "下一回合";
+  const targetLabel = isFinalRound ? t("game:settlement.countdownFinalArchive", "Final Archive") : t("game:settlement.countdownNextRound", "Next Round");
   const message = secondsRemaining > 0
-    ? `${secondsRemaining} 秒后进入${targetLabel}…`
-    : `进入${targetLabel}…`;
+    ? t("game:settlement.countdownInSeconds", { seconds: secondsRemaining, target: targetLabel })
+    : t("game:settlement.countdownEntering", { target: targetLabel });
 
   return (
     <article
@@ -929,12 +940,17 @@ function ConfirmActionCard({
   onConfirm: () => void;
   onRevoke: () => void;
 }) {
+  const { t } = useTranslation();
+
+  const confirmPrefix = `${t("game:military.confirmAction", { label: "" })}`.replace(": ", "");
+  const revokePrefix = `${t("game:military.revokeAction", { label: "" })}`.replace(": ", "");
+
   return (
     <article className="gp-toggle">
       <div className="gp-toggle__header">
-        <strong>{title ?? confirmLabel.replace("确认动作：", "")}</strong>
+        <strong>{title ?? confirmLabel.replace(confirmPrefix, "")}</strong>
         <span className={count > 0 ? "gp-toggle__hint gp-toggle__hint--active" : "gp-toggle__hint gp-toggle__hint--inactive"}>
-          已安排 {count}
+          {t("common:decision.scheduled", { count })}
         </span>
       </div>
       {description ? <span className="gp-toggle__desc">{description}</span> : null}
@@ -947,16 +963,16 @@ function ConfirmActionCard({
           onClick={onConfirm}
           type="button"
         >
-          确认
+          {t("common:confirm")}
         </button>
         <button
-          aria-label={confirmLabel.replace("确认动作", "撤回动作")}
+          aria-label={confirmLabel.replace(confirmPrefix, revokePrefix)}
           className="gp-btn"
           disabled={isRevokeDisabled}
           onClick={onRevoke}
           type="button"
         >
-          撤回
+          {t("common:revoke")}
         </button>
       </div>
     </article>

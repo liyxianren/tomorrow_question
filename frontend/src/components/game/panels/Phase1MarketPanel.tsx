@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 import type {
   BudgetPools,
@@ -17,29 +18,33 @@ import {
 } from "../../../constants/priceCurves";
 import "./Phase1MarketPanel.css";
 
-const LOCK_REASON_LABELS: Record<RegionLockReason, string> = {
-  diplomacy_not_established: "需要建立外交关系",
-  route_blocked: "航线被封锁",
-};
-
-const COMPETITION_LOCK_REASON_LABELS: Record<OverseasCompetitionLockReason, string> = {
-  diplomacy_not_established: "需要先与该区域建交",
-  route_blocked: "航线被封锁，无法投放兵力",
-  no_army: "没有可投放陆军",
-};
-
-function lockReasonLabel(reason: RegionLockReason | null | undefined): string {
-  if (reason && reason in LOCK_REASON_LABELS) {
-    return LOCK_REASON_LABELS[reason];
+function getLockReasonLabel(
+  reason: RegionLockReason | null | undefined,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
+  const map: Record<string, string> = {
+    diplomacy_not_established: t("game:validateCompetitionNeedDiplomacy", "Requires diplomacy first"),
+    route_blocked: t("game:validateCompetitionRouteBlocked", "Route is blockaded"),
+  };
+  if (reason && reason in map) {
+    return map[reason];
   }
-  return "暂不可进入";
+  return t("game:validateCompetitionNotAvailable", "Cannot enter");
 }
 
-function competitionLockReasonLabel(reason: OverseasCompetitionLockReason | null | undefined): string {
-  if (reason && reason in COMPETITION_LOCK_REASON_LABELS) {
-    return COMPETITION_LOCK_REASON_LABELS[reason];
+function getCompetitionLockReasonLabel(
+  reason: OverseasCompetitionLockReason | null | undefined,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
+  const map: Record<string, string> = {
+    diplomacy_not_established: t("game:validateCompetitionNeedDiplomacy", "Requires diplomacy first"),
+    route_blocked: t("game:validateCompetitionRouteBlocked", "Route is blockaded"),
+    no_army: t("game:validateCompetitionNoArmy", "No deployable army"),
+  };
+  if (reason && reason in map) {
+    return map[reason];
   }
-  return "暂不可争夺";
+  return t("game:validateCompetitionNotAvailable", "Cannot compete");
 }
 
 type OverseasCompetitionConfig = {
@@ -84,6 +89,7 @@ export function Phase1MarketPanel({
   onCompetitionDeploymentChange,
   readOnly = false,
 }: Phase1MarketPanelProps) {
+  const { t } = useTranslation();
   const totalGoods = Math.max(0, goodsInventory);
   const domesticDemand = Math.max(0, phase1Economy.domesticDemand ?? 0);
   const equilibriumPrice = phase1Economy.equilibriumPrice ?? 0;
@@ -222,26 +228,26 @@ export function Phase1MarketPanel({
       <div className="phase1-market__summary">
         <div className="phase1-market__stat">
           <span className="phase1-market__stat-value">{totalGoods}</span>
-          <span className="phase1-market__stat-label">商品库存</span>
+          <span className="phase1-market__stat-label">{t("game:market.goodsInventory")}</span>
         </div>
         <div className="phase1-market__stat">
           <span className="phase1-market__stat-value">{formatNumber(domesticDemand)}</span>
-          <span className="phase1-market__stat-label">市场需求</span>
+          <span className="phase1-market__stat-label">{t("game:market.demand")}</span>
         </div>
         <div className="phase1-market__stat">
           <span className="phase1-market__stat-value">{consumerPool}</span>
-          <span className="phase1-market__stat-label">定价池</span>
+          <span className="phase1-market__stat-label">{t("game:market.pricingPool")}</span>
         </div>
         <div className="phase1-market__stat">
           <span className="phase1-market__stat-value">{domesticLimit}</span>
-          <span className="phase1-market__stat-label">投放上限</span>
+          <span className="phase1-market__stat-label">{t("game:market.capacityLimit")}</span>
         </div>
       </div>
 
       {/* ── Domestic Market Card ── */}
       <article className="phase1-market__card phase1-market__card--domestic">
         <header className="phase1-market__card-header">
-          <span className="phase1-market__card-name">国内市场</span>
+          <span className="phase1-market__card-name">{t("game:market.domesticMarket")}</span>
           <span className={`phase1-market__balance phase1-market__balance--${preview.tone}`}>
             {preview.balanceLabel}
           </span>
@@ -253,7 +259,7 @@ export function Phase1MarketPanel({
             className="phase1-market__stepper-btn"
             disabled={readOnly || clampedDomestic <= 0}
             onClick={() => handleDomesticDelta(-1)}
-            aria-label="减少国内市场投放"
+            aria-label={t("game:market.reduceDomestic")}
           >
             −
           </button>
@@ -262,7 +268,7 @@ export function Phase1MarketPanel({
             className="phase1-market__stepper-zero"
             disabled={readOnly || clampedDomestic <= 0}
             onClick={handleDomesticZero}
-            aria-label="国内市场投放清零"
+            aria-label={t("game:market.clearDomestic")}
           >
             0
           </button>
@@ -272,7 +278,7 @@ export function Phase1MarketPanel({
             className="phase1-market__stepper-btn"
             disabled={readOnly || clampedDomestic >= domesticLimit}
             onClick={() => handleDomesticDelta(1)}
-            aria-label="增加国内市场投放"
+            aria-label={t("game:market.increaseDomestic")}
           >
             +
           </button>
@@ -281,7 +287,7 @@ export function Phase1MarketPanel({
             className="phase1-market__stepper-max"
             disabled={readOnly || clampedDomestic >= domesticLimit}
             onClick={handleDomesticMax}
-            aria-label="国内市场投放最大"
+            aria-label={t("game:market.maxDomestic")}
           >
             MAX
           </button>
@@ -289,15 +295,15 @@ export function Phase1MarketPanel({
 
         <div className="phase1-market__preview-grid">
           <div className="phase1-market__preview-block">
-            <span className="phase1-market__preview-label">价格</span>
-            <strong className="phase1-market__preview-value">{formatNumber(preview.price)} 财政/件</strong>
+            <span className="phase1-market__preview-label">{t("game:market.price")}</span>
+            <strong className="phase1-market__preview-value">{formatNumber(preview.price)} {t("game:market.fiscalPerUnit")}</strong>
           </div>
           <div className="phase1-market__preview-block">
-            <span className="phase1-market__preview-label">预计成交</span>
+            <span className="phase1-market__preview-label">{t("game:market.estimatedSold")}</span>
             <strong className="phase1-market__preview-value">{preview.soldQty}</strong>
           </div>
           <div className="phase1-market__preview-block">
-            <span className="phase1-market__preview-label">收入</span>
+            <span className="phase1-market__preview-label">{t("game:market.revenue")}</span>
             <strong className="phase1-market__preview-value phase1-market__preview-value--gold">{preview.revenue}</strong>
           </div>
         </div>
@@ -412,9 +418,9 @@ export function Phase1MarketPanel({
               .filter(Boolean)
               .join(" ");
 
-            const lockHint = !accessible ? lockReasonLabel(region.lockReason) : null;
+            const lockHint = !accessible ? getLockReasonLabel(region.lockReason, t) : null;
             const competitionLockHint = competitionLockedReason
-              ? competitionLockReasonLabel(competitionLockedReason)
+              ? getCompetitionLockReasonLabel(competitionLockedReason, t)
               : null;
 
             return (
@@ -429,7 +435,7 @@ export function Phase1MarketPanel({
                         <rect x="3" y="7" width="10" height="7" rx="1.5" />
                         <path d="M5 7V5a3 3 0 0 1 6 0v2" />
                       </svg>
-                      未开放
+                      {t("game:market.notYetOpen")}
                     </span>
                   )}
                 </header>
@@ -446,7 +452,7 @@ export function Phase1MarketPanel({
                         className="phase1-market__stepper-btn"
                         disabled={readOnly || quantity <= 0}
                         onClick={() => handleRegionDelta(-1)}
-                        aria-label={`减少${region.label}投放`}
+                        aria-label={t("game:market.reduceRegion", { region: region.label })}
                       >
                         −
                       </button>
@@ -455,7 +461,7 @@ export function Phase1MarketPanel({
                         className="phase1-market__stepper-zero"
                         disabled={readOnly || quantity <= 0}
                         onClick={handleRegionZero}
-                        aria-label={`${region.label}投放清零`}
+                        aria-label={t("game:market.clearRegion", { region: region.label })}
                       >
                         0
                       </button>
@@ -465,7 +471,7 @@ export function Phase1MarketPanel({
                         className="phase1-market__stepper-btn"
                         disabled={readOnly || quantity >= maxForRegion}
                         onClick={() => handleRegionDelta(1)}
-                        aria-label={`增加${region.label}投放`}
+                        aria-label={t("game:market.increaseRegion", { region: region.label })}
                       >
                         +
                       </button>
@@ -474,20 +480,20 @@ export function Phase1MarketPanel({
                         className="phase1-market__stepper-max"
                         disabled={readOnly || quantity >= maxForRegion}
                         onClick={handleRegionMax}
-                        aria-label={`${region.label}投放最大`}
+                        aria-label={t("game:market.maxRegion", { region: region.label })}
                       >
                         MAX
                       </button>
                     </div>
 
                     <div className="phase1-market__overseas-price">
-                      <span className="phase1-market__overseas-price-label">保底价格</span>
-                      <strong className="phase1-market__overseas-price-value">{formatNumber(overseasPrice.price)} 财政/件</strong>
+                      <span className="phase1-market__overseas-price-label">{t("game:market.basePrice")}</span>
+                      <strong className="phase1-market__overseas-price-value">{formatNumber(overseasPrice.price)} {t("game:market.fiscalPerUnit")}</strong>
                     </div>
                     {hasCompetitionPriceBonus ? (
                       <div className="phase1-market__overseas-price phase1-market__overseas-price--reward">
-                        <span className="phase1-market__overseas-price-label">夺取成功价</span>
-                        <strong className="phase1-market__overseas-price-value">{formatNumber(competitionPrice.price)} 财政/件</strong>
+                        <span className="phase1-market__overseas-price-label">{t("game:market.successPrice")}</span>
+                        <strong className="phase1-market__overseas-price-value">{formatNumber(competitionPrice.price)} {t("game:market.fiscalPerUnit")}</strong>
                       </div>
                     ) : null}
                     <p className="phase1-market__price-note">
@@ -497,25 +503,25 @@ export function Phase1MarketPanel({
                     </p>
                     <div className="phase1-market__competition">
                       <div className="phase1-market__competition-header">
-                        <span className="phase1-market__competition-title">市场争夺</span>
+                        <span className="phase1-market__competition-title">{t("game:market.competition")}</span>
                         {canCompete ? (
                           <span className="phase1-market__competition-power">战力 {competitionPower}</span>
                         ) : (
-                          <span className="phase1-market__competition-lock">{competitionLockHint ?? "暂不可争夺"}</span>
+                          <span className="phase1-market__competition-lock">{competitionLockHint ?? t("game:market.cannotCompete")}</span>
                         )}
                       </div>
                       {canCompete ? (
                         <>
                           <div className="phase1-market__unit-controls">
                             <UnitStepper
-                              label="步兵"
+                              label={t("game:market.infantry")}
                               value={competitionDeployment?.infantry ?? 0}
                               max={maxInfantryForRegion}
                               readOnly={readOnly}
                               onDelta={(delta) => handleCompetitionDelta("infantry", delta)}
                             />
                             <UnitStepper
-                              label="炮兵"
+                              label={t("game:market.artillery")}
                               value={competitionDeployment?.artillery ?? 0}
                               max={maxArtilleryForRegion}
                               readOnly={readOnly}
@@ -543,11 +549,11 @@ export function Phase1MarketPanel({
       {/* ── Footer ── */}
       <div className="phase1-market__footer">
         <span className="phase1-market__footer-row">
-          <span className="phase1-market__footer-label">总投放</span>
+          <span className="phase1-market__footer-label">{t("game:market.totalAllocated")}</span>
           <span className="phase1-market__footer-value">{totalAllocated} / {totalGoods}</span>
         </span>
         <span className="phase1-market__footer-row">
-          <span className="phase1-market__footer-label">预计总收入</span>
+          <span className="phase1-market__footer-label">{t("game:market.totalEstimatedRevenue")}</span>
           <span className="phase1-market__footer-value phase1-market__footer-value--highlight">{preview.revenue + overseasRevenue} 财政</span>
         </span>
       </div>
@@ -576,7 +582,7 @@ function UnitStepper({
         className="phase1-market__stepper-btn"
         disabled={readOnly || value <= 0}
         onClick={() => onDelta(-1)}
-        aria-label={`减少${label}投放`}
+        aria-label={t("game:market.reduceUnit", { unit: label })}
       >
         −
       </button>
@@ -586,7 +592,7 @@ function UnitStepper({
         className="phase1-market__stepper-btn"
         disabled={readOnly || value >= max}
         onClick={() => onDelta(1)}
-        aria-label={`增加${label}投放`}
+        aria-label={t("game:market.increaseUnit", { unit: label })}
       >
         +
       </button>
@@ -674,7 +680,7 @@ function calculatePreview(
       isPriceCapped: fallbackPriceBeforeCap > domesticPriceCeiling,
       soldQty: 0,
       revenue: 0,
-      balanceLabel: "未投放",
+      balanceLabel: t("game:market.notAllocated"),
       tone: "balanced",
     };
   }

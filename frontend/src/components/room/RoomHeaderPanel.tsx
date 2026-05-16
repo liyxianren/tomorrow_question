@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import i18n from "../../i18n";
 import type { RoomHeaderViewModel } from "../../features/room/roomPreparationViewModel";
 import { getCountryLabel } from "../../features/room/roomPreparationViewModel";
 import type { RoomContext, RoomMember } from "../../types";
@@ -24,6 +26,7 @@ type RoomHeaderPanelLegacyProps = {
 type RoomHeaderPanelProps = RoomHeaderPanelViewModelProps | RoomHeaderPanelLegacyProps;
 
 export function RoomHeaderPanel(props: RoomHeaderPanelProps) {
+  const { t } = useTranslation("room");
   const resolvedViewModel = "viewModel" in props ? props.viewModel : createLegacyHeaderViewModel(props);
   const resolvedOnCopyRoomCode = "onCopyRoomCode" in props ? props.onCopyRoomCode : () => undefined;
   const resolvedOnCopyInviteLink = "onCopyInviteLink" in props ? props.onCopyInviteLink : () => undefined;
@@ -35,9 +38,9 @@ export function RoomHeaderPanel(props: RoomHeaderPanelProps) {
   return (
     <section className="room-panel room-command-panel">
       <div className="room-command-panel__title-block">
-        <p className="room-panel__eyebrow">房间准备</p>
-        <h1>开局准备区</h1>
-        <p>选定国家、确认席位，所有玩家准备后自动进入第 1 回合。</p>
+        <p className="room-panel__eyebrow">{t("eyebrow")}</p>
+        <h1>{t("status.readying")}</h1>
+        <p>{t("status.waiting")}</p>
       </div>
 
       <div
@@ -47,20 +50,20 @@ export function RoomHeaderPanel(props: RoomHeaderPanelProps) {
         role="status"
       >
         <div className="room-command-panel__meta-card">
-          <span>当前玩家</span>
+          <span>{t("members.title")}</span>
           <strong>{resolvedViewModel.playerName}</strong>
           <small>{resolvedViewModel.roleLabel} · {resolvedViewModel.countryLabel}</small>
         </div>
         <div className="room-command-panel__meta-card">
-          <span>你的状态</span>
+          <span>{resolvedViewModel.playerStatusLabel}</span>
           <strong>{resolvedViewModel.playerStatusLabel}</strong>
           <small>{resolvedViewModel.roomStatusLabel}</small>
         </div>
 
         <span className="room-chip" data-testid="room-code">
-          房间码 <strong>{resolvedViewModel.roomCode || "待分配"}</strong>
+          {resolvedViewModel.roomCode || t("status.waiting")}
         </span>
-        <span className="room-chip">当前状态 <strong>{resolvedViewModel.roomStatusLabel}</strong></span>
+        <span className="room-chip">{resolvedViewModel.roomStatusLabel}</span>
       </div>
 
       <div className="room-command-panel__actions">
@@ -69,14 +72,14 @@ export function RoomHeaderPanel(props: RoomHeaderPanelProps) {
           onClick={resolvedOnCopyRoomCode}
           type="button"
         >
-          {resolvedHasCopiedRoomCode ? "房间码已复制" : "复制房间码"}
+          {resolvedHasCopiedRoomCode ? t("actions.codeCopied") : t("actions.copyCode")}
         </button>
         <button
           className="room-button"
           onClick={resolvedOnCopyInviteLink}
           type="button"
         >
-          {resolvedHasCopiedInviteLink ? "邀请链接已复制" : "复制邀请链接"}
+          {resolvedHasCopiedInviteLink ? t("actions.codeCopied") : t("actions.copyCode")}
         </button>
         {resolvedOnReturnToLobby ? (
           <button
@@ -85,7 +88,7 @@ export function RoomHeaderPanel(props: RoomHeaderPanelProps) {
             onClick={resolvedOnReturnToLobby}
             type="button"
           >
-            {resolvedIsReturningToLobby ? "返回中..." : "回到大厅"}
+            {resolvedIsReturningToLobby ? `${t("actions.leave")}...` : t("actions.leave")}
           </button>
         ) : null}
       </div>
@@ -93,7 +96,7 @@ export function RoomHeaderPanel(props: RoomHeaderPanelProps) {
       {(resolvedViewModel.helperMessage) && (
         <div className="room-command-panel__message">
           <span className="room-chip">
-            系统提示 <strong>{resolvedViewModel.helperMessage}</strong>
+            {resolvedViewModel.helperMessage}
           </span>
         </div>
       )}
@@ -108,16 +111,16 @@ function createLegacyHeaderViewModel({
 }: RoomHeaderPanelLegacyProps): RoomHeaderViewModel {
   return {
     roomCode: room.roomCode,
-    roomStatusLabel: room.status === "in_game" ? "房间已开局，正在进入游戏" : "等待其他玩家",
-    playerName: currentPlayer?.nickname ?? "等待识别",
-    roleLabel: currentPlayer?.playerId === room.hostPlayerId ? "房主" : "成员",
+    roomStatusLabel: room.status === "in_game" ? i18n.t("room:status.in_game") : i18n.t("room:status.waiting"),
+    playerName: currentPlayer?.nickname ?? i18n.t("room:members.empty"),
+    roleLabel: currentPlayer?.playerId === room.hostPlayerId ? i18n.t("room:members.host") : i18n.t("room:members.you"),
     playerStatusLabel: room.status === "in_game"
-      ? "房间已开局，正在进入游戏"
+      ? i18n.t("room:status.in_game")
       : currentPlayer?.isReady
-        ? "已准备开局"
+        ? i18n.t("room:actions.ready")
         : currentPlayer?.selectedCountry
-          ? "已选国家"
-          : "未选国家",
+          ? i18n.t("room:countrySelection.title")
+          : i18n.t("room:countrySelection.noSelection"),
     countryLabel: getCountryLabel(currentPlayer?.selectedCountry ?? null),
     helperMessage: statusMessage || null,
   };

@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { PageShell } from "../components/ui/PageShell";
 import { PrimaryButton } from "../components/ui/PrimaryButton";
 import { SectionCard } from "../components/ui/SectionCard";
+import i18n from "../i18n";
 import { apiRequest } from "../services/http";
 
 
@@ -43,51 +45,51 @@ type SaveStatus =
   | { kind: "error"; message: string };
 
 const PRODUCTION_LEVELS: Array<{ key: string; label: string }> = [
-  { key: "handicraft", label: "手工业 (handicraft)" },
-  { key: "mechanized", label: "机械化 (mechanized)" },
-  { key: "steam", label: "蒸汽 (steam)" },
-  { key: "electrified", label: "电气化 (electrified)" },
+  { key: "handicraft", label: `${i18n.t("game:productionRoute.handicraft")} (handicraft)` },
+  { key: "mechanized", label: `${i18n.t("game:productionRoute.mechanized")} (mechanized)` },
+  { key: "steam", label: `${i18n.t("game:productionRoute.steam")} (steam)` },
+  { key: "electrified", label: `${i18n.t("game:productionRoute.electrified")} (electrified)` },
 ];
 
 const UPGRADABLE_LEVELS = new Set(["mechanized", "steam", "electrified"]);
 
 const COUNTRY_LABELS: Array<{ key: string; label: string }> = [
-  { key: "britain", label: "英国" },
-  { key: "france", label: "法国" },
-  { key: "prussia", label: "普鲁士" },
-  { key: "austria", label: "奥地利" },
-  { key: "russia", label: "俄国" },
+  { key: "britain", label: i18n.t("game:country.britain") },
+  { key: "france", label: i18n.t("game:country.france") },
+  { key: "prussia", label: i18n.t("game:country.prussia") },
+  { key: "austria", label: i18n.t("game:country.austria") },
+  { key: "russia", label: i18n.t("game:country.russia") },
 ];
 
 const REGION_LABELS: Record<string, string> = {
-  europe: "欧洲",
-  americas: "美洲",
-  africa: "非洲",
-  middle_east: "中东",
-  asia_pacific: "亚太",
+  europe: i18n.t("game:region.europe"),
+  americas: i18n.t("game:region.americas"),
+  africa: i18n.t("game:region.africa"),
+  middle_east: i18n.t("game:region.middle_east"),
+  asia_pacific: i18n.t("game:region.asia_pacific"),
 };
 
 const IDEOLOGY_LABELS: Array<{ key: string; label: string }> = [
-  { key: "liberalism", label: "自由主义" },
-  { key: "egalitarianism", label: "平等主义" },
-  { key: "nationalism", label: "民族主义" },
+  { key: "liberalism", label: i18n.t("game:ideology.liberalism") },
+  { key: "egalitarianism", label: i18n.t("game:ideology.egalitarianism") },
+  { key: "nationalism", label: i18n.t("game:ideology.nationalism") },
 ];
 
 const CONFIG_FILE_LABELS: Record<string, string> = {
-  "abilities.json": "国家能力",
-  "countries.json": "国家初始值",
-  "decision_actions.json": "行动 / 政策",
-  "events.json": "事件",
-  "global.json": "全局",
-  "market.json": "市场",
-  "military.json": "军事",
-  "military_actions.json": "军事行动",
-  "politics.json": "政治 / 思潮",
-  "production.json": "生产",
-  "reforms.json": "改革",
-  "regions.json": "区域",
-  "research_actions.json": "天赋树",
-  "technology.json": "科技树",
+  "abilities.json": i18n.t("pages:settings.configFiles.abilities.json"),
+  "countries.json": i18n.t("pages:settings.configFiles.countries.json"),
+  "decision_actions.json": i18n.t("pages:settings.configFiles.decision_actions.json"),
+  "events.json": i18n.t("pages:settings.configFiles.events.json"),
+  "global.json": i18n.t("pages:settings.configFiles.global.json"),
+  "market.json": i18n.t("pages:settings.configFiles.market.json"),
+  "military.json": i18n.t("pages:settings.configFiles.military.json"),
+  "military_actions.json": i18n.t("pages:settings.configFiles.military_actions.json"),
+  "politics.json": i18n.t("pages:settings.configFiles.politics.json"),
+  "production.json": i18n.t("pages:settings.configFiles.production.json"),
+  "reforms.json": i18n.t("pages:settings.configFiles.reforms.json"),
+  "regions.json": i18n.t("pages:settings.configFiles.regions.json"),
+  "research_actions.json": i18n.t("pages:settings.configFiles.research_actions.json"),
+  "technology.json": i18n.t("pages:settings.configFiles.technology.json"),
 };
 
 const COVERED_NUMERIC_PATHS = new Set<string>([
@@ -118,6 +120,7 @@ function isCoveredNumericEntry(fileName: string, entry: NumericConfigEntry): boo
 
 
 export function SettingsPage() {
+  const { t } = useTranslation("pages");
   const [data, setData] = useState<SettingsPayload | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [status, setStatus] = useState<SaveStatus>({ kind: "idle" });
@@ -132,7 +135,7 @@ export function SettingsPage() {
       })
       .catch((error: unknown) => {
         if (!cancelled) {
-          setLoadError(error instanceof Error ? error.message : "加载失败");
+          setLoadError(error instanceof Error ? error.message : i18n.t("common:loadFailed"));
         }
       });
     return () => {
@@ -143,8 +146,8 @@ export function SettingsPage() {
   if (loadError) {
     return (
       <PageShell className="settings-page">
-        <SectionCard title="配置面板" tone="muted">
-          <p>加载配置失败：{loadError}</p>
+        <SectionCard title={t("settings.loadErrorTitle")} tone="muted">
+          <p>{t("settings.loadErrorDescription")}: {loadError}</p>
         </SectionCard>
       </PageShell>
     );
@@ -153,8 +156,8 @@ export function SettingsPage() {
   if (!data) {
     return (
       <PageShell className="settings-page">
-        <SectionCard title="配置面板" tone="muted">
-          <p>正在加载...</p>
+        <SectionCard title={t("settings.loadErrorTitle")} tone="muted">
+          <p>{i18n.t("common:loading")}</p>
         </SectionCard>
       </PageShell>
     );
@@ -259,11 +262,11 @@ export function SettingsPage() {
     setStatus({ kind: "saving" });
     try {
       await apiRequest("/api/v1/settings", { method: "POST", body: buildSavePayload() });
-      setStatus({ kind: "success", message: "保存成功" });
+      setStatus({ kind: "success", message: i18n.t("common:saveSuccess") });
     } catch (error: unknown) {
       setStatus({
         kind: "error",
-        message: error instanceof Error ? error.message : "保存失败",
+        message: error instanceof Error ? error.message : i18n.t("common:saveFailed"),
       });
     }
   };
@@ -271,9 +274,9 @@ export function SettingsPage() {
   return (
     <PageShell className="settings-page" width="wide">
       <SectionCard
-        eyebrow="参数面板"
-        title="数值配置"
-        description="上方是常用平衡项；底部“全部 JSON 数值”会自动列出配置文件里的其余数字。保存后写回 backend/config/balance/*.json 并清空配置缓存。"
+        eyebrow={t("settings.eyebrow")}
+        title={t("settings.numericConfigTitle")}
+        description={t("settings.numericConfigDescription")}
       >
         <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
           <PrimaryButton
@@ -281,7 +284,7 @@ export function SettingsPage() {
             onClick={handleSave}
             type="button"
           >
-            {status.kind === "saving" ? "保存中..." : "保存"}
+            {status.kind === "saving" ? t("settings.savingButton") : t("settings.saveButton")}
           </PrimaryButton>
           {status.kind === "success" ? (
             <span style={{ color: "#2f8a4d" }}>{status.message}</span>
@@ -292,13 +295,13 @@ export function SettingsPage() {
         </div>
       </SectionCard>
 
-      <SectionCard title="生产成本" eyebrow="production">
+      <SectionCard title={t("settings.productionCost.title")} eyebrow={t("settings.productionCost.eyebrow")}>
         <table className="settings-table">
           <thead>
             <tr>
-              <th>生产方式</th>
-              <th>新建成本</th>
-              <th>升级成本</th>
+              <th>{t("settings.productionCost.routeColumn")}</th>
+              <th>{t("settings.productionCost.newCostColumn")}</th>
+              <th>{t("settings.productionCost.upgradeCostColumn")}</th>
             </tr>
           </thead>
           <tbody>
@@ -335,13 +338,13 @@ export function SettingsPage() {
         </table>
       </SectionCard>
 
-      <SectionCard title="各国原材料" eyebrow="countries">
+      <SectionCard title={t("settings.rawMaterials.title")} eyebrow={t("settings.rawMaterials.eyebrow")}>
         <table className="settings-table">
           <thead>
             <tr>
-              <th>国家</th>
-              <th>初始原材料</th>
-              <th>每回合增量</th>
+              <th>{t("settings.rawMaterials.countryColumn")}</th>
+              <th>{t("settings.rawMaterials.initialColumn")}</th>
+              <th>{t("settings.rawMaterials.perTurnColumn")}</th>
             </tr>
           </thead>
           <tbody>
@@ -378,10 +381,10 @@ export function SettingsPage() {
         </table>
       </SectionCard>
 
-      <SectionCard title="市场参数" eyebrow="market">
+      <SectionCard title={t("settings.market.title")} eyebrow={t("settings.market.eyebrow")}>
         <div style={{ marginBottom: "16px" }}>
           <label style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-            <span>baseIncomePerRound（每回合保底收入）</span>
+            <span>{t("settings.market.baseIncomeLabel")}</span>
             <input
               type="number"
               min={0}
@@ -393,8 +396,8 @@ export function SettingsPage() {
         <table className="settings-table">
           <thead>
             <tr>
-              <th>区域</th>
-              <th>价格倍率</th>
+              <th>{t("settings.market.regionColumn")}</th>
+              <th>{t("settings.market.priceMultiplierColumn")}</th>
             </tr>
           </thead>
           <tbody>
@@ -416,10 +419,10 @@ export function SettingsPage() {
         </table>
       </SectionCard>
 
-      <SectionCard title="政府参数" eyebrow="government">
+      <SectionCard title={t("settings.government.title")} eyebrow={t("settings.government.eyebrow")}>
         <div style={{ marginBottom: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
           <label style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-            <span>行政能力价格（administrationCost）</span>
+            <span>{t("settings.government.adminCostLabel")}</span>
             <input
               type="number"
               min={0}
@@ -430,7 +433,7 @@ export function SettingsPage() {
             />
           </label>
           <label style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-            <span>思潮范围 - 最小值</span>
+            <span>{t("settings.government.ideologyMinLabel")}</span>
             <input
               type="number"
               value={data.government.ideologyMin}
@@ -438,7 +441,7 @@ export function SettingsPage() {
                 updateGovernmentField("ideologyMin", Number(event.target.value))
               }
             />
-            <span>最大值</span>
+            <span>{t("settings.government.ideologyMaxLabel")}</span>
             <input
               type="number"
               value={data.government.ideologyMax}
@@ -451,9 +454,9 @@ export function SettingsPage() {
         <table className="settings-table">
           <thead>
             <tr>
-              <th>思潮</th>
-              <th>高阈值</th>
-              <th>低阈值</th>
+              <th>{t("settings.government.thresholdColumns.ideology")}</th>
+              <th>{t("settings.government.thresholdColumns.highThreshold")}</th>
+              <th>{t("settings.government.thresholdColumns.lowThreshold")}</th>
             </tr>
           </thead>
           <tbody>
@@ -489,9 +492,9 @@ export function SettingsPage() {
       </SectionCard>
 
       <SectionCard
-        title="全部 JSON 数值"
-        eyebrow="balance/*.json"
-        description="这里列出未在上方常用面板中单独展示的全部数值。中文名称用于理解含义，灰色路径用于定位 JSON 位置；修改后点击顶部保存即可生效。"
+        title={t("settings.allJsonValuesTitle")}
+        eyebrow={t("settings.allJsonValuesEyebrow")}
+        description={t("settings.allJsonValuesDescription")}
       >
         {Object.entries(data.numericConfig).map(([fileName, entries]) => {
           const visibleEntries = entries.filter((entry) => !isCoveredNumericEntry(fileName, entry));
@@ -509,8 +512,8 @@ export function SettingsPage() {
               <table className="settings-table">
                 <thead>
                   <tr>
-                    <th>中文名称</th>
-                    <th>数值</th>
+                    <th>{t("settings.jsonValueColumns.name")}</th>
+                    <th>{t("settings.jsonValueColumns.value")}</th>
                   </tr>
                 </thead>
                 <tbody>

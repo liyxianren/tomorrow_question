@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import { LobbyContinueBanner } from "../components/lobby/LobbyContinueBanner";
@@ -23,6 +24,7 @@ import "./LobbyPage.css";
 
 
 export function LobbyPage() {
+  const { t } = useTranslation("lobby");
   const [searchParams] = useSearchParams();
   const [profileVersion, setProfileVersion] = useState(0);
   const [isIdentityGateOpen, setIdentityGateOpen] = useState(false);
@@ -67,16 +69,16 @@ export function LobbyPage() {
       <div className="lobby-page__inner">
         <div className="lobby-page__command-deck">
           <section aria-labelledby="lobby-page-title" className="lobby-page__brief">
-            <p className="panel__eyebrow" style={eyebrowStyle}>房间大厅</p>
-            <h1 className="lobby-page__title" id="lobby-page-title">创建或加入一局</h1>
+            <p className="panel__eyebrow" style={eyebrowStyle}>{t("eyebrow")}</p>
+            <h1 className="lobby-page__title" id="lobby-page-title">{t("title")}</h1>
             <p className="lobby-page__lead">
-              先确认显示昵称，再从可加入房间中直接进入；没有合适房间时再创建新房间。只有收到邀请时才需要输入房间码。
+              {t("lead")}
             </p>
-            <div aria-label="进入房间流程" className="lobby-page__flow">
-              <span>确认昵称</span>
-              <span>创建或加入</span>
-              <span>选择国家</span>
-              <span>准备开局</span>
+            <div aria-label={t("entryForm.ariaLabel")} className="lobby-page__flow">
+              <span>{t("flow.step1")}</span>
+              <span>{t("flow.step2")}</span>
+              <span>{t("flow.step3")}</span>
+              <span>{t("flow.step4")}</span>
             </div>
           </section>
 

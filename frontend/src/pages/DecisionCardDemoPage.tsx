@@ -1,4 +1,5 @@
 import { startTransition, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { restoreSessionContext } from "../app/sessionRecovery";
 import { GameMapModal } from "../components/game/map/GameMapModal";
@@ -25,16 +26,18 @@ import type {
   DecisionLocationId,
 } from "../features/game/demo/types";
 import { createInitialPhaseDraft, type PhaseDraftByPhase } from "../features/game/forms";
+import i18n from "../i18n";
 import type { IdeologyKey } from "../types";
 import "./DecisionCardDemoPage.css";
 
 const IDEOLOGY_OPTIONS: Array<{ key: IdeologyKey; label: string }> = [
-  { key: "liberalism", label: "自由主义" },
-  { key: "egalitarianism", label: "平等主义" },
-  { key: "nationalism", label: "民族主义" },
+  { key: "liberalism", label: i18n.t("game:ideology.liberalism") },
+  { key: "egalitarianism", label: i18n.t("game:ideology.egalitarianism") },
+  { key: "nationalism", label: i18n.t("game:ideology.nationalism") },
 ];
 
 export function DecisionCardDemoPage() {
+  const { t } = useTranslation("pages");
   const seedScenario = useMemo(() => createSeedDecisionCardDemoScenario(), []);
   const [scenario, setScenario] = useState(seedScenario);
   const [selectedVariant, setSelectedVariant] = useState<DecisionCardDemoVariant>("command-deck");
