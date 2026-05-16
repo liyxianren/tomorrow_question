@@ -117,14 +117,14 @@ export function MilitaryWorldMap({
               onKeyDown={(e) => e.stopPropagation()}
             >
               <button
-                aria-label={`${label}部署-1`}
+                aria-label={t("game:military.ariaDeployMinus", { label, defaultValue: `${label}部署-1` })}
                 className="mwm-pin__btn"
                 type="button"
                 disabled={myFleet <= 0}
                 onClick={() => onNavalDeploymentChange(node.nodeId, myFleet - 1)}
               >−</button>
               <button
-                aria-label={`${label}部署+1`}
+                aria-label={t("game:military.ariaDeployPlus", { label, defaultValue: `${label}部署+1` })}
                 className="mwm-pin__btn"
                 type="button"
                 disabled={remainingFleets <= 0}

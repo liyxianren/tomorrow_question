@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import i18n from "../../../i18n";
 import type { DecisionPlayerPhaseWorkspace, IdeologyKey } from "../../../types";
 import type { PhaseDraftByPhase } from "../../../features/game/forms";
 import type { DecisionActionCardEffect } from "./shared/DecisionActionCard";
@@ -17,9 +18,9 @@ type ReformPath = "freedom" | "equality" | "national";
 const REFORM_PATHS: ReformPath[] = ["freedom", "equality", "national"];
 
 const REFORM_PATH_LABELS: Record<ReformPath, string> = {
-  freedom: "自由之路",
-  equality: "平等之路",
-  national: "民族之路",
+  freedom: i18n.t("game:government.reformPath.freedomRoad", "自由之路"),
+  equality: i18n.t("game:government.reformPath.equalityRoad", "平等之路"),
+  national: i18n.t("game:government.reformPath.nationalRoad", "民族之路"),
 };
 
 const REFORM_PATH_ICONS: Record<ReformPath, string> = {
@@ -29,9 +30,9 @@ const REFORM_PATH_ICONS: Record<ReformPath, string> = {
 };
 
 const IDEOLOGY_META: Record<IdeologyKey, { label: string; icon: string }> = {
-  liberalism: { label: "自由主义", icon: "📈" },
-  egalitarianism: { label: "平等主义", icon: "🤝" },
-  nationalism: { label: "民族主义", icon: "🛡️" },
+  liberalism: { label: i18n.t("game:government.ideology.liberalism", "自由主义"), icon: "📈" },
+  egalitarianism: { label: i18n.t("game:government.ideology.egalitarianism", "平等主义"), icon: "🤝" },
+  nationalism: { label: i18n.t("game:government.ideology.nationalism", "民族主义"), icon: "🛡️" },
 };
 
 const IDEOLOGY_KEYS: IdeologyKey[] = ["liberalism", "egalitarianism", "nationalism"];
@@ -56,24 +57,24 @@ const MARKET_PREVIEW_EFFECT_KEYS = [
 ] as const;
 
 const MARKET_PREVIEW_EFFECT_LABELS: Record<(typeof MARKET_PREVIEW_EFFECT_KEYS)[number], string> = {
-  domesticMarketCapacityDelta: "国内容量",
-  domesticPriceBonusDelta: "国内价格",
-  handicraftCapacityDelta: "手工业",
-  overseasMarketCapacityDelta: "海外容量",
+  domesticMarketCapacityDelta: i18n.t("game:government.effect.domesticCapacity", "国内容量"),
+  domesticPriceBonusDelta: i18n.t("game:government.effect.domesticPrice", "国内价格"),
+  handicraftCapacityDelta: i18n.t("game:government.effect.handicraft", "手工业"),
+  overseasMarketCapacityDelta: i18n.t("game:government.effect.overseasCapacity", "海外容量"),
 };
 
 const IDEOLOGY_LABELS: Record<IdeologyKey, string> = {
-  liberalism: "自由主义",
-  egalitarianism: "平等主义",
-  nationalism: "民族主义",
+  liberalism: i18n.t("game:government.ideology.liberalism", "自由主义"),
+  egalitarianism: i18n.t("game:government.ideology.egalitarianism", "平等主义"),
+  nationalism: i18n.t("game:government.ideology.nationalism", "民族主义"),
 };
 
 const ALLOCATION_LABELS: Record<string, string> = {
-  consumption: "国民消费",
-  domesticMarket: "国民消费",
-  fiscal: "政府财政",
-  governmentFiscal: "政府财政",
-  factory: "工厂预算",
+  consumption: i18n.t("game:government.allocation.consumption", "国民消费"),
+  domesticMarket: i18n.t("game:government.allocation.consumption", "国民消费"),
+  fiscal: i18n.t("game:government.allocation.fiscal", "政府财政"),
+  governmentFiscal: i18n.t("game:government.allocation.fiscal", "政府财政"),
+  factory: i18n.t("game:government.allocation.factory", "工厂预算"),
 };
 
 type IdeologyMilestone = {
@@ -162,7 +163,7 @@ function formatSigned(delta: number): string {
 }
 
 function formatShortfall(cost: number, remaining: number): string {
-  return `还差 ${Math.max(0, cost - remaining)} 财政`;
+  return i18n.t("game:government.shortfall", "还差 {{amount}} 财政", { amount: Math.max(0, cost - remaining) });
 }
 
 function buildPurchaseEffects(
@@ -172,7 +173,7 @@ function buildPurchaseEffects(
 ): DecisionActionCardEffect[] {
   if (quantity <= 0) return [];
   return [
-    { label: "政府财政", value: `-${quantity * cost}` },
+    { label: i18n.t("game:government.allocation.fiscal", "政府财政"), value: `-${quantity * cost}` },
     { label: pointLabel, value: `+${quantity}` },
   ];
 }
@@ -193,7 +194,7 @@ function resolveReformDescription(
 ): string {
   return reform.description
     || REFORM_DESCRIPTION_FALLBACKS[reform.reformId]
-    || `${REFORM_PATH_LABELS[reform.path]}改革。当前暂无额外说明。`;
+    || i18n.t("game:government.reformDefaultDesc", "{{path}}改革。当前暂无额外说明。", { path: REFORM_PATH_LABELS[reform.path] });
 }
 
 function projectIdeologyAfterReform(
@@ -228,11 +229,11 @@ function formatReformEffects(
   const ratioDelta = effects.ratioDelta as Record<string, number> | undefined;
   if (ratioDelta) {
     const names: Record<string, string> = {
-      factory: "工厂",
-      consumption: "国民消费",
-      fiscal: "政府财政",
-      domesticMarket: "国民消费",
-      governmentFiscal: "政府财政",
+      factory: i18n.t("game:government.allocation.factory", "工厂"),
+      consumption: i18n.t("game:government.allocation.consumption", "国民消费"),
+      fiscal: i18n.t("game:government.allocation.fiscal", "政府财政"),
+      domesticMarket: i18n.t("game:government.allocation.consumption", "国民消费"),
+      governmentFiscal: i18n.t("game:government.allocation.fiscal", "政府财政"),
     };
     for (const [key, delta] of Object.entries(ratioDelta)) {
       const label = names[key] ?? key;
@@ -243,40 +244,40 @@ function formatReformEffects(
   const ratioOverride = effects.ratioOverride as Record<string, number> | undefined;
   if (ratioOverride) {
     const names: Record<string, string> = {
-      factory: "工厂",
-      consumption: "国内市场",
-      fiscal: "政府财政",
+      factory: i18n.t("game:government.allocation.factory", "工厂"),
+      consumption: i18n.t("game:government.allocation.domesticMarket", "国内市场"),
+      fiscal: i18n.t("game:government.allocation.fiscal", "政府财政"),
     };
     const parts = Object.entries(ratioOverride).map(
       ([k, v]) => `${names[k] ?? k}:${v}`,
     );
-    tags.push(`分配锁定 ${parts.join("/")}`);
+    tags.push(i18n.t("game:government.allocationLock", "分配锁定 {{parts}}", { parts: parts.join("/") }));
   }
 
   if (effects.upgradeCostMultiplier !== undefined) {
-    tags.push(`升级成本 ×${effects.upgradeCostMultiplier}`);
+    tags.push(i18n.t("game:government.upgradeCostMultiplier", "升级成本 ×{{multiplier}}", { multiplier: effects.upgradeCostMultiplier }));
   }
 
   if (effects.productionCapacityDelta !== undefined) {
     const delta = effects.productionCapacityDelta as Record<string, number>;
     for (const [key, val] of Object.entries(delta)) {
-      tags.push(`${key === "all" ? "全品类" : key}产能 ${val > 0 ? "+" : ""}${val}`);
+      tags.push(i18n.t("game:government.productionCapacityChange", "{{key}}产能 {{val}}", { key: key === "all" ? i18n.t("game:government.allCategories", "全品类") : key, val: val > 0 ? `+${val}` : `${val}` }));
     }
   }
 
   if (unlocksPolicies.length > 0) {
-    tags.push(`解锁 ${unlocksPolicies.length} 项政策`);
+    tags.push(i18n.t("game:government.unlocksPolicies", "解锁 {{count}} 项政策", { count: unlocksPolicies.length }));
   }
 
   return tags;
 }
 
 const RATIO_NAME_MAP: Record<string, string> = {
-  domesticMarket: "国民消费",
-  governmentFiscal: "政府财政",
-  factory: "工厂预算",
-  consumption: "国民消费",
-  fiscal: "政府财政",
+  domesticMarket: i18n.t("game:government.allocation.consumption", "国民消费"),
+  governmentFiscal: i18n.t("game:government.allocation.fiscal", "政府财政"),
+  factory: i18n.t("game:government.allocation.factory", "工厂预算"),
+  consumption: i18n.t("game:government.allocation.consumption", "国民消费"),
+  fiscal: i18n.t("game:government.allocation.fiscal", "政府财政"),
 };
 
 function formatStrategyEffects(
@@ -294,7 +295,7 @@ function formatStrategyEffects(
       return `${label} ${formatSigned(delta)}`;
     });
     if (parts.length > 0) {
-      effects.push({ label: "收入分配", value: parts.join("，"), temporary: true });
+      effects.push({ label: i18n.t("game:government.incomeAllocation", "收入分配"), value: parts.join("，"), temporary: true });
     }
   }
 
@@ -333,7 +334,7 @@ function formatPolicyEffects(
       return `${label} ${formatSigned(delta)}`;
     });
     if (parts.length > 0) {
-      effects.push({ label: "每回合收入分配", value: parts.join("，") });
+      effects.push({ label: i18n.t("game:government.incomeAllocationPerTurn", "每回合收入分配"), value: parts.join("，") });
     }
   }
 
@@ -344,22 +345,22 @@ function formatPolicyEffects(
       return `${label} ${formatSigned(delta)}`;
     });
     if (parts.length > 0) {
-      effects.push({ label: "思潮压力", value: `${parts.join("，")}（${revolutionThreshold} 最高警戒）` });
+      effects.push({ label: i18n.t("game:government.ideologyPressure", "思潮压力"), value: i18n.t("game:government.ideologyPressureValue", "{{parts}}（{{threshold}} 最高警戒）", { parts: parts.join("，"), threshold: revolutionThreshold }) });
     }
   }
 
   if (e.militaryPointsDelta !== undefined) {
     const delta = e.militaryPointsDelta as number;
-    effects.push({ label: "结算后每回合军事点", value: formatSigned(delta) });
+    effects.push({ label: i18n.t("game:government.militaryPointsPerSettlement", "结算后每回合军事点"), value: formatSigned(delta) });
   }
 
   if (e.fiscalRefund !== undefined) {
-    effects.push({ label: "政府财政", value: `+${e.fiscalRefund}` });
+    effects.push({ label: i18n.t("game:government.allocation.fiscal", "政府财政"), value: `+${e.fiscalRefund}` });
   }
 
   if (e.administrationCapacityDelta !== undefined) {
     const delta = e.administrationCapacityDelta as number;
-    effects.push({ label: "行政力上限", value: formatSigned(delta) });
+    effects.push({ label: i18n.t("game:government.adminCapMax", "行政力上限"), value: formatSigned(delta) });
   }
 
   return effects;
@@ -374,8 +375,8 @@ function formatMilestoneSummary(milestone: IdeologyMilestone): string {
   const penaltyMetrics = buildEffectMetrics(
     milestone.penalty as Record<string, number | Record<string, number>> | undefined,
   ).map((effect) => `${effect.label} ${effect.value}`);
-  const parts = [...effectMetrics, ...penaltyMetrics.map((text) => `代价 ${text}`)];
-  return parts.length > 0 ? parts.join("，") : "阶段效果";
+  const parts = [...effectMetrics, ...penaltyMetrics.map((text) => i18n.t("game:government.costPenalty", "代价 {{text}}", { text }))];
+  return parts.length > 0 ? parts.join("，") : i18n.t("game:government.stageEffect", "阶段效果");
 }
 
 function getNextIdeologyMilestone(
@@ -388,7 +389,7 @@ function getNextIdeologyMilestone(
 }
 
 function formatMilestoneTitle(milestones: IdeologyMilestone[] | undefined): string {
-  if (!milestones || milestones.length === 0) return "暂无阶段效果配置";
+  if (!milestones || milestones.length === 0) return i18n.t("game:government.noMilestoneConfig", "暂无阶段效果配置");
   return [...milestones]
     .sort((a, b) => a.level - b.level)
     .map((milestone) => `${milestone.level}：${milestone.label}（${formatMilestoneSummary(milestone)}）`)
@@ -555,7 +556,7 @@ export function GovernmentPanel({
           {t("game:government.allowanceUsed", { remaining: marketRegulationRemaining, total: fiscalState.marketRegulationAllowance })}
         </span>
       </div>
-      <div className="government-market-preview" aria-label="市场调节预览" data-testid="government-market-preview">
+      <div className="government-market-preview" aria-label={t("game:government.marketRegulationPreview", "市场调节预览")} data-testid="government-market-preview">
         <div className="government-market-preview__heading">
           <div>
             <strong>{t("game:government.marketBaseline")}</strong>
@@ -607,7 +608,7 @@ export function GovernmentPanel({
         {strategies.map((strategy) => {
           const queued = queuedStrategyIds.has(strategy.actionId);
           const overBudget = !queued && !canAddMarketStrategy(strategy.cost);
-          const lockedReason = strategy.lockedReason ?? (overBudget ? "财政不足" : null);
+          const lockedReason = strategy.lockedReason ?? (overBudget ? t("game:government.insufficientBudget", "财政不足") : null);
           const isDisabled = !queued && lockedReason !== null;
           const status = queued ? "selected" : lockedReason ? "disabled" : "available";
           return (
@@ -689,7 +690,7 @@ export function GovernmentPanel({
           );
         })}
       </div>
-      <div className="government-ideology-guide" aria-label="思潮阶段效果">
+      <div className="government-ideology-guide" aria-label={t("game:government.ideologyStageEffect", "思潮阶段效果")}>
         {IDEOLOGY_KEYS.map((key) => {
           const meta = IDEOLOGY_META[key];
           const rawLevel = reforms.ideologyLevels[key] ?? 0;
@@ -854,14 +855,14 @@ export function GovernmentPanel({
                 {activePolicies.map((policy) => {
                   const active = isPolicyActiveAfter(policy.policyId, policy.isActive);
                   const restoreLockedReason = !active && projectedAdmin < policy.adminCostPerTurn
-                    ? "行政力不足"
+                    ? t("game:government.insufficientAdminCapacity", "行政力不足")
                     : null;
                   return (
                     <DecisionActionCard
                       key={policy.policyId}
                       icon="📋"
                       title={policy.label}
-                      costLabel={`占用 ${policy.adminCostPerTurn} 行政力/回合`}
+                      costLabel={t("game:government.adminCapacityOccupied", "占用 {{cost}} 行政力/回合", { cost: policy.adminCostPerTurn })}
                       description={policy.description}
                       effects={formatPolicyEffects(policy, reforms.revolutionThreshold)}
                       status={active ? "selected" : restoreLockedReason ? "disabled" : "available"}
@@ -1001,7 +1002,7 @@ export function GovernmentPanel({
                   }}
                 >
                   {ability.requiresTargetIdeology && abilitySelected ? (
-                    <div className="government-ability-targets" role="radiogroup" aria-label={`${ability.label} 目标意识形态`}>
+                    <div className="government-ability-targets" role="radiogroup" aria-label={t("game:government.abilityTargetIdeology", "{{label}} 目标意识形态", { label: ability.label })}>
                       {IDEOLOGY_KEYS.map((key) => (
                         <label key={key} className="government-ability-target">
                           <input
@@ -1030,10 +1031,10 @@ export function GovernmentPanel({
                   const active = isPolicyActiveAfter(policy.policyId, policy.isActive);
                   const policyBudgetCost = policy.budgetCost;
                   const budgetLockedReason = !active && policyBudgetCost > 0 && baseGovernmentRemaining < policyBudgetCost
-                    ? "财政不足"
+                    ? t("game:government.insufficientBudget", "财政不足")
                     : null;
                   const adminLockedReason = !active && projectedAdmin < policy.adminCostPerTurn
-                    ? "行政力不足"
+                    ? t("game:government.insufficientAdminCapacity", "行政力不足")
                     : null;
                   const lockedReason = !policy.isUnlocked
                     ? policy.requiresReform
@@ -1050,12 +1051,12 @@ export function GovernmentPanel({
                       title={policy.label}
                       costLabel={
                         policyBudgetCost > 0
-                          ? `${policyBudgetCost} 财政 · 占 ${policy.adminCostPerTurn} 行政力/回合`
-                          : `占 ${policy.adminCostPerTurn} 行政力/回合`
+                          ? t("game:government.policyCostWithBudget", "{{budget}} 财政 · 占 {{admin}} 行政力/回合", { budget: policyBudgetCost, admin: policy.adminCostPerTurn })
+                          : t("game:government.policyCostAdminOnly", "占 {{admin}} 行政力/回合", { admin: policy.adminCostPerTurn })
                       }
                       description={
                         policy.effects?.militaryPointsDelta !== undefined
-                          ? `${policy.description} 效果从本回合结算后开始，不会立刻增加本轮军事行动点。`
+                          ? t("game:government.policyDescWithMilitaryDelay", "{{desc}} 效果从本回合结算后开始，不会立刻增加本轮军事行动点。", { desc: policy.description })
                           : policy.description
                       }
                       effects={effects}

@@ -217,7 +217,7 @@ function createTopWorkflowViewModel(
       return {
         id: step,
         label: getDecisionStepLabel(step),
-        statusLabel: hasDraftContent ? "已决策" : getDecisionStepReviewLabel(reviewState),
+        statusLabel: hasDraftContent ? i18n.t("game:flow.statusDecided", "已决策") : getDecisionStepReviewLabel(reviewState),
         isActive: decisionFlowState.activeStep === step,
       };
     }),
@@ -590,13 +590,13 @@ function buildCurrentResourceLines({
       ? calculateDecisionMarketReferencePrice(phase1, marketPriceDelta).price
       : null;
     const marketLine = phase1
-      ? `市场 需求 ${formatNumber(phase1.domesticDemand)} · 承接 ${formatNumber(projectedMarketCapacity ?? 0)} · 均衡价 ${formatNumber(projectedMarketPrice ?? 0)}`
-      : "市场数值等待同步";
+      ? i18n.t("game:flow.resourcesMarketLine", "市场 需求 {{demand}} · 承接 {{capacity}} · 均衡价 {{price}}", { demand: formatNumber(phase1.domesticDemand), capacity: formatNumber(projectedMarketCapacity ?? 0), price: formatNumber(projectedMarketPrice ?? 0) })
+      : i18n.t("game:flow.resourcesMarketWaiting", "市场数值等待同步");
 
     return [
-      `政府 · 总余量 ${fiscalState.effectiveGovernmentRemaining}（基础 ${fiscalState.baseGovernmentRemaining} / 市场 ${Math.max(0, fiscalState.marketRegulationAllowance - fiscalState.marketRegulationSpend)}）`,
+      i18n.t("game:flow.resourcesGovernmentLine", "政府 · 总余量 {{effective}}（基础 {{base}} / 市场 {{market}}）", { effective: fiscalState.effectiveGovernmentRemaining, base: fiscalState.baseGovernmentRemaining, market: Math.max(0, fiscalState.marketRegulationAllowance - fiscalState.marketRegulationSpend) }),
       marketLine,
-      `比例预告 ${formatRatio(calculateRatioPreview(workspace, draftPayload))}`,
+      i18n.t("game:flow.resourcesRatioPreview", "比例预告 {{ratio}}", { ratio: formatRatio(calculateRatioPreview(workspace, draftPayload)) }),
     ];
   }
 
@@ -606,12 +606,12 @@ function buildCurrentResourceLines({
     const effectiveOverseasCapacity = getEffectiveOverseasCapacityForMarketDraft(draftPayload, workspace);
 
     return [
-      `国内承接剩余 ${Math.max(workspace.domesticMarketCapacity - domesticAllocated, 0)}`,
-      `海外承接剩余 ${Math.max(effectiveOverseasCapacity - overseasAllocated, 0)}`,
+      i18n.t("game:flow.resourcesDomesticRemaining", "国内承接剩余 {{remaining}}", { remaining: Math.max(workspace.domesticMarketCapacity - domesticAllocated, 0) }),
+      i18n.t("game:flow.resourcesOverseasRemaining", "海外承接剩余 {{remaining}}", { remaining: Math.max(effectiveOverseasCapacity - overseasAllocated, 0) }),
     ];
   }
 
-  return [`本回合国家收入 ${currentPlayerState.nationalIncome}`];
+  return [i18n.t("game:flow.resourcesNationalIncome", "本回合国家收入 {{income}}", { income: currentPlayerState.nationalIncome })];
 }
 
 function buildChecklistLines(
@@ -626,7 +626,7 @@ function buildChecklistLines(
     return DECISION_STEP_ORDER.map((step) => {
       const decided = hasDecisionStepContent(draft, step, contentContext);
       const reviewState = decisionFlowState.stepReviewStateByStep[step];
-      const status = decided ? "已决策" : getDecisionStepReviewLabel(reviewState);
+      const status = decided ? i18n.t("game:flow.statusDecided", "已决策") : getDecisionStepReviewLabel(reviewState);
       const summary = getDecisionStepCompletionSummary(draft, step, contentContext);
       return `${getDecisionStepLabel(step)} · ${status} · ${summary}`;
     });
@@ -635,12 +635,12 @@ function buildChecklistLines(
   if (currentPhase === "market") {
     const saleOrders = getSaleOrders(draftPayload);
     return [
-      "市场出售 · 当前阶段",
-      saleOrders.length > 0 ? `已配置卖单 ${saleOrders.length} 项` : "当前还没有配置任何卖单",
+      i18n.t("game:flow.checklistMarketPhase", "市场出售 · 当前阶段"),
+      saleOrders.length > 0 ? i18n.t("game:flow.checklistSaleOrdersConfigured", "已配置卖单 {{count}} 项", { count: saleOrders.length }) : i18n.t("game:flow.checklistNoSaleOrders", "当前还没有配置任何卖单"),
     ];
   }
 
-  return ["财政结算 · 系统自动推进", "当前只需要等待结算广播。"];
+  return [i18n.t("game:flow.checklistSettlementPhase", "财政结算 · 系统自动推进"), i18n.t("game:flow.checklistSettlementWait", "当前只需要等待结算广播。")];
 }
 
 function buildSubmitLines({
@@ -659,7 +659,7 @@ function buildSubmitLines({
   const lines: string[] = [];
 
   if (!hasBlockingIssues) {
-    lines.push("当前没有阻断性问题。");
+    lines.push(i18n.t("game:flow.submitNoBlocking", "当前没有阻断性问题。"));
   }
 
   if (!currentPhase || !currentPlayerWorkspace || !currentPlayerState) {
@@ -668,21 +668,21 @@ function buildSubmitLines({
 
   if (currentPhase === "decision" && "militaryWorkspace" in currentPlayerWorkspace) {
     const spendSummary = calculateDecisionSpendSummary(currentPlayerWorkspace, draftPayload);
-    lines.push(`工厂预计消耗 ${spendSummary.factorySpend}，内需预计消耗 ${spendSummary.domesticSpend}，政府预计消耗 ${spendSummary.governmentSpend}。`);
-    lines.push(`当前已规划生产批次 ${spendSummary.productionBatches}。`);
-    lines.push(`当前已规划军事动作 ${normalizeDecisionDraft(draftPayload).militaryPlan.militaryActions.length} 次，建交 ${normalizeDecisionDraft(draftPayload).militaryPlan.diplomacyActions.length} 项。`);
+    lines.push(i18n.t("game:flow.submitSpendSummary", "工厂预计消耗 {{factory}}，内需预计消耗 {{domestic}}，政府预计消耗 {{government}}。", { factory: spendSummary.factorySpend, domestic: spendSummary.domesticSpend, government: spendSummary.governmentSpend }));
+    lines.push(i18n.t("game:flow.submitProductionBatches", "当前已规划生产批次 {{batches}}。", { batches: spendSummary.productionBatches }));
+    lines.push(i18n.t("game:flow.submitMilitarySummary", "当前已规划军事动作 {{actions}} 次，建交 {{diplomacy}} 项。", { actions: normalizeDecisionDraft(draftPayload).militaryPlan.militaryActions.length, diplomacy: normalizeDecisionDraft(draftPayload).militaryPlan.diplomacyActions.length }));
     return lines;
   }
 
   if (currentPhase === "market" && "sellableInventory" in currentPlayerWorkspace) {
     const revenuePreview = calculateMarketRevenuePreview(currentPlayerWorkspace, draftPayload);
-    lines.push(`预计国内销售额 ${revenuePreview.domesticRevenue}，预计海外销售额 ${revenuePreview.overseasRevenue}。`);
-    lines.push(`预计国家收入 ${revenuePreview.nationalIncome}。`);
+    lines.push(i18n.t("game:flow.submitRevenuePreview", "预计国内销售额 {{domestic}}，预计海外销售额 {{overseas}}。", { domestic: revenuePreview.domesticRevenue, overseas: revenuePreview.overseasRevenue }));
+    lines.push(i18n.t("game:flow.submitNationalIncomePreview", "预计国家收入 {{income}}。", { income: revenuePreview.nationalIncome }));
     return lines;
   }
 
-  lines.push(`累计国家收入 ${currentPlayerState.cumulativeNationalIncome}。`);
-  lines.push("系统会自动推进到下一轮国家决策。");
+  lines.push(i18n.t("game:flow.submitCumulativeIncome", "累计国家收入 {{income}}。", { income: currentPlayerState.cumulativeNationalIncome }));
+  lines.push(i18n.t("game:flow.submitAutoAdvance", "系统会自动推进到下一轮国家决策。"));
   return lines;
 }
 
@@ -698,11 +698,11 @@ function buildValidationLines({
   draftPayload: Record<string, unknown>;
 }): string[] {
   if (!currentPhase || !currentPlayerState || !currentPlayerWorkspace) {
-    return ["等待当前阶段数据同步。"];
+    return [i18n.t("game:flow.validateWaitingSync", "等待当前阶段数据同步。")];
   }
 
   if (currentPhase === "settlement") {
-    return ["财政结算阶段没有玩家硬约束需要确认。"];
+    return [i18n.t("game:flow.validateSettlementNoConstraints", "财政结算阶段没有玩家硬约束需要确认。")];
   }
 
   if (currentPhase === "decision" && "militaryWorkspace" in currentPlayerWorkspace) {
@@ -712,17 +712,17 @@ function buildValidationLines({
     const budgetPools = currentPlayerWorkspace.budgetPools;
     const fiscalState = calculateGovernmentFiscalState(currentPlayerWorkspace, draft);
     if (spendSummary.factorySpend > budgetPools.factory) {
-      lines.push(`工厂计划消耗 ${spendSummary.factorySpend}，超过工厂预算 ${budgetPools.factory}。`);
+      lines.push(i18n.t("game:flow.validateFactoryOverspend", "工厂计划消耗 {{spend}}，超过工厂预算 {{budget}}。", { spend: spendSummary.factorySpend, budget: budgetPools.factory }));
     }
     if (spendSummary.domesticSpend > budgetPools.domesticMarket) {
-      lines.push(`旧版国内市场动作消耗 ${spendSummary.domesticSpend}，超过民间购买力 ${budgetPools.domesticMarket}。`);
+      lines.push(i18n.t("game:flow.validateDomesticOverspend", "旧版国内市场动作消耗 {{spend}}，超过民间购买力 {{budget}}。", { spend: spendSummary.domesticSpend, budget: budgetPools.domesticMarket }));
     }
     if (spendSummary.governmentSpend > budgetPools.governmentFiscal) {
-      lines.push(`政府动作消耗 ${spendSummary.governmentSpend}，超过政府财政预算 ${budgetPools.governmentFiscal}。`);
+      lines.push(i18n.t("game:flow.validateGovernmentOverspend", "政府动作消耗 {{spend}}，超过政府财政预算 {{budget}}。", { spend: spendSummary.governmentSpend, budget: budgetPools.governmentFiscal }));
     }
     if (fiscalState.baseFiscalSpend > fiscalState.baseGovernmentBudget) {
       lines.push(
-        `基础政府财政不足：政务/军事/市场调节溢出需要 ${fiscalState.baseFiscalSpend}，基础财政只有 ${fiscalState.baseGovernmentBudget}。`,
+        i18n.t("game:flow.validateBaseFiscalInsufficient", "基础政府财政不足：政务/军事/市场调节溢出需要 {{needed}}，基础财政只有 {{base}}。", { needed: fiscalState.baseFiscalSpend, base: fiscalState.baseGovernmentBudget }),
       );
     }
     const phase1 = currentPlayerWorkspace.phase1Economy;
@@ -732,13 +732,13 @@ function buildValidationLines({
       const rawAssignments = (phase1Prod.phase1Production as { rawMaterialAssignments?: Record<string, number> } | undefined)?.rawMaterialAssignments ?? {};
       const totalAssigned = Object.values(rawAssignments).reduce((s, v) => s + v, 0);
       if (totalAssigned > phase1.rawMaterials) {
-        lines.push(`原材料分配 ${totalAssigned}，超过可用原材料 ${phase1.rawMaterials}。`);
+        lines.push(i18n.t("game:flow.validateRawMaterialsExceeded", "原材料分配 {{assigned}}，超过可用原材料 {{available}}。", { assigned: totalAssigned, available: phase1.rawMaterials }));
       }
       for (const [modeId, assigned] of Object.entries(rawAssignments)) {
         const capacity = phase1.capacityByMode[modeId] ?? 0;
         if (assigned > capacity) {
           const modeLabel = phase1.productionModes.find((m) => m.mode === modeId)?.label ?? modeId;
-          lines.push(`${modeLabel} 分配 ${assigned}，超过产能 ${capacity}。`);
+          lines.push(i18n.t("game:flow.validateModeCapacityExceeded", "{{label}} 分配 {{assigned}}，超过产能 {{capacity}}。", { label: modeLabel, assigned, capacity }));
         }
       }
     } else {
@@ -750,26 +750,26 @@ function buildValidationLines({
           routeSummary.routeId,
         );
         if (allocated > routeSummary.availableBatchesThisRound) {
-          lines.push(`${routeSummary.routeLabel} 已安排 ${allocated} 批，超过本回合共享产能 ${routeSummary.availableBatchesThisRound}。`);
+          lines.push(i18n.t("game:flow.validateRouteCapacityExceeded", "{{label}} 已安排 {{allocated}} 批，超过本回合共享产能 {{capacity}}。", { label: routeSummary.routeLabel, allocated, capacity: routeSummary.availableBatchesThisRound }));
         }
       }
     }
     for (const action of currentPlayerWorkspace.militaryWorkspace.availableMilitaryActions) {
       const selectedCount = draft.militaryPlan.militaryActions.filter((item) => item.actionId === action.actionId).length;
       if (selectedCount > action.maxPerRound) {
-        lines.push(`${action.label} 已安排 ${selectedCount} 次，超过本轮上限 ${action.maxPerRound}。`);
+        lines.push(i18n.t("game:flow.validateMilitaryActionLimit", "{{label}} 已安排 {{count}} 次，超过本轮上限 {{max}}。", { label: action.label, count: selectedCount, max: action.maxPerRound }));
       }
     }
     for (const action of currentPlayerWorkspace.militaryWorkspace.availableDiplomacyActions) {
       const selectedCount = draft.militaryPlan.diplomacyActions.filter((item) => item.actionId === action.actionId).length;
       if (action.isEstablished && selectedCount > 0) {
-        lines.push(`${action.targetRegionLabel} 已完成建交，本轮不能重复提交。`);
+        lines.push(i18n.t("game:flow.validateDiplomacyAlreadyEstablished", "{{region}} 已完成建交，本轮不能重复提交。", { region: action.targetRegionLabel }));
       }
       if (selectedCount > 1) {
-        lines.push(`${action.targetRegionLabel} 建交动作本轮只能提交 1 次。`);
+        lines.push(i18n.t("game:flow.validateDiplomacyDuplicate", "{{region}} 建交动作本轮只能提交 1 次。", { region: action.targetRegionLabel }));
       }
     }
-    return lines.length > 0 ? lines : ["当前草稿未突破任何硬约束。"];
+    return lines.length > 0 ? lines : [i18n.t("game:flow.validateNoBreach", "当前草稿未突破任何硬约束。")];
   }
 
   if (currentPhase === "market" && "sellableInventory" in currentPlayerWorkspace) {
@@ -780,10 +780,10 @@ function buildValidationLines({
       : currentPlayerWorkspace.overseasMarketCapacity;
 
     if (domesticAllocated > currentPlayerWorkspace.domesticMarketCapacity) {
-      lines.push(`国内卖量 ${domesticAllocated} 超过承接能力 ${currentPlayerWorkspace.domesticMarketCapacity}。`);
+      lines.push(i18n.t("game:flow.validateDomesticOverCapacity", "国内卖量 {{allocated}} 超过承接能力 {{capacity}}。", { allocated: domesticAllocated, capacity: currentPlayerWorkspace.domesticMarketCapacity }));
     }
     if (overseasAllocated > effectiveOverseasCapacity) {
-      lines.push(`海外卖量 ${overseasAllocated} 超过承接能力 ${effectiveOverseasCapacity}。`);
+      lines.push(i18n.t("game:flow.validateOverseasOverCapacity", "海外卖量 {{allocated}} 超过承接能力 {{capacity}}。", { allocated: overseasAllocated, capacity: effectiveOverseasCapacity }));
     }
     if (usesPhase1Market) {
       const goodsAvailable = currentPlayerWorkspace.phase1GoodsAvailable
@@ -791,10 +791,10 @@ function buildValidationLines({
         ?? 0;
       const domesticDemand = currentPlayerWorkspace.phase1Economy?.domesticDemand ?? goodsAvailable;
       if (domesticAllocated > domesticDemand) {
-        lines.push(`国内卖量 ${domesticAllocated} 超过本轮需求 ${domesticDemand}。`);
+        lines.push(i18n.t("game:flow.validateDomesticOverDemand", "国内卖量 {{allocated}} 超过本轮需求 {{demand}}。", { allocated: domesticAllocated, demand: domesticDemand }));
       }
       if (totalAllocated > goodsAvailable) {
-        lines.push(`总卖量 ${totalAllocated} 超过库存 ${goodsAvailable}。`);
+        lines.push(i18n.t("game:flow.validateTotalOverInventory", "总卖量 {{total}} 超过库存 {{inventory}}。", { total: totalAllocated, inventory: goodsAvailable }));
       }
       const competitionValidationLines = validateMarketCompetitionDraft(
         draftPayload,
@@ -807,15 +807,15 @@ function buildValidationLines({
           .filter((item) => item.goodsId === inventory.goodsId)
           .reduce((sum, item) => sum + item.quantity, 0);
         if (allocated > inventory.quantity) {
-          lines.push(`${inventory.label} 已分配 ${allocated}，超过库存 ${inventory.quantity}。`);
+          lines.push(i18n.t("game:flow.validateInventoryOverAllocated", "{{label}} 已分配 {{allocated}}，超过库存 {{inventory}}。", { label: inventory.label, allocated, inventory: inventory.quantity }));
         }
       }
     }
 
-    return lines.length > 0 ? lines : ["当前草稿未突破任何硬约束。"];
+    return lines.length > 0 ? lines : [i18n.t("game:flow.validateNoBreach", "当前草稿未突破任何硬约束。")];
   }
 
-  return ["当前草稿未突破任何硬约束。"];
+  return [i18n.t("game:flow.validateNoBreach", "当前草稿未突破任何硬约束。")];
 }
 
 function getEffectiveOverseasCapacityForMarketDraft(
@@ -883,11 +883,11 @@ function validateMarketCompetitionDraft(
   for (const deployment of deployments) {
     const marketId = typeof deployment.marketId === "string" ? deployment.marketId : "";
     if (!marketId) {
-      lines.push("海外争夺缺少目标区域。");
+      lines.push(i18n.t("game:flow.competeMissingTarget", "海外争夺缺少目标区域。"));
       continue;
     }
     if (seenRegions.has(marketId)) {
-      lines.push(`${marketId} 本轮只能提交一组海外争夺兵力。`);
+      lines.push(i18n.t("game:flow.competeDuplicateTarget", "{{region}} 本轮只能提交一组海外争夺兵力。", { region: marketId }));
       continue;
     }
     seenRegions.add(marketId);
@@ -897,45 +897,45 @@ function validateMarketCompetitionDraft(
     totalArtillery += artillery;
     const region = workspace.regionAccessStatus.find((item) => item.regionId === marketId);
     if (!region) {
-      lines.push(`${marketId} 不是有效海外区域。`);
+      lines.push(i18n.t("game:flow.competeInvalidRegion", "{{region}} 不是有效海外区域。", { region: marketId }));
       continue;
     }
     if (!region.canCompete) {
-      lines.push(`${region.label} 当前不可争夺：${formatCompetitionLockReason(region.competitionLockedReason)}。`);
+      lines.push(i18n.t("game:flow.competeRegionLocked", "{{label}} 当前不可争夺：{{reason}}。", { label: region.label, reason: formatCompetitionLockReason(region.competitionLockedReason) }));
     }
     const power = infantry * infantryPower + artillery * artilleryPower;
     if (power < minimumPower) {
-      lines.push(`${region.label} 争夺战力 ${power} 低于最低要求 ${minimumPower}。`);
+      lines.push(i18n.t("game:flow.competePowerInsufficient", "{{label}} 争夺战力 {{power}} 低于最低要求 {{minimum}}。", { label: region.label, power, minimum: minimumPower }));
     }
   }
 
   if (totalInfantry > availableInfantry) {
-    lines.push(`海外争夺步兵 ${totalInfantry} 超过可用 ${availableInfantry}。`);
+    lines.push(i18n.t("game:flow.competeInfantryExceeded", "海外争夺步兵 {{total}} 超过可用 {{available}}。", { total: totalInfantry, available: availableInfantry }));
   }
   if (totalArtillery > availableArtillery) {
-    lines.push(`海外争夺炮兵 ${totalArtillery} 超过可用 ${availableArtillery}。`);
+    lines.push(i18n.t("game:flow.competeArtilleryExceeded", "海外争夺炮兵 {{total}} 超过可用 {{available}}。", { total: totalArtillery, available: availableArtillery }));
   }
   return lines;
 }
 
 function formatCompetitionLockReason(reason: string | null | undefined): string {
   if (reason === "diplomacy_not_established") {
-    return "需要先建交";
+    return i18n.t("game:flow.competeLockedNeedsDiplomacy", "需要先建交");
   }
   if (reason === "route_blocked") {
-    return "航线被封锁";
+    return i18n.t("game:flow.competeLockedRouteBlocked", "航线被封锁");
   }
   if (reason === "no_army") {
-    return "没有可投放陆军";
+    return i18n.t("game:flow.competeLockedNoArmy", "没有可投放陆军");
   }
-  return "暂不可争夺";
+  return i18n.t("game:flow.competeLockedDefault", "暂不可争夺");
 }
 
 function extractBlockingLines(lines: string[]): string[] {
   if (lines.length === 1 && (
-    lines[0] === "当前草稿未突破任何硬约束。"
-    || lines[0] === "财政结算阶段没有玩家硬约束需要确认。"
-    || lines[0] === "等待当前阶段数据同步。"
+    lines[0] === i18n.t("game:flow.validateNoBreach", "当前草稿未突破任何硬约束。")
+    || lines[0] === i18n.t("game:flow.validateSettlementNoConstraints", "财政结算阶段没有玩家硬约束需要确认。")
+    || lines[0] === i18n.t("game:flow.validateWaitingSync", "等待当前阶段数据同步。")
   )) {
     return [];
   }
@@ -951,7 +951,7 @@ function buildDraftSummaryLines(phase: GamePhase | null, draftPayload: Record<st
   for (const [key, value] of Object.entries(draftPayload)) {
     if (Array.isArray(value)) {
       if (value.length > 0) {
-        lines.push(`${key}: ${value.length} 项`);
+        lines.push(i18n.t("game:flow.draftSummaryKeyCount", "{{key}}: {{count}} 项", { key, count: value.length }));
       }
       continue;
     }
@@ -959,7 +959,7 @@ function buildDraftSummaryLines(phase: GamePhase | null, draftPayload: Record<st
       const entries = Object.entries(value as Record<string, unknown>);
       const nonEmptyKeys = entries.filter(([, item]) => Array.isArray(item) ? item.length > 0 : Boolean(item));
       if (nonEmptyKeys.length > 0) {
-        lines.push(`${key}: ${nonEmptyKeys.length} 个子项已填写`);
+        lines.push(i18n.t("game:flow.draftSummaryKeySubItems", "{{key}}: {{count}} 个子项已填写", { key, count: nonEmptyKeys.length }));
       }
     }
   }
