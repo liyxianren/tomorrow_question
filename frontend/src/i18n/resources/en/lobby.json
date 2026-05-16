@@ -25,14 +25,31 @@
     "hasProgressPrefix": "This device has saved progress: ",
     "restoreLabel": "Resume Progress",
     "restoringLabel": "Resuming...",
-    "clearLabel": "Clear Record"
+    "clearLabel": "Clear Record",
+    "formTitle": "Fill In Nickname",
+    "formDescription": "Enter an easily recognizable name. You can change it later in the lobby.",
+    "nicknameLabel": "Nickname",
+    "nicknamePlaceholder": "e.g. test, Alex, Victoria",
+    "actionSaveAndEnter": "Save and Enter Lobby",
+    "statusHint": "Nickname is saved only on this device to identify your room seat."
   },
   "roomsSection": {
     "title": "Available Rooms",
     "refresh": "Refresh",
     "loading": "Loading rooms...",
     "empty": "No rooms waiting for players right now.",
-    "emptyHint": "You can create a new room on the right."
+    "emptyHint": "You can create a new room on the right.",
+    "eyebrow": "Public Rooms",
+    "listHint": "Prioritize joining rooms from the list. Only enter a room code manually if a friend shared a private code.",
+    "errorTitle": "Unable to Load Room List",
+    "errorDetail": "The network or backend service may be refreshing. You can retry or use the room code entry on the right.",
+    "retry": "Retry",
+    "loadingTitle": "Loading Available Rooms",
+    "loadingDetail": "Rooms with more players and games closer to starting are shown first.",
+    "emptyTitle": "No Public Waiting Rooms",
+    "emptyDetail": "You can create a new game or ask a friend for a room code and join from the alternate entrance.",
+    "reading": "Reading...",
+    "membersLabel": "Current Members"
   },
   "entryForm": {
     "createTitle": "Create New Room",
@@ -44,7 +61,16 @@
     "joinButton": "Join Room",
     "inviteDescriptionWithCode": "A friend shared a room code with you—confirm your identity to join {code}.",
     "inviteDescriptionPrefilled": "Room code {code} is already filled in—confirm your identity to join.",
-    "inviteJoinButton": "Join {code}"
+    "inviteJoinButton": "Join {code}",
+    "eyebrow": "Alternative Entry",
+    "headerTitle": "No Available Rooms?",
+    "roomCodeTag": "Room Code",
+    "createTag": "Create Room",
+    "roomCodeLabel": "Room Code",
+    "creatingButton": "Creating Room...",
+    "joiningButton": "Joining Room...",
+    "joinHint": "Enter the correct code to enter the corresponding room directly.",
+    "ariaLabel": "Create and room code entry"
   },
   "roomCard": {
     "hostLabel": "Host {name}",
@@ -78,10 +104,40 @@
   "continueBanner": {
     "title": "Recoverable Progress",
     "description": "Found a room or game you left earlier.",
-    "actionLabel": "Resume"
+    "actionLabel": "Resume",
+    "eyebrow": "Saved Progress"
+  },
+  "currentIdentity": {
+    "eyebrow": "Current Identity",
+    "ariaLabel": "Current Identity"
+  },
+  "recoveryCard": {
+    "eyebrow": "Saved Progress",
+    "title": "Resume Progress",
+    "currentIdentityLabel": "Current Identity"
+  },
+  "messages": {
+    "nicknameRequired": "Please enter the display name you want to use for this game.",
+    "identityConfirmed": "Identity confirmed. You can now proceed to lobby actions.",
+    "noRecoverableSession": "No previous session to resume.",
+    "progressRecovered": "Your previous progress has been restored.",
+    "recoveryFailedIdentityKept": "Unable to recover your previous progress, but your identity is still preserved.",
+    "sessionCleared": "The saved session record on this device has been cleared.",
+    "identityCleared": "Both identity and session records on this device have been cleared.",
+    "roomCodeRequired": "Please enter a room code before joining.",
+    "roomJoined": "Joined the room. Entering now...",
+    "roomCreated": "Room created. Entering now..."
   },
   "statusNotice": {
     "creating": "Creating room...",
-    "joining": "Joining room..."
+    "creatingTitle": "Creating Room",
+    "creatingDesc": "You will enter the room automatically once it is created.",
+    "joining": "Joining room...",
+    "joiningTitle": "Joining Room",
+    "joiningDesc": "Verifying the room code. You will enter the room directly once confirmed.",
+    "restoringTitle": "Recovering Previous Progress",
+    "restoringDesc": "If the previous session is still valid, you will return to your original room or game.",
+    "errorTitle": "Operation Incomplete",
+    "successTitle": "Operation Updated"
   }
 }

@@ -25,14 +25,31 @@
     "hasProgressPrefix": "这台设备保存了进度：",
     "restoreLabel": "恢复进度",
     "restoringLabel": "恢复中...",
-    "clearLabel": "清除记录"
+    "clearLabel": "清除记录",
+    "formTitle": "填写昵称",
+    "formDescription": "输入一个容易识别的名字。之后可以在大厅里修改。",
+    "nicknameLabel": "昵称",
+    "nicknamePlaceholder": "例如：test、Alex、维多利亚",
+    "actionSaveAndEnter": "保存并进入大厅",
+    "statusHint": "昵称只保存在这台设备上，用于识别你的房间席位。"
   },
   "roomsSection": {
     "title": "可加入的房间",
     "refresh": "刷新",
     "loading": "加载房间中...",
     "empty": "当前没有正在等待玩家的房间。",
-    "emptyHint": "你可以在右侧创建新房间。"
+    "emptyHint": "你可以在右侧创建新房间。",
+    "eyebrow": "公开房间",
+    "listHint": "优先加入列表里的房间；只有朋友发来私密房间码时，才需要手动输入。",
+    "errorTitle": "暂时没能读取房间列表",
+    "errorDetail": "网络或后端服务可能刚好在刷新。你可以重试，或使用右侧房间码加入。",
+    "retry": "重新读取",
+    "loadingTitle": "正在读取可加入房间",
+    "loadingDetail": "系统会优先显示人数更多、离开局更近的房间。",
+    "emptyTitle": "当前没有公开等待房间",
+    "emptyDetail": "可以直接创建一局，或者让朋友把房间码发给你后从备用入口加入。",
+    "reading": "读取中...",
+    "membersLabel": "当前成员"
   },
   "entryForm": {
     "createTitle": "创建新房间",
@@ -44,7 +61,16 @@
     "joinButton": "加入房间",
     "inviteDescriptionWithCode": "好友已经把房间码带给你了，确认身份后就能直接加入 {code}。",
     "inviteDescriptionPrefilled": "房间码 {code} 已经替你填好，确认身份后就能直接加入。",
-    "inviteJoinButton": "加入 {code}"
+    "inviteJoinButton": "加入 {code}",
+    "eyebrow": "备用入口",
+    "headerTitle": "没有可加入房间？",
+    "roomCodeTag": "房间码",
+    "createTag": "创建房间",
+    "roomCodeLabel": "房间码",
+    "creatingButton": "创建房间中...",
+    "joiningButton": "加入房间中...",
+    "joinHint": "输入正确房间码后会直接进入对应房间。",
+    "ariaLabel": "创建和房间码入口"
   },
   "roomCard": {
     "hostLabel": "房主 {name}",
@@ -78,10 +104,40 @@
   "continueBanner": {
     "title": "可恢复的进度",
     "description": "已找到之前离开的房间或对局。",
-    "actionLabel": "回到对局"
+    "actionLabel": "回到对局",
+    "eyebrow": "已保存进度"
+  },
+  "currentIdentity": {
+    "eyebrow": "当前身份",
+    "ariaLabel": "当前身份"
+  },
+  "recoveryCard": {
+    "eyebrow": "保存进度",
+    "title": "恢复进度",
+    "currentIdentityLabel": "当前身份"
+  },
+  "messages": {
+    "nicknameRequired": "请先填写你想在本局使用的显示姓名。",
+    "identityConfirmed": "身份已确认，可以开始进入大厅操作。",
+    "noRecoverableSession": "当前没有可以继续的上次会话。",
+    "progressRecovered": "已找回你上次离开的进度。",
+    "recoveryFailedIdentityKept": "没能找回你上次离开的进度，但当前身份仍然保留。",
+    "sessionCleared": "已清除这台设备保存的上次会话记录。",
+    "identityCleared": "这台设备上的身份和会话记录都已清除。",
+    "roomCodeRequired": "请输入房间码后再加入房间。",
+    "roomJoined": "已加入房间，正在进入房间。",
+    "roomCreated": "房间已创建，正在进入房间。"
   },
   "statusNotice": {
     "creating": "正在创建房间...",
-    "joining": "正在加入房间..."
+    "creatingTitle": "正在创建房间",
+    "creatingDesc": "创建完成后会自动进入房间。",
+    "joining": "正在加入房间...",
+    "joiningTitle": "正在加入房间",
+    "joiningDesc": "正在核对房间码，成功后会直接带你进入房间。",
+    "restoringTitle": "正在找回上次进度",
+    "restoringDesc": "如果上次会话仍然有效，你会直接回到原房间或原对局。",
+    "errorTitle": "这次操作没有完成",
+    "successTitle": "操作已更新"
   }
 }
