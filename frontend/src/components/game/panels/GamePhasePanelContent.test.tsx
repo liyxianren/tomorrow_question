@@ -73,7 +73,7 @@ describe("GamePhasePanelContent", () => {
     expect(screen.getByTestId("government-panel")).toBeInTheDocument();
     expect(screen.getByTestId("decision-step-tab-government")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("government-market-preview")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "选择策略：博览会" }));
+    await user.click(screen.getByRole("button", { name: "选择：博览会" }));
     await user.click(screen.getByRole("button", { name: "激活政策：贸易协定" }));
 
     await user.click(screen.getByRole("button", { name: "下一步：市场预览" }));
@@ -227,8 +227,8 @@ describe("GamePhasePanelContent", () => {
       governmentPlan: {
         pointPurchases: [],
         strategySelections: [],
-        adminPurchases: 0,
         techResearch: [],
+        adminPurchases: 0,
       },
       militaryPlan: {
         militaryActions: [],
@@ -296,8 +296,8 @@ describe("GamePhasePanelContent", () => {
       governmentPlan: {
         pointPurchases: [],
         strategySelections: [],
-        adminPurchases: 0,
         techResearch: [],
+        adminPurchases: 0,
       },
       militaryPlan: {
         militaryActions: [],

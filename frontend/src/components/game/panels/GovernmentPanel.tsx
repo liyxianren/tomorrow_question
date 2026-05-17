@@ -85,6 +85,13 @@ type IdeologyMilestone = {
   penalty?: Record<string, unknown>;
 };
 
+type PolicyPreview = {
+  policyId: string;
+  effects?: Record<string, unknown>;
+  adminCostPerTurn: number;
+  budgetCost: number;
+};
+
 const DEFAULT_IDEOLOGY_MILESTONES: Record<IdeologyKey, IdeologyMilestone[]> = {
   liberalism: [
     { level: 3, label: i18n.t("game:milestone.tradeLicense", "贸易许可"), effects: { factoryBudgetDelta: 2 } },
@@ -132,7 +139,6 @@ const POLICY_EFFECT_FALLBACKS: Record<string, Record<string, unknown>> = {
   },
   expand_army: { militaryPointsDelta: 1 },
   reduce_army: { militaryPointsDelta: -1, fiscalRefund: 5 },
-  expand_administration: { administrationCapacityDelta: 1 },
 };
 
 const REFORM_DESCRIPTION_FALLBACKS: Record<string, string> = {
@@ -165,6 +171,17 @@ function formatSigned(delta: number): string {
 
 function formatShortfall(cost: number, remaining: number): string {
   return i18n.t("game:government.shortfall", "还差 {{amount}} 财政", { amount: Math.max(0, cost - remaining) });
+}
+
+function formatPolicyCostLabel(policy: Pick<PolicyPreview, "adminCostPerTurn" | "budgetCost">): string {
+  const parts: string[] = [];
+  if (policy.budgetCost > 0) {
+    parts.push(i18n.t("game:government.policyCostFiscalOnly", "{{budget}} 财政", { budget: policy.budgetCost }));
+  }
+  if (policy.adminCostPerTurn > 0) {
+    parts.push(i18n.t("game:government.policyCostAdminOnly", "消耗 {{admin}} 行政力", { admin: policy.adminCostPerTurn }));
+  }
+  return parts.length > 0 ? parts.join(" · ") : i18n.t("game:government.noDirectCost", "无直接消耗");
 }
 
 function buildPurchaseEffects(
@@ -321,7 +338,7 @@ function sumMarketEffect(
 }
 
 function formatPolicyEffects(
-  policy: { policyId: string; effects?: Record<string, unknown>; adminCostPerTurn: number; budgetCost: number },
+  policy: PolicyPreview,
   revolutionThreshold: number,
 ): DecisionActionCardEffect[] {
   const effects: DecisionActionCardEffect[] = [];
@@ -356,13 +373,32 @@ function formatPolicyEffects(
     effects.push({ label: i18n.t("game:government.militaryPointsPerSettlement", "结算后每回合军事点"), value: formatSigned(delta) });
   }
 
+  if (e.armyCapDelta !== undefined) {
+    const delta = e.armyCapDelta as number;
+    effects.push({ label: i18n.t("game:government.armyCapMax", "军事力量上限"), value: formatSigned(delta) });
+  }
+
   if (e.fiscalRefund !== undefined) {
     effects.push({ label: i18n.t("game:government.allocation.fiscal", "政府财政"), value: `+${e.fiscalRefund}` });
   }
 
-  if (e.administrationCapacityDelta !== undefined) {
-    const delta = e.administrationCapacityDelta as number;
-    effects.push({ label: i18n.t("game:government.adminCapMax", "行政力上限"), value: formatSigned(delta) });
+  const researchFacilityDelta = e.researchFacilityDelta as Record<string, number> | undefined;
+  if (researchFacilityDelta) {
+    const total = Object.values(researchFacilityDelta).reduce((sum, delta) => sum + Number(delta || 0), 0);
+    if (total !== 0) {
+      effects.push({ label: i18n.t("game:government.researchFacilities", "研究设施"), value: formatSigned(total) });
+    }
+  }
+
+  const productionCapacityDelta = e.productionCapacityDelta as Record<string, number> | undefined;
+  if (productionCapacityDelta) {
+    const parts = Object.entries(productionCapacityDelta).map(([key, delta]) => {
+      const label = key === "all" ? i18n.t("game:government.allCategories", "全品类") : translateBackend(key);
+      return `${label} ${formatSigned(delta)}`;
+    });
+    if (parts.length > 0) {
+      effects.push({ label: i18n.t("game:government.productionCapacity", "产能"), value: parts.join("，") });
+    }
   }
 
   return effects;
@@ -532,7 +568,7 @@ export function GovernmentPanel({
 
   const pointPurchaseCosts = workspace.governmentActions?.pointPurchaseCosts ?? { tech: 0 };
   const canAddMarketStrategy = (cost: number) => {
-    return (fiscalState.coreGovernmentSpend + fiscalState.militaryFiscalSpend + cost) <= fiscalState.baseGovernmentBudget;
+    return fiscalState.baseFiscalSpend + cost <= fiscalState.baseGovernmentBudget;
   };
   const marketRegulationSection = strategies.length > 0 ? (
     <section className="government-market-section">
@@ -629,7 +665,7 @@ export function GovernmentPanel({
       <div className="government-panel__header">
         <h3 className="government-panel__title">🏛️ {t("game:government.title")}</h3>
         <div className="government-panel__budget-stack">
-          <span className="government-panel__budget">{t("game:government.budget")} {fiscalState.effectiveGovernmentRemaining} / {fiscalState.baseGovernmentBudget}</span>
+          <span className="government-panel__budget">{t("game:government.budget")} {fiscalState.effectiveGovernmentRemaining} / {fiscalState.effectiveGovernmentBudget}</span>
         </div>
       </div>
 
@@ -859,7 +895,7 @@ export function GovernmentPanel({
       {/* ── 政策与策略 二分布局 ── */}
       <div className="gov-policy-split">
         <div className="gov-policy-split__left">
-          {/* 政策（生效中） */}
+          {/* 本轮已选政策 */}
           {activePolicies.length > 0 ? (
             <>
               <h4 className="government-section-label">⚙️ {t("game:government.activePoliciesTitle")}</h4>
@@ -874,11 +910,11 @@ export function GovernmentPanel({
                       key={policy.policyId}
                       icon="📋"
                       title={translateBackend(policy.label)}
-                      costLabel={t("game:government.adminCapacityOccupied", "占用 {{cost}} 行政力/回合", { cost: policy.adminCostPerTurn })}
+                      costLabel={formatPolicyCostLabel(policy)}
                       description={translateBackend(policy.description)}
                       effects={formatPolicyEffects(policy, reforms.revolutionThreshold)}
                       status={active ? "selected" : restoreLockedReason ? "disabled" : "available"}
-                      statusText={active ? t("game:government.adminCostPerTurn", { cost: policy.adminCostPerTurn, budget: policy.budgetCost }) : restoreLockedReason ?? t("game:government.policyDeactivated")}
+                      statusText={active ? t("game:government.policyInEffect", "本轮已选") : restoreLockedReason ?? t("game:government.policyDeactivated")}
                       control={{
                         kind: "toggle",
                         checked: active,
@@ -983,11 +1019,7 @@ export function GovernmentPanel({
                       key={policy.policyId}
                       icon="🆕"
                       title={translateBackend(policy.label)}
-                      costLabel={
-                        policyBudgetCost > 0
-                          ? t("game:government.policyCostWithBudget", "{{budget}} 财政 · 占 {{admin}} 行政力/回合", { budget: policyBudgetCost, admin: policy.adminCostPerTurn })
-                          : t("game:government.policyCostAdminOnly", "占 {{admin}} 行政力/回合", { admin: policy.adminCostPerTurn })
-                      }
+                      costLabel={formatPolicyCostLabel(policy)}
                       description={
                         policy.effects?.militaryPointsDelta !== undefined
                           ? t("game:government.policyDescWithMilitaryDelay", "{{desc}} 效果从本回合结算后开始，不会立刻增加本轮军事行动点。", { desc: translateBackend(policy.description) })
@@ -995,7 +1027,7 @@ export function GovernmentPanel({
                       }
                       effects={effects}
                       status={status}
-                      statusText={active ? "✓ " + t("game:government.policyActivateThisRound") : lockedReason ?? t("game:government.activablePolicies")}
+                      statusText={active ? "✓ " + t("game:government.policyActivateThisRound") : lockedReason ?? t("game:government.readyToActivate", "可激活")}
                       control={{
                         kind: "toggle",
                         checked: active,

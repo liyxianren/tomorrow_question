@@ -264,10 +264,8 @@ function createResourceStripViewModel({
     { label: i18n.t("game:settlement.consumerPurchasingPower", "民间购买力"), value: visibleBudgetPools.domesticMarket },
     { label: i18n.t("game:settlement.factoryBudget", "工厂"), value: visibleBudgetPools.factory },
     {
-      label: fiscalState && fiscalState.marketRegulationAllowance > 0 ? i18n.t("game:government.budgetBasePlusMarket", "政府财政(基础+市场)") : i18n.t("game:government.budget", "政府财政"),
-      value: fiscalState && fiscalState.marketRegulationAllowance > 0
-        ? `${fiscalState.baseGovernmentBudget}+${fiscalState.marketRegulationAllowance}`
-        : visibleBudgetPools.governmentFiscal,
+      label: i18n.t("game:government.budget", "政府财政"),
+      value: fiscalState ? fiscalState.effectiveGovernmentBudget : visibleBudgetPools.governmentFiscal,
     },
   ];
 
@@ -279,10 +277,7 @@ function createResourceStripViewModel({
     if (spendSummary.domesticSpend > visibleBudgetPools.domesticMarket) {
       metrics[0].tone = "warning";
     }
-    if (
-      spendSummary.governmentSpend > visibleBudgetPools.governmentFiscal
-      || (fiscalState && fiscalState.baseFiscalSpend > fiscalState.baseGovernmentBudget)
-    ) {
+    if (fiscalState ? fiscalState.baseFiscalSpend > fiscalState.baseGovernmentBudget : spendSummary.governmentSpend > visibleBudgetPools.governmentFiscal) {
       metrics[2].tone = "warning";
     }
   }
@@ -352,10 +347,8 @@ function createLeftRailViewModel({
               { label: i18n.t("game:settlement.consumerPurchasingPower", "民间购买力"), value: visibleBudgetPools?.domesticMarket ?? currentPlayerState.budgetPools.domesticMarket },
               { label: i18n.t("game:settlement.factoryBudget", "工厂"), value: visibleBudgetPools?.factory ?? currentPlayerState.budgetPools.factory },
               {
-                label: fiscalState && fiscalState.marketRegulationAllowance > 0 ? i18n.t("game:government.budgetBasePlusMarket", "政府财政(基础+市场)") : i18n.t("game:government.budget", "政府财政"),
-                value: fiscalState && fiscalState.marketRegulationAllowance > 0
-                  ? `${fiscalState.baseGovernmentBudget}+${fiscalState.marketRegulationAllowance}`
-                  : visibleBudgetPools?.governmentFiscal ?? currentPlayerState.budgetPools.governmentFiscal,
+                label: i18n.t("game:government.budget", "政府财政"),
+                value: fiscalState?.effectiveGovernmentBudget ?? visibleBudgetPools?.governmentFiscal ?? currentPlayerState.budgetPools.governmentFiscal,
               },
               { label: i18n.t("game:military.militaryPoints", "军事点"), value: visibleMilitaryPoints ?? (currentPlayerState as any).armyCap },
               { label: i18n.t("game:unit.infantry", "陆军"), value: visibleArmyTotal },
@@ -595,7 +588,7 @@ function buildCurrentResourceLines({
       : i18n.t("game:flow.resourcesMarketWaiting", "市场数值等待同步");
 
     return [
-      i18n.t("game:flow.resourcesGovernmentLine", "政府 · 总余量 {{effective}}（基础 {{base}} / 市场 {{market}}）", { effective: fiscalState.effectiveGovernmentRemaining, base: fiscalState.baseGovernmentRemaining, market: Math.max(0, fiscalState.marketRegulationAllowance - fiscalState.marketRegulationSpend) }),
+      i18n.t("game:flow.resourcesGovernmentLine", "政府财政 · 剩余 {{remaining}} / {{budget}}", { remaining: fiscalState.effectiveGovernmentRemaining, budget: fiscalState.effectiveGovernmentBudget }),
       marketLine,
       i18n.t("game:flow.resourcesRatioPreview", "比例预告 {{ratio}}", { ratio: formatRatio(calculateRatioPreview(workspace, draftPayload)) }),
     ];
@@ -718,12 +711,9 @@ function buildValidationLines({
     if (spendSummary.domesticSpend > budgetPools.domesticMarket) {
       lines.push(i18n.t("game:flow.validateDomesticOverspend", "旧版国内市场动作消耗 {{spend}}，超过民间购买力 {{budget}}。", { spend: spendSummary.domesticSpend, budget: budgetPools.domesticMarket }));
     }
-    if (spendSummary.governmentSpend > budgetPools.governmentFiscal) {
-      lines.push(i18n.t("game:flow.validateGovernmentOverspend", "政府动作消耗 {{spend}}，超过政府财政预算 {{budget}}。", { spend: spendSummary.governmentSpend, budget: budgetPools.governmentFiscal }));
-    }
     if (fiscalState.baseFiscalSpend > fiscalState.baseGovernmentBudget) {
       lines.push(
-        i18n.t("game:flow.validateBaseFiscalInsufficient", "基础政府财政不足：政务/军事/市场调节溢出需要 {{needed}}，基础财政只有 {{base}}。", { needed: fiscalState.baseFiscalSpend, base: fiscalState.baseGovernmentBudget }),
+        i18n.t("game:flow.validateBaseFiscalInsufficient", "政府财政预算超支：计划 {{needed}}，可用 {{base}}。", { needed: fiscalState.baseFiscalSpend, base: fiscalState.baseGovernmentBudget }),
       );
     }
     const phase1 = currentPlayerWorkspace.phase1Economy;

@@ -1055,7 +1055,7 @@ function GovernmentReformPanel({
           <p className="gp-step-eyebrow">{i18n.t("game:government.reformAndPolicy", "改革与政策")}</p>
           <h3 style={{ margin: "4px 0 0" }}>{i18n.t("game:government.reformAndPolicyTitle", "政府改革 / 常规政策")}</h3>
           <p className="gp-step-desc" style={{ marginTop: 6 }}>
-            {i18n.t("game:government.reformAndPolicyDesc", "实施改革会沿三条路径推进国家定型；常规政策每回合占用行政能力与预算。")}
+            {i18n.t("game:government.reformAndPolicyDesc", "实施改革会沿三条路径推进国家定型；常规政策消耗本回合行政力与预算。")}
           </p>
         </div>
         <div className="gp-step-header__pills">
@@ -1141,12 +1141,12 @@ function GovernmentReformPanel({
                           : "gp-toggle__hint gp-toggle__hint--inactive"
                       }
                     >
-                      {active ? i18n.t("game:government.statusActive", "已激活") : i18n.t("game:government.statusDeactivatedThisRound", "本轮停用")}
+                      {active ? i18n.t("game:government.statusActive", "本轮已选") : i18n.t("game:government.statusDeactivatedThisRound", "本轮停用")}
                     </span>
                   </div>
                   <span className="gp-toggle__desc">{translateBackend(policy.description)}</span>
                   <span className="gp-toggle__desc">
-                    {i18n.t("game:government.perTurnAdminAndBudget", { admin: policy.adminCostPerTurn, budget: policy.budgetCost, defaultValue: `每回合行政 ${policy.adminCostPerTurn} · 预算 ${policy.budgetCost}` })}
+                    {i18n.t("game:government.perTurnAdminAndBudget", { admin: policy.adminCostPerTurn, budget: policy.budgetCost, defaultValue: `行政力 ${policy.adminCostPerTurn} · 预算 ${policy.budgetCost}` })}
                   </span>
                   {!active ? (
                     <span className="gp-input-card__feedback">{i18n.t("game:government.queuedForDeactivation", "已排入本轮停用。")}</span>
@@ -1171,7 +1171,7 @@ function GovernmentReformPanel({
       {inactivePolicies.length > 0 ? (
         <details open className="gp-card" style={{ marginTop: 12 }}>
           <summary className="gp-collapse">
-            {i18n.t("game:government.activatablePolicies", "可激活政策")} <span className="gp-collapse__hint">{i18n.t("game:government.activatablePoliciesHint", "每回合占用行政能力与预算")}</span>
+            {i18n.t("game:government.activatablePolicies", "可激活政策")} <span className="gp-collapse__hint">{i18n.t("game:government.activatablePoliciesHint", "消耗本回合行政力与预算")}</span>
           </summary>
           <div className="gp-grid" style={{ marginTop: 14 }}>
             {inactivePolicies.map((policy) => {
@@ -1184,7 +1184,7 @@ function GovernmentReformPanel({
               const isDisabled = lockedReason !== null && !active;
               const hintText = active
                 ? i18n.t("game:government.activatedThisRound", "本轮激活")
-                : lockedReason ?? i18n.t("game:government.perTurnAdminAndBudget", { admin: policy.adminCostPerTurn, budget: policy.budgetCost, defaultValue: `每回合行政 ${policy.adminCostPerTurn} · 预算 ${policy.budgetCost}` });
+                : lockedReason ?? i18n.t("game:government.perTurnAdminAndBudget", { admin: policy.adminCostPerTurn, budget: policy.budgetCost, defaultValue: `行政力 ${policy.adminCostPerTurn} · 预算 ${policy.budgetCost}` });
               return (
                 <article key={policy.policyId} className="gp-toggle">
                   <div className="gp-toggle__header">
@@ -1201,7 +1201,7 @@ function GovernmentReformPanel({
                   </div>
                   <span className="gp-toggle__desc">{translateBackend(policy.description)}</span>
                   <span className="gp-toggle__desc">
-                    {i18n.t("game:government.perTurnAdminAndBudget", { admin: policy.adminCostPerTurn, budget: policy.budgetCost, defaultValue: `每回合行政 ${policy.adminCostPerTurn} · 预算 ${policy.budgetCost}` })}
+                    {i18n.t("game:government.perTurnAdminAndBudget", { admin: policy.adminCostPerTurn, budget: policy.budgetCost, defaultValue: `行政力 ${policy.adminCostPerTurn} · 预算 ${policy.budgetCost}` })}
                   </span>
                   {active ? <span className="gp-input-card__feedback">{i18n.t("game:government.queuedForActivation", "已排入本轮激活。")}</span> : null}
                   <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { calculateDecisionSpendSummary } from "./decisionShared";
+import { calculateDecisionSpendSummary, calculateGovernmentFiscalState } from "./decisionShared";
 import { createInitialPhaseDraft } from "./forms";
 import { createDecisionPlayerWorkspace } from "../../test/gameSnapshotFixtures";
 
@@ -91,5 +91,67 @@ describe("calculateDecisionSpendSummary", () => {
 
     expect(summary.governmentSpend).toBe(5);
     expect(summary.domesticSpend).toBe(0);
+  });
+});
+
+describe("calculateGovernmentFiscalState", () => {
+  function createMarketRegulationWorkspace() {
+    const baseWorkspace = createDecisionPlayerWorkspace();
+    return createDecisionPlayerWorkspace({
+      budgetPools: {
+        domesticMarket: 12,
+        factory: 15,
+        governmentFiscal: 18,
+      },
+      baseBudgetPools: {
+        domesticMarket: 12,
+        factory: 15,
+        governmentFiscal: 10,
+      },
+      marketRegulationAllowance: 5,
+      governmentActions: {
+        ...baseWorkspace.governmentActions,
+        strategies: baseWorkspace.governmentActions.strategies.map((strategy) => ({
+          ...strategy,
+          isMarketRegulation: strategy.actionId === "market_fair" || strategy.actionId === "consumer_subsidy",
+          lockedReason: null,
+        })),
+      },
+    });
+  }
+
+  it("uses government fiscal directly without adding a separate market budget line", () => {
+    const state = calculateGovernmentFiscalState(
+      createMarketRegulationWorkspace(),
+      createInitialPhaseDraft("decision"),
+    );
+
+    expect(state.baseGovernmentBudget).toBe(18);
+    expect(state.marketRegulationAllowance).toBe(0);
+    expect(state.effectiveGovernmentBudget).toBe(18);
+  });
+
+  it("charges market regulation strategies directly to government fiscal", () => {
+    const workspace = createMarketRegulationWorkspace();
+    const draft = createInitialPhaseDraft("decision");
+
+    draft.governmentPlan.strategySelections = [{ actionId: "market_fair" }];
+    const stateWithinGovernmentFiscal = calculateGovernmentFiscalState(workspace, draft);
+
+    expect(stateWithinGovernmentFiscal.marketRegulationSpend).toBe(5);
+    expect(stateWithinGovernmentFiscal.marketRegulationOverflow).toBe(5);
+    expect(stateWithinGovernmentFiscal.baseGovernmentRemaining).toBe(13);
+    expect(stateWithinGovernmentFiscal.effectiveGovernmentRemaining).toBe(13);
+
+    draft.governmentPlan.strategySelections = [
+      { actionId: "market_fair" },
+      { actionId: "consumer_subsidy" },
+    ];
+    const stateWithOverflow = calculateGovernmentFiscalState(workspace, draft);
+
+    expect(stateWithOverflow.marketRegulationSpend).toBe(13);
+    expect(stateWithOverflow.marketRegulationOverflow).toBe(13);
+    expect(stateWithOverflow.baseGovernmentRemaining).toBe(5);
+    expect(stateWithOverflow.effectiveGovernmentRemaining).toBe(5);
   });
 });

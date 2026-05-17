@@ -54,6 +54,28 @@ const MARKET_PREVIEW_EFFECT_LABELS: Record<(typeof MARKET_PREVIEW_EFFECT_KEYS)[n
   overseasMarketCapacityDelta: i18n.t("game:effect.overseasMarketCapacityDelta", "海外容量"),
 };
 
+function formatPolicyCostSummary(policy: { adminCostPerTurn: number; budgetCost: number }): string {
+  const parts: string[] = [];
+  if (policy.adminCostPerTurn > 0) {
+    parts.push(i18n.t("game:commandDeck.government.policySubtitle", "行政力 {{admin}}", { admin: policy.adminCostPerTurn }));
+  }
+  if (policy.budgetCost > 0) {
+    parts.push(i18n.t("game:commandDeck.government.policyFiscalCost", "财政 {{budget}}", { budget: policy.budgetCost }));
+  }
+  return parts.length > 0 ? parts.join(" · ") : i18n.t("game:government.noDirectCost", "无直接消耗");
+}
+
+function buildPolicyCostMetrics(policy: { adminCostPerTurn: number; budgetCost: number }) {
+  return [
+    ...(policy.adminCostPerTurn > 0
+      ? [{ label: i18n.t("game:commandDeck.government.adminCost", "行政力消耗"), value: policy.adminCostPerTurn }]
+      : []),
+    ...(policy.budgetCost > 0
+      ? [{ label: i18n.t("game:commandDeck.government.budget", "预算"), value: policy.budgetCost }]
+      : []),
+  ];
+}
+
 export function buildDecisionCommandDeckViewModel({
   workspace,
   draft,
@@ -477,11 +499,9 @@ function buildGovernmentLocation({
     .filter((action) => action.actionId !== "expand_research")
     .map((action) => {
       const selected = selectedStrategyIds.has(action.actionId);
-      const nextMarketSpend = fiscalState.marketRegulationSpend + action.cost;
-      const nextMarketOverflow = Math.max(0, nextMarketSpend - fiscalState.marketRegulationAllowance);
-      const nextBaseFiscalSpend = fiscalState.coreGovernmentSpend + fiscalState.militaryFiscalSpend + nextMarketOverflow;
+      const nextBaseFiscalSpend = fiscalState.baseFiscalSpend + action.cost;
       const lockedReason = action.lockedReason ?? (
-        !selected && nextBaseFiscalSpend > fiscalState.baseGovernmentBudget ? i18n.t("game:commandDeck.government.marketRegulationInsufficient", "市场调节额度不足") : null
+        !selected && nextBaseFiscalSpend > fiscalState.baseGovernmentBudget ? i18n.t("game:commandDeck.government.marketRegulationInsufficient", "政府财政不足") : null
       );
 
       const govEffectMetrics = buildEffectMetrics(action.effects);
@@ -505,7 +525,7 @@ function buildGovernmentLocation({
           ...(action.militaryPointDelta ? [{ label: i18n.t("game:commandDeck.government.militaryPointChange", "军事点变化"), value: action.militaryPointDelta }] : []),
           ...govExtraMetrics,
         ],
-        feedback: selected ? i18n.t("game:commandDeck.government.strategyFeedback", "已纳入本轮市场调节，额度 -{{cost}}。", { cost: action.cost }) : undefined,
+        feedback: selected ? i18n.t("game:commandDeck.government.strategyFeedback", "已纳入本轮政府政策，财政 -{{cost}}。", { cost: action.cost }) : undefined,
         lockedReason,
         tone: lockedReason && !selected ? "locked" : selected ? "accent" : "default",
         selected,
@@ -617,17 +637,18 @@ function buildGovernmentLocation({
         ? i18n.t("game:commandDeck.government.policyRequiresReform", "需先完成改革：{{reform}}", { reform: getReformLabel(policy.requiresReform) })
         : i18n.t("game:commandDeck.government.policyNotUnlocked", "未解锁")
       : null;
-    const subtitle = i18n.t("game:commandDeck.government.policySubtitle", "行政力 {{admin}}/回合", { admin: policy.adminCostPerTurn }) + (policy.budgetCost > 0 ? i18n.t("game:commandDeck.government.policyBudgetSuffix", " · 预算 {{budget}}", { budget: policy.budgetCost }) : "");
+    const subtitle = formatPolicyCostSummary(policy);
     return {
       id: `policy-${policy.policyId}`,
       title: policy.label,
       subtitle,
-      description: policy.description ?? (willBeActive ? i18n.t("game:commandDeck.government.policyActive", "已激活") : i18n.t("game:commandDeck.government.policyActivatable", "可激活")),
-      badges: [willBeActive ? i18n.t("game:commandDeck.government.policyInEffect", "生效中") : i18n.t("game:commandDeck.government.policyNotInEffect", "未生效")],
-      metrics: [
-        { label: i18n.t("game:commandDeck.government.adminPerTurn", "每回合行政力"), value: policy.adminCostPerTurn },
-        ...(policy.budgetCost > 0 ? [{ label: i18n.t("game:commandDeck.government.budget", "预算"), value: policy.budgetCost }] : []),
+      description: policy.description ?? (willBeActive ? i18n.t("game:commandDeck.government.policySelectedThisRound", "本轮已选") : i18n.t("game:commandDeck.government.policyActivatable", "可激活")),
+      badges: [
+        willBeActive
+          ? i18n.t("game:commandDeck.government.policySelectedThisRound", "本轮已选")
+          : i18n.t("game:commandDeck.government.policyNotSelected", "未选择"),
       ],
+      metrics: buildPolicyCostMetrics(policy),
       feedback: queuedActivate
         ? i18n.t("game:commandDeck.government.policyQueuedActivate", "已排入本轮激活。")
         : queuedDeactivate

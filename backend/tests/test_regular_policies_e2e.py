@@ -4,7 +4,6 @@ E2E tests for remaining regularPolicies:
 - reduce_army (fiscalRefund=5)
 - raise_commercial_tax (ratioDelta + ideologyDelta)
 - lower_commercial_tax (ratioDelta + ideologyDelta)
-- expand_administration (budgetCost=15, administrationCapacityDelta=1)
 """
 
 import tempfile

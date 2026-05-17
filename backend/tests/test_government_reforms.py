@@ -5,7 +5,7 @@ These tests cover:
   - mutual exclusion between freedom/equality/national paths
   - policy activation, requires_reform gating, and deactivation
   - one-shot effects (ideology delta, ratio override) at enact time
-  - per-turn settlement effects (admin upkeep, ratio delta, permanent
+  - per-round settlement effects (admin spending, ratio delta, permanent
     tech_points_per_turn, welfare transfer)
 """
 from __future__ import annotations
@@ -22,7 +22,11 @@ from app.contracts.enums import CountryCode, GamePhase
 from app.modules.balance_config import get_balance_config
 from app.modules.game_state.factory import create_game, create_initial_snapshot
 from app.modules.game_state.models import GameSnapshot, PlayerState
-from app.modules.rules.decision import _apply_policy_plan, _apply_reform_plan
+from app.modules.rules.decision import (
+    _apply_policy_plan,
+    _apply_reform_plan,
+    resolve_decision_phase,
+)
 from app.modules.rules.settlement import resolve_settlement_phase
 
 
@@ -164,7 +168,7 @@ class PolicyActivationTests(unittest.TestCase):
         self.assertEqual(player.income_allocation_ratio["factory"], 3.0)
         self.assertEqual(player.income_allocation_ratio["governmentFiscal"], 2.0)
 
-    def test_activate_policy_respects_existing_policy_upkeep(self) -> None:
+    def test_activate_policy_respects_remaining_admin_points(self) -> None:
         balance = get_balance_config()
         snapshot = _build_snapshot()
         player = _get_player(snapshot, "player-1")
@@ -176,7 +180,6 @@ class PolicyActivationTests(unittest.TestCase):
         self.assertEqual(first, ["raise_commercial_tax"])
         self.assertEqual(second, [])
         self.assertEqual(player.active_policies, ["raise_commercial_tax"])
-
 
 class SettlementEffectsTests(unittest.TestCase):
     def test_tax_policy_ratio_effect(self) -> None:
@@ -224,6 +227,30 @@ class SettlementEffectsTests(unittest.TestCase):
         # 商业税效果：factory -1, gov +1
         self.assertEqual(updated.income_allocation_ratio["factory"], 2.0)
         self.assertEqual(updated.income_allocation_ratio["governmentFiscal"], 3.0)
+
+    def test_policy_ratio_effect_is_reversed_on_next_decision_round(self) -> None:
+        balance = get_balance_config()
+        snapshot = _build_snapshot()
+        player = _get_player(snapshot, "player-1")
+        player.administration_capacity = 5
+        player.base_admin_capacity = 5
+        player.income_allocation_ratio = {
+            "domesticMarket": 5.0,
+            "factory": 3.0,
+            "governmentFiscal": 2.0,
+        }
+
+        _apply_policy_plan(player, {"activatePolicies": ["raise_commercial_tax"]}, balance)
+        self.assertEqual(player.income_allocation_ratio["factory"], 2.0)
+        self.assertEqual(player.income_allocation_ratio["governmentFiscal"], 3.0)
+
+        resolution = resolve_decision_phase(snapshot=snapshot, turn_inputs=[])
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+
+        self.assertEqual(updated.active_policies, [])
+        self.assertEqual(updated.administration_capacity, 5)
+        self.assertEqual(updated.income_allocation_ratio["factory"], 3.0)
+        self.assertEqual(updated.income_allocation_ratio["governmentFiscal"], 2.0)
 
     def test_permanent_reform_tech_points(self) -> None:
         balance = get_balance_config()

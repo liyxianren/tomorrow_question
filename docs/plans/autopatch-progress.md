@@ -51,15 +51,13 @@
   - 多回合累积 (3回合 = +3 academies)
   - 已激活策略不可重复激活
 - [x] **Bug Fix: policy budgetCost 未被验证和扣除** ✅
-  - `_apply_policy_plan` 从不扣除 budgetCost (expand_research=12, expand_administration=15 等)
+  - `_apply_policy_plan` 从不扣除 budgetCost (expand_research=12, expand_army=8 等)
   - `_validate_decision_payload` 从不验证 activatePolicies 的预算
   - 修复: 验证 + 扣除 budgetCost
   - 2个E2E测试验证: 预算扣除 + 超预算拒绝
-- [x] **expand_administration 策略完整链路E2E验证** ✅ (6个测试, test_expand_administration_e2e.py)
-  - 政策激活 + 行政成本扣除
-  - 结算净行政能力为0 (−1 cost + 1 delta)
-  - 跨回合保持活跃
-  - 行政能力不足阻止激活
+- [x] **行政机构扩张策略已取消** ✅
+  - 不再提供永久增加行政力上限的常规政策
+  - 行政力按当前可用点数消费，避免额外上限成长循环
   - 预算成本扣除 (15)
   - 超预算拒绝 (400)
 - [x] **剩余 regularPolicies 完整链路E2E验证** ✅ (8个测试, test_regular_policies_e2e.py)

@@ -7,7 +7,7 @@ from typing import Any
 
 from app.contracts.enums import ErrorCode, GamePhase, PlayerSubmissionStatus
 from app.modules.balance_config import get_balance_config
-from app.modules.game_state.budgeting import calculate_market_regulation_allowance
+from app.modules.game_state.budgeting import decision_phase_government_fiscal_budget
 from app.modules.game_state.effects import apply_effects
 from app.modules.game_state.factory_economy import (
     action_locked_reason,
@@ -842,7 +842,7 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
     balance = get_balance_config()
     factory_budget = int(player_state.budget_pools.get("factory", 0))
     domestic_budget = int(player_state.budget_pools.get("domesticMarket", 0))
-    government_budget = int(player_state.budget_pools.get("governmentFiscal", 0))
+    government_budget = decision_phase_government_fiscal_budget(player_state)
     shared_route_usage: dict[str, int] = {}
     upgradeable_source_capacity = {
         route_id: current_route_capacity(player_state, route_id)
@@ -1015,8 +1015,8 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
             continue
         core_government_spend += max(0, int(purchase.get("quantity", 0))) * point_costs[point_type]
 
-    # Market-regulation strategies use a one-turn allowance derived from
-    # domesticMarket first; only overflow spends base government fiscal.
+    # Market-regulation strategies are government policy choices; they spend
+    # government fiscal directly.
     for selection in payload.get("governmentPlan", {}).get("strategySelections", []):
         action_id = str(selection.get("actionId") or "")
         market_action = balance.decision_actions.domestic_market_actions.get(action_id)
@@ -1130,7 +1130,7 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
         military_point_spend += valid_colonization_count * int(balance.military.colonization_budget_cost)
 
     # Validate total military spend against remaining government fiscal budget
-    remaining_budget = int(player_state.budget_pools.get("governmentFiscal", 0))
+    remaining_budget = decision_phase_government_fiscal_budget(player_state)
     # Subtract what was already allocated by government plan
     remaining_budget -= int(payload.get("governmentPlan", {}).get("totalSpend", 0) or 0)
     if military_point_spend > remaining_budget:
@@ -1145,9 +1145,7 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
             },
         )
 
-    market_allowance = calculate_market_regulation_allowance(max(0, domestic_budget - domestic_spend))
-    market_regulation_fiscal_overflow = max(0, market_regulation_spend - market_allowance)
-    fiscal_spend = core_government_spend + market_regulation_fiscal_overflow + military_plan_spend
+    fiscal_spend = core_government_spend + market_regulation_spend + military_plan_spend
     if fiscal_spend > government_budget:
         raise PhaseSubmissionError(
             ErrorCode.INVALID_SUBMISSION,
@@ -1155,7 +1153,7 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
             details={
                 "reason": (
                     f"政府财政预算超支：计划 {fiscal_spend} > "
-                    f"可用 {government_budget}（市场调节额度 {market_allowance}）"
+                    f"可用 {government_budget}"
                 ),
             },
         )

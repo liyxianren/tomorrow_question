@@ -62,7 +62,8 @@ describe("IdentityPage", () => {
     await userEvent.click(screen.getByTestId("identity-continue-button"));
 
     expect(screen.getByTestId("identity-gate-modal")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "显示昵称" })).toBeInTheDocument();
+    expect(screen.getByTestId("language-switcher")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "昵称" })).toBeInTheDocument();
     expect(screen.getByTestId("identity-status-message")).toHaveTextContent("请先填写你想在本局使用的显示姓名。");
   });
 

@@ -104,7 +104,7 @@ describe("DecisionCardDemoPage", () => {
     await user.click(screen.getByRole("button", { name: "取消扩产" }));
     await user.click(screen.getByTestId("decision-command-deck-tab-government"));
     await user.click(screen.getByLabelText("博览会"));
-    expect(screen.getByText("已纳入本轮市场调节，额度 -5。")).toBeInTheDocument();
+    expect(screen.getByText("已纳入本轮政府政策，财政 -5。")).toBeInTheDocument();
 
     await user.click(screen.getByTestId("decision-command-deck-tab-domestic"));
     expect(screen.getByText("本轮政府调节")).toBeInTheDocument();

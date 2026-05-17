@@ -162,14 +162,7 @@ function buildBuildingDefs(
   const militaryPoints = decisionWorkspace?.militaryWorkspace?.armyCap ?? (playerState as any)?.armyCap ?? 0;
   const army: Record<string, number> = decisionWorkspace?.militaryWorkspace.army ?? playerState.army ?? {};
   const armyTotal = Object.values(army).reduce((sum, value) => sum + Math.max(0, Math.floor(value)), 0);
-  const marketRegulationAllowance = Math.max(0, Math.floor(decisionWorkspace?.marketRegulationAllowance ?? 0));
-  const baseGovernmentBudget = Math.max(
-    0,
-    decisionWorkspace?.baseBudgetPools?.governmentFiscal ?? budgetPools.governmentFiscal - marketRegulationAllowance,
-  );
-  const governmentBudgetMetric = marketRegulationAllowance > 0
-    ? `${baseGovernmentBudget}+${marketRegulationAllowance}`
-    : `${budgetPools.governmentFiscal}`;
+  const governmentBudgetMetric = `${budgetPools.governmentFiscal}`;
 
   if (phase === "decision") {
     return [

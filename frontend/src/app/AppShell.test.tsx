@@ -62,6 +62,7 @@ describe("AppShell", () => {
     expect(screen.queryByText(/演示态/)).not.toBeInTheDocument();
     expect(screen.queryByText(/流程面板/)).not.toBeInTheDocument();
     expect(screen.queryByText(/工业时代策略/)).not.toBeInTheDocument();
+    expect(screen.getByTestId("language-switcher")).toBeInTheDocument();
     expect(screen.getByText("Identity Page")).toBeInTheDocument();
   });
 
@@ -73,6 +74,7 @@ describe("AppShell", () => {
     expect(screen.queryByText("集结盟友、进入房间、正式开始这一局 19 世纪列强竞逐。")).not.toBeInTheDocument();
     expect(screen.queryByText("当前阶段")).not.toBeInTheDocument();
     expect(screen.queryByText("首页 / 大厅 / 房间 / 对局 / 结算")).not.toBeInTheDocument();
+    expect(screen.getByTestId("language-switcher")).toBeInTheDocument();
     expect(screen.getByText("Lobby Page")).toBeInTheDocument();
   });
 
@@ -85,6 +87,7 @@ describe("AppShell", () => {
     expect(screen.queryByText("当前阶段")).not.toBeInTheDocument();
     expect(screen.queryByText("首页 / 大厅 / 房间 / 对局 / 结算")).not.toBeInTheDocument();
     expect(screen.queryByText("以国家议程、资源调度与联盟博弈推进 19 世纪工业化竞逐。")).not.toBeInTheDocument();
+    expect(screen.getByTestId("language-switcher")).toBeInTheDocument();
     expect(screen.getByText("Room Page")).toBeInTheDocument();
   });
 
@@ -93,6 +96,7 @@ describe("AppShell", () => {
 
     expect(container.querySelector(".page-shell--workbench")).toBeInTheDocument();
     expect(screen.queryByText("当前对局")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("language-switcher")).not.toBeInTheDocument();
     expect(screen.getByText("Game Page")).toBeInTheDocument();
   });
 
@@ -101,6 +105,7 @@ describe("AppShell", () => {
 
     expect(container.querySelector(".page-shell--workbench")).toBeInTheDocument();
     expect(screen.queryByText("对局结果")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("language-switcher")).not.toBeInTheDocument();
     expect(screen.getByText("Settlement Page")).toBeInTheDocument();
   });
 

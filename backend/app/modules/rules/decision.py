@@ -5,7 +5,7 @@ from typing import Any
 
 from app.modules.balance_config import get_balance_config
 from app.modules.game_state.effects import apply_effects, get_talent_effect_total
-from app.modules.game_state.budgeting import market_regulation_allowance
+from app.modules.game_state.budgeting import decision_phase_government_fiscal_budget
 from app.modules.game_state.factory_economy import (
     action_locked_reason,
     current_route_capacity,
@@ -53,9 +53,8 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
         _apply_active_event_effects(player_state, updated_snapshot.active_events)
         _apply_ability_selection(player_state, payload.get("abilitySelection"), balance)
 
-        # ── 行政力每回合重置 ──
-        player_state.active_policies.clear()
-        player_state.administration_capacity = int(player_state.base_admin_capacity)
+        # ── 行政力每回合刷新；上一轮政策的临时比例效果在本轮重置 ──
+        _reset_round_policy_state(player_state, balance)
 
         phase1_production = payload.get("phase1Production") or {}
         upgrade_orders = (
@@ -373,8 +372,7 @@ def _resolve_government_strategy_action(balance, action_id: str):
 def _apply_government_plan(player_state, government_plan: dict[str, Any], balance) -> int:
     """Phase-2 government plan: spend fiscal on points and strategy actions."""
     spent = 0
-    remaining_budget = int(player_state.budget_pools.get("governmentFiscal", 0))
-    remaining_market_allowance = market_regulation_allowance(player_state)
+    remaining_budget = decision_phase_government_fiscal_budget(player_state)
 
     # Process point purchases (tech/military)
     point_costs = POINT_PURCHASE_COSTS
@@ -394,20 +392,14 @@ def _apply_government_plan(player_state, government_plan: dict[str, Any], balanc
     from app.modules.game_state.effects import apply_effects
     for selection in government_plan.get("strategySelections") or []:
         action_id = str(selection.get("actionId") or "")
-        action, is_market_regulation = _resolve_government_strategy_action(balance, action_id)
+        action, _is_market_regulation = _resolve_government_strategy_action(balance, action_id)
         if action is None:
             continue
         # 行政点数消耗：每个策略行动消耗 1 点（必须在预算扣除之前检查）
         if int(player_state.administration_capacity) < 1:
             continue
         cost = int(action.budget_pool_cost)
-        if is_market_regulation:
-            fiscal_cost = max(0, cost - remaining_market_allowance)
-            if fiscal_cost > 0 and spent + fiscal_cost > remaining_budget:
-                continue
-            remaining_market_allowance = max(0, remaining_market_allowance - cost)
-            spent += fiscal_cost
-        elif cost > 0:
+        if cost > 0:
             if spent + cost > remaining_budget:
                 continue
             spent += cost
@@ -884,18 +876,6 @@ def _apply_reform_or_policy_effects(player_state, effects: dict[str, Any]) -> No
                 0, int(player_state.research_facilities.get(key, 0)) + int(delta)
             )
 
-    admin_delta = effects.get("administrationCapacityDelta")
-    if admin_delta is not None:
-        player_state.base_admin_capacity = max(
-            0, int(player_state.base_admin_capacity) + int(admin_delta)
-        )
-
-    base_admin_delta = effects.get("baseAdministrationCapacityDelta")
-    if base_admin_delta is not None:
-        player_state.base_admin_capacity = max(
-            0, int(player_state.base_admin_capacity) + int(base_admin_delta)
-        )
-
     army_cap_delta = effects.get("armyCapDelta")
     if army_cap_delta is not None:
         player_state.army_cap = max(
@@ -1019,10 +999,9 @@ def _apply_policy_plan(player_state, payload: dict[str, Any], balance) -> list[s
             continue
         if policy.requires_reform is not None and policy.requires_reform not in player_state.completed_reforms:
             continue
-        # 行政点数消耗：每个政策激活消耗 1 点
-        if int(player_state.administration_capacity) < 1:
+        admin_cost = int(policy.admin_cost_per_turn)
+        if int(player_state.administration_capacity) < admin_cost:
             continue
-        player_state.administration_capacity = int(player_state.administration_capacity) - 1
 
         budget_cost = int(policy.budget_cost)
         if budget_cost > 0:
@@ -1030,6 +1009,7 @@ def _apply_policy_plan(player_state, payload: dict[str, Any], balance) -> list[s
             if int(pool) < budget_cost:
                 continue
             player_state.budget_pools["governmentFiscal"] = int(pool) - budget_cost
+        player_state.administration_capacity = int(player_state.administration_capacity) - admin_cost
         player_state.active_policies.append(policy_id)
         _apply_policy_ratio_effect_once(player_state, policy.effects)
         activated.append(policy_id)
@@ -1037,13 +1017,13 @@ def _apply_policy_plan(player_state, payload: dict[str, Any], balance) -> list[s
     return activated
 
 
-def _active_policy_upkeep(player_state, balance) -> int:
-    total = 0
+def _reset_round_policy_state(player_state, balance) -> None:
     for policy_id in player_state.active_policies:
         policy = balance.reforms.regular_policies.get(policy_id)
         if policy is not None:
-            total += int(policy.admin_cost_per_turn)
-    return total
+            _reverse_policy_ratio_effect(player_state, policy.effects)
+    player_state.active_policies.clear()
+    player_state.administration_capacity = int(player_state.base_admin_capacity)
 
 
 def _apply_policy_ratio_effect_once(player_state, effects: dict[str, Any]) -> None:

@@ -20,7 +20,10 @@ export function DecisionResourceBar({ workspace, draft, activeStep }: DecisionRe
   const { t } = useTranslation();
   const spendSummary = calculateDecisionSpendSummary(workspace, draft);
   const governmentBreakdown = calculateGovernmentSpendBreakdown(workspace, draft);
-  const armyCount = workspace.militaryWorkspace.army.army;
+  const armyCount = Object.values(workspace.militaryWorkspace.army).reduce(
+    (sum, value) => sum + Math.max(0, Math.floor(value)),
+    0,
+  );
 
   const activeChip = mapStepToChip(activeStep);
 

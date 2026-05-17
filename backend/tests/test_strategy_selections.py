@@ -261,12 +261,11 @@ class StrategySelectionsE2E(unittest.TestCase):
             {"session-1": _decision_payload(strategy_selections=["trade_agreement"])}
         )
         britain = self._player(snap, "player-1")
-        # trade_agreement costs 6
-        self.assertLess(britain.budget_pools["governmentFiscal"], 100,
-                        "trade_agreement should deduct budget (cost=6)")
+        # trade_agreement costs 6 from the decision-phase fiscal total (base +8).
+        self.assertEqual(britain.budget_pools["governmentFiscal"], 102)
 
-    def test_market_regulation_strategy_uses_allowance_before_base_fiscal(self):
-        """Market regulation submitted as strategySelections should use its one-turn allowance first."""
+    def test_market_regulation_strategy_spends_government_fiscal(self):
+        """Market regulation submitted as strategySelections should spend governmentFiscal directly."""
         self.seed_active_game()
         snapshot = self._load_snapshot()
         britain = self._player(snapshot, "player-1")
@@ -279,15 +278,15 @@ class StrategySelectionsE2E(unittest.TestCase):
         )
         britain = self._player(snap, "player-1")
 
-        self.assertEqual(britain.budget_pools["governmentFiscal"], 100)
+        self.assertEqual(britain.budget_pools["governmentFiscal"], 103)
         self.assertEqual(britain.budget_pools["domesticMarket"], 50)
         self.assertGreaterEqual(
             int(britain.temporary_effects.get("domesticMarketCapacityBonus", 0)),
             2,
         )
 
-    def test_market_regulation_overflow_spends_base_fiscal(self):
-        """Market-regulation cost above the one-turn allowance should spend governmentFiscal."""
+    def test_market_regulation_respects_government_fiscal_budget(self):
+        """Market-regulation strategy selections should not use a separate budget line."""
         self.seed_active_game()
         snapshot = self._load_snapshot()
         britain = self._player(snapshot, "player-1")
@@ -300,7 +299,7 @@ class StrategySelectionsE2E(unittest.TestCase):
         )
         britain = self._player(snap, "player-1")
 
-        self.assertEqual(britain.budget_pools["governmentFiscal"], 2)
+        self.assertEqual(britain.budget_pools["governmentFiscal"], 5)
         self.assertEqual(britain.budget_pools["domesticMarket"], 5)
 
     def test_market_regulation_strategy_keeps_price_bonus_effect(self):
@@ -340,19 +339,19 @@ class StrategySelectionsE2E(unittest.TestCase):
             original_facilities + 1,
             "expand_research should add one academy research facility",
         )
-        self.assertEqual(britain.budget_pools["governmentFiscal"], 94)
+        self.assertEqual(britain.budget_pools["governmentFiscal"], 102)
 
     def test_strategy_over_budget_rejected(self):
         """Strategy selection exceeding government budget should be rejected."""
         self.seed_active_game()
         snapshot = self._load_snapshot()
         britain = self._player(snapshot, "player-1")
-        britain.budget_pools["governmentFiscal"] = 3  # Not enough for trade_agreement (cost=6)
+        britain.budget_pools["governmentFiscal"] = 0  # Not enough for infrastructure_investment (cost=10) even after +8.
         self._save_snapshot(snapshot)
 
         self._submit_api(
             "session-1",
-            _decision_payload(strategy_selections=["trade_agreement"]),
+            _decision_payload(strategy_selections=["infrastructure_investment"]),
             expected_status=400,
         )
 

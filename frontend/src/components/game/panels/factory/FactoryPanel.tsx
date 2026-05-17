@@ -180,7 +180,7 @@ export function FactoryPanel({
     const description = isLocked
       ? `🔒 ${translateBackend(option.lockedReason)}`
       : option.maxQuantity < 999
-        ? `${i18n.t("common:max")} ${option.maxQuantity} ${i18n.t("game:times")}`
+        ? `${i18n.t("common:max")} ${option.maxQuantity} ${i18n.t("game:flow.times", "次")}`
         : undefined;
     const effects = isLocked
       ? undefined

@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { LanguageSwitcher } from "../components/i18n/LanguageSwitcher";
 import { IdentityGateForm } from "../components/lobby/IdentityGateForm";
 import { useIdentityGateController } from "../features/lobby/flow/useIdentityGateController";
 import "./IdentityPage.css";
@@ -42,6 +43,7 @@ export function IdentityPage({ onIdentityConfirmed, onCancel, canCancel = false 
         </div>
 
         <div className="identity-gate-modal__form">
+          <LanguageSwitcher className="identity-gate-modal__language" compact />
           <div>
             <p className="panel__eyebrow">{t("identityCard.noProfileDisplayName")}</p>
             <h2 id="identity-gate-title">{t("identityCard.nicknameLabel")}</h2>

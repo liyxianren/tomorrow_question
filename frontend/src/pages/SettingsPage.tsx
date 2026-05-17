@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { LanguageSwitcher } from "../components/i18n/LanguageSwitcher";
 import { PageShell } from "../components/ui/PageShell";
 import { PrimaryButton } from "../components/ui/PrimaryButton";
 import { SectionCard } from "../components/ui/SectionCard";
@@ -274,34 +275,7 @@ export function SettingsPage() {
   return (
     <PageShell className="settings-page" width="wide">
       <SectionCard title="Language / 语言" tone="muted" eyebrow="i18n">
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-          <button
-            onClick={() => i18n.changeLanguage("en")}
-            style={{
-              fontWeight: i18n.language === "en" ? 700 : 400,
-              padding: "6px 16px",
-              border: i18n.language === "en" ? "2px solid var(--color-accent)" : "1px solid #888",
-              borderRadius: "6px",
-              background: i18n.language === "en" ? "var(--color-accent-light, #e8f0fe)" : "transparent",
-              cursor: "pointer",
-            }}
-          >
-            English
-          </button>
-          <button
-            onClick={() => i18n.changeLanguage("zh")}
-            style={{
-              fontWeight: i18n.language === "zh" ? 700 : 400,
-              padding: "6px 16px",
-              border: i18n.language === "zh" ? "2px solid var(--color-accent)" : "1px solid #888",
-              borderRadius: "6px",
-              background: i18n.language === "zh" ? "var(--color-accent-light, #e8f0fe)" : "transparent",
-              cursor: "pointer",
-            }}
-          >
-            中文
-          </button>
-        </div>
+        <LanguageSwitcher />
       </SectionCard>
 
       <SectionCard

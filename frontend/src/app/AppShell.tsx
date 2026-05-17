@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, Outlet, useLocation } from "react-router-dom";
-import i18n from "../i18n";
 
+import { LanguageSwitcher } from "../components/i18n/LanguageSwitcher";
 import { PageShell } from "../components/ui/PageShell";
 import { clearStoredProfileSession } from "../features/lobby/flow/identityStorage";
 import { apiRequest, clearSessionId } from "../services/http";
@@ -98,6 +98,11 @@ export function AppShell() {
   const shellContent = useShellContent();
   const currentRoomCode = resolveRoomCode(location.pathname);
   const isLobbyRoute = location.pathname.startsWith("/lobby");
+  const isLanguageLockedRoute =
+    location.pathname.startsWith("/game/")
+    || location.pathname.startsWith("/settlement/");
+  const hasPageLanguageSwitcher = location.pathname.startsWith("/setting");
+  const shouldShowShellLanguageSwitcher = !isLanguageLockedRoute && !hasPageLanguageSwitcher;
   const isWorkbenchRoute =
     location.pathname.startsWith("/room/")
     || location.pathname.startsWith("/game/")
@@ -152,36 +157,7 @@ export function AppShell() {
           </header>
         ) : null}
 
-        <div style={{ display: "flex", justifyContent: "flex-end", padding: "8px 0", gap: "8px" }}>
-          <button
-            onClick={() => i18n.changeLanguage("en")}
-            style={{
-              fontWeight: i18n.language === "en" ? 700 : 400,
-              padding: "4px 10px",
-              border: i18n.language === "en" ? "2px solid var(--color-accent)" : "1px solid #888",
-              borderRadius: "4px",
-              background: i18n.language === "en" ? "var(--color-accent-light, #e8f0fe)" : "transparent",
-              cursor: "pointer",
-              fontSize: "13px",
-            }}
-          >
-            EN
-          </button>
-          <button
-            onClick={() => i18n.changeLanguage("zh")}
-            style={{
-              fontWeight: i18n.language === "zh" ? 700 : 400,
-              padding: "4px 10px",
-              border: i18n.language === "zh" ? "2px solid var(--color-accent)" : "1px solid #888",
-              borderRadius: "4px",
-              background: i18n.language === "zh" ? "var(--color-accent-light, #e8f0fe)" : "transparent",
-              cursor: "pointer",
-              fontSize: "13px",
-            }}
-          >
-            {i18n.language === "zh" ? "EN" : "中文"}
-          </button>
-        </div>
+        {shouldShowShellLanguageSwitcher ? <LanguageSwitcher className="app-shell__language-switcher" compact /> : null}
 
         <main className="app-shell__content">
           <Outlet />

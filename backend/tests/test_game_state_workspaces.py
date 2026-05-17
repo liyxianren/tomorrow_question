@@ -195,8 +195,8 @@ class GameStateWorkspaceTests(unittest.TestCase):
         workspace = build_decision_player_workspace(snapshot, britain)
 
         self.assertEqual(workspace["baseBudgetPools"]["governmentFiscal"], 8)
-        self.assertEqual(workspace["marketRegulationAllowance"], 24)
-        self.assertEqual(workspace["budgetPools"]["governmentFiscal"], 32)
+        self.assertEqual(workspace["marketRegulationAllowance"], 0)
+        self.assertEqual(workspace["budgetPools"]["governmentFiscal"], 16)
         self.assertEqual(workspace["domesticMarketCapacity"], 10)
         self.assertEqual(workspace["militaryWorkspace"]["militaryPoints"], 1)
         self.assertEqual(britain.budget_pools["governmentFiscal"], 10, "workspace preview must not mutate snapshot state")

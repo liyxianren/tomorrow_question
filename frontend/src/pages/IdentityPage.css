@@ -73,6 +73,10 @@
   padding: 30px;
 }
 
+.identity-gate-modal__language {
+  justify-self: end;
+}
+
 .identity-gate-modal__form h2 {
   margin-top: 6px;
   color: #fff3dc;

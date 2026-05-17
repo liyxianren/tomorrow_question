@@ -305,15 +305,6 @@
       "description": "裁减军队编制，回笼财政资金，军事上限降低。",
       "maxPerRound": 1
     },
-    "expand_administration": {
-      "label": "扩张行政机构",
-      "budgetCost": 15,
-      "effects": {
-        "baseAdministrationCapacityDelta": 1
-      },
-      "description": "扩建行政机构，永久增加行政能力。",
-      "maxPerRound": 1
-    },
     "people_petition": {
       "label": "民众请愿",
       "adminCostPerTurn": 1,

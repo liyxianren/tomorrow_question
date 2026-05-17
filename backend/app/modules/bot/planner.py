@@ -32,12 +32,10 @@ def _plan_decision(workspace: Mapping[str, Any]) -> dict[str, Any]:
     }
 
     budget_pools = _as_mapping(workspace.get("budgetPools"))
-    base_budget_pools = _as_mapping(workspace.get("baseBudgetPools"))
-    market_allowance = max(0, int(workspace.get("marketRegulationAllowance", 0) or 0))
     government_budget = int(
-        base_budget_pools.get(
+        budget_pools.get(
             "governmentFiscal",
-            max(0, int(budget_pools.get("governmentFiscal", 0)) - market_allowance),
+            max(0, int(budget_pools.get("governmentFiscal", 0))),
         )
     )
     government_actions = _as_mapping(workspace.get("governmentActions"))
@@ -50,7 +48,7 @@ def _plan_decision(workspace: Mapping[str, Any]) -> dict[str, Any]:
             for action in government_strategies
             if str(action.get("actionId") or "")
             and str(action.get("actionId")) != "expand_research"
-            and government_budget + market_allowance >= int(action.get("cost", 0))
+            and government_budget >= int(action.get("cost", 0))
         ),
         None,
     )
@@ -59,8 +57,7 @@ def _plan_decision(workspace: Mapping[str, Any]) -> dict[str, Any]:
             {"actionId": str(first_market_strategy.get("actionId"))}
         )
         strategy_cost = int(first_market_strategy.get("cost", 0))
-        government_budget -= max(0, strategy_cost - market_allowance)
-        market_allowance = max(0, market_allowance - strategy_cost)
+        government_budget -= strategy_cost
 
     research_target = _find_research_target(workspace)
     if research_target:
