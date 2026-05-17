@@ -43,3 +43,9 @@ Original prompt: 等一下做完之后直接通过电脑控制，查看现在的
 - Adjusted future income ratios from 5:3:2 to 4:3:3 so ongoing rounds give more general government fiscal while preserving the combined government+market decision bandwidth.
 - Updated restoration of older active snapshots so stale persisted phase workspaces are rehydrated and existing local games immediately show the new budget split. Verified the live game page shows `政府财政 31` with `基础 9/9 · 市场调节 22/22`, and no browser console errors.
 - Latest validation: `npm test`, `npm run build`, `git diff --check`, `backend/.venv/bin/python -m pytest backend/tests/test_game_state_models.py backend/tests/test_game_state_workspaces.py backend/tests/test_strategy_selections.py backend/tests/test_phase_submission_services.py backend/tests/test_bot_orchestrator.py backend/tests/test_rules_settlement.py -q`, plus targeted settlement/front-end integration checks pass.
+
+## 2026-05-17
+
+- Fixed the cloud submit-button failure mode by adding a synchronous in-flight guard to `UnifiedSubmitPanel` and treating backend `ALREADY_SUBMITTED` responses as submitted UI state instead of an error.
+- Verified with the cloud game page through computer control: decision submit and market submit both advanced the live game from round 1 decision to round 2 decision.
+- Latest validation: `npm test -- UnifiedSubmitPanel.test.tsx`, `npm run build`, and `git diff --check` pass.

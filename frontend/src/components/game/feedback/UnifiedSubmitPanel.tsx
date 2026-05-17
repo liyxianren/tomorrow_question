@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "../../../i18n";
 
@@ -75,6 +75,10 @@ function resolveButtonLabel({
   return canSubmit ? i18n.t("game:submit.confirmSubmit") : i18n.t("game:submit.cannotSubmit");
 }
 
+function isAlreadySubmittedError(error: unknown): boolean {
+  return error instanceof ApiRequestError && error.code === "ALREADY_SUBMITTED";
+}
+
 export function UnifiedSubmitPanel({
   gameId,
   phase,
@@ -91,8 +95,10 @@ export function UnifiedSubmitPanel({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<SubmitErrorState | null>(null);
   const [localStatus, setLocalStatus] = useState<LocalStatusState | null>(null);
+  const submitInFlightRef = useRef(false);
 
   useEffect(() => {
+    submitInFlightRef.current = false;
     setIsSubmitting(false);
     setSubmitError(null);
     setLocalStatus(null);
@@ -118,7 +124,8 @@ export function UnifiedSubmitPanel({
   const visibleDisabledReasons = !hasSubmitted && !canSubmit ? disabledReasons.slice(0, 3) : [];
 
   async function handleSubmit(): Promise<void> {
-    if (!canSubmit || hasSubmitted || isSubmitting) return;
+    if (!canSubmit || hasSubmitted || submitInFlightRef.current) return;
+    submitInFlightRef.current = true;
     setSubmitError(null);
     setIsSubmitting(true);
     try {
@@ -130,8 +137,21 @@ export function UnifiedSubmitPanel({
       });
       onSubmitted?.(response);
     } catch (error) {
-      setSubmitError(formatSubmitError(error));
+      if (isAlreadySubmittedError(error)) {
+        setLocalStatus({
+          phase,
+          roundNo,
+          statusByPlayerId: {
+            ...effectiveStatusByPlayerId,
+            [playerId]: "submitted",
+          },
+        });
+        setSubmitError(null);
+      } else {
+        setSubmitError(formatSubmitError(error));
+      }
     } finally {
+      submitInFlightRef.current = false;
       setIsSubmitting(false);
     }
   }

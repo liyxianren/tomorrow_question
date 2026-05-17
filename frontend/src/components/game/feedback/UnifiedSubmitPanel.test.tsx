@@ -140,6 +140,89 @@ describe("UnifiedSubmitPanel", () => {
     expect(await screen.findByText("提交截止时间已过。")).toBeInTheDocument();
   });
 
+  it("guards against repeated clicks while a submit request is in flight", async () => {
+    let resolveRequest: ((value: SubmitPhaseResponse) => void) | null = null;
+
+    vi.mocked(submitPhase).mockImplementationOnce(
+      () =>
+        new Promise<SubmitPhaseResponse>((resolve) => {
+          resolveRequest = resolve;
+        }),
+    );
+
+    render(
+      <UnifiedSubmitPanel
+        canSubmit
+        draftPayload={{ saleOrders: [] }}
+        gameId="game-1"
+        phase="market"
+        playerId="player-1"
+        roundNo={3}
+        submissionStatus="pending"
+      />,
+    );
+
+    const user = userEvent.setup();
+    await user.dblClick(screen.getByRole("button", { name: "确认提交" }));
+
+    expect(submitPhase).toHaveBeenCalledTimes(1);
+
+    resolveRequest!({
+      submission: {
+        gameId: "game-1",
+        roundNo: 3,
+        phase: "market",
+        playerId: "player-1",
+        submissionStatus: "submitted",
+        payload: { saleOrders: [] },
+        submittedAt: "2026-03-30T12:00:00Z",
+        isTimeoutGenerated: false,
+      },
+      submissionStatus: {
+        "player-1": "submitted",
+      },
+      phase: "market",
+      roundNo: 3,
+      allSubmitted: false,
+      settlementTriggered: false,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "已提交" })).toBeDisabled();
+    });
+  });
+
+  it("treats an already-submitted response as submitted feedback", async () => {
+    vi.mocked(submitPhase).mockRejectedValueOnce(
+      new ApiRequestError("The player has already submitted", 409, "ALREADY_SUBMITTED"),
+    );
+
+    render(
+      <UnifiedSubmitPanel
+        canSubmit
+        draftPayload={{ saleOrders: [] }}
+        gameId="game-1"
+        phase="market"
+        playerId="player-1"
+        roundNo={3}
+        submissionStatus="pending"
+        submissionStatusByPlayerId={{
+          "player-1": "pending",
+          "player-2": "pending",
+        }}
+      />,
+    );
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "确认提交" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "已提交" })).toBeDisabled();
+      expect(screen.queryByTestId("submit-error")).not.toBeInTheDocument();
+      expect(screen.getByText(/等待其他 1 名玩家/)).toBeInTheDocument();
+    });
+  });
+
   it("does not reuse a stale local submission response after the phase changes", async () => {
     let resolveRequest: ((value: SubmitPhaseResponse) => void) | null = null;
 
