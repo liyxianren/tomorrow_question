@@ -1059,7 +1059,7 @@ function GovernmentReformPanel({
           </p>
         </div>
         <div className="gp-step-header__pills">
-          <span className="gp-step-pill">{i18n.t("game:government.adminCapacityLabel", "行政能力")} <strong>{reforms.administrationCapacity}</strong></span>
+          <span className="gp-step-pill">{i18n.t("game:government.adminCapacityLabel", "行政力")} <strong>{reforms.administrationCapacity}</strong></span>
           <span className="gp-step-pill">{i18n.t("game:government.remainingThisRoundLabel", "本轮剩余")} <strong>{remainingCapacity}</strong></span>
           <span className="gp-step-pill">{i18n.t("game:government.reformQueueLabel", "改革排队")} <strong>{queuedReformIds.size}</strong></span>
           <span className="gp-step-pill">{i18n.t("game:government.policyChangeLabel", "政策变更")} <strong>{queuedActivateIds.size + queuedDeactivateIds.size}</strong></span>
@@ -1083,7 +1083,7 @@ function GovernmentReformPanel({
                   : queued
                     ? i18n.t("game:government.statusQueued", "本轮排入")
                     : overCapacity
-                      ? i18n.t("game:government.statusInsufficientCapacity", "行政能力不足")
+                      ? i18n.t("game:government.statusInsufficientCapacity", "行政力不足")
                       : i18n.t("game:government.statusCanImplement", { cost: reform.adminCost, defaultValue: `可实施（行政 ${reform.adminCost}）` });
               return (
                 <article key={reform.reformId} className="gp-toggle">
@@ -1099,7 +1099,7 @@ function GovernmentReformPanel({
                       {REFORM_PATH_LABELS[reform.path]}
                     </span>
                   </div>
-                  <span className="gp-toggle__desc">{i18n.t("game:government.adminCostConsumed", { cost: reform.adminCost, defaultValue: `行政能力消耗 ${reform.adminCost}。` })}</span>
+                  <span className="gp-toggle__desc">{i18n.t("game:government.adminCostConsumed", { cost: reform.adminCost, defaultValue: `消耗 ${reform.adminCost} 行政力。` })}</span>
                   {queued ? (
                     <span className="gp-input-card__feedback">{i18n.t("game:government.queuedForSubmit", { label: reform.label, defaultValue: `已排入本轮，提交后将进入"${translateBackend(reform.label)}"。` })}</span>
                   ) : null}

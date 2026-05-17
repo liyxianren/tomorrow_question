@@ -1,7 +1,7 @@
 {
   "eyebrow": "游戏房间",
-  "memberCount": "{count} / {max} 人",
-  "readyCount": "准备 {ready} / {total}",
+  "memberCount": "{{count}} / {{max}} 人",
+  "readyCount": "准备 {{ready}} / {{total}}",
   "status": {
     "waiting": "等待玩家加入",
     "readying": "准备开局中",

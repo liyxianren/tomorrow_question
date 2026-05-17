@@ -543,6 +543,7 @@ export function GovernmentPanel({
     - queuedReformAdminCost
     - projectedActivePolicyUpkeep;
   const projectedAdmin = Math.max(0, rawProjectedAdmin);
+  const projectedAdminTotal = reforms.administrationCapacity + queuedAdminPurchases;
 
   const isPolicyActiveAfter = (policyId: string, currentlyActive: boolean): boolean => {
     if (queuedActivateIds.has(policyId)) return true;
@@ -668,6 +669,29 @@ export function GovernmentPanel({
           <span className="government-panel__budget">{t("game:government.budget")} {fiscalState.effectiveGovernmentRemaining} / {fiscalState.effectiveGovernmentBudget}</span>
         </div>
       </div>
+
+      <DecisionStatStrip
+        testId="government-resource-strip"
+        items={[
+          {
+            icon: "💰",
+            value: `${fiscalState.effectiveGovernmentRemaining} / ${fiscalState.effectiveGovernmentBudget}`,
+            label: t("game:government.budget"),
+          },
+          {
+            icon: "🏛️",
+            value: `${projectedAdmin} / ${projectedAdminTotal}`,
+            label: t("game:government.adminCapacity"),
+            tone: rawProjectedAdmin < 0 ? "critical" : projectedAdmin === 0 ? "warning" : undefined,
+          },
+          {
+            icon: "📋",
+            value: projectedActivePolicyUpkeep,
+            label: t("game:government.policyAdminUpkeep", "政策占用"),
+            tone: rawProjectedAdmin < 0 ? "critical" : undefined,
+          },
+        ]}
+      />
 
       {marketRegulationSection}
 

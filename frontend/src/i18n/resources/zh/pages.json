@@ -92,7 +92,7 @@
     "government": {
       "title": "政府参数",
       "eyebrow": "government",
-      "adminCostLabel": "行政能力价格（administrationCost）",
+      "adminCostLabel": "行政力价格（administrationCost）",
       "ideologyMinLabel": "思潮范围 - 最小值",
       "ideologyMaxLabel": "最大值",
       "thresholdColumns": {

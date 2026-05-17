@@ -72,6 +72,8 @@ describe("GamePhasePanelContent", () => {
     await user.click(screen.getByRole("button", { name: "下一步：政府政策" }));
     expect(screen.getByTestId("government-panel")).toBeInTheDocument();
     expect(screen.getByTestId("decision-step-tab-government")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("government-resource-strip")).toHaveTextContent("行政力");
+    expect(screen.getByTestId("government-resource-strip")).toHaveTextContent("3 / 3");
     expect(screen.getByTestId("government-market-preview")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "选择：博览会" }));
     await user.click(screen.getByRole("button", { name: "激活政策：贸易协定" }));
