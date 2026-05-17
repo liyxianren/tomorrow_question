@@ -80,6 +80,25 @@ def resolve_market_phase(*, snapshot, turn_inputs) -> RuleResolution:
 PHASE1_GOODS_KEY = "phase1_goods"
 
 
+def _available_market_competition_army(player_state) -> dict[str, int]:
+    return {
+        "infantry": max(0, int(player_state.army.get("infantry", 0))) + max(0, int(player_state.army.get("army", 0))),
+        "artillery": max(0, int(player_state.army.get("artillery", 0))),
+    }
+
+
+def _spend_market_infantry(player_state, amount: int) -> None:
+    remaining = max(0, int(amount))
+    infantry_pool = max(0, int(player_state.army.get("infantry", 0)))
+    from_infantry = min(infantry_pool, remaining)
+    if from_infantry > 0:
+        player_state.army["infantry"] = infantry_pool - from_infantry
+        remaining -= from_infantry
+    if remaining > 0:
+        generic_pool = max(0, int(player_state.army.get("army", 0)))
+        player_state.army["army"] = max(0, generic_pool - remaining)
+
+
 def _apply_phase1_market(
     player_state,
     phase1_market: dict[str, object],
@@ -241,10 +260,7 @@ def _resolve_external_market_competitions(
         if not isinstance(deployments, list):
             continue
 
-        remaining_army = {
-            "infantry": max(0, int(player_state.army.get("infantry", 0))),
-            "artillery": max(0, int(player_state.army.get("artillery", 0))),
-        }
+        remaining_army = _available_market_competition_army(player_state)
         seen_regions: set[str] = set()
         for deployment in deployments:
             if not isinstance(deployment, dict):
@@ -287,10 +303,7 @@ def _resolve_external_market_competitions(
         if len(winners) != 1:
             continue
         winner_player, infantry_used, artillery_used, _ = winners[0]
-        winner_player.army["infantry"] = max(
-            0,
-            int(winner_player.army.get("infantry", 0)) - infantry_used,
-        )
+        _spend_market_infantry(winner_player, infantry_used)
         winner_player.army["artillery"] = max(
             0,
             int(winner_player.army.get("artillery", 0)) - artillery_used,

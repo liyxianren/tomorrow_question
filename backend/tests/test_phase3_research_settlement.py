@@ -125,9 +125,9 @@ class Phase3ResearchSettlementTests(unittest.TestCase):
         france = get_player(snapshot, "player-2")
         # lathe threshold=4, France already unlocked it.
         france.unlocked_techs.append("lathe")
-        # Britain accumulates progress=7+1=8 >= 2*4=8, direct-unlock without dice.
+        # Britain accumulates progress=3+1=4 and direct-unlocks at the original threshold without dice.
         britain.active_research = "lathe"
-        britain.research_progress = {"lathe": 7}
+        britain.research_progress = {"lathe": 3}
         britain.research_facilities = {"academy": 1}
 
         with patch("app.modules.rules.settlement.random.randint") as mock_roll:
@@ -135,10 +135,32 @@ class Phase3ResearchSettlementTests(unittest.TestCase):
             mock_roll.assert_not_called()
 
         self.assertIn("lathe", britain.unlocked_techs)
-        # Direct-unlock consumes 2*threshold=8 from 8, leaving 0.
+        # Direct-unlock consumes the original threshold=4 from 4, leaving 0.
         self.assertEqual(britain.research_progress.get("lathe"), 0)
         self.assertNotIn("lathe", britain.breakthrough_attempts)
         self.assertIsNone(britain.active_research)
+
+    def test_discovered_tech_waits_for_catchup_without_dice(self) -> None:
+        snapshot = build_snapshot()
+        balance = get_balance_config()
+        britain = get_player(snapshot, "player-1")
+        france = get_player(snapshot, "player-2")
+        # lathe threshold=4, France already unlocked it. Britain has enough
+        # progress to keep accumulating, but not enough for the original threshold.
+        france.unlocked_techs.append("lathe")
+        britain.active_research = "lathe"
+        britain.research_progress = {"lathe": 2}
+        britain.breakthrough_attempts = {"lathe": 2}
+        britain.research_facilities = {"academy": 1}
+
+        with patch("app.modules.rules.settlement.random.randint") as mock_roll:
+            _apply_phase3_research_progress(britain, snapshot, balance)
+            mock_roll.assert_not_called()
+
+        self.assertNotIn("lathe", britain.unlocked_techs)
+        self.assertEqual(britain.research_progress.get("lathe"), 3)
+        self.assertNotIn("lathe", britain.breakthrough_attempts)
+        self.assertEqual(britain.active_research, "lathe")
 
     def test_no_active_research_is_noop(self) -> None:
         snapshot = build_snapshot()

@@ -1,7 +1,7 @@
 import i18n from "../../../i18n";
 import type {
+  BudgetPools,
   IdeologyKey,
-  ConquestActionSelection,
   DecisionPlayerPhaseWorkspace,
   GamePhase,
   MarketPlayerPhaseWorkspace,
@@ -27,6 +27,8 @@ import {
   calculateDecisionSpendSummary as calculateDecisionSpendSummaryFromDraft,
   calculateGovernmentFiscalState,
   calculateRatioPreview as calculateRatioPreviewFromDraft,
+  getSelectedProductionCapacityDeltaByMode,
+  sumSelectedFactoryActionEffect,
 } from "../decisionShared";
 import type { DecisionPhaseDraft } from "../forms";
 import { getCountryLabel } from "../labels";
@@ -231,6 +233,7 @@ function getDecisionContentContext(currentPlayerWorkspace: PlayerPhaseWorkspace 
   }
   return {
     activeResearch: currentPlayerWorkspace.techTree.activeResearch,
+    requireFactoryReviewForPhase1: true,
   };
 }
 
@@ -255,17 +258,18 @@ function createResourceStripViewModel({
     currentPhase === "decision" && currentPlayerWorkspace && "militaryWorkspace" in currentPlayerWorkspace
       ? (currentPlayerWorkspace as DecisionPlayerPhaseWorkspace)
       : null;
-  const visibleBudgetPools = decisionWorkspace?.budgetPools ?? currentPlayerState.budgetPools;
+  const visibleBudgetPools = decisionWorkspace?.baseBudgetPools ?? decisionWorkspace?.budgetPools ?? currentPlayerState.budgetPools;
   const draft = normalizeDecisionDraft(draftPayload);
   const fiscalState = decisionWorkspace
     ? calculateGovernmentFiscalState(decisionWorkspace, draft)
     : null;
+  const budgetLabels = getBudgetResourceLabels(currentPhase);
   const metrics: ResourceStripMetric[] = [
-    { label: i18n.t("game:settlement.consumerPurchasingPower", "民间购买力"), value: visibleBudgetPools.domesticMarket },
-    { label: i18n.t("game:settlement.factoryBudget", "工厂"), value: visibleBudgetPools.factory },
+    { label: budgetLabels.domesticMarket, value: visibleBudgetPools.domesticMarket },
+    { label: budgetLabels.factory, value: visibleBudgetPools.factory },
     {
-      label: i18n.t("game:government.budget", "政府财政"),
-      value: fiscalState ? fiscalState.effectiveGovernmentBudget : visibleBudgetPools.governmentFiscal,
+      label: budgetLabels.governmentFiscal,
+      value: fiscalState ? fiscalState.baseGovernmentBudget : visibleBudgetPools.governmentFiscal,
     },
   ];
 
@@ -277,7 +281,7 @@ function createResourceStripViewModel({
     if (spendSummary.domesticSpend > visibleBudgetPools.domesticMarket) {
       metrics[0].tone = "warning";
     }
-    if (fiscalState ? fiscalState.baseFiscalSpend > fiscalState.baseGovernmentBudget : spendSummary.governmentSpend > visibleBudgetPools.governmentFiscal) {
+    if (fiscalState ? fiscalState.effectiveGovernmentRemaining < 0 : spendSummary.governmentSpend > visibleBudgetPools.governmentFiscal) {
       metrics[2].tone = "warning";
     }
   }
@@ -291,6 +295,21 @@ function createResourceStripViewModel({
   });
 
   return { metrics, contextLines };
+}
+
+function getBudgetResourceLabels(currentPhase: GamePhase | null): Record<keyof BudgetPools, string> {
+  if (currentPhase === "decision") {
+    return {
+      domesticMarket: i18n.t("game:settlement.consumerPurchasingPower", "民间购买力"),
+      factory: i18n.t("game:settlement.factoryBudget", "工厂"),
+      governmentFiscal: i18n.t("game:government.budget", "政府财政"),
+    };
+  }
+  return {
+    domesticMarket: i18n.t("game:resource.phaseBalanceDomestic", "本阶段民间购买力"),
+    factory: i18n.t("game:resource.phaseBalanceFactory", "本阶段工厂余额"),
+    governmentFiscal: i18n.t("game:resource.phaseBalanceGovernment", "本阶段政府财政"),
+  };
 }
 
 function createLeftRailViewModel({
@@ -327,13 +346,16 @@ function createLeftRailViewModel({
     currentPhase === "decision" && currentPlayerWorkspace && "militaryWorkspace" in currentPlayerWorkspace
       ? (currentPlayerWorkspace as DecisionPlayerPhaseWorkspace)
       : null;
-  const visibleBudgetPools = decisionWorkspace?.budgetPools ?? currentPlayerState?.budgetPools;
+  const visibleBudgetPools = decisionWorkspace?.baseBudgetPools ?? decisionWorkspace?.budgetPools ?? currentPlayerState?.budgetPools;
   const visibleMilitaryPoints = decisionWorkspace?.militaryWorkspace?.armyCap ?? (currentPlayerState as any)?.armyCap ?? 0;
   const visibleArmy: Record<string, number> = (decisionWorkspace as any)?.militaryWorkspace?.army ?? currentPlayerState?.army ?? {};
-  const visibleArmyTotal = Object.values(visibleArmy).reduce((sum, value) => sum + Math.max(0, Math.floor(value)), 0);
+  const visibleArmyTotal = visibleArmy.army !== undefined
+    ? Math.max(0, Math.floor(visibleArmy.army))
+    : Object.values(visibleArmy).reduce((sum, value) => sum + Math.max(0, Math.floor(value)), 0);
   const fiscalState = decisionWorkspace
     ? calculateGovernmentFiscalState(decisionWorkspace, normalizeDecisionDraft(draftPayload))
     : null;
+  const budgetLabels = getBudgetResourceLabels(currentPhase);
 
   return {
     title: i18n.t("game:flow.dashboard", "国家仪表盘"),
@@ -344,14 +366,14 @@ function createLeftRailViewModel({
         tone: "accent",
         metrics: currentPlayerState
           ? [
-              { label: i18n.t("game:settlement.consumerPurchasingPower", "民间购买力"), value: visibleBudgetPools?.domesticMarket ?? currentPlayerState.budgetPools.domesticMarket },
-              { label: i18n.t("game:settlement.factoryBudget", "工厂"), value: visibleBudgetPools?.factory ?? currentPlayerState.budgetPools.factory },
+              { label: budgetLabels.domesticMarket, value: visibleBudgetPools?.domesticMarket ?? currentPlayerState.budgetPools.domesticMarket },
+              { label: budgetLabels.factory, value: visibleBudgetPools?.factory ?? currentPlayerState.budgetPools.factory },
               {
-                label: i18n.t("game:government.budget", "政府财政"),
-                value: fiscalState?.effectiveGovernmentBudget ?? visibleBudgetPools?.governmentFiscal ?? currentPlayerState.budgetPools.governmentFiscal,
+                label: budgetLabels.governmentFiscal,
+                value: fiscalState?.baseGovernmentBudget ?? visibleBudgetPools?.governmentFiscal ?? currentPlayerState.budgetPools.governmentFiscal,
               },
-              { label: i18n.t("game:military.militaryPoints", "军事点"), value: visibleMilitaryPoints ?? (currentPlayerState as any).armyCap },
-              { label: i18n.t("game:unit.infantry", "陆军"), value: visibleArmyTotal },
+              { label: i18n.t("game:military.armyCap", "陆军上限"), value: visibleMilitaryPoints ?? (currentPlayerState as any).armyCap },
+              { label: i18n.t("game:unit.army", "陆军"), value: visibleArmyTotal },
               ...(researchFacilities !== null
                 ? [{ label: i18n.t("game:research.researchFacilities", "研究设施"), value: researchFacilities }]
                 : []),
@@ -535,7 +557,11 @@ function buildCurrentResourceLines({
         const rawAssignments = (draftPayload as Record<string, unknown>).phase1Production as { rawMaterialAssignments?: Record<string, number> } | undefined;
         const assignments = rawAssignments?.rawMaterialAssignments ?? {};
         const totalAssigned = Object.values(assignments).reduce((s, v) => s + v, 0);
-        lines.push(i18n.t("game:flow.resourcesRawMaterials", "原材料 {{materials}} · 已分配 {{allocated}}", { materials: phase1.rawMaterials, allocated: totalAssigned }));
+        const availableRawMaterials = Math.max(
+          0,
+          phase1.rawMaterials + sumSelectedFactoryActionEffect(workspace, draft, "rawMaterialsDelta"),
+        );
+        lines.push(i18n.t("game:flow.resourcesRawMaterials", "原材料 {{materials}} · 已分配 {{allocated}}", { materials: availableRawMaterials, allocated: totalAssigned }));
         lines.push(i18n.t("game:flow.resourcesInventoryDemand", "库存 {{inventory}} · 国内需求 {{demand}}", { inventory: phase1.goodsInventory, demand: formatNumber(phase1.domesticDemand) }));
       }
       return lines;
@@ -553,7 +579,7 @@ function buildCurrentResourceLines({
 
     if (decisionFlowState.activeStep === "military") {
       return [
-        i18n.t("game:flow.resourcesMilitary", "军事 · 基础财政剩余 {{remaining}}", { remaining: fiscalState.baseGovernmentRemaining }),
+        i18n.t("game:flow.resourcesMilitary", "军事 · 政策额度剩余 {{remaining}}", { remaining: fiscalState.effectiveGovernmentRemaining }),
         i18n.t("game:flow.resourcesMilitaryActions", "军事动作 {{actions}} 次 / 建交 {{diplomacy}} 项", { actions: draft.militaryPlan.militaryActions.length, diplomacy: draft.militaryPlan.diplomacyActions.length }),
         i18n.t("game:flow.resourcesOverseasPreview", "海外承接预览 {{capacity}}", { capacity: workspace.militaryWorkspace.overseasCapacity }),
       ];
@@ -722,14 +748,28 @@ function buildValidationLines({
       const phase1Prod = draftPayload as Record<string, unknown>;
       const rawAssignments = (phase1Prod.phase1Production as { rawMaterialAssignments?: Record<string, number> } | undefined)?.rawMaterialAssignments ?? {};
       const totalAssigned = Object.values(rawAssignments).reduce((s, v) => s + v, 0);
-      if (totalAssigned > phase1.rawMaterials) {
-        lines.push(i18n.t("game:flow.validateRawMaterialsExceeded", "原材料分配 {{assigned}}，超过可用原材料 {{available}}。", { assigned: totalAssigned, available: phase1.rawMaterials }));
+      const availableRawMaterials = Math.max(
+        0,
+        phase1.rawMaterials + sumSelectedFactoryActionEffect(currentPlayerWorkspace, draft, "rawMaterialsDelta"),
+      );
+      if (totalAssigned > availableRawMaterials) {
+        lines.push(
+          i18n.t(
+            "game:flow.validateRawMaterialsExceeded",
+            "原材料分配 {{used}}，超过可用原材料 {{available}}。",
+            { used: totalAssigned, assigned: totalAssigned, available: availableRawMaterials },
+          ),
+        );
       }
       for (const [modeId, assigned] of Object.entries(rawAssignments)) {
-        const capacity = phase1.capacityByMode[modeId] ?? 0;
+        const capacityDeltaByMode = getSelectedProductionCapacityDeltaByMode(currentPlayerWorkspace, draft);
+        const capacity = Math.max(
+          0,
+          (phase1.capacityByMode[modeId] ?? 0) + (capacityDeltaByMode[modeId] ?? 0),
+        );
         if (assigned > capacity) {
           const modeLabel = phase1.productionModes.find((m) => m.mode === modeId)?.label ?? modeId;
-          lines.push(i18n.t("game:flow.validateModeCapacityExceeded", "{{label}} 分配 {{assigned}}，超过产能 {{capacity}}。", { label: modeLabel, assigned, capacity }));
+          lines.push(i18n.t("game:flow.validateModeCapacityExceeded", "{{label}} 分配 {{assigned}}，超过产能 {{capacity}}。", { label: modeLabel, mode: modeLabel, assigned, capacity }));
         }
       }
     } else {
@@ -1028,13 +1068,13 @@ function normalizeDecisionDraft(draftPayload: Record<string, unknown>): Decision
       adminPurchases: draft.governmentPlan?.adminPurchases ?? 0,
     },
     militaryPlan: {
-      unlockColonization: draft.militaryPlan?.unlockColonization ?? false,
+      unlockColonization: false,
       militaryActions: draft.militaryPlan?.militaryActions ?? [],
       diplomacyActions: draft.militaryPlan?.diplomacyActions ?? [],
-      colonizationActions: draft.militaryPlan?.colonizationActions ?? [],
+      colonizationActions: [],
       navalDeployment: draft.militaryPlan?.navalDeployment ?? {},
-      conquestActions: (draft.militaryPlan?.conquestActions ?? []) as unknown as ConquestActionSelection[],
-      lootingActions: draft.militaryPlan?.lootingActions ?? [],
+      conquestActions: [],
+      lootingActions: [],
     },
     abilitySelection,
     talentPlan: {

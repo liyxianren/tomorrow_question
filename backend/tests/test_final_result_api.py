@@ -26,7 +26,8 @@ from app.modules.room.models import Room, RoomMember
 from app.modules.session.models import PlayerSession
 
 
-def build_finished_snapshot_payload() -> dict[str, object]:
+def build_finished_snapshot_payload(*, tied_income: bool = False) -> dict[str, object]:
+    runner_up_income = 88 if tied_income else 77
     snapshot = GameSnapshot(
         snapshot_id="snapshot-finished",
         game_id="game-1",
@@ -45,7 +46,6 @@ def build_finished_snapshot_payload() -> dict[str, object]:
                 income_allocation_ratio={"domesticMarket": 3.0, "factory": 3.0, "governmentFiscal": 4.0},
                 budget_pools={"domesticMarket": 10, "factory": 11, "governmentFiscal": 14},
                 tech_points=2,
-                military_points=1,
                 production_capacity={"handicraft": 2, "mechanized": 1},
                 pending_production_capacity={"steam": 0},
                 goods_stock={"steel": 0},
@@ -68,11 +68,10 @@ def build_finished_snapshot_payload() -> dict[str, object]:
                 domestic_sales_revenue=0,
                 overseas_sales_revenue=0,
                 national_income=0,
-                cumulative_national_income=77,
+                cumulative_national_income=runner_up_income,
                 income_allocation_ratio={"domesticMarket": 3.0, "factory": 3.0, "governmentFiscal": 4.0},
                 budget_pools={"domesticMarket": 8, "factory": 9, "governmentFiscal": 11},
                 tech_points=1,
-                military_points=1,
                 production_capacity={"handicraft": 2},
                 pending_production_capacity={"mechanized": 0},
                 goods_stock={"grain": 0},
@@ -102,7 +101,7 @@ def build_finished_snapshot_payload() -> dict[str, object]:
                 "rank": 2,
                 "playerId": "player-2",
                 "countryId": CountryCode.FRANCE,
-                "cumulativeNationalIncome": 77,
+                "cumulativeNationalIncome": runner_up_income,
                 "tieBreak": {"productionCapacity": 2, "controlledRegions": 1, "budgetPoolsTotal": 28},
             },
         ],
@@ -137,7 +136,7 @@ class FinalResultApiTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
 
-    def seed_finished_game(self) -> None:
+    def seed_finished_game(self, *, tied_income: bool = False) -> None:
         connection = connect_database(self.database_path)
         initialize_database(connection)
 
@@ -183,7 +182,7 @@ class FinalResultApiTests(unittest.TestCase):
 
         RoomRepository(connection).save(room.to_payload())
         GameRepository(connection).save(game.to_payload())
-        SnapshotRepository(connection).save(build_finished_snapshot_payload())
+        SnapshotRepository(connection).save(build_finished_snapshot_payload(tied_income=tied_income))
         SessionRepository(connection).save(session.to_payload())
         GameLogRepository(connection).save(
             {
@@ -214,7 +213,7 @@ class FinalResultApiTests(unittest.TestCase):
 
         response = self.client.get(
             "/api/v1/games/game-1/final-result",
-            headers={"X-Session-Id": "session-1"},
+            headers={"X-Session-Id": "session-1", "Accept-Language": "zh-CN"},
         )
 
         self.assertEqual(response.status_code, 200)
@@ -229,6 +228,37 @@ class FinalResultApiTests(unittest.TestCase):
         self.assertIn("英国完成第 15 回合财政分配。", log_messages)
         self.assertNotIn("settlement settled.", log_messages)
         self.assertNotIn("britain completed national income allocation.", log_messages)
+
+    def test_final_result_tied_income_uses_tie_break_copy_in_zh(self) -> None:
+        self.seed_finished_game(tied_income=True)
+
+        response = self.client.get(
+            "/api/v1/games/game-1/final-result",
+            headers={"X-Session-Id": "session-1", "Accept-Language": "zh-CN"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()["data"]
+        self.assertEqual(data["finalRanking"][0]["cumulativeNationalIncome"], 88)
+        self.assertEqual(data["finalRanking"][1]["cumulativeNationalIncome"], 88)
+        self.assertEqual(data["turningPointCards"][1]["title"], "终局同分由同分规则裁定")
+        self.assertIn("同为 88 累计国家收入", data["turningPointCards"][1]["detail"])
+        self.assertNotIn("领先 法国 的 88", data["turningPointCards"][1]["detail"])
+
+    def test_final_result_respects_english_accept_language(self) -> None:
+        self.seed_finished_game(tied_income=True)
+
+        response = self.client.get(
+            "/api/v1/games/game-1/final-result",
+            headers={"X-Session-Id": "session-1", "Accept-Language": "en-US,en;q=0.9"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()["data"]
+        self.assertEqual(data["turningPointCards"][1]["title"], "Final tie decided by tie-breaks")
+        self.assertIn("both finished with 88 cumulative national income", data["turningPointCards"][1]["detail"])
+        self.assertIn("Final fiscal settlement is complete.", [entry["message"] for entry in data["finalLogs"]])
+        self.assertIn("Britain completed Round 15 fiscal allocation.", [entry["message"] for entry in data["finalLogs"]])
 
     def test_final_result_rejects_invalid_session(self) -> None:
         self.seed_finished_game()

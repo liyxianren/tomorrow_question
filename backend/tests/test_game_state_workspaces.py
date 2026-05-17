@@ -100,6 +100,34 @@ class GameStateWorkspaceTests(unittest.TestCase):
         self.assertTrue(africa["isDiplomacyEstablished"])
         self.assertFalse(middle_east["isAccessible"])
 
+    def test_market_workspace_exposes_government_market_policy_bonuses(self) -> None:
+        snapshot = build_snapshot()
+        britain = next(player for player in snapshot.player_states if player.player_id == "player-1")
+        britain.temporary_effects.update(
+            {
+                "domesticMarketCapacityBonus": 2,
+                "domesticPriceBonus": 2,
+                "overseasMarketCapacityBonus": 2,
+                "overseasPriceBonus": 1,
+                "governmentDomesticMarketCapacityBonus": 2,
+                "governmentDomesticPriceBonus": 2,
+                "governmentOverseasMarketCapacityBonus": 2,
+                "governmentOverseasPriceBonus": 1,
+            }
+        )
+
+        workspace = build_market_player_workspace(snapshot, britain)
+        phase1 = workspace["phase1Economy"]
+
+        self.assertEqual(phase1["domesticMarketCapacityBonus"], 2)
+        self.assertEqual(phase1["domesticPriceBonus"], 2)
+        self.assertEqual(phase1["overseasMarketCapacityBonus"], 2)
+        self.assertEqual(phase1["overseasPriceBonus"], 1)
+        self.assertEqual(phase1["governmentDomesticMarketCapacityBonus"], 2)
+        self.assertEqual(phase1["governmentDomesticPriceBonus"], 2)
+        self.assertEqual(phase1["governmentOverseasMarketCapacityBonus"], 2)
+        self.assertEqual(phase1["governmentOverseasPriceBonus"], 1)
+
     @unittest.skip("Sellable inventory test uses old multi-goods model; needs rewrite for phase1_goods economy")
     def test_market_workspace_only_exposes_overseas_prices_for_regions_that_accept_the_goods(self) -> None:
         snapshot = build_snapshot()
@@ -153,6 +181,22 @@ class GameStateWorkspaceTests(unittest.TestCase):
         self.assertTrue(unlocked_tech["isDiscovered"], "Unlocked techs should be discovered")
         self.assertFalse(other_tech["isUnlocked"])
         self.assertFalse(other_tech["isDiscovered"], "Locked techs should not be discovered")
+
+    def test_tech_tree_marks_other_country_unlocks_as_discovered(self) -> None:
+        snapshot = build_snapshot()
+        britain = next(p for p in snapshot.player_states if p.player_id == "player-1")
+        france = next(p for p in snapshot.player_states if p.player_id == "player-2")
+        balance = get_balance_config()
+        first_chain = next(iter(balance.technology.chains.values()))
+        first_tech_id = first_chain.techs[0].tech_id
+        france.unlocked_techs = [first_tech_id]
+
+        workspace = build_decision_player_workspace(snapshot, britain)
+        techs = [t for chain in workspace["techTree"]["chains"] for t in chain["techs"]]
+        discovered_tech = next(t for t in techs if t["techId"] == first_tech_id)
+
+        self.assertFalse(discovered_tech["isUnlocked"])
+        self.assertTrue(discovered_tech["isDiscovered"], "Other-country unlocks should be visible as discovered")
 
     def test_decision_workspace_exposes_government_strategies(self) -> None:
         snapshot = build_snapshot()

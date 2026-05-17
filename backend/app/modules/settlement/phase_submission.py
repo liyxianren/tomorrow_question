@@ -32,6 +32,7 @@ from app.modules.rules.route_utils import check_route_accessible
 
 
 PHASE1_GOODS_KEY = "phase1_goods"
+RESEARCH_FACILITY_ACTION_ID = "expand_research"
 
 
 @dataclass(slots=True)
@@ -377,7 +378,7 @@ def _validate_external_competition_deployments(
         total_infantry += infantry
         total_artillery += artillery
 
-    available_infantry = int(player_state.army.get("infantry", 0))
+    available_infantry = int(player_state.army.get("infantry", 0)) + int(player_state.army.get("army", 0))
     available_artillery = int(player_state.army.get("artillery", 0))
     if total_infantry > available_infantry or total_artillery > available_artillery:
         raise PhaseSubmissionError(
@@ -429,14 +430,10 @@ def _normalize_decision_submission(payload: dict[str, object]) -> dict[str, Any]
     normalized["governmentPlan"]["techResearch"] = _normalize_tech_research_list(
         government_plan.get("techResearch") or []
     )
-    raw_admin_purchases = government_plan.get("adminPurchases")
-    try:
-        normalized["governmentPlan"]["adminPurchases"] = max(0, int(raw_admin_purchases or 0))
-    except (TypeError, ValueError) as exc:
-        raise PhaseSubmissionError(
-            ErrorCode.INVALID_SUBMISSION,
-            "Decision submission.governmentPlan.adminPurchases must be a non-negative integer.",
-        ) from exc
+    # Kept only for old clients/save payloads. Administrative capacity is no
+    # longer bought with fiscal budget; all government pressure lives in policy
+    # choices and reforms.
+    normalized["governmentPlan"]["adminPurchases"] = 0
 
     raw_reforms = payload.get("reforms")
     if isinstance(raw_reforms, list):
@@ -457,10 +454,8 @@ def _normalize_decision_submission(payload: dict[str, object]) -> dict[str, Any]
     military_plan = payload.get("militaryPlan")
     if military_plan is None:
         military_plan = {
-            "unlockColonization": False,
             "militaryActions": [],
             "diplomacyActions": [],
-            "colonizationActions": [],
         }
     if not isinstance(military_plan, dict):
         raise PhaseSubmissionError(
@@ -473,11 +468,11 @@ def _normalize_decision_submission(payload: dict[str, object]) -> dict[str, Any]
     normalized["militaryPlan"]["diplomacyActions"] = _normalize_action_list(
         military_plan.get("diplomacyActions", [])
     )
-    normalized["militaryPlan"]["unlockColonization"] = bool(military_plan.get("unlockColonization", False))
-    normalized["militaryPlan"]["colonizationActions"] = military_plan.get("colonizationActions", [])
-    normalized["militaryPlan"]["lootingActions"] = military_plan.get("lootingActions", [])
+    normalized["militaryPlan"]["unlockColonization"] = False
+    normalized["militaryPlan"]["colonizationActions"] = []
+    normalized["militaryPlan"]["lootingActions"] = []
     normalized["militaryPlan"]["navalDeployment"] = military_plan.get("navalDeployment", {})
-    normalized["militaryPlan"]["conquestActions"] = military_plan.get("conquestActions", [])
+    normalized["militaryPlan"]["conquestActions"] = []
 
     talent_plan = payload.get("talentPlan")
     if isinstance(talent_plan, dict):
@@ -852,6 +847,7 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
 
     factory_spend = 0
     factory_capacity_delta = 0
+    factory_capacity_delta_by_mode: dict[str, int] = {}
     raw_materials_delta = 0
     selected_factory_actions: set[str] = set()
     for selection in payload.get("factoryPlan", {}).get("factoryActions", []):
@@ -872,6 +868,11 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
         selected_factory_actions.add(action_id)
         factory_spend += int(action.budget_pool_cost)
         factory_capacity_delta += int(action.effects.get("phase1ProductionRawCapacityDelta", 0))
+        handicraft_capacity_delta = int(action.effects.get("handicraftCapacityDelta", 0))
+        if handicraft_capacity_delta:
+            factory_capacity_delta_by_mode["handicraft"] = (
+                int(factory_capacity_delta_by_mode.get("handicraft", 0)) + handicraft_capacity_delta
+            )
         raw_materials_delta += int(action.effects.get("rawMaterialsDelta", 0))
         factory_budget += int(action.effects.get("factoryBudgetDelta", 0))
         domestic_budget += int(action.effects.get("domesticMarketBudgetDelta", 0))
@@ -919,6 +920,13 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
             0,
             int(upgradeable_source_capacity.get(source_route, 0)) - quantity,
         )
+        if quantity > 0:
+            factory_capacity_delta_by_mode[source_route] = (
+                int(factory_capacity_delta_by_mode.get(source_route, 0)) - quantity
+            )
+            factory_capacity_delta_by_mode[route_id] = (
+                int(factory_capacity_delta_by_mode.get(route_id, 0)) + quantity
+            )
         factory_spend += quantity * upgrade_unit_budget_cost(player_state, route_id)
 
     for order in payload.get("factoryPlan", {}).get("newFactoryOrders", []):
@@ -942,7 +950,16 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
         if isinstance(raw_assignments, dict):
             production_unit_cost = _phase1_production_unit_budget_cost(balance)
             available_raw = max(0, int(player_state.phase1_economy.raw_materials) + raw_materials_delta)
-            capacity_by_mode = player_state.phase1_economy.capacity_by_mode
+            capacity_by_mode = {
+                key: max(
+                    0,
+                    int(value) + int(factory_capacity_delta_by_mode.get(key, 0)),
+                )
+                for key, value in player_state.phase1_economy.capacity_by_mode.items()
+            }
+            for key, delta in factory_capacity_delta_by_mode.items():
+                if key not in capacity_by_mode:
+                    capacity_by_mode[key] = max(0, int(delta))
             total_capacity_limit = max(
                 0,
                 sum(
@@ -999,15 +1016,7 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
 
     core_government_spend = 0
     market_regulation_spend = 0
-    admin_cost = max(1, int(balance.politics.administration_cost))
-
-    raw_admin_purchase = payload.get("governmentPlan", {}).get("adminPurchases")
-    try:
-        admin_quantity = max(0, int(raw_admin_purchase or 0))
-    except (TypeError, ValueError):
-        admin_quantity = 0
-    core_government_spend += admin_quantity * admin_cost
-
+    administration_spend = 0
     point_costs = POINT_PURCHASE_COSTS
     for purchase in payload.get("governmentPlan", {}).get("pointPurchases", []):
         point_type = str(purchase.get("pointType") or "")
@@ -1015,16 +1024,19 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
             continue
         core_government_spend += max(0, int(purchase.get("quantity", 0))) * point_costs[point_type]
 
-    # Market-regulation strategies are government policy choices; they spend
-    # government fiscal directly.
+    # Strategy selections are one-round policy choices. They may have fiscal
+    # costs, but the action slot itself is paid with administrative power.
     for selection in payload.get("governmentPlan", {}).get("strategySelections", []):
         action_id = str(selection.get("actionId") or "")
         market_action = balance.decision_actions.domestic_market_actions.get(action_id)
         if market_action is not None:
+            administration_spend += 1
             market_regulation_spend += int(market_action.budget_pool_cost)
             continue
         action = balance.decision_actions.government_actions.get(action_id)
         if action is not None:
+            if action_id != RESEARCH_FACILITY_ACTION_ID:
+                administration_spend += 1
             core_government_spend += int(action.budget_pool_cost)
 
     # Validate activatePolicies budget cost
@@ -1038,9 +1050,31 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
         if policy_id in player_state.active_policies:
             continue  # already active, no cost
         core_government_spend += int(policy.budget_cost)
+        administration_spend += int(policy.admin_cost_per_turn)
+
+    for raw_id in payload.get("reforms") or []:
+        reform_id = str(raw_id or "").strip()
+        if not reform_id:
+            continue
+        reform = balance.reforms.reforms.get(reform_id)
+        if reform is None or reform_id in player_state.completed_reforms:
+            continue
+        administration_spend += int(reform.admin_cost)
+
+    available_administration = int(player_state.administration_capacity)
+    if administration_spend > available_administration:
+        raise PhaseSubmissionError(
+            ErrorCode.INVALID_SUBMISSION,
+            "Administrative power exceeded for the submitted plan.",
+            details={
+                "reason": (
+                    f"行政力不足：计划 {administration_spend} > "
+                    f"可用 {available_administration}"
+                ),
+            },
+        )
 
     military_plan_spend = 0
-    military_point_spend = 0
     military_action_counts: dict[str, int] = {}
     for selection in payload.get("militaryPlan", {}).get("militaryActions", []):
         action_id = str(selection.get("actionId") or "")
@@ -1074,7 +1108,6 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
                 },
             )
         military_plan_spend += int(action.budget_pool_cost)
-        military_point_spend += int(action.military_point_cost)
 
     selected_diplomacy_regions: set[str] = set()
     for selection in payload.get("militaryPlan", {}).get("diplomacyActions", []):
@@ -1100,46 +1133,18 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
         selected_diplomacy_regions.add(action.target_region)
         military_plan_spend += int(action.budget_pool_cost)
 
-    # Validate unlockColonization budget cost
-    if payload.get("militaryPlan", {}).get("unlockColonization", False) and not player_state.colonization_unlocked:
-        military_plan_spend += int(balance.military.colonization_unlock_cost)
-
-    colonization_actions = payload.get("militaryPlan", {}).get("colonizationActions", []) or []
-    if player_state.colonization_unlocked or payload.get("militaryPlan", {}).get("unlockColonization", False):
-        selected_diplomacy = {
-            balance.military_actions.diplomacy_actions[str(selection.get("actionId") or "")].target_region
-            for selection in payload.get("militaryPlan", {}).get("diplomacyActions", [])
-            if str(selection.get("actionId") or "") in balance.military_actions.diplomacy_actions
-        }
-        available_diplomacy = set(player_state.established_diplomacy) | selected_diplomacy
-        regions_by_id = {region.region_id: region for region in snapshot.region_states}
-        valid_colonization_count = 0
-        for action in colonization_actions:
-            if valid_colonization_count >= int(balance.military.max_colonizations_per_round):
-                break
-            region_id = str(action.get("targetRegionId") or "")
-            blueprint = balance.regions.region_blueprints.get(region_id)
-            region_state = regions_by_id.get(region_id)
-            if blueprint is None or region_state is None or not blueprint.colonizable:
-                continue
-            if region_state.controller == player_state.country.value:
-                continue
-            if region_id not in available_diplomacy:
-                continue
-            valid_colonization_count += 1
-        military_point_spend += valid_colonization_count * int(balance.military.colonization_budget_cost)
-
-    # Validate total military spend against remaining government fiscal budget
-    remaining_budget = decision_phase_government_fiscal_budget(player_state)
-    # Subtract what was already allocated by government plan
-    remaining_budget -= int(payload.get("governmentPlan", {}).get("totalSpend", 0) or 0)
-    if military_point_spend > remaining_budget:
+    # Validate total military spend against the same decision-phase fiscal pool
+    # used by government policies. Military actions no longer use a separate
+    # military-point cost field; old clients that send these actions should get
+    # a rule error, not a backend 500.
+    remaining_budget = government_budget - core_government_spend - market_regulation_spend
+    if military_plan_spend > remaining_budget:
         raise PhaseSubmissionError(
             ErrorCode.INVALID_SUBMISSION,
             "Government fiscal exceeded for the submitted military plan.",
             details={
                 "reason": (
-                    f"政府财政不足：军事计划 {military_point_spend} > "
+                    f"政府财政不足：军事计划 {military_plan_spend} > "
                     f"可用 {remaining_budget}"
                 ),
             },

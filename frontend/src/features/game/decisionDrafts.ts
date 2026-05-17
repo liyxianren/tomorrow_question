@@ -215,74 +215,6 @@ export function toggleTalentUnlockSelection(
   };
 }
 
-export function addColonizationAction(
-  draft: PhaseDraftByPhase["decision"],
-  targetRegionId: string,
-): PhaseDraftByPhase["decision"] {
-  return {
-    ...draft,
-    militaryPlan: {
-      ...draft.militaryPlan,
-      colonizationActions: [{ targetRegionId }],
-    },
-  };
-}
-
-export function removeColonizationAction(
-  draft: PhaseDraftByPhase["decision"],
-  targetRegionId: string,
-): PhaseDraftByPhase["decision"] {
-  return {
-    ...draft,
-    militaryPlan: {
-      ...draft.militaryPlan,
-      colonizationActions: (draft.militaryPlan.colonizationActions ?? []).filter(
-        (a) => a.targetRegionId !== targetRegionId,
-      ),
-    },
-  };
-}
-
-export function setConquestAction(
-  draft: PhaseDraftByPhase["decision"],
-  regionId: string,
-  army: number,
-): PhaseDraftByPhase["decision"] {
-  const safeArmy = normalizeQuantity(army);
-  const remaining = (draft.militaryPlan.conquestActions ?? []).filter(
-    (a) => a.regionId !== regionId,
-  );
-  const next = safeArmy > 0
-    ? [...remaining, { regionId, army: safeArmy }]
-    : remaining;
-  return {
-    ...draft,
-    militaryPlan: {
-      ...draft.militaryPlan,
-      conquestActions: next,
-    },
-  };
-}
-
-export function toggleLootingAction(
-  draft: PhaseDraftByPhase["decision"],
-  regionId: string,
-  resourceType: string,
-): PhaseDraftByPhase["decision"] {
-  const existing = draft.militaryPlan.lootingActions ?? [];
-  const has = existing.some((a) => a.regionId === regionId && a.resourceType === resourceType);
-  const next = has
-    ? existing.filter((a) => !(a.regionId === regionId && a.resourceType === resourceType))
-    : [...existing, { regionId, resourceType }];
-  return {
-    ...draft,
-    militaryPlan: {
-      ...draft.militaryPlan,
-      lootingActions: next,
-    },
-  };
-}
-
 export function setNavalDeployment(
   draft: PhaseDraftByPhase["decision"],
   nodeId: string,
@@ -297,19 +229,6 @@ export function setNavalDeployment(
     militaryPlan: {
       ...draft.militaryPlan,
       navalDeployment: nextDeployment,
-    },
-  };
-}
-
-export function setColonizationUnlockSelection(
-  draft: PhaseDraftByPhase["decision"],
-  checked: boolean,
-): PhaseDraftByPhase["decision"] {
-  return {
-    ...draft,
-    militaryPlan: {
-      ...draft.militaryPlan,
-      unlockColonization: checked,
     },
   };
 }

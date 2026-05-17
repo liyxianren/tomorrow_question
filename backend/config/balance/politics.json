@@ -119,15 +119,15 @@
         }
       },
       "7": {
-        "label": "殖民扩张",
+        "label": "全球通商",
         "effects": {
           "overseasPriceBonusDelta": 1
         }
       },
       "10": {
-        "label": "帝国主义",
+        "label": "民族复兴",
         "effects": {
-          "controlledRegionsDelta": 2
+          "overseasMarketCapacityDelta": 2
         },
         "penalty": {
           "domesticMarketCapacityDelta": -2

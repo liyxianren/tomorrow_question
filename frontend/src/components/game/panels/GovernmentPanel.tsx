@@ -48,7 +48,13 @@ const MARKET_STRATEGY_ICONS: Record<string, string> = {
   luxury_promotion: "💎",
   infrastructure_investment: "🏭",
   trade_hub: "⚓",
+  market_subsidy: "🏛️",
+  price_control: "⚖️",
+  trade_promotion: "⚓",
 };
+
+const MARKET_POLICY_ACTION_IDS = new Set(["market_subsidy", "price_control", "trade_promotion"]);
+const MARKET_POLICY_ADMIN_COST = 1;
 
 const MARKET_PREVIEW_EFFECT_KEYS = [
   "domesticMarketCapacityDelta",
@@ -77,6 +83,7 @@ const ALLOCATION_LABELS: Record<string, string> = {
   governmentFiscal: i18n.t("game:government.allocation.fiscal", "政府财政"),
   factory: i18n.t("game:government.allocation.factory", "工厂预算"),
 };
+const ALLOCATION_DISPLAY_ORDER = ["consumption", "domesticMarket", "factory", "fiscal", "governmentFiscal"];
 
 type IdeologyMilestone = {
   level: number;
@@ -118,11 +125,11 @@ const DEFAULT_IDEOLOGY_MILESTONES: Record<IdeologyKey, IdeologyMilestone[]> = {
   nationalism: [
     { level: 3, label: i18n.t("game:milestone.nationalDefense", "国防动员"), effects: { militaryPointsDelta: 1 } },
     { level: 5, label: i18n.t("game:milestone.customsUnion", "关税同盟"), effects: { overseasMarketCapacityDelta: 1 } },
-    { level: 7, label: i18n.t("game:milestone.colonialExpansion", "殖民扩张"), effects: { overseasPriceBonusDelta: 1 } },
+    { level: 7, label: i18n.t("game:milestone.globalCommerce", "全球通商"), effects: { overseasPriceBonusDelta: 1 } },
     {
       level: 10,
-      label: i18n.t("game:milestone.imperialism", "帝国主义"),
-      effects: { controlledRegionsDelta: 2 },
+      label: i18n.t("game:milestone.nationalRevival", "民族复兴"),
+      effects: { overseasMarketCapacityDelta: 2 },
       penalty: { domesticMarketCapacityDelta: -2 },
     },
   ],
@@ -169,14 +176,10 @@ function formatSigned(delta: number): string {
   return `${delta > 0 ? "+" : ""}${delta}`;
 }
 
-function formatShortfall(cost: number, remaining: number): string {
-  return i18n.t("game:government.shortfall", "还差 {{amount}} 财政", { amount: Math.max(0, cost - remaining) });
-}
-
 function formatPolicyCostLabel(policy: Pick<PolicyPreview, "adminCostPerTurn" | "budgetCost">): string {
   const parts: string[] = [];
   if (policy.budgetCost > 0) {
-    parts.push(i18n.t("game:government.policyCostFiscalOnly", "{{budget}} 财政", { budget: policy.budgetCost }));
+    parts.push(i18n.t("game:government.policyCostFiscalOnly", "{{budget}} 政府财政", { budget: policy.budgetCost }));
   }
   if (policy.adminCostPerTurn > 0) {
     parts.push(i18n.t("game:government.policyCostAdminOnly", "消耗 {{admin}} 行政力", { admin: policy.adminCostPerTurn }));
@@ -184,16 +187,21 @@ function formatPolicyCostLabel(policy: Pick<PolicyPreview, "adminCostPerTurn" | 
   return parts.length > 0 ? parts.join(" · ") : i18n.t("game:government.noDirectCost", "无直接消耗");
 }
 
-function buildPurchaseEffects(
-  quantity: number,
-  cost: number,
-  pointLabel: string,
-): DecisionActionCardEffect[] {
-  if (quantity <= 0) return [];
-  return [
-    { label: i18n.t("game:government.allocation.fiscal", "政府财政"), value: `-${quantity * cost}` },
-    { label: pointLabel, value: `+${quantity}` },
-  ];
+function formatRatioDeltaParts(
+  ratioDelta: Record<string, number>,
+  labels: Record<string, string>,
+): string[] {
+  return Object.entries(ratioDelta)
+    .sort(([left], [right]) => {
+      const leftIndex = ALLOCATION_DISPLAY_ORDER.indexOf(left);
+      const rightIndex = ALLOCATION_DISPLAY_ORDER.indexOf(right);
+      return (leftIndex === -1 ? Number.MAX_SAFE_INTEGER : leftIndex)
+        - (rightIndex === -1 ? Number.MAX_SAFE_INTEGER : rightIndex);
+    })
+    .map(([key, delta]) => {
+      const label = labels[key] ?? key;
+      return `${label} ${formatSigned(delta)}`;
+    });
 }
 
 function stripGeneratedEffectSummary(description: string | undefined): string | undefined {
@@ -277,6 +285,11 @@ function formatReformEffects(
     tags.push(i18n.t("game:government.upgradeCostMultiplier", "升级成本 ×{{multiplier}}", { multiplier: effects.upgradeCostMultiplier }));
   }
 
+  if (effects.administrationCapacityDelta !== undefined) {
+    const delta = Number(effects.administrationCapacityDelta);
+    tags.push(i18n.t("game:government.administrationCapacityDelta", "行政力上限 {{delta}}", { delta: formatSigned(delta) }));
+  }
+
   if (effects.productionCapacityDelta !== undefined) {
     const delta = effects.productionCapacityDelta as Record<string, number>;
     for (const [key, val] of Object.entries(delta)) {
@@ -309,10 +322,7 @@ function formatStrategyEffects(
   }
 
   if (strategy.ratioDelta) {
-    const parts = Object.entries(strategy.ratioDelta).map(([key, delta]) => {
-      const label = RATIO_NAME_MAP[key] ?? key;
-      return `${label} ${formatSigned(delta)}`;
-    });
+    const parts = formatRatioDeltaParts(strategy.ratioDelta, RATIO_NAME_MAP);
     if (parts.length > 0) {
       effects.push({ label: i18n.t("game:government.incomeAllocation", "收入分配"), value: parts.join("，"), temporary: true });
     }
@@ -348,12 +358,9 @@ function formatPolicyEffects(
 
   const ratioDelta = e.ratioDelta as Record<string, number> | undefined;
   if (ratioDelta) {
-    const parts = Object.entries(ratioDelta).map(([key, delta]) => {
-      const label = ALLOCATION_LABELS[key] ?? key;
-      return `${label} ${formatSigned(delta)}`;
-    });
+    const parts = formatRatioDeltaParts(ratioDelta, ALLOCATION_LABELS);
     if (parts.length > 0) {
-      effects.push({ label: i18n.t("game:government.incomeAllocationPerTurn", "每回合收入分配"), value: parts.join("，") });
+      effects.push({ label: i18n.t("game:government.incomeAllocationPerTurn", "本轮收入分配"), value: parts.join("，") });
     }
   }
 
@@ -404,6 +411,48 @@ function formatPolicyEffects(
   return effects;
 }
 
+function buildMarketPolicyStrategies(
+  strategies: DecisionPlayerPhaseWorkspace["governmentActions"]["strategies"],
+): DecisionPlayerPhaseWorkspace["governmentActions"]["strategies"] {
+  const configured = strategies.filter((strategy) => MARKET_POLICY_ACTION_IDS.has(strategy.actionId));
+  if (configured.length > 0) {
+    return configured;
+  }
+
+  return [
+    {
+      actionId: "market_subsidy",
+      label: i18n.t("game:government.strategy.marketSubsidy", "市场补贴"),
+      cost: 0,
+      description: i18n.t("game:government.strategy.marketSubsidyDesc", "动用行政力组织本轮内需补贴，扩大国内承接量。"),
+      techPointDelta: 0,
+      militaryPointDelta: 0,
+      lockedReason: null,
+      effects: { domesticMarketCapacityDelta: 2 },
+    },
+    {
+      actionId: "price_control",
+      label: i18n.t("game:government.strategy.priceControl", "价格管制"),
+      cost: 0,
+      description: i18n.t("game:government.strategy.priceControlDesc", "动用行政力调控本轮国内收购价格。"),
+      techPointDelta: 0,
+      militaryPointDelta: 0,
+      lockedReason: null,
+      effects: { domesticPriceBonusDelta: 2 },
+    },
+    {
+      actionId: "trade_promotion",
+      label: i18n.t("game:government.strategy.tradePromotion", "贸易促进"),
+      cost: 0,
+      description: i18n.t("game:government.strategy.tradePromotionDesc", "动用行政力协调贸易渠道，扩大本回合海外市场容量。"),
+      techPointDelta: 0,
+      militaryPointDelta: 0,
+      lockedReason: null,
+      effects: { overseasMarketCapacityDelta: 2 },
+    },
+  ];
+}
+
 function formatMilestoneSummary(milestone: IdeologyMilestone): string {
   const effectMetrics = buildEffectMetrics(
     milestone.effects as Record<string, number | Record<string, number>> | undefined,
@@ -446,8 +495,6 @@ export interface GovernmentPanelProps {
   workspace: DecisionPlayerPhaseWorkspace;
   draft: PhaseDraftByPhase["decision"];
   remainingGovernmentBudget: number;
-  onAdminPurchase: (quantity: number) => void;
-  onMilitaryPurchase: (quantity: number) => void;
   onEnactReform: (reformId: string, queued: boolean) => void;
   onTogglePolicy: (policyId: string, active: boolean) => void;
   onToggleStrategy: (actionId: string, checked: boolean) => void;
@@ -459,8 +506,6 @@ export function GovernmentPanel({
   workspace,
   draft,
   remainingGovernmentBudget,
-  onAdminPurchase,
-  onMilitaryPurchase,
   onEnactReform,
   onTogglePolicy,
   onToggleStrategy,
@@ -482,14 +527,11 @@ export function GovernmentPanel({
     );
   }
 
-  const queuedAdminPurchases = Math.max(0, draft.governmentPlan.adminPurchases ?? 0);
-  const adminCost = reforms.adminPurchaseCost;
   const queuedReformIds = new Set(draft.reforms ?? []);
   const queuedActivateIds = new Set(draft.activatePolicies ?? []);
   const queuedDeactivateIds = new Set(draft.deactivatePolicies ?? []);
 
-  const strategies = (workspace.governmentActions?.strategies ?? [])
-    .filter((strategy) => strategy.actionId !== "expand_research");
+  const strategies = buildMarketPolicyStrategies(workspace.governmentActions?.strategies ?? []);
   const queuedStrategyIds = new Set(
     (draft.governmentPlan.strategySelections ?? []).map((selection) => selection.actionId),
   );
@@ -512,15 +554,6 @@ export function GovernmentPanel({
     ? Math.max(0, baseOverseasCapacity + selectedOverseasCapacityDelta)
     : undefined;
   const referencePrice = calculateDecisionMarketReferencePrice(phase1Economy, selectedDomesticPriceDelta);
-  const marketPriceHint = phase1Economy
-    ? [
-        `${t("game:government.equilibrium")} ${formatMarketNumber(referencePrice.basePrice)}`,
-        `${t("game:government.existingBonus")} ${formatSigned(referencePrice.existingPriceBonus)}`,
-        selectedDomesticPriceDelta !== 0 ? `${t("game:government.thisRoundAdjustment")} ${formatSigned(selectedDomesticPriceDelta)}` : null,
-        `${t("game:government.ceiling")} ${referencePrice.priceCeiling}`,
-        referencePrice.isCapped ? t("game:government.priceCappedHint") : null,
-      ].filter(Boolean).join("，")
-    : t("game:government.waitingForMarketData");
   const ability = workspace.nationalAbility;
   const abilitySelected = Boolean(ability && draft.abilitySelection?.abilityId === ability.abilityId);
   const abilityTarget = IDEOLOGY_KEYS.includes(draft.abilitySelection?.targetIdeology as IdeologyKey)
@@ -530,6 +563,7 @@ export function GovernmentPanel({
   const queuedReformAdminCost = reforms.availableReforms
     .filter((reform) => queuedReformIds.has(reform.reformId))
     .reduce((sum, reform) => sum + reform.adminCost, 0);
+  const queuedMarketPolicyAdminCost = selectedMarketStrategies.length * MARKET_POLICY_ADMIN_COST;
   const projectedActivePolicyUpkeep = reforms.availablePolicies
     .filter((policy) => {
       if (queuedActivateIds.has(policy.policyId)) return true;
@@ -537,13 +571,14 @@ export function GovernmentPanel({
       return policy.isActive;
     })
     .reduce((sum, policy) => sum + policy.adminCostPerTurn, 0);
+  const projectedPolicyAdminUse = projectedActivePolicyUpkeep + queuedMarketPolicyAdminCost;
   const rawProjectedAdmin =
     reforms.administrationCapacity
-    + queuedAdminPurchases
     - queuedReformAdminCost
-    - projectedActivePolicyUpkeep;
+    - projectedActivePolicyUpkeep
+    - queuedMarketPolicyAdminCost;
   const projectedAdmin = Math.max(0, rawProjectedAdmin);
-  const projectedAdminTotal = reforms.administrationCapacity + queuedAdminPurchases;
+  const projectedAdminTotal = reforms.administrationCapacity;
 
   const isPolicyActiveAfter = (policyId: string, currentlyActive: boolean): boolean => {
     if (queuedActivateIds.has(policyId)) return true;
@@ -564,76 +599,37 @@ export function GovernmentPanel({
   const activePolicies = reforms.availablePolicies.filter((policy) => policy.isActive);
   const inactivePolicies = reforms.availablePolicies.filter((policy) => !policy.isActive);
   const fiscalState = calculateGovernmentFiscalState(workspace, draft);
-  const baseGovernmentRemaining = fiscalState.baseGovernmentRemaining;
-  const canBuyAdmin = adminCost > 0 && baseGovernmentRemaining >= adminCost;
 
-  const pointPurchaseCosts = workspace.governmentActions?.pointPurchaseCosts ?? { tech: 0 };
-  const canAddMarketStrategy = (cost: number) => {
-    return fiscalState.baseFiscalSpend + cost <= fiscalState.baseGovernmentBudget;
-  };
-  const marketRegulationSection = strategies.length > 0 ? (
-    <section className="government-market-section">
-      <div className="government-market-section__head">
-        <div>
-          <h4 className="government-section-label">🎯 {t("game:government.marketRegulation")}</h4>
-          <p className="government-section-note">
-            {t("game:government.marketRegulationDesc")}
-          </p>
-        </div>
-      </div>
-      <div className="government-market-preview" aria-label={t("game:government.marketRegulationPreview", "市场调节预览")} data-testid="government-market-preview">
-        <div className="government-market-preview__heading">
-          <div>
-            <strong>{t("game:government.marketBaseline")}</strong>
-            <span>{t("game:government.marketBaselineDesc")}</span>
-          </div>
-          <span className="government-market-preview__status">
-            {selectedMarketStrategies.length > 0 ? t("game:government.usingSelectedStrategies") : t("game:government.usingBaseSupply")}
-          </span>
-        </div>
-        <div className="government-market-preview__grid">
-          <div className="government-market-preview__metric">
-            <span>{t("game:market.demand")}</span>
-            <strong>{formatMarketNumber(phase1Economy?.domesticDemand)}</strong>
-            <small>{t("game:government.marketBaselineDesc")}</small>
-          </div>
-          <div className="government-market-preview__metric">
-            <span>{t("game:government.domesticCapacityRef")}</span>
-            <strong>{formatMarketNumber(projectedDomesticCapacity)}</strong>
-            <small>
-              {t("game:government.domesticCapacityHint", { base: formatMarketNumber(baseDomesticCapacity), adjustment: selectedDomesticCapacityDelta !== 0 ? `，${formatSigned(selectedDomesticCapacityDelta)}` : "" })}
-            </small>
-          </div>
-          <div className="government-market-preview__metric">
-            <span>{referencePrice.isCapped ? t("game:government.priceCapped") : t("game:government.equilibriumPriceLabel")}</span>
-            <strong>{formatMarketNumber(referencePrice.price)}</strong>
-            <small>{marketPriceHint}</small>
-          </div>
-          <div className="government-market-preview__metric">
-            <span>{t("game:government.overseasExport")}</span>
-            <strong>{formatMarketNumber(projectedOverseasCapacity)}</strong>
-            <small>
-              {t("game:government.overseasExportHint", { base: formatMarketNumber(baseOverseasCapacity), adjustment: selectedOverseasCapacityDelta !== 0 ? `，${formatSigned(selectedOverseasCapacityDelta)}` : "" })}
-            </small>
-          </div>
-        </div>
-        <div className="government-market-preview__effects">
-          {selectedMarketEffectSummary.length > 0 ? (
-            selectedMarketEffectSummary.map((item) => (
+  const canAddMarketPolicy = () => projectedAdmin >= MARKET_POLICY_ADMIN_COST;
+  const marketPolicySection = strategies.length > 0 ? (
+    <>
+      <h4 className="government-section-label">🎯 {t("game:government.marketPolicyActions", "市场政策")}</h4>
+      <div
+        className="government-market-policy-summary"
+        aria-label={t("game:government.marketRegulationPreview", "市场调节预览")}
+        data-testid="government-market-policy-summary"
+      >
+        <span>
+          {selectedMarketStrategies.length > 0
+            ? t("game:government.selectedMarketPolicies", "已选 {{count}} 项", { count: selectedMarketStrategies.length })
+            : t("game:government.usingBaseSupply")}
+        </span>
+        <span>{t("game:government.domesticCapacityRef")} {formatMarketNumber(baseDomesticCapacity)}→{formatMarketNumber(projectedDomesticCapacity)}</span>
+        <span>{referencePrice.isCapped ? t("game:government.priceCapped") : t("game:government.equilibriumPriceLabel")} {formatMarketNumber(referencePrice.price)}</span>
+        <span>{t("game:government.overseasExport")} {formatMarketNumber(baseOverseasCapacity)}→{formatMarketNumber(projectedOverseasCapacity)}</span>
+        {selectedMarketEffectSummary.length > 0
+          ? selectedMarketEffectSummary.map((item) => (
               <span key={item.key}>
                 {MARKET_PREVIEW_EFFECT_LABELS[item.key]} {formatSigned(item.value)}
               </span>
             ))
-          ) : (
-            <span>{t("game:government.sellPhaseNote")}</span>
-          )}
-        </div>
+          : null}
       </div>
-      <div className="government-actions government-actions--market">
+      <div className="government-actions gov-policy-market-actions">
         {strategies.map((strategy) => {
           const queued = queuedStrategyIds.has(strategy.actionId);
-          const overBudget = !queued && !canAddMarketStrategy(strategy.cost);
-          const lockedReason = strategy.lockedReason ?? (overBudget ? t("game:government.insufficientBudget", "财政不足") : null);
+          const overCapacity = !queued && !canAddMarketPolicy();
+          const lockedReason = strategy.lockedReason ?? (overCapacity ? t("game:government.insufficientAdminCapacity", "行政力不足") : null);
           const isDisabled = !queued && lockedReason !== null;
           const status = queued ? "selected" : lockedReason ? "disabled" : "available";
           return (
@@ -641,7 +637,7 @@ export function GovernmentPanel({
               key={strategy.actionId}
               icon={MARKET_STRATEGY_ICONS[strategy.actionId] ?? "🎯"}
               title={translateBackend(strategy.label)}
-              costLabel={`${strategy.cost} ${t("game:government.budget")}`}
+              costLabel={`${MARKET_POLICY_ADMIN_COST} ${t("game:government.adminPower", "行政力")}`}
               description={stripGeneratedEffectSummary(translateBackend(strategy.description) ?? undefined)}
               effects={formatStrategyEffects(strategy)}
               status={status}
@@ -658,7 +654,7 @@ export function GovernmentPanel({
           );
         })}
       </div>
-    </section>
+    </>
   ) : null;
 
   return (
@@ -686,50 +682,12 @@ export function GovernmentPanel({
           },
           {
             icon: "📋",
-            value: projectedActivePolicyUpkeep,
+            value: projectedPolicyAdminUse,
             label: t("game:government.policyAdminUpkeep", "政策占用"),
             tone: rawProjectedAdmin < 0 ? "critical" : undefined,
           },
         ]}
       />
-
-      {marketRegulationSection}
-
-      {/* ── 购买行政力 ── */}
-      <h4 className="government-section-label">💰 {t("game:government.increaseAdmin")}</h4>
-      <div className="government-actions">
-        <DecisionActionCard
-          icon="📜"
-          title={t("game:government.buyAdmin")}
-          costLabel={`${adminCost} ${t("game:government.adminCapacity")}`}
-          description={t("game:government.buyAdminDesc")}
-          effects={buildPurchaseEffects(queuedAdminPurchases, adminCost, t("game:government.adminCapacity"))}
-          status={
-            queuedAdminPurchases > 0
-              ? "selected"
-              : !canBuyAdmin
-                ? "disabled"
-                : "available"
-          }
-          statusText={
-            queuedAdminPurchases > 0
-              ? t("game:government.purchasedThisRound", { cost: queuedAdminPurchases * adminCost, quantity: queuedAdminPurchases })
-              : !canBuyAdmin
-                ? formatShortfall(adminCost, baseGovernmentRemaining)
-                : t("game:government.canPurchase")
-          }
-          control={{
-            kind: "stepper",
-            value: queuedAdminPurchases,
-            min: 0,
-            max: adminCost > 0 ? Math.floor((baseGovernmentRemaining + queuedAdminPurchases * adminCost) / adminCost) : 0,
-            onChange: onAdminPurchase,
-            incrementAriaLabel: t("game:government.increaseAdmin"),
-            decrementAriaLabel: t("game:government.increaseAdmin"),
-            incrementDisabled: !canBuyAdmin,
-          }}
-        />
-      </div>
 
       {/* ── 思潮信号 ── */}
       <h4 className="government-section-label">
@@ -745,7 +703,7 @@ export function GovernmentPanel({
         {IDEOLOGY_KEYS.map((key) => {
           const meta = IDEOLOGY_META[key];
           const rawLevel = reforms.ideologyLevels[key] ?? 0;
-          const level = Math.min(rawLevel, reforms.revolutionThreshold);
+          const level = Math.max(reforms.ideologyMin, Math.min(rawLevel, reforms.revolutionThreshold));
           const isCritical = rawLevel >= reforms.revolutionThreshold;
           return (
             <div
@@ -766,7 +724,7 @@ export function GovernmentPanel({
         {IDEOLOGY_KEYS.map((key) => {
           const meta = IDEOLOGY_META[key];
           const rawLevel = reforms.ideologyLevels[key] ?? 0;
-          const level = Math.min(rawLevel, reforms.revolutionThreshold);
+          const level = Math.max(reforms.ideologyMin, Math.min(rawLevel, reforms.revolutionThreshold));
           const milestones = resolveIdeologyMilestones(
             reforms.ideologyMilestones as Record<string, IdeologyMilestone[]> | undefined,
             key,
@@ -920,10 +878,23 @@ export function GovernmentPanel({
       <div className="gov-policy-split">
         <div className="gov-policy-split__left">
           {/* 本轮已选政策 */}
-          {activePolicies.length > 0 ? (
+          {activePolicies.length > 0 || selectedMarketStrategies.length > 0 ? (
             <>
               <h4 className="government-section-label">⚙️ {t("game:government.activePoliciesTitle")}</h4>
               <div className="government-actions">
+                {selectedMarketStrategies.map((strategy) => (
+                  <DecisionActionCard
+                    key={`market-policy-selected-${strategy.actionId}`}
+                    icon={MARKET_STRATEGY_ICONS[strategy.actionId] ?? "🎯"}
+                    title={translateBackend(strategy.label)}
+                    costLabel={`${MARKET_POLICY_ADMIN_COST} ${t("game:government.adminPower", "行政力")}`}
+                    description={stripGeneratedEffectSummary(translateBackend(strategy.description) ?? undefined)}
+                    effects={formatStrategyEffects(strategy)}
+                    status="selected"
+                    statusText={"✓ " + t("game:government.executeThisRound")}
+                    doneBadge={t("game:government.marketPolicyActions", "市场政策")}
+                  />
+                ))}
                 {activePolicies.map((policy) => {
                   const active = isPolicyActiveAfter(policy.policyId, policy.isActive);
                   const restoreLockedReason = !active && projectedAdmin < policy.adminCostPerTurn
@@ -1016,6 +987,8 @@ export function GovernmentPanel({
             </>
           )}
 
+          {marketPolicySection}
+
           {/* 政策（可激活） */}
           {inactivePolicies.length > 0 && (
             <>
@@ -1024,7 +997,7 @@ export function GovernmentPanel({
                 {inactivePolicies.map((policy) => {
                   const active = isPolicyActiveAfter(policy.policyId, policy.isActive);
                   const policyBudgetCost = policy.budgetCost;
-                  const budgetLockedReason = !active && policyBudgetCost > 0 && baseGovernmentRemaining < policyBudgetCost
+                  const budgetLockedReason = !active && policyBudgetCost > 0 && fiscalState.effectiveGovernmentRemaining < policyBudgetCost
                     ? t("game:government.insufficientBudget", "财政不足")
                     : null;
                   const adminLockedReason = !active && projectedAdmin < policy.adminCostPerTurn

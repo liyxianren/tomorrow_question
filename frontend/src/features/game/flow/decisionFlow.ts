@@ -14,6 +14,7 @@ export const DECISION_STEP_ORDER: DecisionStepId[] = ["factory", "government", "
 
 export type DecisionStepContentContext = {
   activeResearch?: string | null;
+  requireFactoryReviewForPhase1?: boolean;
 };
 
 export function createInitialDecisionFlowState(): DecisionFlowState {
@@ -55,7 +56,8 @@ export function hasDecisionStepContent(
 ): boolean {
   if (step === "factory") {
     const rawAssignments = draft.phase1Production?.rawMaterialAssignments ?? {};
-    const hasPhase1 = Object.values(rawAssignments).some((value) => Math.max(0, value) > 0);
+    const hasPhase1 = !context.requireFactoryReviewForPhase1
+      && Object.values(rawAssignments).some((value) => Math.max(0, value) > 0);
     return (
       hasPhase1 ||
       draft.factoryPlan.productionOrders.some((order) => order.quantity > 0) ||
@@ -70,13 +72,9 @@ export function hasDecisionStepContent(
   }
   if (step === "military") {
     return (
-      draft.militaryPlan.unlockColonization ||
       draft.militaryPlan.militaryActions.length > 0 ||
       draft.militaryPlan.diplomacyActions.length > 0 ||
-      draft.militaryPlan.colonizationActions.length > 0 ||
-      Object.keys(draft.militaryPlan.navalDeployment ?? {}).length > 0 ||
-      (draft.militaryPlan.conquestActions ?? []).some((action) => action.army > 0) ||
-      (draft.militaryPlan.lootingActions ?? []).length > 0
+      Object.keys(draft.militaryPlan.navalDeployment ?? {}).length > 0
     );
   }
   if (step === "research") {
@@ -89,7 +87,6 @@ export function hasDecisionStepContent(
   return (
     draft.governmentPlan.pointPurchases.some((purchase) => purchase.quantity > 0) ||
     draft.governmentPlan.strategySelections.some((selection) => selection.actionId !== "expand_research") ||
-    (draft.governmentPlan.adminPurchases ?? 0) > 0 ||
     (draft.reforms ?? []).length > 0 ||
     (draft.activatePolicies ?? []).length > 0 ||
     (draft.deactivatePolicies ?? []).length > 0 ||
@@ -235,11 +232,12 @@ export function getDecisionStepCompletionSummary(
       draft.factoryPlan.upgradeOrders.reduce((sum, item) => sum + item.quantity, 0) +
       draft.factoryPlan.newFactoryOrders.reduce((sum, item) => sum + item.quantity, 0);
     const factoryActions = draft.factoryPlan.factoryActions?.length ?? 0;
-    const actionSummary = factoryActions > 0 ? ` / ${i18n.t("game:factory.factoryDispatch", "Dispatch")} ${factoryActions} ${i18n.t("game:flow.itemUnit", "items")}` : "";
+    const industrialActions = factoryActions + construction;
+    const arrangementLabel = i18n.t("game:factory.industrialArrangements", "产业安排");
     if (phase1RawMaterials > 0) {
-      return `${i18n.t("game:factory.input", "Input")} ${phase1RawMaterials} ${i18n.t("game:factory.rawMaterials", "Raw Materials")} / ${i18n.t("game:factory.constructionAndUpgrade", "Construction")} ${construction} ${i18n.t("game:flow.times", "times")}${actionSummary}`;
+      return `${i18n.t("game:factory.input", "Input")} ${phase1RawMaterials} ${i18n.t("game:factory.rawMaterials", "Raw Materials")} / ${arrangementLabel} ${industrialActions} ${i18n.t("game:flow.itemUnit", "items")}`;
     }
-    return `${i18n.t("game:flow.production", "Production")} ${production} ${i18n.t("game:flow.batches", "batches")} / ${i18n.t("game:factory.constructionAndUpgrade", "Construction")} ${construction} ${i18n.t("game:flow.times", "times")}${actionSummary}`;
+    return `${i18n.t("game:flow.production", "Production")} ${production} ${i18n.t("game:flow.batches", "batches")} / ${arrangementLabel} ${industrialActions} ${i18n.t("game:flow.itemUnit", "items")}`;
   }
 
   if (step === "domestic") {

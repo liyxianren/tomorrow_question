@@ -73,16 +73,24 @@ function renderProductionPanel({
   modes = baseModes,
   assignments = {},
   onAssignmentChange = vi.fn(),
+  factoryBudget = 5,
+  factoryBudgetRemaining,
+  factoryBudgetTotal,
 }: {
   modes?: Phase1ProductionMode[];
   assignments?: Record<string, number>;
   onAssignmentChange?: (mode: string, quantity: number) => void;
+  factoryBudget?: number;
+  factoryBudgetRemaining?: number;
+  factoryBudgetTotal?: number;
 } = {}) {
   render(
     <Phase1ProductionPanel
       modes={modes}
       rawMaterials={5}
-      factoryBudget={5}
+      factoryBudget={factoryBudget}
+      factoryBudgetRemaining={factoryBudgetRemaining}
+      factoryBudgetTotal={factoryBudgetTotal}
       domesticDemand={3}
       equilibriumPrice={4}
       domesticPricePreview={4}
@@ -143,7 +151,43 @@ describe("Phase1ProductionPanel", () => {
     await user.click(screen.getByLabelText("手工业 最大"));
     expect(within(screen.getByTestId("production-route-handicraft")).getByLabelText("手工业生产数据")).toHaveTextContent(/3\s*投入/);
 
-    await user.click(screen.getByLabelText("手工业 清零"));
+    await user.click(screen.getByLabelText("手工业 清空"));
     expect(within(screen.getByTestId("production-route-handicraft")).getByLabelText("手工业生产数据")).toHaveTextContent(/0\s*投入/);
+  });
+
+  it("does not ask players to upgrade industry when budget is the active production bottleneck", () => {
+    const modes = baseModes.map((mode) =>
+      mode.mode === "handicraft"
+        ? { ...mode, currentCapacity: 4 }
+        : mode,
+    );
+
+    render(
+      <Phase1ProductionPanel
+        modes={modes}
+        rawMaterials={5}
+        factoryBudget={3}
+        domesticDemand={3}
+        equilibriumPrice={4}
+        domesticPricePreview={4}
+        goodsInventory={1}
+        assignments={{ handicraft: 3 }}
+        onAssignmentChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId("capacity-warning")).not.toBeInTheDocument();
+    expect(screen.getByTestId("budget-warning")).toHaveTextContent("工厂预算不足");
+  });
+
+  it("keeps the factory budget denominator on the full decision budget", () => {
+    renderProductionPanel({
+      factoryBudget: 3,
+      factoryBudgetRemaining: 6,
+      factoryBudgetTotal: 10,
+      assignments: { handicraft: 1 },
+    });
+
+    expect(screen.getByText("6 / 10")).toBeInTheDocument();
   });
 });

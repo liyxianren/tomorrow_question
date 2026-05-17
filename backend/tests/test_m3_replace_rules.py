@@ -140,25 +140,14 @@ class DecisionPhase1ProductionTests(unittest.TestCase):
         # Legacy goods_stock receives the unified bucket for frontend compat.
         self.assertEqual(updated.goods_stock.get("phase1_goods"), expected_output)
 
-    def test_factory_action_trades_production_capacity_for_government_budget(self) -> None:
+    def test_factory_overtime_shift_applies_ideology_delta(self) -> None:
         snapshot = _build_snapshot()
         britain = _get_player(snapshot, "player-1")
-        britain.phase1_economy.capacity_by_mode = {
-            "idle": 0,
-            "handicraft": 4,
-            "mechanized": 0,
-            "steam": 0,
-            "electrified": 0,
-        }
-        britain.phase1_economy.raw_materials = 10
-        britain.budget_pools = {"domesticMarket": 0, "factory": 4, "governmentFiscal": 1}
+        britain.budget_pools = {"domesticMarket": 0, "factory": 10, "governmentFiscal": 0}
+        britain.ideology_levels = {"liberalism": 0, "egalitarianism": 2, "nationalism": 0}
 
-        payload = _decision_payload(
-            phase1_production={
-                "rawMaterialAssignments": {"handicraft": 4},
-            }
-        )
-        payload["factoryPlan"]["factoryActions"] = [{"actionId": "factory_tax_contracting"}]
+        payload = _decision_payload()
+        payload["factoryPlan"]["factoryActions"] = [{"actionId": "factory_overtime_shift"}]
 
         resolution = resolve_decision_phase(
             snapshot=snapshot,
@@ -168,11 +157,46 @@ class DecisionPhase1ProductionTests(unittest.TestCase):
         )
 
         updated = _get_player(resolution.updated_snapshot, "player-1")
-        # 财政承包把本回合投料上限从 4 压到 2，并给政府财政 +4。
-        self.assertEqual(updated.phase1_economy.goods_inventory, 2)
-        self.assertEqual(updated.phase1_economy.raw_materials, 8)
-        self.assertEqual(updated.budget_pools["factory"], 2)
-        self.assertEqual(updated.budget_pools["governmentFiscal"], 5)
+        self.assertEqual(updated.temporary_effects["productionOutputMultiplier"], 2)
+        self.assertEqual(updated.ideology_levels["egalitarianism"], 3)
+        self.assertEqual(updated.budget_pools["factory"], 4)
+
+    def test_factory_upgrade_moves_capacity_before_same_turn_production(self) -> None:
+        snapshot = _build_snapshot()
+        britain = _get_player(snapshot, "player-1")
+        britain.production_capacity["handicraft"] = 2
+        britain.phase1_economy.capacity_by_mode = {
+            "idle": 0,
+            "handicraft": 2,
+            "mechanized": 0,
+            "steam": 0,
+            "electrified": 0,
+        }
+        britain.phase1_economy.raw_materials = 10
+        britain.budget_pools = {"domesticMarket": 0, "factory": 20, "governmentFiscal": 0}
+        britain.unlocked_techs = ["spinning_jenny"]
+
+        payload = _decision_payload(
+            phase1_production={
+                "rawMaterialAssignments": {"handicraft": 2, "mechanized": 1},
+            }
+        )
+        payload["factoryPlan"]["upgradeOrders"] = [{"routeId": "mechanized", "quantity": 1}]
+
+        resolution = resolve_decision_phase(
+            snapshot=snapshot,
+            turn_inputs=[
+                _build_turn_input("player-1", GamePhase.DECISION, payload)
+            ],
+        )
+
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+        self.assertEqual(updated.production_capacity["handicraft"], 1)
+        self.assertEqual(updated.production_capacity["mechanized"], 1)
+        self.assertEqual(updated.phase1_economy.capacity_by_mode["handicraft"], 1)
+        self.assertEqual(updated.phase1_economy.capacity_by_mode["mechanized"], 1)
+        self.assertEqual(updated.phase1_economy.goods_inventory, 3)
+        self.assertEqual(updated.budget_pools["factory"], 6)
 
     def test_phase1_production_caps_raw_materials_by_capacity(self) -> None:
         snapshot = _build_snapshot()

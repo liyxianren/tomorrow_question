@@ -440,23 +440,20 @@ def _build_military_config(payload: dict[str, Any]) -> MilitaryBalanceConfig:
         ocean_control_threshold=_require_non_negative_int(payload.get("oceanControlThreshold"), "military.oceanControlThreshold"),
         independence_threshold=_require_non_negative_int(payload.get("independenceThreshold"), "military.independenceThreshold"),
         colonization_unlock_cost=_require_non_negative_int(
-            payload.get("colonizationUnlockCost", 10),
+            payload.get("colonizationUnlockCost", 0),
             "military.colonizationUnlockCost",
         ),
         colonization_budget_cost=_require_non_negative_int(
-            payload.get("colonizationBudgetCost", 4),
+            payload.get("colonizationBudgetCost", 0),
             "military.colonizationBudgetCost",
         ),
         colonization_income_per_colony_per_round=_require_non_negative_int(
-            payload.get("colonizationIncomePerColonyPerRound", 5),
+            payload.get("colonizationIncomePerColonyPerRound", 0),
             "military.colonizationIncomePerColonyPerRound",
         ),
-        max_colonizations_per_round=max(
-            1,
-            _require_non_negative_int(
-                payload.get("maxColonizationsPerRound", 1),
-                "military.maxColonizationsPerRound",
-            ),
+        max_colonizations_per_round=_require_non_negative_int(
+            payload.get("maxColonizationsPerRound", 0),
+            "military.maxColonizationsPerRound",
         ),
         army_cap_base=_require_non_negative_int(
             payload.get("armyCapBase", 3),

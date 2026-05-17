@@ -4,6 +4,7 @@ import sqlite3
 from dataclasses import dataclass, field
 
 from app.contracts.enums import ErrorCode
+from app.i18n import t as i18n_t
 from app.modules.game_state.models import Game, GameSnapshot
 from app.modules.persistence import (
     GameLogRepository,
@@ -16,10 +17,10 @@ from app.modules.room.models import Room
 from app.modules.session.models import PlayerSession
 from app.modules.session.service import SessionError, connect_session
 
-PHASE_LABELS: dict[str, str] = {
-    "decision": "国家决策",
-    "market": "市场出售",
-    "settlement": "财政结算",
+PHASE_LABEL_KEYS: dict[str, str] = {
+    "decision": "phase_decision",
+    "market": "phase_market",
+    "settlement": "phase_settlement",
 }
 
 
@@ -168,29 +169,47 @@ def build_why_rank_changed(
     viewer_tie_break = _as_mapping(viewer.get("tieBreak"))
 
     if viewer_rank == 1:
-        lines = [f"你最终位列第 1 名，核心原因是累计国家收入 {viewer_income} 为全场最高。"]
+        lines = [i18n_t("final_rank_winner_reason", income=viewer_income)]
         if runner_up is not None:
             gap = viewer_income - _safe_int(runner_up.get("cumulativeNationalIncome"))
-            lines.append(f"你领先第 2 名 {gap} 点累计国家收入，这意味着产销兑现链是这局最直接的分差来源。")
-        lines.append(
-            "即使回流被追平，你的总产能 "
-            f"{_safe_int(viewer_tie_break.get('productionCapacity'))}、控制区域 "
-            f"{_safe_int(viewer_tie_break.get('controlledRegions'))}、期末国库 "
-            f"{_safe_int(viewer_tie_break.get('budgetPoolsTotal'))} 也会继续在同分比较里提供优势。"
+            if gap > 0:
+                lines.append(i18n_t("final_rank_winner_income_lead", gap=gap))
+            else:
+                lines[0] = i18n_t("final_rank_winner_tied", income=viewer_income)
+        tiebreak_values = {
+            "production": _safe_int(viewer_tie_break.get("productionCapacity")),
+            "regions": _safe_int(viewer_tie_break.get("controlledRegions")),
+            "budget": _safe_int(viewer_tie_break.get("budgetPoolsTotal")),
+        }
+        tiebreak_key = (
+            "final_rank_winner_tied_detail"
+            if runner_up is not None
+            and viewer_income == _safe_int(runner_up.get("cumulativeNationalIncome"))
+            else "final_rank_winner_tiebreak"
         )
+        lines.append(i18n_t(tiebreak_key, **tiebreak_values))
         return lines
 
     leader_income = _safe_int(leader.get("cumulativeNationalIncome"))
     gap_to_leader = leader_income - viewer_income
     previous_entry = final_ranking[viewer_rank - 2] if viewer_rank >= 2 and len(final_ranking) >= viewer_rank - 1 else None
     lines = [
-        f"你最终位列第 {viewer_rank} 名，核心原因是累计国家收入 {viewer_income} 仍落后榜首 {gap_to_leader} 点。",
-        f"当前榜首是 {str(leader.get('nickname') or leader.get('playerId'))}，这说明决定胜负的主分差仍是经营收入总量。",
+        i18n_t(
+            "final_rank_loser_tied_reason" if gap_to_leader == 0 else "final_rank_loser_reason",
+            rank=viewer_rank,
+            income=viewer_income,
+            gap=gap_to_leader,
+        ),
+        i18n_t("final_rank_loser_leader", leader=str(leader.get("nickname") or leader.get("playerId"))),
     ]
     if previous_entry is not None:
         previous_income = _safe_int(previous_entry.get("cumulativeNationalIncome"))
+        previous_gap = previous_income - viewer_income
         lines.append(
-            f"你距离前一名还差 {previous_income - viewer_income} 点累计国家收入，想再上一个名次，先补最稳定的收入兑现链。"
+            i18n_t(
+                "final_rank_loser_previous_tied" if previous_gap == 0 else "final_rank_loser_previous_gap",
+                gap=previous_gap,
+            )
         )
     return lines
 
@@ -202,15 +221,16 @@ def build_turning_point_cards(
     final_ranking: list[dict[str, object]],
 ) -> list[dict[str, str]]:
     cards: list[dict[str, str]] = []
-    phase_label = PHASE_LABELS.get(snapshot.phase.value, snapshot.phase.value)
+    phase_label = _phase_label(snapshot.phase.value)
     leader = final_ranking[0] if final_ranking else None
     if leader is not None:
         cards.append(
             {
-                "title": f"最后结算定格在{phase_label}",
-                "detail": (
-                    f"{_country_label(str(leader.get('country') or ''))}以 "
-                    f"{_safe_int(leader.get('cumulativeNationalIncome'))} 累计国家收入锁定榜首。"
+                "title": i18n_t("final_turning_last_phase", phase=phase_label),
+                "detail": i18n_t(
+                    "final_turning_leader_detail",
+                    country=_country_label(str(leader.get("country") or "")),
+                    income=_safe_int(leader.get("cumulativeNationalIncome")),
                 ),
             }
         )
@@ -218,23 +238,44 @@ def build_turning_point_cards(
     if len(final_ranking) >= 2:
         leader = final_ranking[0]
         runner_up = final_ranking[1]
-        lead = _safe_int(leader.get("cumulativeNationalIncome")) - _safe_int(runner_up.get("cumulativeNationalIncome"))
-        cards.append(
-            {
-                "title": f"终局领先差被锁定在 {lead}",
-                "detail": (
-                    f"{_country_label(str(leader.get('country') or ''))} 以 "
-                    f"{_safe_int(leader.get('cumulativeNationalIncome'))} 的累计国家收入领先 "
-                    f"{_country_label(str(runner_up.get('country') or ''))} 的 "
-                    f"{_safe_int(runner_up.get('cumulativeNationalIncome'))}。"
-                ),
-            }
-        )
+        leader_income = _safe_int(leader.get("cumulativeNationalIncome"))
+        runner_up_income = _safe_int(runner_up.get("cumulativeNationalIncome"))
+        lead = leader_income - runner_up_income
+        if lead == 0:
+            cards.append(
+                {
+                    "title": i18n_t("final_turning_tie_title"),
+                    "detail": i18n_t(
+                        "final_turning_tie_detail",
+                        leader=_country_label(str(leader.get("country") or "")),
+                        runnerUp=_country_label(str(runner_up.get("country") or "")),
+                        income=leader_income,
+                    ),
+                }
+            )
+        else:
+            cards.append(
+                {
+                    "title": i18n_t("final_turning_income_lead_title", lead=lead),
+                    "detail": i18n_t(
+                        "final_turning_income_lead_detail",
+                        leader=_country_label(str(leader.get("country") or "")),
+                        runnerUp=_country_label(str(runner_up.get("country") or "")),
+                        lead=lead,
+                        leaderIncome=leader_income,
+                        runnerUpIncome=runner_up_income,
+                    ),
+                }
+            )
     curated_log = _pick_curated_turning_log(final_logs)
     if curated_log is not None:
         cards.append(
             {
-                "title": f"第 {_safe_int(curated_log.get('roundNo'))} 回合：{_log_card_title(curated_log)}",
+                "title": i18n_t(
+                    "final_turning_log_title",
+                    round=_safe_int(curated_log.get("roundNo")),
+                    title=_log_card_title(curated_log),
+                ),
                 "detail": _sanitize_log_message(curated_log),
             }
         )
@@ -253,13 +294,13 @@ def build_replay_guidance(
     viewer_rank = _safe_int(viewer.get("rank"))
     if viewer_rank == 1:
         return [
-            "下次如果想继续稳住榜首，优先把国库回款节奏保持到每一轮，不要让库存积压打断收入曲线。",
-            "当你已经领先时，继续守住产能、区域和国库三项同分比较，会比盲目冒险更稳。",
+            i18n_t("final_replay_winner_1"),
+            i18n_t("final_replay_winner_2"),
         ]
 
     return [
-        "下次先把前几轮最稳定的产销链做出来，别让高门槛动作挤掉当回合真实回款。",
-        "一旦市场回款开始落后，优先检查是不是内需、航线或行政支撑拖慢了经营节奏。",
+        i18n_t("final_replay_loser_1"),
+        i18n_t("final_replay_loser_2"),
     ]
 
 
@@ -290,13 +331,21 @@ def _as_mapping(value: object) -> dict[str, object]:
 
 
 def _country_label(country: str) -> str:
-    return {
-        "britain": "英国",
-        "france": "法国",
-        "prussia": "普鲁士",
-        "austria": "奥地利",
-        "russia": "俄罗斯",
-    }.get(country, country or "领先国家")
+    key = {
+        "britain": "country_britain",
+        "france": "country_france",
+        "prussia": "country_prussia",
+        "austria": "country_austria",
+        "russia": "country_russia",
+    }.get(country)
+    if key is not None:
+        return i18n_t(key)
+    return country or i18n_t("country_leading")
+
+
+def _phase_label(phase: str) -> str:
+    key = PHASE_LABEL_KEYS.get(phase)
+    return i18n_t(key) if key is not None else phase
 
 
 def _pick_curated_turning_log(final_logs: list[dict[str, object]]) -> dict[str, object] | None:
@@ -305,7 +354,7 @@ def _pick_curated_turning_log(final_logs: list[dict[str, object]]) -> dict[str, 
         message = str(log.get("message") or "")
         if kind == "settlement.resolved" or "completed national income allocation" in message:
             continue
-        if any(token in kind for token in ("colon", "naval", "conquest", "revolt", "policy", "reform", "market")):
+        if any(token in kind for token in ("naval", "revolt", "policy", "reform", "market")):
             return log
     return None
 
@@ -313,22 +362,22 @@ def _pick_curated_turning_log(final_logs: list[dict[str, object]]) -> dict[str, 
 def _log_card_title(log: dict[str, object]) -> str:
     kind = str(log.get("kind") or "")
     if "revolt" in kind:
-        return "殖民地局势变化"
+        return i18n_t("final_log_title_overseas")
     if "naval" in kind:
-        return "航线控制变化"
+        return i18n_t("final_log_title_naval")
     if "colon" in kind:
-        return "殖民扩张"
+        return i18n_t("final_log_title_colony")
     if "market" in kind:
-        return "市场兑现"
+        return i18n_t("final_log_title_market")
     if "policy" in kind or "reform" in kind:
-        return "制度选择"
-    return "关键记录"
+        return i18n_t("final_log_title_policy")
+    return i18n_t("final_log_title_default")
 
 
 def _sanitize_log_message(log: dict[str, object]) -> str:
     message = str(log.get("message") or "").strip()
     if not message or "completed national income allocation" in message:
-        return "系统已完成本回合终局结算。"
+        return i18n_t("final_log_system_settlement")
     return message
 
 
@@ -340,23 +389,27 @@ def _sanitize_final_log(log: dict[str, object]) -> dict[str, object]:
 
     if "completed national income allocation" in message:
         country_key = message.split(" ", 1)[0].strip()
-        sanitized["message"] = f"{_country_label(country_key)}完成第 {round_no} 回合财政分配。"
+        sanitized["message"] = i18n_t(
+            "final_log_income_allocation",
+            country=_country_label(country_key),
+            round=round_no,
+        )
         return sanitized
 
     if message == "settlement settled." or message == "settlement.phase_resolved":
-        sanitized["message"] = "终局财政结算已完成。"
+        sanitized["message"] = i18n_t("final_log_settlement_complete")
         return sanitized
 
     if message == "market settled.":
-        sanitized["message"] = "市场出售阶段已完成。"
+        sanitized["message"] = i18n_t("final_log_market_complete")
         return sanitized
 
     if message == "decision settled.":
-        sanitized["message"] = "国家决策阶段已完成。"
+        sanitized["message"] = i18n_t("final_log_decision_complete")
         return sanitized
 
-    if phase in PHASE_LABELS and message.endswith(" settled."):
-        sanitized["message"] = f"{PHASE_LABELS[phase]}阶段已完成。"
+    if phase in PHASE_LABEL_KEYS and message.endswith(" settled."):
+        sanitized["message"] = i18n_t("final_log_phase_complete", phase=_phase_label(phase))
         return sanitized
 
     return sanitized

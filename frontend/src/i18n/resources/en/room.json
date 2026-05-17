@@ -28,6 +28,15 @@
     "you": "You",
     "empty": "Waiting for players..."
   },
+  "ai": {
+    "title": "AI Bots",
+    "emptyHelper": "Use AI to fill open seats",
+    "botCount": "{{count}} AI bots added",
+    "description": "{{count}} AI bots can still be added.",
+    "fullDescription": "The room is full.",
+    "fillButton": "Add AI Bots",
+    "filling": "Adding AI..."
+  },
   "sideRailAriaLabel": "Room status and game start operations",
   "roomExpiryNotice": "This room will automatically close if no one is here for a while.",
   "errors": {

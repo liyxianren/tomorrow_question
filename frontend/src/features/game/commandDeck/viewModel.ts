@@ -173,11 +173,18 @@ function buildFactoryLocation({
       }),
     );
 
+  const expansionRouteIds = new Set(workspace.expansionOptions.map((option) => option.routeId));
   const constructionCards = [
     ...workspace.expansionOptions.map((option) => buildExpansionCard(option, draft, remainingFactoryBudget)),
+    ...workspace.newFactoryOptions
+      .filter((option) => !expansionRouteIds.has(option.routeId))
+      .map((option) => buildNewFactoryCard(option, draft, remainingFactoryBudget)),
     ...workspace.upgradeOptions.map((option) => buildUpgradeCard(option, draft, remainingFactoryBudget)),
-    ...workspace.newFactoryOptions.map((option) => buildNewFactoryCard(option, draft, remainingFactoryBudget)),
   ];
+
+  const factoryActionCards = (workspace.factoryActions ?? [])
+    .filter((action) => action.actionId !== "industrial_upgrade" && Number(action.effects?.techPointsDelta ?? 0) === 0)
+    .map((action) => buildFactoryActionCard(action, draft, remainingFactoryBudget));
 
   const factoryTechCards = flattenTechTree(workspace.techTree)
     .filter((tech) => tech.budgetPool === "factory")
@@ -230,7 +237,7 @@ function buildFactoryLocation({
     label: i18n.t("game:building.factory", "工业区"),
     eyebrow: i18n.t("game:commandDeck.stepEyebrow", "步骤 {{current}} / 5", { current: 1 }),
     subtitle: i18n.t("game:commandDeck.factory.subtitle", "你的工厂今天需要什么指令？"),
-    description: i18n.t("game:commandDeck.factory.description", "安排本轮生产、建设产线，并把工业研究直接挂到工厂预算上。"),
+    description: i18n.t("game:commandDeck.factory.description", "安排本轮生产，并按工业阶段增加工厂、升级产线或临时调整产出。"),
     budgetLabel: i18n.t("game:commandDeck.factory.budgetLabel", "工厂预算"),
     remainingBudget: remainingFactoryBudget,
     summaryPills: [
@@ -248,12 +255,26 @@ function buildFactoryLocation({
         description: i18n.t("game:commandDeck.factory.productionDesc", "选择生产批次，预算和共享产能会即时联动。"),
         cards: productionCards,
       },
-      {
-        id: "construction",
-        title: i18n.t("game:commandDeck.factory.constructionTitle", "建设升级"),
-        description: i18n.t("game:commandDeck.factory.constructionDesc", "确认后写入本轮草稿，影响下一回合产能。"),
-        cards: constructionCards,
-      },
+      ...(constructionCards.length > 0
+        ? [
+            {
+              id: "industrial-development",
+              title: i18n.t("game:commandDeck.factory.industrialDevelopmentTitle", "产业建设"),
+              description: i18n.t("game:commandDeck.factory.industrialDevelopmentDesc", "每个工业阶段都有自己的工厂增加与产业升级：增加工厂影响下回合，升级产线影响本回合产能结构。"),
+              cards: constructionCards,
+            },
+          ]
+        : []),
+      ...(factoryActionCards.length > 0
+        ? [
+            {
+              id: "factory-dispatch",
+              title: i18n.t("game:commandDeck.factory.industryActionsTitle", "临时调度"),
+              description: i18n.t("game:commandDeck.factory.industryActionsDesc", "补充原料、加班轮班等临时动作只影响当回合，不再承载长期产能升级。"),
+              cards: factoryActionCards,
+            },
+          ]
+        : []),
       ...(factoryTechCards.length > 0
         ? [
             {
@@ -751,18 +772,15 @@ function buildMilitaryLocation({
   remainingGovernmentBudget: number;
 }): DecisionLocationViewModel {
   const militaryWorkspace = workspace.militaryWorkspace;
-  const colonizationCapability = militaryWorkspace.colonizationCapability;
   const getMilitarySelectionCount = (actionId: string) =>
     draft.militaryPlan.militaryActions.filter((item) => item.actionId === actionId).length;
   const selectedMilitaryPointSpend = draft.militaryPlan.militaryActions.reduce((sum, selection) => {
     const action = militaryWorkspace.availableMilitaryActions.find((item) => item.actionId === selection.actionId);
     return sum + (action?.cost ?? 0);
   }, 0);
-  const selectedColonizationPointSpend = draft.militaryPlan.colonizationActions.length
-    * colonizationCapability.budgetCost;
   const remainingMilitaryPoints = Math.max(
     0,
-    availableMilitaryPoints - selectedMilitaryPointSpend - selectedColonizationPointSpend,
+    availableMilitaryPoints - selectedMilitaryPointSpend,
   );
 
   const navalCards = militaryWorkspace.availableMilitaryActions
@@ -815,96 +833,6 @@ function buildMilitaryLocation({
     } satisfies DecisionCardViewModel;
   });
 
-  const unlockSelected = draft.militaryPlan.unlockColonization;
-  const previewIsUnlocked = colonizationCapability.isUnlocked || unlockSelected;
-  const previewEstablishedDiplomacy = new Set([
-    ...militaryWorkspace.establishedDiplomacy,
-    ...militaryWorkspace.availableDiplomacyActions
-      .filter((action) => draft.militaryPlan.diplomacyActions.some((selection) => selection.actionId === action.actionId))
-      .map((action) => action.targetRegion),
-  ]);
-  const unlockLockedReason = colonizationCapability.isUnlocked
-    ? i18n.t("game:commandDeck.military.colonizationUnlocked", "已永久解锁")
-    : !unlockSelected && remainingGovernmentBudget < colonizationCapability.unlockCost
-      ? i18n.t("game:commandDeck.military.insufficientBudget", "政府预算不足")
-      : null;
-
-  const colonizationUnlockCard: DecisionCardViewModel = {
-    id: "colonization-unlock",
-    title: i18n.t("game:commandDeck.military.colonizationUnlockTitle", "殖民扩张"),
-    subtitle: i18n.t("game:commandDeck.military.govBudget", "政府预算 {{cost}}", { cost: colonizationCapability.unlockCost }),
-    description: i18n.t("game:commandDeck.military.colonizationUnlockDesc", "支付 {{cost}} 政府财政，永久获得殖民能力。之后每次殖民仅消耗 {{mp}} 军事点。", { cost: colonizationCapability.unlockCost, mp: colonizationCapability.budgetCost }),
-    badges: [
-      i18n.t("game:commandDeck.military.colonyIncomeBonus", "每殖民地 +{{income}} 国家收入", { income: colonizationCapability.incomePerColonyPerRound }),
-      i18n.t("game:commandDeck.military.maxColoniesPerRound", "每回合最多 {{max}} 个目标", { max: colonizationCapability.maxColonizationsPerRound }),
-    ],
-    metrics: [
-      { label: i18n.t("game:commandDeck.military.currentStatus", "当前状态"), value: colonizationCapability.isUnlocked ? i18n.t("game:commandDeck.military.statusPermanentlyUnlocked", "已永久解锁") : unlockSelected ? i18n.t("game:commandDeck.military.statusPendingUnlock", "待本轮解锁") : i18n.t("game:commandDeck.military.statusNotUnlocked", "未解锁") },
-      { label: i18n.t("game:commandDeck.military.fiscalCost", "财政消耗"), value: colonizationCapability.unlockCost },
-    ],
-    feedback: colonizationCapability.isUnlocked
-      ? i18n.t("game:commandDeck.military.colonizationPermanentlyUnlocked", "本局已经完成永久解锁。")
-      : unlockSelected
-        ? i18n.t("game:commandDeck.military.colonizationPlanned", "已纳入本轮永久解锁计划。")
-        : undefined,
-    lockedReason: unlockLockedReason,
-    tone: colonizationCapability.isUnlocked ? "locked" : unlockSelected ? "accent" : "default",
-    selected: colonizationCapability.isUnlocked || unlockSelected,
-    control: {
-      kind: "confirm",
-      mode: "toggle",
-      confirmed: colonizationCapability.isUnlocked || unlockSelected,
-      confirmLabel: i18n.t("game:commandDeck.military.confirmUnlockColonization", "解锁殖民扩张"),
-      cancelLabel: i18n.t("game:commandDeck.military.cancelUnlockColonization", "取消解锁殖民扩张"),
-      disabled: colonizationCapability.isUnlocked || (!unlockSelected && remainingGovernmentBudget < colonizationCapability.unlockCost),
-      revokeDisabled: colonizationCapability.isUnlocked || !unlockSelected,
-    },
-    interaction: { type: "colonizationUnlock" },
-  };
-
-  const colonizationCards = militaryWorkspace.colonizationOptions.map((option) => {
-    const selected = draft.militaryPlan.colonizationActions.some((item) => item.targetRegionId === option.regionId);
-    const previewHasDiplomacy = previewEstablishedDiplomacy.has(option.regionId);
-    const previewHasMilitary = selected || remainingMilitaryPoints >= colonizationCapability.budgetCost;
-    const previewCanColonize = !option.isColonized && previewIsUnlocked && previewHasDiplomacy && previewHasMilitary;
-    const previewLockedReason = option.isColonized
-      ? i18n.t("game:commandDeck.military.regionAlreadyColonized", "该区域已经被殖民")
-      : !previewIsUnlocked
-        ? i18n.t("game:commandDeck.military.needUnlockColonization", "需先永久解锁殖民扩张")
-        : !previewHasDiplomacy
-          ? i18n.t("game:commandDeck.military.needDiplomacyFirst", "需先建交")
-          : !previewHasMilitary
-            ? i18n.t("game:commandDeck.military.needMilitaryPoints", "需要{{mp}}军事点", { mp: colonizationCapability.budgetCost })
-            : null;
-    return {
-      id: `colonization-${option.regionId}`,
-      title: option.regionLabel,
-      subtitle: option.isColonized ? i18n.t("game:commandDeck.military.statusColonized", "已殖民") : selected ? i18n.t("game:commandDeck.military.statusPending", "待提交") : previewLockedReason ?? i18n.t("game:commandDeck.military.statusCanColonize", "可殖民"),
-      description: option.isColonized
-        ? i18n.t("game:commandDeck.military.regionColonizedDesc", "{{label}} 已经进入殖民状态。", { label: option.regionLabel })
-        : i18n.t("game:commandDeck.military.colonizeDesc", "执行殖民消耗 {{mp}} 军事点；结算时每回合增加 {{income}} 国家收入。", { mp: colonizationCapability.budgetCost, income: colonizationCapability.incomePerColonyPerRound }),
-      badges: [option.isColonized ? i18n.t("game:commandDeck.military.statusColonized", "已殖民") : i18n.t("game:commandDeck.military.colonizeTarget", "殖民目标")],
-      metrics: [
-        { label: i18n.t("game:commandDeck.military.status", "状态"), value: option.isColonized ? i18n.t("game:commandDeck.military.statusColonized", "已殖民") : selected ? i18n.t("game:commandDeck.military.statusPending", "待提交") : previewLockedReason ?? i18n.t("game:commandDeck.military.statusCanColonize", "可殖民") },
-        { label: i18n.t("game:commandDeck.military.militaryCost", "军事消耗"), value: i18n.t("game:commandDeck.military.points", "{{count}} 点", { count: colonizationCapability.budgetCost }) },
-      ],
-      feedback: selected ? i18n.t("game:commandDeck.military.colonizePlanned", "已纳入本轮殖民目标。") : undefined,
-      lockedReason: selected ? null : previewLockedReason,
-      tone: option.isColonized ? "locked" : selected ? "accent" : previewCanColonize ? "default" : "locked",
-      selected,
-      control: {
-        kind: "confirm",
-        mode: "toggle",
-        confirmed: selected,
-        confirmLabel: i18n.t("game:commandDeck.military.confirmColonize", "殖民{{label}}", { label: option.regionLabel }),
-        cancelLabel: i18n.t("game:commandDeck.military.cancelColonize", "取消殖民{{label}}", { label: option.regionLabel }),
-        disabled: option.isColonized || (!selected && !previewCanColonize),
-        revokeDisabled: !selected,
-      },
-      interaction: { type: "colonizationTarget", targetRegionId: option.regionId },
-    } satisfies DecisionCardViewModel;
-  });
-
   const regionCards = militaryWorkspace.regionAccessStatus.map((status) => ({
     id: `region-${status.regionId}`,
     title: status.label,
@@ -924,8 +852,8 @@ function buildMilitaryLocation({
     id: "military",
     label: i18n.t("game:commandDeck.military.locationLabel", "军事要塞"),
     eyebrow: i18n.t("game:commandDeck.stepEyebrow", "步骤 {{current}} / 5", { current: 4 }),
-    subtitle: i18n.t("game:commandDeck.military.locationSubtitle", "海军、陆军、外交与殖民执行"),
-    description: i18n.t("game:commandDeck.military.locationDesc", "殖民被拆成永久能力解锁与区域执行两层，外交是殖民前置，殖民收益在结算阶段并入国家收入。"),
+    subtitle: i18n.t("game:commandDeck.military.locationSubtitle", "海军、陆军、外交与区域行动"),
+    description: i18n.t("game:commandDeck.military.locationDesc", "通过舰队控制航线、建立外交关系，并在开放区域执行军事行动。"),
     budgetLabel: i18n.t("game:commandDeck.military.budgetLabel", "军事点"),
     remainingBudget: remainingMilitaryPoints,
     summaryPills: [
@@ -935,13 +863,12 @@ function buildMilitaryLocation({
       i18n.t("game:commandDeck.military.pillOverseasCapacity", "海外承接 {{amount}}", { amount: militaryWorkspace.overseasCapacity }),
       i18n.t("game:commandDeck.military.pillDiplomacyCount", "已建交 {{count}} 区", { count: militaryWorkspace.establishedDiplomacy.length }),
       i18n.t("game:commandDeck.military.pillControlledRegions", "控制区域 {{regions}}", { regions: militaryWorkspace.controlledRegions }),
-      i18n.t("game:commandDeck.military.pillColonizationStatus", "殖民能力 {{status}}", { status: previewIsUnlocked ? (colonizationCapability.isUnlocked ? i18n.t("game:commandDeck.military.unlocked", "已解锁") : i18n.t("game:commandDeck.military.pendingUnlock", "待解锁")) : i18n.t("game:commandDeck.military.notUnlocked", "未解锁") }),
     ],
     sections: [
       {
         id: "military-regions",
         title: i18n.t("game:commandDeck.military.regionStatusTitle", "海外区域状态"),
-        description: i18n.t("game:commandDeck.military.regionStatusDesc", "先判断市场准入与外交状态，再决定建交、解锁或殖民。"),
+        description: i18n.t("game:commandDeck.military.regionStatusDesc", "先判断市场准入与外交状态，再决定建交或军事行动。"),
         cards: regionCards,
       },
       ...(navalCards.length > 0
@@ -974,22 +901,6 @@ function buildMilitaryLocation({
             },
           ]
         : []),
-      {
-        id: "colonization-unlock",
-        title: i18n.t("game:commandDeck.military.colonizationExpansionTitle", "殖民扩张"),
-        description: i18n.t("game:commandDeck.military.colonizationExpansionDesc", "先买下永久能力，再从已建交区域里选择本轮唯一殖民目标。"),
-        cards: [colonizationUnlockCard],
-      },
-      ...(colonizationCards.length > 0
-        ? [
-            {
-              id: "colonization-targets",
-              title: i18n.t("game:commandDeck.military.colonizationTargetsTitle", "殖民目标"),
-              description: i18n.t("game:commandDeck.military.colonizationTargetsDesc", "区域列表只负责执行态选择，不再重复收取财政成本。"),
-              cards: colonizationCards,
-            },
-          ]
-        : []),
     ],
   };
 }
@@ -1018,7 +929,7 @@ function buildResearchLocation({
     id: "research-facility",
     title: i18n.t("game:commandDeck.research.buildFacilityTitle", "建立研究院"),
     subtitle: i18n.t("game:commandDeck.research.govBudget", "政府财政 {{cost}}", { cost: facilityCost }),
-    description: i18n.t("game:commandDeck.research.buildFacilityDesc", "消耗政府财政建设研究设施。设施越多，当前研究每回合推进越快；进度达有效阈值后，结算时掷突破骰。"),
+    description: i18n.t("game:commandDeck.research.buildFacilityDesc", "消耗政府财政建设研究设施。设施越多，当前研究每回合推进越快；首个发现者达有效阈值后掷突破骰，后发者达原阈值直接解锁。"),
     badges: facilitySelected ? [i18n.t("game:commandDeck.research.buildThisRound", "本轮建设")] : [i18n.t("game:commandDeck.research.longTermInvestment", "长期投入")],
     metrics: [
       { label: i18n.t("game:commandDeck.research.existingFacilities", "现有设施"), value: i18n.t("game:commandDeck.research.facilitiesCount", "{{count}} 所", { count: researchFacilities }) },
@@ -1049,15 +960,17 @@ function buildResearchLocation({
     ...chains.map((chain) => ({
       id: `research-chain-${chain.chainId}`,
       title: chain.label,
-      description: i18n.t("game:commandDeck.research.chainDesc", "同一回合只能选择一个研究目标。进度达到有效阈值后，结算掷 1D{{sides}}，结果不低于有效阈值才解锁；失败会保留进度并降低下次阈值。", { sides: breakthroughDieSides }),
+      description: i18n.t("game:commandDeck.research.chainDesc", "同一回合只能选择一个研究目标。每项科技的首个发现者需要在结算掷 1D{{sides}}；若他国已发现，后发国家达到原阈值即可直接解锁。", { sides: breakthroughDieSides }),
       cards: chain.techs.map((tech) => {
         const selected = selectedTechIds.has(tech.techId);
-        const progressDisplay = Math.min(tech.progress, tech.effectiveThreshold);
-        const progressText = `${progressDisplay}/${tech.effectiveThreshold}`;
-        const progressPercent = tech.effectiveThreshold > 0
-          ? Math.min(100, Math.round((progressDisplay / tech.effectiveThreshold) * 100))
+        const isCatchUp = tech.isDiscovered && !tech.isUnlocked;
+        const researchTarget = isCatchUp ? tech.threshold : tech.effectiveThreshold;
+        const progressDisplay = Math.min(tech.progress, researchTarget);
+        const progressText = `${progressDisplay}/${researchTarget}`;
+        const progressPercent = researchTarget > 0
+          ? Math.min(100, Math.round((progressDisplay / researchTarget) * 100))
           : 0;
-        const breakthroughChance = formatBreakthroughChance(tech.effectiveThreshold, breakthroughDieSides);
+        const breakthroughChance = isCatchUp ? null : formatBreakthroughChance(tech.effectiveThreshold, breakthroughDieSides);
         const unlocks = [
           ...(tech.unlocksGoods ?? []),
           ...(tech.unlocksRoutes ?? []),
@@ -1088,14 +1001,16 @@ function buildResearchLocation({
                   : [],
           metrics: [
             { label: i18n.t("game:commandDeck.research.progress", "进度"), value: `${progressPercent}%` },
-            { label: i18n.t("game:commandDeck.research.threshold", "阈值"), value: tech.effectiveThreshold },
-            { label: i18n.t("game:commandDeck.research.breakthrough", "突破"), value: breakthroughChance ? `1D${breakthroughDieSides} / ${breakthroughChance}` : `1D${breakthroughDieSides}` },
+            { label: i18n.t("game:commandDeck.research.threshold", "阈值"), value: researchTarget },
+            { label: i18n.t("game:commandDeck.research.breakthrough", "突破"), value: isCatchUp ? i18n.t("game:commandDeck.research.catchUpDirect", "追赶直解，无骰") : breakthroughChance ? `1D${breakthroughDieSides} / ${breakthroughChance}` : `1D${breakthroughDieSides}` },
           ],
           feedback: selected
             ? i18n.t("game:commandDeck.research.submitTarget", "提交后将作为研究院目标。")
             : tech.isActive
-              ? tech.progress >= tech.effectiveThreshold
-                ? i18n.t("game:commandDeck.research.breakthroughReady", "已达到突破条件，下次结算会继续尝试。")
+              ? tech.progress >= researchTarget
+                ? isCatchUp
+                  ? i18n.t("game:commandDeck.research.catchUpReady", "已达到追赶直解条件，下次结算会直接解锁。")
+                  : i18n.t("game:commandDeck.research.breakthroughReady", "已达到突破条件，下次结算会继续尝试。")
                 : i18n.t("game:commandDeck.research.researchInProgress", "当前研究设施正在推进该科技。")
               : undefined,
           lockedReason,
@@ -1197,6 +1112,52 @@ function buildProductionCard(
   };
 }
 
+function buildFactoryActionCard(
+  action: NonNullable<DecisionPlayerPhaseWorkspace["factoryActions"]>[number],
+  draft: PhaseDraftByPhase["decision"],
+  remainingFactoryBudget: number,
+): DecisionCardViewModel {
+  const selected = (draft.factoryPlan.factoryActions ?? []).some((item) => item.actionId === action.actionId);
+  const lockedReason = resolveBudgetLockedReason({
+    baseLockedReason: action.lockedReason,
+    isSelected: selected,
+    remainingBudget: remainingFactoryBudget,
+    requiredBudget: action.cost,
+    insufficientBudgetLabel: i18n.t("game:commandDeck.factory.insufficientBudget", "工厂预算不足"),
+  });
+  const effectMetrics = buildEffectMetrics(action.effects).map((metric) => ({
+    label: metric.label,
+    value: metric.value,
+  }));
+
+  return {
+    id: `factory-action-${action.actionId}`,
+    title: action.label,
+    subtitle: action.cost > 0
+      ? i18n.t("game:commandDeck.factory.factoryBudgetAmount", "{{amount}} 工厂预算", { amount: action.cost })
+      : i18n.t("game:factory.noCost", "无消耗"),
+    description: action.description,
+    badges: effectMetrics.length > 0
+      ? effectMetrics.map((metric) => `${metric.label} ${metric.value}`)
+      : [i18n.t("game:commandDeck.factory.industryActionBadge", "临时调度")],
+    metrics: [
+      { label: i18n.t("game:commandDeck.factory.cost", "费用"), value: action.cost },
+      ...effectMetrics,
+    ],
+    feedback: selected ? i18n.t("game:commandDeck.factory.factoryActionFeedback", "已加入本轮临时调度，工厂预算 -{{cost}}。", { cost: action.cost }) : undefined,
+    lockedReason,
+    tone: lockedReason && !selected ? "locked" : selected ? "accent" : "default",
+    selected,
+    control: {
+      kind: "toggle",
+      label: action.label,
+      checked: selected,
+      disabled: !selected && lockedReason !== null,
+    },
+    interaction: { type: "factoryAction", actionId: action.actionId },
+  };
+}
+
 function buildExpansionCard(
   option: DecisionPlayerPhaseWorkspace["expansionOptions"][number],
   draft: PhaseDraftByPhase["decision"],
@@ -1214,9 +1175,9 @@ function buildExpansionCard(
 
   return {
     id: `expansion-${option.routeId}`,
-    title: i18n.t("game:commandDeck.factory.expandProduction", "扩产 {{label}}", { label: option.routeLabel }),
+    title: i18n.t("game:commandDeck.factory.expandProduction", "工厂增加：{{label}}", { label: option.routeLabel }),
     subtitle: i18n.t("game:commandDeck.factory.capacityIncrease", "产能 +{{delta}}", { delta: option.capacityDelta }),
-    description: i18n.t("game:commandDeck.factory.expansionDesc", "影响下一回合产能结构。"),
+    description: i18n.t("game:commandDeck.factory.expansionDesc", "新增 {{delta}} 点 {{label}} 产能，下回合生效；不消耗已有产能。", { delta: option.capacityDelta, label: option.routeLabel }),
     badges: [i18n.t("game:commandDeck.factory.costBadge", "费用 {{cost}} 预算", { cost: option.unitBudgetCost })],
     metrics: [{ label: i18n.t("game:commandDeck.factory.cost", "费用"), value: i18n.t("game:commandDeck.factory.factoryBudgetAmount", "{{amount}} 工厂预算", { amount: option.unitBudgetCost }) }],
     feedback: confirmed ? i18n.t("game:commandDeck.factory.expansionConfirmed", "已确认扩产，工厂预算 -{{cost}}。", { cost: option.unitBudgetCost }) : undefined,
@@ -1227,8 +1188,8 @@ function buildExpansionCard(
       kind: "confirm",
       mode: "toggle",
       confirmed,
-      confirmLabel: i18n.t("game:commandDeck.factory.confirmExpansion", "确认扩产"),
-      cancelLabel: i18n.t("game:commandDeck.factory.cancelExpansion", "取消扩产"),
+      confirmLabel: i18n.t("game:commandDeck.factory.confirmExpansion", "确认增加"),
+      cancelLabel: i18n.t("game:commandDeck.factory.cancelExpansion", "取消增加"),
       disabled: !confirmed && lockedReason !== null,
     },
     interaction: { type: "expansion", routeId: option.routeId },
@@ -1254,7 +1215,7 @@ function buildUpgradeCard(
     id: `upgrade-${option.routeId}`,
     title: i18n.t("game:commandDeck.factory.upgradeTo", "升级到 {{label}}", { label: option.routeLabel }),
     subtitle: `${option.sourceRouteLabel} → ${option.routeLabel}`,
-    description: i18n.t("game:commandDeck.factory.upgradeDesc", "把现有产能升级到更高工业路线。"),
+    description: i18n.t("game:commandDeck.factory.upgradeDesc", "{{source}} → {{target}}：每次消耗 {{delta}} 点 {{source}} 产能，立即转为 {{delta}} 点 {{target}} 产能；本回合可生产，不增加总产能。", { delta: option.capacityDelta, source: option.sourceRouteLabel, target: option.routeLabel }),
     badges: [i18n.t("game:commandDeck.factory.costBadge", "费用 {{cost}} 预算", { cost: option.unitBudgetCost })],
     metrics: [{ label: i18n.t("game:commandDeck.factory.cost", "费用"), value: i18n.t("game:commandDeck.factory.factoryBudgetAmount", "{{amount}} 工厂预算", { amount: option.unitBudgetCost }) }],
     feedback: confirmed ? i18n.t("game:commandDeck.factory.upgradeConfirmed", "已确认升级，工厂预算 -{{cost}}。", { cost: option.unitBudgetCost }) : undefined,
@@ -1290,9 +1251,9 @@ function buildNewFactoryCard(
 
   return {
     id: `new-factory-${option.routeId}`,
-    title: i18n.t("game:commandDeck.factory.newFactory", "新建 {{label}}工厂", { label: option.routeLabel }),
+    title: i18n.t("game:commandDeck.factory.newFactory", "工厂增加：{{label}}", { label: option.routeLabel }),
     subtitle: i18n.t("game:commandDeck.factory.capacityIncrease", "产能 +{{delta}}", { delta: option.capacityDelta }),
-    description: i18n.t("game:commandDeck.factory.newFactoryDesc", "为下一回合增加基础产能。"),
+    description: i18n.t("game:commandDeck.factory.newFactoryDesc", "新增 {{delta}} 点 {{label}} 产能，下回合生效；不消耗已有产能。", { delta: option.capacityDelta, label: option.routeLabel }),
     badges: [i18n.t("game:commandDeck.factory.costBadge", "费用 {{cost}} 预算", { cost: option.unitBudgetCost })],
     metrics: [{ label: i18n.t("game:commandDeck.factory.cost", "费用"), value: i18n.t("game:commandDeck.factory.factoryBudgetAmount", "{{amount}} 工厂预算", { amount: option.unitBudgetCost }) }],
     feedback: confirmed ? i18n.t("game:commandDeck.factory.newFactoryConfirmed", "已确认新建，工厂预算 -{{cost}}。", { cost: option.unitBudgetCost }) : undefined,
@@ -1303,8 +1264,8 @@ function buildNewFactoryCard(
       kind: "confirm",
       mode: "toggle",
       confirmed,
-      confirmLabel: i18n.t("game:commandDeck.factory.confirmNewFactory", "确认新建"),
-      cancelLabel: i18n.t("game:commandDeck.factory.cancelNewFactory", "取消新建"),
+      confirmLabel: i18n.t("game:commandDeck.factory.confirmNewFactory", "确认增加"),
+      cancelLabel: i18n.t("game:commandDeck.factory.cancelNewFactory", "取消增加"),
       disabled: !confirmed && lockedReason !== null,
     },
     interaction: { type: "newFactory", routeId: option.routeId },

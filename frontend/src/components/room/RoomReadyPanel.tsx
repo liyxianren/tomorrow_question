@@ -75,7 +75,7 @@ export function RoomReadyPanel({
       </div>
 
       {aiControls ? (
-        <div className="room-ready-panel__ai">
+        <div className={`room-ready-panel__ai${aiControls.isHighlighted ? " room-ready-panel__ai--highlight" : ""}`}>
           <div>
             <strong>{aiControls.title}</strong>
             <p>{aiControls.helperText}</p>

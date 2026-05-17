@@ -39,6 +39,11 @@ def apply_effects(player_state, effects: dict[str, Any]) -> None:
             current_value + int(effects["phase1ProductionRawCapacityDelta"])
         )
 
+    if "administrationCapacityDelta" in effects:
+        delta = int(effects["administrationCapacityDelta"])
+        player_state.base_admin_capacity = max(0, int(player_state.base_admin_capacity) + delta)
+        player_state.administration_capacity = max(0, int(player_state.administration_capacity) + delta)
+
     if "rawMaterialsDelta" in effects:
         player_state.phase1_economy.raw_materials = max(
             0,
@@ -66,11 +71,6 @@ def apply_effects(player_state, effects: dict[str, Any]) -> None:
                 min(balance.ideology_max, current + int(value)),
             )
 
-    if "controlledRegionsDelta" in effects:
-        player_state.controlled_regions_bonus = max(
-            0,
-            int(player_state.controlled_regions_bonus) + int(effects["controlledRegionsDelta"]),
-        )
 
     if "handicraftCapacityDelta" in effects:
         delta = int(effects["handicraftCapacityDelta"])

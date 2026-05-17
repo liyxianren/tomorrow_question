@@ -187,6 +187,11 @@ class SettlementEffectsTests(unittest.TestCase):
         snapshot = _build_snapshot()
         player = _get_player(snapshot, "player-1")
         player.administration_capacity = 5
+        player.base_admin_capacity = 5
+        player.national_income = 70
+        player.budget_pools = {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
+        for region in snapshot.region_states:
+            region.controller = None
         player.income_allocation_ratio = {
             "domesticMarket": 3.0,
             "factory": 3.0,
@@ -197,18 +202,23 @@ class SettlementEffectsTests(unittest.TestCase):
         resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
         updated = _get_player(resolution.updated_snapshot, "player-1")
 
-        # ratioDelta: factory (-1), governmentFiscal (+1).
-        self.assertEqual(updated.income_allocation_ratio["factory"], 2.0)
-        self.assertEqual(updated.income_allocation_ratio["governmentFiscal"], 5.0)
+        # ratioDelta affected this settlement's allocation: 2:5 of 70 -> 20 / 50.
+        allocation = resolution.generated_logs[0]["details"]["budgetAllocation"]
+        self.assertEqual(allocation["factory"], 20)
+        self.assertEqual(allocation["governmentFiscal"], 50)
+        # After settlement, the policy expires before the next decision workspace is built.
+        self.assertEqual(updated.active_policies, [])
+        self.assertEqual(updated.administration_capacity, 5)
+        self.assertEqual(updated.income_allocation_ratio["factory"], 3.0)
+        self.assertEqual(updated.income_allocation_ratio["governmentFiscal"], 4.0)
         self.assertEqual(updated.income_allocation_ratio["domesticMarket"], 3.0)
-        # 激活政策消耗了 1 行政点数（5 → 4）
-        self.assertEqual(updated.administration_capacity, 4)
 
-    def test_policy_with_insufficient_admin_is_removed_without_negative_capacity(self) -> None:
+    def test_policy_expiry_refreshes_admin_without_negative_capacity(self) -> None:
         balance = get_balance_config()
         snapshot = _build_snapshot()
         player = _get_player(snapshot, "player-1")
         player.administration_capacity = 1
+        player.base_admin_capacity = 1
         player.income_allocation_ratio = {
             "domesticMarket": 5.0,
             "factory": 3.0,
@@ -221,12 +231,10 @@ class SettlementEffectsTests(unittest.TestCase):
         resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
         updated = _get_player(resolution.updated_snapshot, "player-1")
 
-        self.assertEqual(updated.administration_capacity, 0)
-        # 新系统：政策在结算阶段不会被自动撤销
-        self.assertIn("raise_commercial_tax", updated.active_policies)
-        # 商业税效果：factory -1, gov +1
-        self.assertEqual(updated.income_allocation_ratio["factory"], 2.0)
-        self.assertEqual(updated.income_allocation_ratio["governmentFiscal"], 3.0)
+        self.assertEqual(updated.administration_capacity, 1)
+        self.assertEqual(updated.active_policies, [])
+        self.assertEqual(updated.income_allocation_ratio["factory"], 3.0)
+        self.assertEqual(updated.income_allocation_ratio["governmentFiscal"], 2.0)
 
     def test_policy_ratio_effect_is_reversed_on_next_decision_round(self) -> None:
         balance = get_balance_config()

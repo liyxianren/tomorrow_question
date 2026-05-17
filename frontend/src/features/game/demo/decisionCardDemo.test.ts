@@ -24,7 +24,8 @@ describe("decisionCardDemo adapter", () => {
     expect(viewModel.locations.military.label).toBe("军事要塞");
     expect(viewModel.locations.factory.sections.map((section) => section.id)).toEqual([
       "production",
-      "construction",
+      "industrial-development",
+      "factory-dispatch",
       "locked-goods",
     ]);
     expect(viewModel.locations.domestic.sections.map((section) => section.id)).toEqual([
@@ -51,13 +52,14 @@ describe("decisionCardDemo adapter", () => {
         expansionOrders: [],
         upgradeOrders: [],
         newFactoryOrders: [],
+        factoryActions: [],
       },
       domesticMarketPlan: {
         domesticMarketActions: [],
       },
       governmentPlan: {
         pointPurchases: [],
-        strategySelections: [{ actionId: "market_fair" }],
+        strategySelections: [{ actionId: "market_subsidy" }],
         techResearch: [],
       },
     };
@@ -73,7 +75,7 @@ describe("decisionCardDemo adapter", () => {
     expect(viewModel.summary.ratioPreview.factory).toBe(3);
     expect(viewModel.locations.factory.sections[0].cards.find((card) => card.id === "production-coal")?.feedback).toContain("已安排 2 批");
     expect(
-      viewModel.locations.government.sections.flatMap((section) => section.cards).find((card) => card.id === "strategy-market_fair")?.selected,
+      viewModel.locations.government.sections.flatMap((section) => section.cards).find((card) => card.id === "strategy-market_subsidy")?.selected,
     ).toBe(true);
   });
 
@@ -103,6 +105,49 @@ describe("decisionCardDemo adapter", () => {
 
     expect(viewModel.summary.remainingBudgets.domesticMarket).toBe(10);
     expect(viewModel.locations.research.summaryPills).toContain("本轮已选目标");
+  });
+
+  it("shows discovered technologies as direct catch-up research without dice", () => {
+    const workspace = createDecisionPlayerWorkspace();
+    const industrialChain = workspace.techTree.chains[0];
+    const catchUpTech = {
+      ...industrialChain.techs[1],
+      isDiscovered: true,
+      progress: 6,
+    };
+    const scenario = createDecisionCardDemoScenario({
+      source: "live",
+      workspace: {
+        ...workspace,
+        techTree: {
+          ...workspace.techTree,
+          activeResearch: catchUpTech.techId,
+          chains: [
+            {
+              ...industrialChain,
+              techs: [
+                industrialChain.techs[0],
+                catchUpTech,
+                ...industrialChain.techs.slice(2),
+              ],
+            },
+            ...workspace.techTree.chains.slice(1),
+          ],
+        },
+      },
+    });
+
+    const viewModel = buildDecisionCardDemoViewModel({
+      activeStep: "research",
+      draft: createInitialPhaseDraft("decision"),
+      scenario,
+    });
+    const researchCard = viewModel.locations.research.sections
+      .flatMap((section) => section.cards)
+      .find((card) => card.id === "research-spinning_jenny");
+
+    expect(researchCard?.subtitle).toContain("5/5");
+    expect(researchCard?.metrics.find((metric) => metric.label === "突破")?.value).toBe("追赶直解，无骰");
   });
 
   it("shows market-regulation effect badges in government strategy cards", () => {
@@ -140,7 +185,7 @@ describe("decisionCardDemo adapter", () => {
     const factoryCards = viewModel.locations.factory.sections.flatMap((section) => section.cards);
 
     expect(factoryCards.find((card) => card.id === "production-grain")?.lockedReason).toBeNull();
-    expect(factoryCards.find((card) => card.id === "expansion-handicraft")?.lockedReason).not.toBe("工厂预算不足");
+    expect(factoryCards.find((card) => card.id === "expansion-handicraft")?.lockedReason).toBeNull();
   });
 
   it("locks shared handicraft capacity after one batch is already allocated", () => {

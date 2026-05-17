@@ -27,22 +27,15 @@ import {
   setDecisionActiveStep,
 } from "../../../features/game/flow/decisionFlow";
 import {
-  addColonizationAction,
   addMilitaryActionSelection,
-  removeColonizationAction,
   removeMilitaryActionSelection,
   setAbilitySelectionTarget,
-  setAdminPurchases,
-  setPointPurchase,
-  setColonizationUnlockSelection,
-  setConquestAction,
   setNavalDeployment,
   setProductionOrderQuantity,
   setRouteDecisionOrderQuantity,
   toggleDiplomacyActionSelection,
   toggleFactoryActionSelection,
   toggleGovernmentStrategySelection,
-  toggleLootingAction,
   toggleNationalAbilitySelection,
   togglePolicyQueue,
   toggleReformQueue,
@@ -53,7 +46,7 @@ import {
   buildRegionAccessDescription,
   calculateDecisionSpendSummary,
   calculateGovernmentFiscalState,
-  formatRatio,
+  clampDecisionPhase1ProductionDraft,
   getRegionAccessLevelLabel,
 } from "../../../features/game/decisionShared";
 import {
@@ -181,11 +174,15 @@ export function DecisionWorkbench({
 
   const activeStep = decisionFlowState.activeStep;
   const activeStepReviewState = decisionFlowState.stepReviewStateByStep[activeStep];
-  const stepContentContext = { activeResearch: workspace.techTree.activeResearch };
+  const stepContentContext = {
+    activeResearch: workspace.techTree.activeResearch,
+    requireFactoryReviewForPhase1: true,
+  };
   const activeStepHasContent = hasDecisionStepContent(draft, activeStep, stepContentContext);
   const activeStepStatusLabel = activeStepHasContent
     ? t("game:stepStatus.decided", "Decided")
     : getDecisionStepReviewLabel(activeStepReviewState);
+  const activeStepIsEmpty = !activeStepHasContent;
 
   function handleStepSwitch(step: DecisionStepId) {
     onDecisionFlowChange((previous) => setDecisionActiveStep(previous, step));
@@ -246,16 +243,34 @@ export function DecisionWorkbench({
                 : kind === "upgrade"
                   ? "upgradeOrders"
                   : "newFactoryOrders";
-            handleDraftChange("factory", setRouteDecisionOrderQuantity(draft, field, routeId, quantity));
+            handleDraftChange(
+              "factory",
+              clampDecisionPhase1ProductionDraft(
+                workspace,
+                setRouteDecisionOrderQuantity(draft, field, routeId, quantity),
+              ),
+            );
           }}
           onFactoryActionToggle={(actionId, checked) => {
-            handleDraftChange("factory", toggleFactoryActionSelection(draft, actionId, checked));
+            handleDraftChange(
+              "factory",
+              clampDecisionPhase1ProductionDraft(
+                workspace,
+                toggleFactoryActionSelection(draft, actionId, checked),
+              ),
+            );
           }}
           onTechnologyToggle={(techId, checked) => {
             handleDraftChange("factory", toggleTechResearchSelection(draft, techId, checked));
           }}
           onPhase1RawMaterialAssignmentChange={(mode, quantity) => {
-            handleDraftChange("factory", setPhase1RawMaterialAssignment(draft, mode, quantity));
+            handleDraftChange(
+              "factory",
+              clampDecisionPhase1ProductionDraft(
+                workspace,
+                setPhase1RawMaterialAssignment(draft, mode, quantity),
+              ),
+            );
           }}
         />
       ) : activeStep === "domestic" ? (
@@ -269,12 +284,6 @@ export function DecisionWorkbench({
           workspace={workspace}
           draft={draft}
           remainingGovernmentBudget={fiscalState.effectiveGovernmentRemaining}
-          onAdminPurchase={(quantity) => {
-            handleDraftChange("government", setAdminPurchases(draft, quantity));
-          }}
-          onMilitaryPurchase={(quantity) => {
-            handleDraftChange("government", setPointPurchase(draft, "military", quantity));
-          }}
           onEnactReform={(reformId, queued) => {
             handleDraftChange("government", toggleReformQueue(draft, reformId, queued));
           }}
@@ -297,16 +306,11 @@ export function DecisionWorkbench({
         <MilitaryPanel
           workspace={workspace}
           draft={draft}
-          remainingGovernmentBudget={fiscalState.baseGovernmentRemaining}
+          remainingGovernmentBudget={fiscalState.effectiveGovernmentRemaining}
           onAddMilitary={(actionId) => handleDraftChange("military", addMilitaryActionSelection(draft, actionId))}
           onRemoveMilitary={(actionId) => handleDraftChange("military", removeMilitaryActionSelection(draft, actionId))}
           onToggleDiplomacy={(actionId, checked) => handleDraftChange("military", toggleDiplomacyActionSelection(draft, actionId, checked))}
-          onToggleColonizationUnlock={(checked) => handleDraftChange("military", setColonizationUnlockSelection(draft, checked))}
-          onColonize={(regionId) => handleDraftChange("military", addColonizationAction(draft, regionId))}
-          onCancelColonize={(regionId) => handleDraftChange("military", removeColonizationAction(draft, regionId))}
           onNavalDeploymentChange={(nodeId, count) => handleDraftChange("military", setNavalDeployment(draft, nodeId, count))}
-          onConquestChange={(regionId, army) => handleDraftChange("military", setConquestAction(draft, regionId, army))}
-          onLootingToggle={(regionId, resourceType) => handleDraftChange("military", toggleLootingAction(draft, regionId, resourceType))}
         />
       ) : activeStep === "research" ? (
         <ResearchPanel
@@ -314,12 +318,13 @@ export function DecisionWorkbench({
           selectedTechIds={new Set(draft.governmentPlan.techResearch.map((t) => t.techId))}
           onToggleTech={(techId, checked) => handleDraftChange("research", toggleTechResearchSelection(draft, techId, checked))}
           onToggleResearchFacility={(checked) => handleDraftChange("research", toggleGovernmentStrategySelection(draft, "expand_research", checked))}
-          remainingGovernmentBudget={fiscalState.baseGovernmentRemaining}
+          remainingGovernmentBudget={fiscalState.effectiveGovernmentRemaining}
           isResearchFacilitySelected={draft.governmentPlan.strategySelections.some((s) => s.actionId === "expand_research")}
         />
       ) : null}
       <DecisionStepFooter
         activeStep={activeStep}
+        activeStepIsEmpty={activeStepIsEmpty}
         activeStepStatusLabel={activeStepStatusLabel}
         nextStep={nextStep}
         onComplete={handleDecisionComplete}
@@ -346,17 +351,15 @@ export function MilitaryDecisionStep({
 }) {
   const militaryWorkspace = workspace.militaryWorkspace;
   const fiscalState = calculateGovernmentFiscalState(workspace, draft);
-  const remainingBudget = fiscalState.baseGovernmentRemaining;
-  const availableMilitaryBudget = fiscalState.baseGovernmentBudget;
+  const remainingBudget = fiscalState.effectiveGovernmentRemaining;
+  const availableMilitaryBudget = fiscalState.effectiveGovernmentBudget;
   const selectedMilitaryFiscalSpend = draft.militaryPlan.militaryActions.reduce((sum, selection) => {
     const action = militaryWorkspace.availableMilitaryActions.find((item) => item.actionId === selection.actionId);
     return sum + (action?.cost ?? 0);
   }, 0);
-  const selectedColonizationFiscalSpend = draft.militaryPlan.colonizationActions.length
-    * militaryWorkspace.colonizationCapability.budgetCost;
   const remainingMilitaryBudget = Math.max(
     0,
-    availableMilitaryBudget - selectedMilitaryFiscalSpend - selectedColonizationFiscalSpend,
+    availableMilitaryBudget - selectedMilitaryFiscalSpend,
   );
   const navalActions = militaryWorkspace.availableMilitaryActions.filter((action) => action.actionId === "naval_drill");
   const armyActions = militaryWorkspace.availableMilitaryActions.filter((action) => (
@@ -520,6 +523,7 @@ export function MilitaryDecisionStep({
 
 function DecisionStepFooter({
   activeStep,
+  activeStepIsEmpty,
   activeStepStatusLabel,
   previousStep,
   nextStep,
@@ -530,6 +534,7 @@ function DecisionStepFooter({
   onComplete,
 }: {
   activeStep: DecisionStepId;
+  activeStepIsEmpty: boolean;
   activeStepStatusLabel: string;
   previousStep: DecisionStepId | null;
   nextStep: DecisionStepId | null;
@@ -565,7 +570,9 @@ function DecisionStepFooter({
           </button>
         ) : (
           <button className="gp-btn gp-btn--primary" onClick={onComplete} type="button">
-            {t("game:footer.decisionComplete", "Complete Decision")}
+            {activeStep === "research" && activeStepIsEmpty
+              ? t("game:footer.skipResearchAndComplete", "跳过研究并提交")
+              : t("game:footer.decisionComplete", "Complete Decision")}
           </button>
         )}
       </div>
@@ -746,10 +753,11 @@ export function SettlementWorkbench({
   const colonyIncome = workspace.colonyIncome ?? Math.max(0, workspace.nationalIncome - marketIncome);
   const projectedCumulativeIncome =
     (playerState?.cumulativeNationalIncome ?? 0) + Math.max(0, workspace.nationalIncome);
-  const consumptionPoolAfterAllocation = workspace.phase1Economy?.poolDeltaPreview
-    ? (workspace.phase1Economy.consumptionPool ?? 0) + Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)
+  const consumptionPoolBalance = workspace.phase1Economy?.consumptionPool ?? 0;
+  const frozenConsumptionAllocation = workspace.phase1Economy?.poolDeltaPreview
+    ? Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)
     : 0;
-  const consumptionPoolAfterDrain = Math.round(consumptionPoolAfterAllocation * 0.6);
+  const unsoldGoodsInventory = Math.max(0, workspace.phase1Economy?.goodsInventory ?? 0);
 
   return (
     <section data-testid="settlement-workbench" className="gp-section">
@@ -771,7 +779,11 @@ export function SettlementWorkbench({
             label={t("game:settlement.nationalIncome")}
             value={`${workspace.nationalIncome} ${t("game:settlement.fiscalUnit")}`}
           />
-          <MetricCard hint={t("game:settlement.nextRatioHint")} label={t("game:settlement.nextRatio")} value={formatRatio(workspace.nextRatio)} />
+          <MetricCard
+            hint={t("game:settlement.effectiveRatioHint", "民间购买力池本轮不吃售卖收入回流；售卖收入只按有效比例回到工厂与政府财政。")}
+            label={t("game:settlement.effectiveRatio", "本轮有效回流比例")}
+            value={formatSettlementAllocationRatio(workspace.nextRatio)}
+          />
           <MetricCard hint={isFinalRound ? t("game:settlement.cumulativeIncomeHintFinal") : t("game:settlement.cumulativeIncomeHintNext")} label={t("game:settlement.cumulativeIncome")} value={`${projectedCumulativeIncome} ${t("game:settlement.fiscalUnit")}`} />
           <MetricCard
             hint={isFinalRound ? t("game:settlement.cumulativeIncomeHintFinal") : t("game:settlement.cumulativeIncomeHintNext")}
@@ -783,21 +795,28 @@ export function SettlementWorkbench({
       <article className="gp-card">
         <h3 style={{ margin: 0 }}>{t("game:settlement.redistributionTitle")}</h3>
         <div className="gp-grid">
-          <MetricCard hint={t("game:settlement.consumerPurchasingPowerHint")} label={t("game:settlement.consumerPurchasingPower")} value={`${workspace.budgetAllocation.domesticMarket} ${t("game:settlement.fiscalUnit")}`} />
+          <MetricCard hint={t("game:settlement.consumerPurchasingPowerFrozenHint", "民间购买力不再作为政策额度来源，本轮售卖收入不会直接分配到这里。")} label={t("game:settlement.consumerPurchasingPower")} value={`${workspace.budgetAllocation.domesticMarket} ${t("game:settlement.fiscalUnit")}`} />
           <MetricCard hint={t("game:settlement.factoryBudgetHint")} label={t("game:settlement.factoryBudget")} value={`${workspace.budgetAllocation.factory} ${t("game:settlement.fiscalUnit")}`} />
           <MetricCard hint={t("game:settlement.governmentFiscalHint")} label={t("game:settlement.governmentFiscal")} value={`${workspace.budgetAllocation.governmentFiscal} ${t("game:settlement.fiscalUnit")}`} />
+          {unsoldGoodsInventory > 0 ? (
+            <MetricCard
+              hint={t("game:settlement.unsoldInventoryHint", "未售出的商品不会消失，会作为下回合可售库存继续保留。")}
+              label={t("game:settlement.unsoldInventory", "结转库存")}
+              value={`${unsoldGoodsInventory} ${t("game:goods.phase1_goods", "商品")}`}
+            />
+          ) : null}
         </div>
       </article>
       {workspace.phase1Economy?.consumptionPool != null && workspace.phase1Economy?.poolDeltaPreview && (
         <article className="gp-card">
           <h3 style={{ margin: 0 }}>💰 {t("game:settlement.consumptionPoolTitle")}</h3>
           <p className="gp-step-desc" style={{ marginTop: 4 }}>
-            {t("game:settlement.consumptionPoolFormula", { prev: workspace.phase1Economy.consumptionPool, add: Math.round(workspace.phase1Economy.poolDeltaPreview.consumption), after: consumptionPoolAfterAllocation, remainder: consumptionPoolAfterDrain })}
+            {t("game:settlement.consumptionPoolFormula", { prev: consumptionPoolBalance, add: frozenConsumptionAllocation, remainder: consumptionPoolBalance })}
           </p>
           <div className="gp-grid">
             <MetricCard hint={t("game:settlement.previousBalanceHint")} label={t("game:settlement.previousBalance")} value={`${workspace.phase1Economy.consumptionPool} ${t("game:settlement.fiscalUnit")}`} />
-            <MetricCard hint={t("game:settlement.newAllocationHint", { ratio: formatRatio(workspace.nextRatio) })} label={t("game:settlement.newAllocation")} value={`${Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)} ${t("game:settlement.fiscalUnit")}`} />
-            <MetricCard hint={t("game:settlement.remainderHint")} label={t("game:settlement.remainder")} value={`${consumptionPoolAfterDrain} ${t("game:settlement.fiscalUnit")}`} />
+            <MetricCard hint={t("game:settlement.newAllocationFrozenHint", "民间购买力池本轮保持冻结，收入回流由工厂和政府财政承接。")} label={t("game:settlement.newAllocation")} value={`0 ${t("game:settlement.fiscalUnit")}`} />
+            <MetricCard hint={t("game:settlement.remainderHint")} label={t("game:settlement.remainder")} value={`${consumptionPoolBalance} ${t("game:settlement.fiscalUnit")}`} />
           </div>
         </article>
       )}
@@ -835,6 +854,18 @@ function SettlementCountdownBanner({
       </div>
     </article>
   );
+}
+
+function formatSettlementAllocationRatio(ratio: SettlementPlayerPhaseWorkspace["nextRatio"]): string {
+  return `${formatRatioNumber(ratio.factory)} / ${formatRatioNumber(ratio.governmentFiscal)}`;
+}
+
+function formatRatioNumber(value: number): string {
+  if (!Number.isFinite(value)) {
+    return "0";
+  }
+  const rounded = Math.round(value * 100) / 100;
+  return Number.isInteger(rounded) ? `${rounded}` : `${rounded}`;
 }
 
 function MetricCard({

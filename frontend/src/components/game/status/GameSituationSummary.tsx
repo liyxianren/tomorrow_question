@@ -1,8 +1,10 @@
 import { useTranslation } from "react-i18next";
 import i18n, { translateBackend } from "../../../i18n";
+import { buildEffectMetrics } from "../../../features/game/decisionShared";
 import type { ResourceStripViewModel, TopWorkflowViewModel } from "../../../features/game/flow/gameWorkbench";
 import type { DecisionStepId } from "../../../features/game/flow/decisionFlow";
 import type { GameRuntimeState } from "../../../features/game/runtime/types";
+import type { ActiveEvent } from "../../../types";
 import {
   formatSeconds,
   getCountryLabel,
@@ -141,25 +143,7 @@ export function GameSituationSummary({
             </div>
             <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
               {activeEvents.length > 0 ? activeEvents.map((event) => (
-                <article
-                  key={event.eventId}
-                  data-testid={`game-active-event-${event.eventId}`}
-                  style={{
-                    background: "rgba(255, 255, 255, 0.03)",
-                    borderRadius: 12,
-                    padding: "10px 12px",
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                    <strong>{translateBackend(event.label)}</strong>
-                    <span style={{ color: "var(--game-text-secondary)", fontSize: 13 }}>
-                      {t("game:situation.remainingRounds")} {event.remainingRounds}
-                    </span>
-                  </div>
-                  <p style={{ margin: "6px 0 0", color: "var(--game-text-secondary)", fontSize: 13 }}>
-                    {translateBackend(event.description)}
-                  </p>
-                </article>
+                <ActiveEventCard key={event.eventId} event={event} />
               )) : (
                 <div style={{ color: "var(--game-text-secondary)", fontSize: 13 }}>
                   {t("game:situation.noActiveEvents")}
@@ -240,6 +224,55 @@ export function GameSituationSummary({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function ActiveEventCard({ event }: { event: ActiveEvent }) {
+  const { t } = useTranslation();
+  const effectMetrics = buildEffectMetrics(
+    event.effects as Record<string, number | Record<string, number>> | undefined,
+  );
+
+  return (
+    <article
+      data-testid={`game-active-event-${event.eventId}`}
+      style={{
+        background: "rgba(255, 255, 255, 0.03)",
+        borderRadius: 12,
+        padding: "10px 12px",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+        <strong>{translateBackend(event.label)}</strong>
+        <span style={{ color: "var(--game-text-secondary)", fontSize: 13 }}>
+          {t("game:situation.remainingRounds")} {event.remainingRounds}
+        </span>
+      </div>
+      <p style={{ margin: "6px 0 0", color: "var(--game-text-secondary)", fontSize: 13 }}>
+        {translateBackend(event.description)}
+      </p>
+      {effectMetrics.length > 0 ? (
+        <div
+          aria-label={t("game:situation.eventEffects", "事件效果")}
+          style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}
+        >
+          {effectMetrics.map((metric) => (
+            <span
+              key={`${metric.label}-${metric.value}`}
+              style={{
+                border: "1px solid rgba(255, 255, 255, 0.12)",
+                borderRadius: 999,
+                color: metric.tone === "negative" ? "var(--color-danger)" : metric.tone === "positive" ? "var(--color-success)" : "var(--game-text-secondary)",
+                fontSize: 12,
+                padding: "2px 8px",
+              }}
+            >
+              {metric.label} {metric.value}
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </article>
   );
 }
 

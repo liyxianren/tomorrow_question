@@ -16,6 +16,8 @@ const EFFECT_KEYS = [
   "overseasMarketCapacityDelta",
 ] as const;
 
+const MARKET_POLICY_ACTION_IDS = new Set(["market_subsidy", "price_control", "trade_promotion"]);
+
 function getEffectLabel(key: (typeof EFFECT_KEYS)[number]): string {
   const map: Record<string, string> = {
     domesticMarketCapacityDelta: i18n.t("game:domestic.effectCapacityDelta", "Domestic Capacity"),
@@ -45,6 +47,51 @@ function hasMarketPreviewEffect(action: DecisionPlayerPhaseWorkspace["government
   return EFFECT_KEYS.some((key) => typeof action.effects?.[key] === "number");
 }
 
+function buildMarketPolicyStrategies(
+  strategies: DecisionPlayerPhaseWorkspace["governmentActions"]["strategies"],
+): DecisionPlayerPhaseWorkspace["governmentActions"]["strategies"] {
+  const configured = strategies.filter((strategy) => MARKET_POLICY_ACTION_IDS.has(strategy.actionId));
+  if (configured.length > 0) {
+    return configured;
+  }
+
+  return [
+    {
+      actionId: "market_subsidy",
+      label: i18n.t("game:government.strategy.marketSubsidy", "市场补贴"),
+      cost: 0,
+      description: i18n.t("game:government.strategy.marketSubsidyDesc", "动用行政力组织本轮内需补贴，扩大国内承接量。"),
+      techPointDelta: 0,
+      militaryPointDelta: 0,
+      lockedReason: null,
+      effects: { domesticMarketCapacityDelta: 2 },
+      isMarketRegulation: true,
+    },
+    {
+      actionId: "price_control",
+      label: i18n.t("game:government.strategy.priceControl", "价格管制"),
+      cost: 0,
+      description: i18n.t("game:government.strategy.priceControlDesc", "动用行政力调控本轮国内收购价格。"),
+      techPointDelta: 0,
+      militaryPointDelta: 0,
+      lockedReason: null,
+      effects: { domesticPriceBonusDelta: 2 },
+      isMarketRegulation: true,
+    },
+    {
+      actionId: "trade_promotion",
+      label: i18n.t("game:government.strategy.tradePromotion", "贸易促进"),
+      cost: 0,
+      description: i18n.t("game:government.strategy.tradePromotionDesc", "动用行政力协调贸易渠道，扩大本回合海外市场容量。"),
+      techPointDelta: 0,
+      militaryPointDelta: 0,
+      lockedReason: null,
+      effects: { overseasMarketCapacityDelta: 2 },
+      isMarketRegulation: true,
+    },
+  ];
+}
+
 export interface DomesticPanelProps {
   workspace: DecisionPlayerPhaseWorkspace;
   draft: PhaseDraftByPhase["decision"];
@@ -60,7 +107,8 @@ export function DomesticPanel({
   const queuedStrategyIds = new Set(
     draft.governmentPlan.strategySelections.map((item) => item.actionId),
   );
-  const selectedMarketStrategies = workspace.governmentActions.strategies.filter((action) =>
+  const marketPolicyStrategies = buildMarketPolicyStrategies(workspace.governmentActions.strategies);
+  const selectedMarketStrategies = marketPolicyStrategies.filter((action) =>
     queuedStrategyIds.has(action.actionId) && hasMarketPreviewEffect(action),
   );
   const selectedCapacityDelta = sumEffect(selectedMarketStrategies, "domesticMarketCapacityDelta");
@@ -83,7 +131,7 @@ export function DomesticPanel({
   const domesticPriceHint = phase1Economy
     ? [
         `${t("game:domestic.equilibriumPriceLabel")} ${formatNumber(referencePrice.basePrice)}`,
-        `${t("game:government.marketDemand")} ${formatSignedValue(referencePrice.existingPriceBonus)}`,
+        `${t("game:domestic.existingPriceBonus", "已有价格调整")} ${formatSignedValue(referencePrice.existingPriceBonus)}`,
         selectedPriceDelta !== 0 ? `${t("game:domestic.governmentAdjustment")} ${formatSignedValue(selectedPriceDelta)}` : null,
         `${t("game:market.capacityLimit")} ${referencePrice.priceCeiling}`,
         referencePrice.isCapped ? t("game:domestic.equilibriumPriceCapped") : null,
@@ -155,7 +203,9 @@ export function DomesticPanel({
               <div className="gp-metric">
                 <span className="gp-metric__label">{t("game:domestic.governmentAdjustment")}</span>
                 <span className="gp-metric__value">
-                  {selectedMarketStrategies.length > 0 ? `${selectedMarketStrategies.length} ${t("game:flow.strategies")}` : t("common:notAvailable")}
+                  {selectedMarketStrategies.length > 0
+                    ? `${selectedMarketStrategies.length} ${t("game:flow.strategies")}`
+                    : t("game:domestic.noGovernmentMarketPolicy", "本轮未选择政府市场政策")}
                 </span>
                 {selectedEffectSummary.length > 0 ? (
                   <span className="gp-metric__hint">

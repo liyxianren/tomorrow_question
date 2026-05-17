@@ -44,6 +44,37 @@
   letter-spacing: 0.04em;
 }
 
+.phase1-market__policy-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(127, 180, 216, 0.14);
+  background: rgba(127, 180, 216, 0.06);
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
+  font-size: 12px;
+}
+
+.phase1-market__policy-banner strong {
+  color: var(--game-text-primary, #fff5e7);
+  white-space: nowrap;
+}
+
+.phase1-market__policy-banner-net {
+  flex: 1 0 100%;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
+  font-size: 11px;
+}
+
+.phase1-market__policy-banner--active {
+  border-color: rgba(121, 201, 154, 0.36);
+  background: linear-gradient(135deg, rgba(72, 152, 106, 0.18), rgba(127, 180, 216, 0.08));
+  color: var(--game-text-primary, #fff5e7);
+}
+
 /* ── Card ── */
 
 .phase1-market__card {

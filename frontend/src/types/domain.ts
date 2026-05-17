@@ -450,6 +450,7 @@ export interface RegionAccessStatus {
   competitionMinimumPower?: number;
   isColonized: boolean;
   controller: string | null;
+  garrison?: Record<string, number>;
   acceptedGoods: string[];
   priceMultiplier: number;
 }
@@ -526,6 +527,12 @@ export interface Phase1EconomyWorkspace {
   marketPriceDrift?: number;
   domesticPriceBonus?: number;
   overseasPriceBonus?: number;
+  domesticMarketCapacityBonus?: number;
+  overseasMarketCapacityBonus?: number;
+  governmentDomesticMarketCapacityBonus?: number;
+  governmentDomesticPriceBonus?: number;
+  governmentOverseasMarketCapacityBonus?: number;
+  governmentOverseasPriceBonus?: number;
   domesticPriceCeiling?: number;
   overseasPriceCeiling?: number;
   investmentPool: number;

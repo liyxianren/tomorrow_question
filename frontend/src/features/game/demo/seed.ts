@@ -190,10 +190,10 @@ export const AUSTRIA_DECISION_DEMO_WORKSPACE: DecisionPlayerPhaseWorkspace = {
     ],
     colonizationCapability: {
       isUnlocked: false,
-      unlockCost: 10,
-      budgetCost: 4,
-      incomePerColonyPerRound: 5,
-      maxColonizationsPerRound: 1,
+      unlockCost: 0,
+      budgetCost: 0,
+      incomePerColonyPerRound: 0,
+      maxColonizationsPerRound: 0,
     },
     colonizationOptions: [],
     oceanNodes: [],
@@ -221,14 +221,6 @@ export const AUSTRIA_DECISION_DEMO_WORKSPACE: DecisionPlayerPhaseWorkspace = {
         maxPerRound: 1,
         description: i18n.t("game:demo.trainArtilleryDesc", "消耗军事点训练重型炮兵。"),
         effects: { armyDelta: { artillery: 1 } },
-      },
-      {
-        actionId: "colonial_expedition",
-        label: i18n.t("game:demo.colonialExpedition", "殖民远征"),
-        cost: 20,
-        maxPerRound: 1,
-        description: i18n.t("game:demo.colonialExpeditionDesc", "组织大规模远征，强化海外控制与承接能力。"),
-        effects: { overseasMarketCapacityDelta: 2, controlledRegionsDelta: 1 },
       },
     ],
     availableDiplomacyActions: [
@@ -283,7 +275,7 @@ export const AUSTRIA_DECISION_DEMO_WORKSPACE: DecisionPlayerPhaseWorkspace = {
   },
   newFactoryOptions: [
     {
-      capacityDelta: 1,
+      capacityDelta: 2,
       lockedReason: i18n.t("game:demo.budgetInsufficient", "预算不足"),
       maxQuantity: 0,
       routeId: "handicraft",
@@ -292,14 +284,6 @@ export const AUSTRIA_DECISION_DEMO_WORKSPACE: DecisionPlayerPhaseWorkspace = {
     },
   ],
   factoryActions: [
-    {
-      actionId: "factory_tax_contracting",
-      label: i18n.t("game:demo.fiscalContracting", "财政承包"),
-      cost: 0,
-      description: i18n.t("game:demo.fiscalContractingDesc", "抽调工人与账房支援财政征收，本回合投料上限 -2，政府预算 +4。"),
-      lockedReason: null,
-      effects: { phase1ProductionRawCapacityDelta: -2, governmentFiscalBudgetDelta: 4 },
-    },
     {
       actionId: "factory_raw_procurement",
       label: i18n.t("game:demo.rawProcurement", "原料统购"),

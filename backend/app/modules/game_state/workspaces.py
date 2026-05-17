@@ -79,6 +79,13 @@ GOODS_LABELS: dict[str, str] = {
     "phase1_goods": "统一商品",
 }
 
+
+def _market_competition_available_army(player: PlayerState) -> dict[str, int]:
+    return {
+        "infantry": max(0, int(player.army.get("infantry", 0))) + max(0, int(player.army.get("army", 0))),
+        "artillery": max(0, int(player.army.get("artillery", 0))),
+    }
+
 def hydrate_snapshot_workspaces(
     snapshot: GameSnapshot,
     *,
@@ -207,6 +214,7 @@ def build_decision_player_workspace(snapshot: GameSnapshot, player: PlayerState)
             "ratioDelta": deepcopy(action.ratio_delta),
         }
         for action in balance.decision_actions.factory_actions.values()
+        if action.action_id != "industrial_upgrade"
     ]
     return {
         "countryCode": player.country.value,
@@ -227,7 +235,7 @@ def build_decision_player_workspace(snapshot: GameSnapshot, player: PlayerState)
         "factoryActions": factory_actions,
         "activeEvents": deepcopy(snapshot.active_events),
         "nationalAbility": _build_national_ability(player),
-        "techTree": _build_tech_tree(player),
+        "techTree": _build_tech_tree(player, snapshot),
         "domesticMarketActions": domestic_actions,
         "governmentActions": {
             "pointPurchaseCosts": dict(POINT_PURCHASE_COSTS),
@@ -357,7 +365,7 @@ def build_market_player_workspace(snapshot: GameSnapshot, player: PlayerState) -
         "overseasMarketCapacity": overseas_capacity,
         "regionAccessStatus": _build_region_access_status(snapshot, player),
         "overseasCompetition": {
-            "availableArmy": deepcopy(player.army),
+            "availableArmy": _market_competition_available_army(player),
             "rewardCapacityBonus": int(competition.reward_capacity_bonus),
             "rewardPriceBonus": int(competition.reward_price_bonus),
             "infantryPower": int(competition.infantry_power),
@@ -377,7 +385,7 @@ def _market_phase1_economy(snapshot: GameSnapshot, player: PlayerState) -> dict[
 
 def build_settlement_player_workspace(snapshot: GameSnapshot, player: PlayerState) -> dict[str, Any]:
     market_income = int(player.national_income)
-    colony_income = _preview_colony_income(snapshot, player)
+    colony_income = 0
     national_income = market_income + colony_income
     allocation = _preview_budget_allocation(national_income, player.income_allocation_ratio)
     return {
@@ -392,16 +400,6 @@ def build_settlement_player_workspace(snapshot: GameSnapshot, player: PlayerStat
         "nextRatio": deepcopy(player.income_allocation_ratio),
         "phase1Economy": _settlement_phase1_economy(player, national_income),
     }
-
-
-def _preview_colony_income(snapshot: GameSnapshot, player: PlayerState) -> int:
-    balance = get_balance_config()
-    income_per_colony = int(balance.military.colonization_income_per_colony_per_round)
-    return sum(
-        income_per_colony
-        for region_state in snapshot.region_states
-        if region_state.controller == player.country.value
-    )
 
 
 def _settlement_phase1_economy(player: PlayerState, national_income: int) -> dict[str, Any]:
@@ -459,6 +457,12 @@ def _build_phase1_market_preview(snapshot: GameSnapshot, player: PlayerState) ->
     overseas_price_ceiling = int(goods_config.overseas_price_ceiling) if goods_config is not None else 24
     domestic_price_bonus = int(get_effect_bonus(player, "domesticPriceBonus"))
     overseas_price_bonus = int(get_effect_bonus(player, "overseasPriceBonus"))
+    domestic_capacity_bonus = int(get_effect_bonus(player, "domesticMarketCapacityBonus"))
+    overseas_capacity_bonus = int(get_effect_bonus(player, "overseasMarketCapacityBonus"))
+    government_domestic_capacity_bonus = int(player.temporary_effects.get("governmentDomesticMarketCapacityBonus", 0))
+    government_domestic_price_bonus = int(player.temporary_effects.get("governmentDomesticPriceBonus", 0))
+    government_overseas_capacity_bonus = int(player.temporary_effects.get("governmentOverseasMarketCapacityBonus", 0))
+    government_overseas_price_bonus = int(player.temporary_effects.get("governmentOverseasPriceBonus", 0))
 
     demand = calculate_domestic_demand(capacity_by_mode)
     equilibrium = calculate_equilibrium_price(demand=demand)
@@ -490,6 +494,12 @@ def _build_phase1_market_preview(snapshot: GameSnapshot, player: PlayerState) ->
         "marketPriceDrift": price_drift,
         "domesticPriceBonus": domestic_price_bonus,
         "overseasPriceBonus": overseas_price_bonus,
+        "domesticMarketCapacityBonus": domestic_capacity_bonus,
+        "overseasMarketCapacityBonus": overseas_capacity_bonus,
+        "governmentDomesticMarketCapacityBonus": government_domestic_capacity_bonus,
+        "governmentDomesticPriceBonus": government_domestic_price_bonus,
+        "governmentOverseasMarketCapacityBonus": government_overseas_capacity_bonus,
+        "governmentOverseasPriceBonus": government_overseas_price_bonus,
         "domesticPriceCeiling": domestic_price_ceiling,
         "overseasPriceCeiling": overseas_price_ceiling,
     }
@@ -625,7 +635,9 @@ def _build_military_workspace(snapshot: GameSnapshot, player: PlayerState) -> di
         "army": {"army": army_total},
         "armyCap": int(player.army_cap),
         "navy": deepcopy(player.navy),
-        "controlledRegions": int(player.controlled_regions_bonus),
+        "controlledRegions": sum(
+            1 for region in snapshot.region_states if region.controller == player.country.value
+        ),
         "establishedDiplomacy": list(player.established_diplomacy),
         "overseasCapacity": resolve_overseas_market_capacity(player),
         "oceanControlThreshold": int(balance.military.ocean_control_threshold),
@@ -655,13 +667,13 @@ def _build_military_workspace(snapshot: GameSnapshot, player: PlayerState) -> di
             if check_route_accessible(player.country.value, action.target_region, snapshot, balance)
         ],
         "colonizationCapability": {
-            "isUnlocked": bool(player.colonization_unlocked),
-            "unlockCost": int(balance.military.colonization_unlock_cost),
-            "budgetCost": int(balance.military.colonization_budget_cost),
-            "incomePerColonyPerRound": int(balance.military.colonization_income_per_colony_per_round),
-            "maxColonizationsPerRound": int(balance.military.max_colonizations_per_round),
+            "isUnlocked": False,
+            "unlockCost": 0,
+            "budgetCost": 0,
+            "incomePerColonyPerRound": 0,
+            "maxColonizationsPerRound": 0,
         },
-        "colonizationOptions": _build_colonization_options(snapshot, player),
+        "colonizationOptions": [],
         "oceanNodes": [
             {
                 "nodeId": node.node_id,
@@ -718,7 +730,11 @@ def _build_research_workspace(snapshot: GameSnapshot, player: PlayerState) -> di
 def _build_region_access_status(snapshot: GameSnapshot, player: PlayerState) -> list[dict[str, Any]]:
     balance = get_balance_config()
     competition = balance.market.overseas_competition
-    army_power = int(player.army.get("army", 0)) * 3
+    available_army = _market_competition_available_army(player)
+    army_power = (
+        int(available_army.get("infantry", 0)) * int(competition.infantry_power)
+        + int(available_army.get("artillery", 0)) * int(competition.artillery_power)
+    )
     statuses: list[dict[str, Any]] = []
     for region in snapshot.region_states:
         route_blocked = not check_route_accessible(
@@ -754,45 +770,13 @@ def _build_region_access_status(snapshot: GameSnapshot, player: PlayerState) -> 
                 "acceptedGoods": list(region.resource_limit),
                 "isColonized": region.controller is not None,
                 "controller": region.controller,
+                "garrison": dict(region.garrison),
                 "priceMultiplier": float(
                     balance.regions.region_blueprints[region.region_id].price_multiplier
                 ) if region.region_id in balance.regions.region_blueprints else 1.0,
             }
         )
     return statuses
-
-
-def _build_colonization_options(snapshot: GameSnapshot, player: PlayerState) -> list[dict[str, Any]]:
-    balance = get_balance_config()
-    budget_cost = int(balance.military.colonization_budget_cost)
-    options = []
-    for region in snapshot.region_states:
-        blueprint = balance.regions.region_blueprints.get(region.region_id)
-        if blueprint is None or not blueprint.colonizable:
-            continue
-        already_colonized = region.controller is not None
-        is_unlocked = bool(player.colonization_unlocked)
-        has_diplomacy = region.region_id in player.established_diplomacy
-        has_budget = int(player.budget_pools.get("governmentFiscal", 0)) >= budget_cost
-        options.append({
-            "regionId": region.region_id,
-            "regionLabel": region_label(region.region_id),
-            "controller": region.controller,
-            "isColonized": already_colonized,
-            "budgetCost": budget_cost,
-            "canColonize": not already_colonized and is_unlocked and has_diplomacy and has_budget,
-            "independence": int(region.independence),
-            "garrison": dict(region.garrison),
-            "resourceLimit": dict(blueprint.resource_limit),
-            "lockedReason": (
-                "已被殖民" if already_colonized
-                else "需先永久解锁殖民扩张" if not is_unlocked
-                else "需先建交" if not has_diplomacy
-                else f"需要{budget_cost}政府财政" if not has_budget
-                else None
-            ),
-        })
-    return options
 
 
 def _preview_budget_allocation(national_income: int, ratio: dict[str, float]) -> dict[str, int]:
@@ -822,8 +806,13 @@ def _build_national_ability(player: PlayerState) -> dict[str, Any] | None:
     }
 
 
-def _build_tech_tree(player: PlayerState) -> dict[str, Any]:
+def _build_tech_tree(player: PlayerState, snapshot: GameSnapshot) -> dict[str, Any]:
     balance = get_balance_config()
+    discovered_techs = {
+        tech_id
+        for player_state in snapshot.player_states
+        for tech_id in player_state.unlocked_techs
+    }
     route_unlocks_by_tech: dict[str, list[str]] = {}
     for route_id, required_techs in balance.technology.route_unlocks.items():
         for tech_id in required_techs:
@@ -836,6 +825,7 @@ def _build_tech_tree(player: PlayerState) -> dict[str, Any]:
             attempts = int(player.breakthrough_attempts.get(tech.tech_id, 0))
             effective_threshold = max(1, int(tech.threshold) - attempts)
             is_unlocked = tech.tech_id in player.unlocked_techs
+            is_discovered = tech.tech_id in discovered_techs
             is_active = player.active_research == tech.tech_id
             prereq_met = index == 0 or chain.techs[index - 1].tech_id in player.unlocked_techs
             techs_payload.append(
@@ -848,7 +838,7 @@ def _build_tech_tree(player: PlayerState) -> dict[str, Any]:
                     "isUnlocked": is_unlocked,
                     "isActive": is_active,
                     "canResearch": (not is_unlocked) and prereq_met,
-                    "isDiscovered": is_unlocked,
+                    "isDiscovered": is_discovered,
                     "breakthroughAttempts": attempts,
                     "unlocksRoutes": route_unlocks_by_tech.get(tech.tech_id, []),
                 }

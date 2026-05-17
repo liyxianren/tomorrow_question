@@ -598,7 +598,7 @@ def _build_tie_break_entry(*, snapshot: GameSnapshot, player_id: str) -> dict[st
     player_state = next(player for player in snapshot.player_states if player.player_id == player_id)
     return {
         "productionCapacity": _total_production_capacity(player_state),
-        "controlledRegions": _controlled_region_count(snapshot, player_state.country.value) + int(player_state.controlled_regions_bonus),
+        "controlledRegions": _controlled_region_count(snapshot, player_state.country.value),
         "budgetPoolsTotal": int(sum(int(value) for value in player_state.budget_pools.values())),
     }
 

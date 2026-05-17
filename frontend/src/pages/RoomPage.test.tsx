@@ -540,7 +540,11 @@ describe("RoomPage", () => {
       }),
     );
 
-    expect(screen.getByTestId("room-fill-bots-button")).toHaveTextContent("一键补满 AI");
+    const aiFillButton = screen.getByTestId("room-fill-bots-button");
+    const aiPanel = aiFillButton.closest(".room-ready-panel__ai");
+    expect(aiFillButton).toHaveTextContent("补充 AI 机器人");
+    expect(aiFillButton).not.toHaveTextContent("0 / 5 人");
+    expect(aiPanel).toHaveClass("room-ready-panel__ai--highlight");
     await userEvent.click(screen.getByTestId("room-fill-bots-button"));
 
     expect(mockApiRequest).toHaveBeenCalledWith("/api/v1/rooms/ROOM01/bots/fill", {

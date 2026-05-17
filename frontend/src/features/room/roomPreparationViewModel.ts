@@ -67,6 +67,7 @@ export type RoomAiControlsViewModel = {
   fillButtonLabel: string;
   fillButtonDisabled: boolean;
   showFillButton: boolean;
+  isHighlighted: boolean;
 };
 
 export type RoomPrimaryActionViewModel = {
@@ -434,19 +435,22 @@ function createAiControlsViewModel(
   const botCount = room.members.filter((member) => member.memberType === "bot").length;
   const emptySeats = Math.max(5 - room.members.length, 0);
   return {
-    title: "AI",
-    description: i18n.t("room:members.empty"),
+    title: i18n.t("room:ai.title"),
+    description: emptySeats > 0
+      ? i18n.t("room:ai.description", { count: emptySeats })
+      : i18n.t("room:ai.fullDescription"),
     helperText: botCount > 0
-      ? i18n.t("room:status.waiting")
-      : i18n.t("room:status.readying"),
+      ? i18n.t("room:ai.botCount", { count: botCount })
+      : i18n.t("room:ai.emptyHelper"),
     fillButtonLabel:
       pendingAction === "fillBots"
-        ? i18n.t("common:loading")
+        ? i18n.t("room:ai.filling")
         : emptySeats > 0
-          ? i18n.t("room:memberCount", { count: 0, max: 5 })
+          ? i18n.t("room:ai.fillButton")
           : i18n.t("room:errors.roomFull"),
     fillButtonDisabled: pendingAction === "fillBots" || emptySeats <= 0,
     showFillButton: true,
+    isHighlighted: emptySeats > 0,
   };
 }
 

@@ -33,6 +33,8 @@ export function Phase1ProductionPanel({
   modes,
   rawMaterials,
   factoryBudget,
+  factoryBudgetRemaining,
+  factoryBudgetTotal,
   domesticDemand,
   equilibriumPrice,
   domesticPricePreview,
@@ -44,7 +46,12 @@ export function Phase1ProductionPanel({
 }: {
   modes: Phase1ProductionMode[];
   rawMaterials: number;
+  /** Budget still available for production after construction and other factory commitments. */
   factoryBudget: number;
+  /** Remaining total factory budget after every current factory decision. */
+  factoryBudgetRemaining?: number;
+  /** Full factory budget before this round's factory decisions. */
+  factoryBudgetTotal?: number;
   domesticDemand: number;
   equilibriumPrice: number;
   domesticPricePreview: number;
@@ -78,6 +85,14 @@ export function Phase1ProductionPanel({
   const totalAssigned = sumAssignmentsForModes(effectiveAssignments, productiveModes);
   const remainingRawMaterials = Math.max(rawMaterials - totalAssigned, 0);
   const remainingFactoryBudget = Math.max(factoryBudget - totalAssigned, 0);
+  const displayedFactoryBudgetRemaining = Math.max(
+    0,
+    factoryBudgetRemaining ?? remainingFactoryBudget,
+  );
+  const displayedFactoryBudgetTotal = Math.max(
+    displayedFactoryBudgetRemaining,
+    factoryBudgetTotal ?? factoryBudget,
+  );
   const totalOutput = productiveModes.reduce((sum, mode) => {
     const assigned = effectiveAssignments[mode.mode] ?? 0;
     return sum + assigned * mode.outputRatio;
@@ -86,9 +101,14 @@ export function Phase1ProductionPanel({
   const idleCapacity = Math.max(0, idleMode?.currentCapacity ?? 0);
   const maxProcessableRawMaterials = Math.min(rawMaterials, totalCapacity, factoryBudget);
   const unprocessedRawMaterials = Math.max(rawMaterials - maxProcessableRawMaterials, 0);
-  const capacityShortfall = unprocessedRawMaterials > 0;
+  const budgetShortfall =
+    unprocessedRawMaterials > 0 && factoryBudget < Math.min(rawMaterials, totalCapacity);
+  const capacityShortfall =
+    unprocessedRawMaterials > 0 && !budgetShortfall && totalCapacity < rawMaterials;
   const rawMaterialProgress = rawMaterials > 0 ? (totalAssigned / rawMaterials) * 100 : 0;
-  const budgetProgress = factoryBudget > 0 ? (totalAssigned / factoryBudget) * 100 : 0;
+  const budgetProgress = displayedFactoryBudgetTotal > 0
+    ? ((displayedFactoryBudgetTotal - displayedFactoryBudgetRemaining) / displayedFactoryBudgetTotal) * 100
+    : 0;
   const capacityProgress = totalCapacity > 0 ? (totalAssigned / totalCapacity) * 100 : 0;
 
   const routeViewModels: ProductionRouteViewModel[] = productiveModes.map((mode) => {
@@ -140,8 +160,8 @@ export function Phase1ProductionPanel({
         />
         <FactoryMeter
           label={t("game:factory.factoryBudget")}
-          value={remainingFactoryBudget}
-          total={factoryBudget}
+          value={displayedFactoryBudgetRemaining}
+          total={displayedFactoryBudgetTotal}
           progress={budgetProgress}
         />
         <FactoryMeter
@@ -199,6 +219,11 @@ export function Phase1ProductionPanel({
           {capacityShortfall ? (
             <p className="phase1-panel__status-warning" data-testid="capacity-warning">
               {t("game:factory.capacityWarning", { count: unprocessedRawMaterials })}
+            </p>
+          ) : null}
+          {budgetShortfall ? (
+            <p className="phase1-panel__status-warning" data-testid="budget-warning">
+              {t("game:factory.budgetWarning", { count: unprocessedRawMaterials })}
             </p>
           ) : null}
           {productionCapacityDelta < 0 ? (
@@ -312,7 +337,7 @@ function ProductionRouteNode({
         </span>
       </header>
 
-      <div className="phase1-route-row__metrics" aria-label={`${translateBackend(mode.label)} ${t("game:production")}`}>
+      <div className="phase1-route-row__metrics" aria-label={`${translateBackend(mode.label)}${t("game:factory.productionData")}`}>
         <span>
           <strong>{assigned}</strong>
           <small>{t("game:factory.input")}</small>

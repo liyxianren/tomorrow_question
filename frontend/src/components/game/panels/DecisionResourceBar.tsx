@@ -16,14 +16,21 @@ type DecisionResourceBarProps = {
   activeStep: DecisionStepId;
 };
 
+function getVisibleArmyTotal(army: Record<string, number | undefined>): number {
+  if (army.army !== undefined) {
+    return Math.max(0, Math.floor(army.army));
+  }
+  return Object.values(army).reduce<number>(
+    (sum, value) => sum + Math.max(0, Math.floor(value ?? 0)),
+    0,
+  );
+}
+
 export function DecisionResourceBar({ workspace, draft, activeStep }: DecisionResourceBarProps) {
   const { t } = useTranslation();
   const spendSummary = calculateDecisionSpendSummary(workspace, draft);
   const governmentBreakdown = calculateGovernmentSpendBreakdown(workspace, draft);
-  const armyCount = Object.values(workspace.militaryWorkspace.army).reduce(
-    (sum, value) => sum + Math.max(0, Math.floor(value)),
-    0,
-  );
+  const armyCount = getVisibleArmyTotal(workspace.militaryWorkspace.army);
 
   const activeChip = mapStepToChip(activeStep);
 
@@ -40,7 +47,17 @@ export function DecisionResourceBar({ workspace, draft, activeStep }: DecisionRe
         total={governmentBreakdown.effectiveGovernmentBudget}
         spent={governmentBreakdown.total}
         active={activeChip === "government"}
-        breakdown={t("game:government.budget", "Government Fiscal") + " " + governmentBreakdown.baseGovernmentRemaining + "/" + governmentBreakdown.baseGovernmentBudget}
+        breakdown={governmentBreakdown.policyBudgetSupplement > 0
+          ? t(
+            "game:government.policyBudgetBreakdown",
+            "实际财政 {{remaining}}/{{total}} · 政策额度 +{{supplement}}",
+            {
+              remaining: governmentBreakdown.baseGovernmentRemaining,
+              total: governmentBreakdown.baseGovernmentBudget,
+              supplement: governmentBreakdown.policyBudgetSupplement,
+            },
+          )
+          : t("game:government.budget", "Government Fiscal") + " " + governmentBreakdown.baseGovernmentRemaining + "/" + governmentBreakdown.baseGovernmentBudget}
       />
       <ResourceChip
         label={t("game:military.army", "Army")}

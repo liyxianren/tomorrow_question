@@ -1,7 +1,6 @@
 import { useTranslation } from "react-i18next";
 import i18n, { translateBackend } from "../../../../i18n";
 import type {
-  ColonizationOption,
   CountryCode,
   OceanNodeOption,
   RegionAccessStatus,
@@ -45,7 +44,7 @@ export type MapSelection = { type: "ocean" | "region"; id: string } | null;
 export interface MilitaryWorldMapProps {
   oceanNodes: OceanNodeOption[];
   regionAccessStatus: RegionAccessStatus[];
-  colonizationOptions: ColonizationOption[];
+  colonizationOptions?: unknown[];
   navalDeployment: Record<string, number>;
   myCountry: CountryCode;
   selectedNode: MapSelection;
@@ -59,7 +58,6 @@ export interface MilitaryWorldMapProps {
 export function MilitaryWorldMap({
   oceanNodes,
   regionAccessStatus,
-  colonizationOptions,
   navalDeployment,
   myCountry,
   selectedNode,
@@ -70,7 +68,6 @@ export function MilitaryWorldMap({
   onNavalDeploymentChange,
 }: MilitaryWorldMapProps) {
   const { t } = useTranslation();
-  const colonizationByRegion = new Map(colonizationOptions.map((o) => [o.regionId, o]));
   const totalDeployed = totalFleets - remainingFleets;
 
   return (
@@ -139,8 +136,7 @@ export function MilitaryWorldMap({
         const pos = REGION_POSITIONS[region.regionId];
         if (!pos) return null;
         const isSelected = selectedNode?.type === "region" && selectedNode?.id === region.regionId;
-        const colony = colonizationByRegion.get(region.regionId);
-        const statusBadge = colony?.isColonized ? "👑" : region.isAccessible ? "✅" : "🔒";
+        const statusBadge = region.isAccessible ? "✅" : "🔒";
         return (
           <div
             key={region.regionId}

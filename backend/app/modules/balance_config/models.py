@@ -129,10 +129,10 @@ class MilitaryBalanceConfig:
     navy_unit_cost: int
     ocean_control_threshold: int
     independence_threshold: int
-    colonization_unlock_cost: int = 10
-    colonization_budget_cost: int = 4
-    colonization_income_per_colony_per_round: int = 5
-    max_colonizations_per_round: int = 1
+    colonization_unlock_cost: int = 0
+    colonization_budget_cost: int = 0
+    colonization_income_per_colony_per_round: int = 0
+    max_colonizations_per_round: int = 0
     army_cap_base: int = 3
 
 

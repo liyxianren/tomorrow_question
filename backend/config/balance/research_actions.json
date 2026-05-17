@@ -27,7 +27,7 @@
           "gov_fiscal_reform",
           "gov_admin_efficiency",
           "gov_tax_optimization",
-          "gov_colonial_admin",
+          "gov_overseas_affairs",
           "gov_imperial_treasury"
         ]
       },
@@ -134,12 +134,12 @@
         "description": "优化税收体系，增加政府收入并刺激国内消费。",
         "permanentEffects": { "governmentFiscalBudgetDelta": 5, "domesticMarketCapacityDelta": 2 }
       },
-      "gov_colonial_admin": {
-        "label": "殖民治理",
+      "gov_overseas_affairs": {
+        "label": "海外事务局",
         "branch": "government",
         "techPointCost": 4,
-        "description": "建立高效殖民地行政体系，扩大海外影响力。",
-        "permanentEffects": { "controlledRegionsDelta": 1, "overseasMarketCapacityDelta": 2 }
+        "description": "建立专业海外事务与商贸协调体系，扩大海外影响力。",
+        "permanentEffects": { "overseasMarketCapacityDelta": 2, "overseasPriceBonusDelta": 1 }
       },
       "gov_imperial_treasury": {
         "label": "帝国财阀",
@@ -181,7 +181,7 @@
         "branch": "military",
         "techPointCost": 5,
         "description": "全面动员国家战争机器，军事、海外全方位碾压。",
-        "permanentEffects": { "armyCapDelta": 2, "controlledRegionsDelta": 1, "overseasMarketCapacityDelta": 3 }
+        "permanentEffects": { "armyCapDelta": 2, "overseasMarketCapacityDelta": 3 }
       }
     }
   }

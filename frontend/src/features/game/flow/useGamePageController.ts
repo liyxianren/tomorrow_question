@@ -53,6 +53,7 @@ export function useGamePageController({
     createInitialDecisionFlowState(),
   );
   const currentPhase = runtimeState.snapshot?.phase ?? runtimeState.game?.currentPhase ?? null;
+  const currentRound = runtimeState.snapshot?.round ?? runtimeState.game?.currentRound ?? null;
   const flowState = createGameFlowState({
     runtimeState,
     isLoadingContext,
@@ -75,8 +76,8 @@ export function useGamePageController({
 
     setDrafts((previous) => resetDraftForPhase(previous, currentPhase));
     setDecisionFlowState(createInitialDecisionFlowState());
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- only reset drafts when phase changes, not on every snapshot update
-  }, [currentPhase]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- only reset drafts when phase or round changes, not on every snapshot update
+  }, [currentPhase, currentRound]);
 
   useEffect(() => {
     if (

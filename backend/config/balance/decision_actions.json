@@ -77,15 +77,6 @@
     }
   },
   "factoryActions": {
-    "factory_tax_contracting": {
-      "label": "财政承包",
-      "budgetPoolCost": 0,
-      "description": "抽调工人与账房支援财政征收，本回合工厂最多少投入 2 份原材料，换取政府财政。",
-      "effects": {
-        "phase1ProductionRawCapacityDelta": -2,
-        "governmentFiscalBudgetDelta": 4
-      }
-    },
     "factory_raw_procurement": {
       "label": "原料开采",
       "budgetPoolCost": 3,
@@ -180,8 +171,7 @@
       "description": "以全球霸权地位垄断国际贸易，所有海外商品大幅溢价。",
       "effects": {
         "overseasMarketCapacityDelta": 3,
-        "overseasPriceBonusDelta": 3,
-        "controlledRegionsDelta": 1
+        "overseasPriceBonusDelta": 3
       }
     },
     "naval_modernization": {
@@ -199,8 +189,8 @@
     },
     "market_subsidy": {
       "label": "市场补贴",
-      "budgetPoolCost": 6,
-      "description": "政府补贴国内市场，扩大本回合国内承接量。",
+      "budgetPoolCost": 0,
+      "description": "动用行政力组织本轮内需补贴，扩大国内承接量。",
       "effects": {
         "domesticMarketCapacityDelta": 2
       },
@@ -208,8 +198,8 @@
     },
     "trade_promotion": {
       "label": "贸易促进",
-      "budgetPoolCost": 8,
-      "description": "推动海外贸易，扩大本回合海外市场容量。",
+      "budgetPoolCost": 0,
+      "description": "动用行政力协调贸易渠道，扩大本回合海外市场容量。",
       "effects": {
         "overseasMarketCapacityDelta": 2
       },
@@ -217,8 +207,8 @@
     },
     "price_control": {
       "label": "价格管制",
-      "budgetPoolCost": 5,
-      "description": "政府调控国内价格，提高本回合收购价格。",
+      "budgetPoolCost": 0,
+      "description": "动用行政力调控本轮国内收购价格。",
       "effects": {
         "domesticPriceBonusDelta": 2
       },

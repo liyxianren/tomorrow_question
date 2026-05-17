@@ -9,15 +9,17 @@ import {
   createDecisionPlayerWorkspace,
   createMarketPlayerWorkspace,
   createNationalState,
+  createSettlementPlayerWorkspace,
 } from "../../../test/gameSnapshotFixtures";
 
 import { GamePhasePanelContent } from "./GamePhasePanelContent";
 
 function renderPanel(
-  phase: "decision" | "market",
+  phase: "decision" | "market" | "settlement",
   overrides: {
     decisionWorkspace?: ReturnType<typeof createDecisionPlayerWorkspace>;
     marketWorkspace?: ReturnType<typeof createMarketPlayerWorkspace>;
+    settlementWorkspace?: ReturnType<typeof createSettlementPlayerWorkspace>;
   } = {},
 ) {
   function Harness() {
@@ -36,7 +38,9 @@ function renderPanel(
           currentPlayerWorkspace={
             phase === "decision"
               ? (overrides.decisionWorkspace ?? createDecisionPlayerWorkspace())
-              : (overrides.marketWorkspace ?? createMarketPlayerWorkspace())
+              : phase === "market"
+                ? (overrides.marketWorkspace ?? createMarketPlayerWorkspace())
+                : (overrides.settlementWorkspace ?? createSettlementPlayerWorkspace())
           }
           decisionFlowState={decisionFlowState}
           drafts={drafts}
@@ -74,13 +78,17 @@ describe("GamePhasePanelContent", () => {
     expect(screen.getByTestId("decision-step-tab-government")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("government-resource-strip")).toHaveTextContent("行政力");
     expect(screen.getByTestId("government-resource-strip")).toHaveTextContent("3 / 3");
-    expect(screen.getByTestId("government-market-preview")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "选择：博览会" }));
+    expect(screen.queryByTestId("government-market-preview")).not.toBeInTheDocument();
+    expect(screen.getByTestId("government-market-policy-summary")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "选择：市场补贴" }));
+    expect(screen.getAllByText("市场补贴").length).toBeGreaterThan(1);
     await user.click(screen.getByRole("button", { name: "激活政策：贸易协定" }));
 
     await user.click(screen.getByRole("button", { name: "下一步：市场预览" }));
     expect(screen.getByTestId("domestic-panel")).toBeInTheDocument();
     expect(screen.getByTestId("decision-step-tab-domestic")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("domestic-panel")).toHaveTextContent("国内容量变化 +2");
+    expect(screen.getByTestId("domestic-panel")).not.toHaveTextContent("暂无市场调节");
 
     await user.click(screen.getByRole("button", { name: "下一步：军事要塞" }));
     expect(screen.getByTestId("military-panel")).toBeInTheDocument();
@@ -101,7 +109,7 @@ describe("GamePhasePanelContent", () => {
       },
       governmentPlan: {
         pointPurchases: [],
-        strategySelections: [{ actionId: "market_fair" }],
+        strategySelections: [{ actionId: "market_subsidy" }],
         techResearch: [],
         adminPurchases: 0,
       },
@@ -195,6 +203,44 @@ describe("GamePhasePanelContent", () => {
 
     expect(screen.getByRole("button", { name: "激活政策：贸易协定" })).toBeDisabled();
     expect(screen.getAllByText("财政不足").length).toBeGreaterThan(0);
+  });
+
+  it("labels one-round fiscal policies with government fiscal and this-round allocation", async () => {
+    const workspace = createDecisionPlayerWorkspace();
+    renderPanel("decision", {
+      decisionWorkspace: {
+        ...workspace,
+        governmentReforms: {
+          ...workspace.governmentReforms,
+          availablePolicies: [
+            {
+              policyId: "work_relief",
+              label: "以工代赈",
+              adminCostPerTurn: 1,
+              budgetCost: 6,
+              description: "政府出资兴办公共工程，提升手工业产能，收入向消费池倾斜。",
+              effects: {
+                ratioDelta: {
+                  fiscal: -0.5,
+                  consumption: 0.5,
+                },
+              },
+              isActive: false,
+              requiresReform: "keynesianism",
+              isUnlocked: true,
+            },
+          ],
+        },
+      },
+    });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "下一步：政府政策" }));
+
+    expect(screen.getByText("6 政府财政 · 消耗 1 行政力")).toBeInTheDocument();
+    expect(screen.getByText(/本轮收入分配/)).toBeInTheDocument();
+    expect(screen.getByText(/国民消费 \+0.5，政府财政 -0.5/)).toBeInTheDocument();
+    expect(screen.queryByText(/每回合收入分配/)).not.toBeInTheDocument();
   });
 
   it.skip("shows locked factory goods and route reasons inside industrial intel (legacy — removed with v1 panels)", () => {});
@@ -466,5 +512,63 @@ describe("GamePhasePanelContent", () => {
     expect(within(panel).getByText("投放上限")).toBeInTheDocument();
     expect(within(panel).getByText(/实际成交会按投放量重新计算/)).toBeInTheDocument();
     expect(within(panel).getAllByText(/海外加成/).length).toBeGreaterThan(0);
+  });
+
+  it("shows government market policy effects in the market phase", () => {
+    renderPanel("market", {
+      marketWorkspace: createMarketPlayerWorkspace({
+        domesticMarketCapacity: 6,
+        overseasMarketCapacity: 7,
+        phase1Economy: {
+          capacityByMode: {},
+          rawMaterials: 10,
+          goodsInventory: 5,
+          productionModes: [],
+          domesticDemand: 3,
+          equilibriumPrice: 4,
+          domesticPricePreview: 6,
+          investmentPool: 12,
+          incomeAllocationRatio: {},
+          marketMetrics: {},
+          domesticMarketCapacityBonus: 0,
+          domesticPriceBonus: 1,
+          overseasMarketCapacityBonus: 2,
+          governmentDomesticMarketCapacityBonus: 2,
+          governmentDomesticPriceBonus: 2,
+          governmentOverseasMarketCapacityBonus: 2,
+        },
+      }),
+    });
+
+    const banner = screen.getByTestId("phase1-market-government-adjustments");
+    expect(banner).toHaveTextContent("政府市场政策");
+    expect(banner).toHaveTextContent("国内容量 +2");
+    expect(banner).toHaveTextContent("国内价格 +2");
+    expect(banner).toHaveTextContent("海外容量 +2");
+    expect(banner).toHaveTextContent("当前净调整");
+    expect(banner).toHaveTextContent("国内价格 +1");
+  });
+
+  it("shows only the effective factory/government fiscal return ratio during settlement", () => {
+    renderPanel("settlement", {
+      settlementWorkspace: createSettlementPlayerWorkspace({
+        nextRatio: {
+          domesticMarket: 4,
+          factory: 3,
+          governmentFiscal: 4,
+        },
+        budgetAllocation: {
+          domesticMarket: 0,
+          factory: 12,
+          governmentFiscal: 18,
+        },
+      }),
+    });
+
+    expect(screen.getByText("本轮有效回流比例")).toBeInTheDocument();
+    expect(screen.getByText("3 / 4")).toBeInTheDocument();
+    expect(screen.getByText("民间购买力不再作为政策额度来源，本轮售卖收入不会直接分配到这里。")).toBeInTheDocument();
+    expect(screen.queryByText(/40% 自然消费/)).not.toBeInTheDocument();
+    expect(screen.queryByText("4 / 3 / 4")).not.toBeInTheDocument();
   });
 });

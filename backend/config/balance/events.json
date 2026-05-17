@@ -94,7 +94,7 @@
     {
       "eventId": "cholera_epidemic",
       "label": "霍乱疫情",
-      "description": "霍乱爆发，国内消费萎缩，民众呼吁社会改革。",
+      "description": "霍乱爆发，国内消费承接下降，平等主义思潮上升；本事件不改变行政力。",
       "roundRange": [3, 10],
       "conditions": {},
       "globalEffects": { "domesticMarketCapacityDelta": -2, "ideologyLevelDelta": { "egalitarianism": 1 } }
@@ -157,14 +157,6 @@
       "globalEffects": { "techPointsDelta": 1, "governmentFiscalBudgetDelta": -2 }
     },
     {
-      "eventId": "colonial_resistance",
-      "label": "殖民地抵抗",
-      "description": "殖民地爆发反抗运动，海外控制力被削弱。",
-      "roundRange": [5, 12],
-      "conditions": { "anyPlayerControlledRegionsAtLeast": 1 },
-      "globalEffects": { "controlledRegionsDelta": -1 }
-    },
-    {
       "eventId": "banking_crisis",
       "label": "银行危机",
       "description": "金融恐慌蔓延，各项预算全面紧缩。",
@@ -206,12 +198,12 @@
       "globalEffects": { "factoryBudgetDelta": 5, "techPointsDelta": 1 }
     },
     {
-      "eventId": "scramble_for_africa",
-      "label": "瓜分非洲",
-      "description": "列强争相瓜分非洲殖民地，军事扩张与民族情绪并起。",
+      "eventId": "global_trade_race",
+      "label": "全球贸易竞赛",
+      "description": "列强争相扩展海外贸易网络，军事投送与民族情绪并起。",
       "roundRange": [8, 15],
       "conditions": {},
-      "globalEffects": { "overseasMarketCapacityDelta": 2, "controlledRegionsDelta": 1, "ideologyLevelDelta": { "nationalism": 1 } }
+      "globalEffects": { "overseasMarketCapacityDelta": 2, "overseasPriceBonusDelta": 1, "ideologyLevelDelta": { "nationalism": 1 } }
     },
     {
       "eventId": "economic_depression",

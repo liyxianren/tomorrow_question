@@ -396,6 +396,14 @@ class SettlementRealtimeOrchestrationTests(unittest.TestCase):
         player_state.national_income = 10
         player_state.cumulative_national_income = 20
         player_state.budget_pools = {"domesticMarket": 5, "factory": 5, "governmentFiscal": 5}
+        player_state.base_admin_capacity = 3
+        player_state.administration_capacity = 2
+        player_state.active_policies = ["raise_commercial_tax"]
+        player_state.income_allocation_ratio = {
+            "domesticMarket": 5.0,
+            "factory": 2.0,
+            "governmentFiscal": 3.0,
+        }
 
         with patch.object(socketio, "emit") as emit_mock:
             outcome = run_phase_settlement(
@@ -414,13 +422,27 @@ class SettlementRealtimeOrchestrationTests(unittest.TestCase):
         self.assertEqual(outcome.updated_snapshot.round_no, 3)
         updated_player = next(player for player in outcome.updated_snapshot.player_states if player.player_id == "player-1")
         self.assertEqual(updated_player.cumulative_national_income, 30)
-        # Phase-1 5:3:2 split of 10 -> 5/3/2 deltas applied to existing pools,
-        # then 40% consumption-pool drain on domesticMarket: (5+5) * 0.6 = 6.
-        self.assertEqual(updated_player.budget_pools, {"domesticMarket": 6, "factory": 8, "governmentFiscal": 7})
+        # The round's active policy still affected this settlement's split, but
+        # it is cleared before the next decision phase is hydrated.
+        self.assertEqual(updated_player.budget_pools, {"domesticMarket": 5, "factory": 9, "governmentFiscal": 11})
+        self.assertEqual(updated_player.active_policies, [])
+        self.assertEqual(updated_player.administration_capacity, 3)
+        self.assertEqual(updated_player.income_allocation_ratio["factory"], 3.0)
+        self.assertEqual(updated_player.income_allocation_ratio["governmentFiscal"], 2.0)
 
         phase_started_payload = emit_mock.call_args_list[1].args[1]["payload"]
         self.assertEqual(phase_started_payload["snapshot"]["phaseWorkspace"]["phase"], GamePhase.DECISION)
         self.assertEqual(phase_started_payload["snapshot"]["lastSettlementWorkspace"]["settledPhase"], GamePhase.SETTLEMENT)
+        player_workspace = phase_started_payload["snapshot"]["phaseWorkspace"]["players"]["player-1"]
+        self.assertEqual(player_workspace["governmentReforms"]["administrationCapacity"], 3)
+        self.assertEqual(player_workspace["governmentReforms"]["activePolicies"], [])
+        self.assertFalse(
+            next(
+                policy
+                for policy in player_workspace["governmentReforms"]["availablePolicies"]
+                if policy["policyId"] == "raise_commercial_tax"
+            )["isActive"]
+        )
 
 
 if __name__ == "__main__":

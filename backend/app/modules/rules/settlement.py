@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import random
 
-from app.contracts.enums import RegionAccessLevel
 from app.modules.balance_config import get_balance_config
 from app.modules.game_state.effects import apply_effects, get_raw_materials_per_turn, reset_temporary_effects
 
 from .common import RuleResolution, clone_snapshot
-from .decision import _apply_reform_or_policy_effects
+from .decision import _apply_reform_or_policy_effects, _reset_round_policy_state
 from .phase1_economy import (
     DEFAULT_INCOME_ALLOCATION_RATIO as PHASE1_DEFAULT_RATIO,
     allocate_revenue_to_pools,
@@ -28,10 +27,6 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
 
     for player_state in updated_snapshot.player_states:
         colony_income = 0
-        for region_state in updated_snapshot.region_states:
-            if region_state.controller == player_state.country.value:
-                colony_income += int(balance.military.colonization_income_per_colony_per_round)
-
         player_state.national_income = int(player_state.national_income) + colony_income
 
         reset_temporary_effects(player_state)
@@ -68,6 +63,7 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
                 "nationalIncome": int(player_state.national_income),
                 "colonyIncome": colony_income,
                 "budgetAllocation": allocation,
+                "unsoldGoodsInventory": int(player_state.phase1_economy.goods_inventory),
             }
         )
         generated_logs.append(
@@ -89,7 +85,12 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
         )
         _apply_ideology_progression(player_state, signal_values_by_player_id[player_state.player_id], balance)
         _apply_permanent_reform_effects(player_state, balance)
-        _apply_phase3_research_progress(player_state, updated_snapshot, balance)
+        research_summary = _apply_phase3_research_progress(player_state, updated_snapshot, balance)
+        if research_summary:
+            summary_lines.append(f"{player_state.country.value} {research_summary}")
+        # Policies are one-round decisions: they affect this settlement, then
+        # the next decision workspace must start with refreshed admin points.
+        _reset_round_policy_state(player_state, balance)
         player_state.phase1_economy.income_allocation_ratio = _phase1_ratio_from_legacy(
             player_state.income_allocation_ratio
         )
@@ -103,13 +104,8 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
         player_state.national_income = 0
         player_state.goods_allocation = {}
 
-    generated_logs.extend(
-        _apply_independence_progression(
-            updated_snapshot,
-            balance,
-            looted_regions=set(updated_snapshot.looted_regions_this_turn),
-        )
-    )
+    for region_state in updated_snapshot.region_states:
+        region_state.market_supply = {}
     updated_snapshot.looted_regions_this_turn = set()
 
     updated_snapshot.market_price_adjustments = _build_market_price_adjustments(
@@ -357,8 +353,7 @@ def _event_is_eligible(event_config, snapshot, next_round: int) -> bool:
 
 
 def _controlled_region_count(snapshot, player_state) -> int:
-    controlled = sum(1 for region in snapshot.region_states if region.controller == player_state.country.value)
-    return controlled + int(player_state.controlled_regions_bonus)
+    return sum(1 for region in snapshot.region_states if region.controller == player_state.country.value)
 
 
 _PERMANENT_POOL_ALIASES = {
@@ -433,10 +428,10 @@ def _apply_permanent_reform_effects(player_state, balance) -> None:
             _apply_permanent_effects(player_state, permanent)
 
 
-def _apply_phase3_research_progress(player_state, snapshot, balance) -> None:
+def _apply_phase3_research_progress(player_state, snapshot, balance) -> str | None:
     active = player_state.active_research
     if active is None or active in player_state.unlocked_techs:
-        return
+        return None
 
     tech_config = None
     for chain in balance.technology.chains.values():
@@ -447,7 +442,7 @@ def _apply_phase3_research_progress(player_state, snapshot, balance) -> None:
         if tech_config is not None:
             break
     if tech_config is None:
-        return
+        return None
 
     facility_total = sum(int(value) for value in player_state.research_facilities.values())
     progress_per_turn = int(balance.technology.research_facility_progress_per_turn)
@@ -459,7 +454,7 @@ def _apply_phase3_research_progress(player_state, snapshot, balance) -> None:
     effective_threshold = max(1, threshold - attempts)
 
     if new_progress < effective_threshold:
-        return
+        return f"研究「{tech_config.label}」推进 {facility_total * progress_per_turn} 点，当前 {new_progress}/{effective_threshold}，尚未触发突破检定。"
 
     all_unlocked = {
         tech_id
@@ -468,13 +463,15 @@ def _apply_phase3_research_progress(player_state, snapshot, balance) -> None:
     }
     is_discovered = active in all_unlocked
 
-    if is_discovered and new_progress >= threshold * 2:
-        player_state.research_progress[active] = new_progress - threshold * 2
-        player_state.unlocked_techs.append(active)
+    if is_discovered:
         player_state.breakthrough_attempts.pop(active, None)
-        player_state.tech_points = int(player_state.tech_points) + 1
-        player_state.active_research = None
-        return
+        if new_progress >= threshold:
+            player_state.research_progress[active] = new_progress - threshold
+            player_state.unlocked_techs.append(active)
+            player_state.tech_points = int(player_state.tech_points) + 1
+            player_state.active_research = None
+            return f"研究「{tech_config.label}」已被他国发现，本国进度达标后直接解锁。"
+        return f"研究「{tech_config.label}」已触发追赶判定，但进度 {new_progress}/{threshold} 尚未达到直接解锁线。"
 
     roll = random.randint(1, int(balance.technology.breakthrough_die_sides))
     if roll >= effective_threshold:
@@ -483,8 +480,10 @@ def _apply_phase3_research_progress(player_state, snapshot, balance) -> None:
         player_state.breakthrough_attempts.pop(active, None)
         player_state.tech_points = int(player_state.tech_points) + 1
         player_state.active_research = None
+        return f"研究「{tech_config.label}」突破成功：掷骰 {roll} ≥ {effective_threshold}，科技已解锁。"
     else:
         player_state.breakthrough_attempts[active] = attempts + 1
+        return f"研究「{tech_config.label}」突破失败：掷骰 {roll} < {effective_threshold}，下次突破阈值降低 1。"
 
 
 def _apply_independence_progression(
@@ -493,64 +492,10 @@ def _apply_independence_progression(
     *,
     looted_regions: set[str],
 ) -> list[dict[str, object]]:
-    """Update each controlled region's independence and trigger revolt at threshold.
-
-    Returns generated logs for any revolt events that occurred.
-    """
-    threshold = int(balance.military.independence_threshold)
-    logs: list[dict[str, object]] = []
+    del balance, looted_regions
     for region in snapshot.region_states:
-        if region.controller is None:
-            region.independence = 0
-            region.market_supply = {}
-            continue
-
-        delta = 0
-
-        supply_total = sum(int(value) for value in region.market_supply.values())
-        demand_total = sum(int(value) for value in region.resource_limit.values())
-        if supply_total > 0 and demand_total > 0:
-            ratio = supply_total / demand_total
-            if ratio > 2.0 or ratio < 0.5:
-                delta += 2
-            elif ratio > 1.3 or ratio < 0.7:
-                delta += 1
-
-        if region.region_id in looted_regions:
-            delta += 2
-
-        garrison_total = sum(int(value) for value in region.garrison.values())
-        delta -= garrison_total
-
-        region.independence = max(0, int(region.independence) + delta)
-
-        if region.independence >= threshold:
-            previous_controller = region.controller
-            region.controller = None
-            region.garrison = {}
-            region.independence = 0
-            region.access_level = RegionAccessLevel.CONCESSION
-            region.market_supply = {}
-            logs.append(
-                {
-                    "gameId": snapshot.game_id,
-                    "roundNo": snapshot.round_no,
-                    "phase": snapshot.phase,
-                    "kind": "settlement.region_revolt",
-                    "message": f"{region.region_id} 殖民地独立度达到阈值，脱离 {previous_controller} 控制。",
-                    "details": {
-                        "regionId": region.region_id,
-                        "previousController": previous_controller,
-                        "reason": "independence_threshold",
-                        "threshold": threshold,
-                    },
-                    "createdAt": None,
-                }
-            )
-            continue
-
         region.market_supply = {}
-    return logs
+    return []
 
 
 def _resolve_naval_blockade(snapshot, balance) -> None:

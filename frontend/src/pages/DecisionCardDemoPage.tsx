@@ -12,6 +12,7 @@ import {
   setProductionOrderQuantity,
   setRouteDecisionOrderQuantity,
   toggleDiplomacyActionSelection,
+  toggleFactoryActionSelection,
   toggleGovernmentStrategySelection,
   toggleNationalAbilitySelection,
   toggleTechResearchSelection,
@@ -127,6 +128,8 @@ export function DecisionCardDemoPage() {
 
     updateDraft((previous) => {
       switch (card.interaction?.type) {
+        case "factoryAction":
+          return toggleFactoryActionSelection(previous, card.interaction.actionId, checked);
         case "governmentStrategy":
           return toggleGovernmentStrategySelection(previous, card.interaction.actionId, checked);
         case "technology":

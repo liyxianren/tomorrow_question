@@ -177,9 +177,10 @@ class BotTurnOrchestratorTests(unittest.TestCase):
 
         self.assertEqual(len(batch.generated_inputs), 4)
         for turn_input in batch.generated_inputs:
-            self.assertEqual(
-                set(turn_input.payload.keys()),
-                {"factoryPlan", "domesticMarketPlan", "governmentPlan", "phase1Production", "researchTarget"},
+            self.assertTrue(
+                {"factoryPlan", "domesticMarketPlan", "governmentPlan", "researchTarget"}.issubset(
+                    set(turn_input.payload.keys())
+                )
             )
             self.assertIn("productionOrders", turn_input.payload["factoryPlan"])
             self.assertIn("domesticMarketActions", turn_input.payload["domesticMarketPlan"])
@@ -193,6 +194,110 @@ class BotTurnOrchestratorTests(unittest.TestCase):
                 ),
                 "bot should select market regulation through government strategySelections",
             )
+
+    def test_decision_bot_does_not_overrun_factory_budget_after_construction(self) -> None:
+        room = create_room(room_code="ROOM42", host_player_id="player-1", host_nickname="Host")
+        assign_country(room, "player-1", CountryCode.BRITAIN)
+        mark_member_ready(room, "player-1", True)
+        fill_bots(room, actor_player_id="player-1")
+        game = create_game(room_code=room.room_code, game_id="game-1")
+        snapshot = create_initial_snapshot(
+            game=game,
+            player_assignments={
+                member.player_id: member.selected_country
+                for member in room.members
+                if member.selected_country is not None
+            },
+            snapshot_id="snapshot-1",
+            phase_deadline_at=datetime(2026, 4, 6, 12, 0, tzinfo=UTC),
+        )
+
+        payload = plan_bot_payload(
+            BotPlanningContext(
+                room=room,
+                room_member=room.members[1],
+                snapshot=snapshot,
+                player_workspace={
+                    "budgetPools": {"factory": 5, "governmentFiscal": 0},
+                    "governmentActions": {"strategies": []},
+                    "techTree": {"chains": []},
+                    "productionOptions": [{"goodsId": "phase1_goods", "unitBudgetCost": 1}],
+                    "upgradeOptions": [
+                        {
+                            "routeId": "mechanized",
+                            "sourceRouteId": "handicraft",
+                            "unitBudgetCost": 5,
+                            "capacityDelta": 1,
+                            "maxQuantity": 1,
+                            "lockedReason": None,
+                        }
+                    ],
+                    "expansionOptions": [],
+                    "newFactoryOptions": [],
+                    "phase1Economy": {
+                        "productionModes": [
+                            {"mode": "handicraft", "currentCapacity": 2, "isAvailable": True},
+                            {"mode": "mechanized", "currentCapacity": 0, "isAvailable": True},
+                        ]
+                    },
+                },
+            )
+        )
+
+        self.assertEqual(payload["factoryPlan"]["upgradeOrders"], [{"routeId": "mechanized", "quantity": 1}])
+        self.assertNotIn("phase1Production", payload)
+
+    def test_decision_bot_produces_on_upgraded_route_when_budget_remains(self) -> None:
+        room = create_room(room_code="ROOM42", host_player_id="player-1", host_nickname="Host")
+        assign_country(room, "player-1", CountryCode.BRITAIN)
+        mark_member_ready(room, "player-1", True)
+        fill_bots(room, actor_player_id="player-1")
+        game = create_game(room_code=room.room_code, game_id="game-1")
+        snapshot = create_initial_snapshot(
+            game=game,
+            player_assignments={
+                member.player_id: member.selected_country
+                for member in room.members
+                if member.selected_country is not None
+            },
+            snapshot_id="snapshot-1",
+            phase_deadline_at=datetime(2026, 4, 6, 12, 0, tzinfo=UTC),
+        )
+
+        payload = plan_bot_payload(
+            BotPlanningContext(
+                room=room,
+                room_member=room.members[1],
+                snapshot=snapshot,
+                player_workspace={
+                    "budgetPools": {"factory": 6, "governmentFiscal": 0},
+                    "governmentActions": {"strategies": []},
+                    "techTree": {"chains": []},
+                    "productionOptions": [{"goodsId": "phase1_goods", "unitBudgetCost": 1}],
+                    "upgradeOptions": [
+                        {
+                            "routeId": "mechanized",
+                            "sourceRouteId": "handicraft",
+                            "unitBudgetCost": 5,
+                            "capacityDelta": 1,
+                            "maxQuantity": 1,
+                            "lockedReason": None,
+                        }
+                    ],
+                    "expansionOptions": [],
+                    "newFactoryOptions": [],
+                    "phase1Economy": {
+                        "productionModes": [
+                            {"mode": "handicraft", "currentCapacity": 1, "isAvailable": True},
+                            {"mode": "mechanized", "currentCapacity": 0, "isAvailable": True},
+                        ]
+                    },
+                },
+            )
+        )
+
+        self.assertEqual(payload["factoryPlan"]["upgradeOrders"], [{"routeId": "mechanized", "quantity": 1}])
+        self.assertEqual(payload["phase1Production"], {"rawMaterialAssignments": {"mechanized": 1}})
 
     def test_settlement_phase_does_not_generate_bot_turn_inputs(self) -> None:
         room = create_room(room_code="ROOM42", host_player_id="player-1", host_nickname="Host")

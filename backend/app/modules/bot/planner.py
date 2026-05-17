@@ -26,12 +26,14 @@ def _plan_decision(workspace: Mapping[str, Any]) -> dict[str, Any]:
             "expansionOrders": [],
             "upgradeOrders": [],
             "newFactoryOrders": [],
+            "factoryActions": [],
         },
         "domesticMarketPlan": {"domesticMarketActions": []},
         "governmentPlan": {"adminPurchases": 0, "pointPurchases": [], "strategySelections": []},
     }
 
     budget_pools = _as_mapping(workspace.get("budgetPools"))
+    factory_budget = int(budget_pools.get("factory", 0) or 0)
     government_budget = int(
         budget_pools.get(
             "governmentFiscal",
@@ -63,13 +65,17 @@ def _plan_decision(workspace: Mapping[str, Any]) -> dict[str, Any]:
     if research_target:
         draft["researchTarget"] = research_target
 
-    gov_reforms = _as_mapping(workspace.get("governmentReforms"))
-    admin_cost = max(1, int(gov_reforms.get("adminPurchaseCost", 0) or 0))
-    if government_budget >= admin_cost:
-        draft["governmentPlan"]["adminPurchases"] = government_budget // admin_cost
+    factory_budget = _select_factory_construction(draft, workspace, factory_budget)
 
     phase1_economy = _as_mapping(workspace.get("phase1Economy"))
     if phase1_economy:
+        effective_capacity_by_mode = _phase1_capacity_after_selected_construction(
+            draft,
+            workspace,
+            phase1_economy,
+        )
+        production_unit_cost = _phase1_production_unit_budget_cost(workspace)
+        can_afford_production = production_unit_cost <= 0 or factory_budget >= production_unit_cost
         production_modes = [
             mode for mode in _as_list(phase1_economy.get("productionModes")) if isinstance(mode, dict)
         ]
@@ -79,14 +85,12 @@ def _plan_decision(workspace: Mapping[str, Any]) -> dict[str, Any]:
                 for mode in production_modes
                 if str(mode.get("mode") or "") != "idle"
                 and bool(mode.get("isAvailable"))
-                and int(mode.get("currentCapacity", 0)) > 0
+                and int(effective_capacity_by_mode.get(str(mode.get("mode") or ""), 0)) > 0
             ),
             None,
         )
-        if chosen_mode is not None:
-            draft["phase1Production"] = {
-                "rawMaterialAssignments": {str(chosen_mode.get("mode")): 1}
-            }
+        if chosen_mode is not None and can_afford_production:
+            draft["phase1Production"] = {"rawMaterialAssignments": {str(chosen_mode.get("mode")): 1}}
     return draft
 
 
@@ -223,3 +227,84 @@ def _find_research_target(workspace: Mapping[str, Any]) -> str | None:
             if not bool(tech.get("isUnlocked")):
                 return str(tech.get("techId") or "")
     return None
+
+
+def _select_factory_construction(
+    draft: dict[str, Any],
+    workspace: Mapping[str, Any],
+    factory_budget: int,
+) -> int:
+    construction_fields = (
+        ("upgradeOptions", "upgradeOrders"),
+        ("expansionOptions", "expansionOrders"),
+        ("newFactoryOptions", "newFactoryOrders"),
+    )
+    for option_key, order_key in construction_fields:
+        options = [option for option in _as_list(workspace.get(option_key)) if isinstance(option, dict)]
+        for option in options:
+            if option.get("lockedReason") is not None:
+                continue
+            route_id = str(option.get("routeId") or "")
+            unit_cost = int(option.get("unitBudgetCost", 0) or 0)
+            max_quantity = int(option.get("maxQuantity", 0) or 0)
+            if not route_id or unit_cost <= 0 or max_quantity <= 0 or factory_budget < unit_cost:
+                continue
+            draft["factoryPlan"][order_key].append({"routeId": route_id, "quantity": 1})
+            return factory_budget - unit_cost
+    return factory_budget
+
+
+def _phase1_production_unit_budget_cost(workspace: Mapping[str, Any]) -> int:
+    production_options = [
+        option for option in _as_list(workspace.get("productionOptions")) if isinstance(option, dict)
+    ]
+    phase1_goods = next(
+        (option for option in production_options if str(option.get("goodsId") or "") == "phase1_goods"),
+        None,
+    )
+    if phase1_goods is not None:
+        return max(0, int(phase1_goods.get("unitBudgetCost", 1) or 0))
+    first_option = production_options[0] if production_options else None
+    if first_option is not None:
+        return max(0, int(first_option.get("unitBudgetCost", 1) or 0))
+    return 1
+
+
+def _phase1_capacity_after_selected_construction(
+    draft: dict[str, Any],
+    workspace: Mapping[str, Any],
+    phase1_economy: Mapping[str, Any],
+) -> dict[str, int]:
+    capacity_by_mode: dict[str, int] = {}
+    for mode in _as_list(phase1_economy.get("productionModes")):
+        if not isinstance(mode, dict):
+            continue
+        mode_id = str(mode.get("mode") or "")
+        if not mode_id:
+            continue
+        capacity_by_mode[mode_id] = max(0, int(mode.get("currentCapacity", 0) or 0))
+
+    upgrade_options_by_route = {
+        str(option.get("routeId") or ""): option
+        for option in _as_list(workspace.get("upgradeOptions"))
+        if isinstance(option, dict) and str(option.get("routeId") or "")
+    }
+    for order in draft.get("factoryPlan", {}).get("upgradeOrders", []):
+        if not isinstance(order, dict):
+            continue
+        option = upgrade_options_by_route.get(str(order.get("routeId") or ""))
+        if option is None:
+            continue
+        source_route = str(option.get("sourceRouteId") or "")
+        target_route = str(option.get("routeId") or "")
+        quantity = max(0, int(order.get("quantity", 0) or 0))
+        if not source_route or not target_route or quantity <= 0:
+            continue
+        capacity_delta = quantity * max(1, int(option.get("capacityDelta", 1) or 1))
+        source_capacity = max(0, int(capacity_by_mode.get(source_route, 0)))
+        moved_capacity = min(source_capacity, capacity_delta)
+        if moved_capacity <= 0:
+            continue
+        capacity_by_mode[source_route] = source_capacity - moved_capacity
+        capacity_by_mode[target_route] = max(0, int(capacity_by_mode.get(target_route, 0))) + moved_capacity
+    return capacity_by_mode

@@ -12,13 +12,25 @@ import "./MilitaryPanel.css";
 
 const ACTION_ICONS: Record<string, string> = {
   recruit_infantry: "🛡️",
+  recruit_army: "🛡️",
   train_artillery: "💣",
   naval_drill: "⛵",
+  build_fleet: "⚓",
   establish_americas: "🤝",
   establish_africa: "🤝",
   establish_middle_east: "🤝",
   establish_asia_pacific: "🤝",
 };
+
+function getVisibleArmyTotal(army: Record<string, number | undefined>): number {
+  if (army.army !== undefined) {
+    return Math.max(0, Math.floor(army.army));
+  }
+  return Object.values(army).reduce<number>(
+    (sum, value) => sum + Math.max(0, Math.floor(value ?? 0)),
+    0,
+  );
+}
 
 export interface MilitaryPanelProps {
   workspace: DecisionPlayerPhaseWorkspace;
@@ -27,12 +39,12 @@ export interface MilitaryPanelProps {
   onAddMilitary: (actionId: string) => void;
   onRemoveMilitary: (actionId: string) => void;
   onToggleDiplomacy: (actionId: string, checked: boolean) => void;
-  onToggleColonizationUnlock: (checked: boolean) => void;
-  onColonize: (regionId: string) => void;
-  onCancelColonize: (regionId: string) => void;
+  onToggleColonizationUnlock?: (checked: boolean) => void;
+  onColonize?: (regionId: string) => void;
+  onCancelColonize?: (regionId: string) => void;
   onNavalDeploymentChange: (nodeId: string, count: number) => void;
-  onConquestChange: (regionId: string, army: number) => void;
-  onLootingToggle: (regionId: string, resourceType: string) => void;
+  onConquestChange?: (regionId: string, army: number) => void;
+  onLootingToggle?: (regionId: string, resourceType: string) => void;
 }
 
 export function MilitaryPanel({
@@ -42,53 +54,27 @@ export function MilitaryPanel({
   onAddMilitary,
   onRemoveMilitary,
   onToggleDiplomacy,
-  onToggleColonizationUnlock,
-  onColonize,
-  onCancelColonize,
   onNavalDeploymentChange,
-  onConquestChange,
-  onLootingToggle,
 }: MilitaryPanelProps) {
   const mil = workspace.militaryWorkspace;
-  const capability = mil.colonizationCapability;
-  const unlockSelected = draft.militaryPlan.unlockColonization;
-  const previewIsUnlocked = capability.isUnlocked || unlockSelected;
-  const previewEstablishedDiplomacy = new Set([
-    ...mil.establishedDiplomacy,
-    ...mil.availableDiplomacyActions
-      .filter((action) => draft.militaryPlan.diplomacyActions.some((selection) => selection.actionId === action.actionId))
-      .map((action) => action.targetRegion),
-  ]);
   const getCount = (actionId: string) =>
     draft.militaryPlan.militaryActions.filter((a) => a.actionId === actionId).length;
 
   const totalFleets = mil.navy.fleets ?? 0;
+  const armyTotal = getVisibleArmyTotal(mil.army);
   const oceanNodes = mil.oceanNodes ?? [];
   const navalDeployment = draft.militaryPlan.navalDeployment ?? {};
   const selectedFleetDelta = sumSelectedFleetDelta(mil.availableMilitaryActions, draft);
   const effectiveTotalFleets = Math.max(0, totalFleets + selectedFleetDelta);
-  const selectedMilitarySpend = draft.militaryPlan.militaryActions.reduce((sum, selection) => {
-    const action = mil.availableMilitaryActions.find((item) => item.actionId === selection.actionId);
-    return sum + (action?.cost ?? 0);
-  }, 0);
-  const selectedColonizationSpend = draft.militaryPlan.colonizationActions.length * (capability.budgetCost ?? 0);
-  const totalMilitarySpend = selectedMilitarySpend + selectedColonizationSpend;
-  const maxArmyAvailable = Math.max(0, Math.floor(mil.army.army ?? 0));
   const totalDeployed = oceanNodes.reduce((sum, node) => {
     const draftCount = navalDeployment[node.nodeId];
     return sum + (typeof draftCount === "number" ? draftCount : node.myFleet);
   }, 0);
   const remainingFleets = Math.max(0, effectiveTotalFleets - totalDeployed);
 
-  const conquestActions = draft.militaryPlan.conquestActions ?? [];
-  const lootingActions = draft.militaryPlan.lootingActions ?? [];
-  const colonizationByRegion = new Map(mil.colonizationOptions.map((o) => [o.regionId, o]));
   const diplomacyByRegion = new Map(
     mil.availableDiplomacyActions.map((a) => [a.targetRegion, a]),
   );
-  const conquestByRegion = new Map(conquestActions.map((a) => [a.regionId, a]));
-  const maxInfantryAvailable = Math.max(0, Math.floor(mil.army.infantry ?? 0));
-  const maxArtilleryAvailable = Math.max(0, Math.floor(mil.army.artillery ?? 0));
 
   const { t } = useTranslation();
   const [selectedNode, setSelectedNode] = useState<MapSelection>(null);
@@ -98,14 +84,14 @@ export function MilitaryPanel({
       <div className="military-panel__header">
         <h3 className="military-panel__title">⚔️ {t("game:military.title")}</h3>
         <span className="military-panel__budget">
-          {t("game:military.army")} {mil.army.army ?? 0}/{mil.armyCap ?? 3} · {t("game:military.deployableFleets")} {totalFleets}
+          {t("game:government.budget", "政府财政")} {remainingGovernmentBudget}
         </span>
       </div>
 
       <DecisionStatStrip
         items={[
-          { icon: "🛡️", value: `${mil.army.army ?? 0}/${mil.armyCap ?? 3}`, label: t("game:military.army") },
-          { icon: "⛵", value: selectedFleetDelta > 0 ? `${totalFleets}+${selectedFleetDelta}` : totalFleets, label: t("game:military.deployableFleets") },
+          { icon: "🛡️", value: `${armyTotal}/${mil.armyCap ?? 3}`, label: t("game:military.army") },
+          { icon: "⛵", value: `${remainingFleets}/${effectiveTotalFleets}`, label: t("game:military.availableFleets", "可用舰队") },
           { icon: "🌍", value: mil.overseasCapacity, label: t("game:military.overseasCapacity") },
           { icon: "🏳️", value: mil.establishedDiplomacy.length, label: t("game:military.establishedDiplomacy") },
         ]}
@@ -119,7 +105,6 @@ export function MilitaryPanel({
         <MilitaryWorldMap
           oceanNodes={oceanNodes}
           regionAccessStatus={mil.regionAccessStatus}
-          colonizationOptions={mil.colonizationOptions}
           navalDeployment={navalDeployment}
           myCountry={workspace.countryCode}
           selectedNode={selectedNode}
@@ -131,19 +116,10 @@ export function MilitaryPanel({
         />
         <div className="mnd-overlay" aria-label={t("game:military.regionDetail")}>
           {mil.regionAccessStatus.map((region) => {
-            const opt = colonizationByRegion.get(region.regionId) ?? null;
             const diplomacyAction = diplomacyByRegion.get(region.regionId) ?? null;
             const diplomacySelected = diplomacyAction
               ? draft.militaryPlan.diplomacyActions.some((a) => a.actionId === diplomacyAction.actionId)
               : false;
-            const colonizationSelected = draft.militaryPlan.colonizationActions.some(
-              (a) => a.targetRegionId === region.regionId,
-            );
-            const previewHasDiplomacy = previewEstablishedDiplomacy.has(region.regionId);
-            const conquestEntry = conquestByRegion.get(region.regionId) ?? null;
-            const lootedSet = new Set(
-              lootingActions.filter((a) => a.regionId === region.regionId).map((a) => a.resourceType),
-            );
             const isOpen = selectedNode?.type === "region" && selectedNode?.id === region.regionId;
             return (
               <MilitaryNodeDrawer
@@ -155,20 +131,8 @@ export function MilitaryPanel({
                 region={region}
                 diplomacyAction={diplomacyAction}
                 diplomacySelected={diplomacySelected}
-                colonizationOption={opt}
-                capability={capability}
-                previewIsUnlocked={previewIsUnlocked}
-                previewHasDiplomacy={previewHasDiplomacy}
-                remainingGovernmentBudget={remainingGovernmentBudget - totalMilitarySpend}
-                colonizationSelected={colonizationSelected}
-                conquestEntry={conquestEntry}
-                lootedSet={lootedSet}
-                maxArmyAvailable={maxArmyAvailable}
+                remainingGovernmentBudget={remainingGovernmentBudget}
                 onToggleDiplomacy={onToggleDiplomacy}
-                onColonize={onColonize}
-                onCancelColonize={onCancelColonize}
-                onConquestChange={onConquestChange}
-                onLootingToggle={onLootingToggle}
               />
             );
           })}
@@ -200,47 +164,11 @@ export function MilitaryPanel({
         </div>
       </div>
 
-      <h4 className="military-section-label">👑 {t("game:military.colonizationTitle")}</h4>
-      <div className="military-actions">
-        {(() => {
-          const unlockStatus = capability.isUnlocked
-            ? "done"
-            : previewIsUnlocked
-              ? "selected"
-              : remainingGovernmentBudget < capability.unlockCost
-                ? "disabled"
-                : "available";
-          const statusText = capability.isUnlocked
-            ? "✅ " + t("game:military.permanentlyUnlocked")
-            : unlockSelected
-              ? "✓ " + t("game:military.unlockThisRound")
-              : t("game:military.notUnlocked");
-          return (
-            <DecisionActionCard
-              icon="👑"
-              title={t("game:military.colonizationTitle")}
-              costLabel={`${capability.unlockCost} ${t("game:government.budget")}`}
-              description={t("game:military.colonizationDesc", { cost: capability.unlockCost, pointCost: capability.budgetCost })}
-              status={unlockStatus}
-              statusText={statusText}
-              control={capability.isUnlocked ? undefined : {
-                kind: "toggle",
-                checked: unlockSelected,
-                onChange: (next) => onToggleColonizationUnlock(next),
-                label: unlockSelected ? t("common:cancel") : t("common:unlock"),
-                disabled: !unlockSelected && remainingGovernmentBudget < capability.unlockCost,
-              }}
-              doneBadge={capability.isUnlocked ? t("common:unlock") : undefined}
-            />
-          );
-        })()}
-      </div>
-
       <h4 className="military-section-label">🛡️ {t("game:military.militaryActions")}</h4>
       <div className="military-actions">
         {mil.availableMilitaryActions.map((action) => {
           const count = getCount(action.actionId);
-          const canAdd = count < action.maxPerRound && (remainingGovernmentBudget - totalMilitarySpend) >= action.cost;
+          const canAdd = count < action.maxPerRound && remainingGovernmentBudget >= action.cost;
           const effectMetrics = buildEffectMetrics(action.effects);
           const status = count > 0
             ? "selected"

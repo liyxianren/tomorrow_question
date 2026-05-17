@@ -63,6 +63,7 @@ function createRuntimeState(overrides: Partial<GameRuntimeState> = {}): GameRunt
           label: "粮食歉收",
           description: "粮价飙升，国内市场承接能力下降。",
           remainingRounds: 2,
+          effects: { domesticMarketCapacityDelta: -1, ideologyLevelDelta: { egalitarianism: 1 } },
         },
       ],
       nationalStateByPlayer: {
@@ -108,9 +109,12 @@ describe("GameSituationSummary", () => {
     );
 
     expect(screen.getByTestId("game-active-events")).toBeInTheDocument();
-    expect(screen.getByTestId("game-active-event-grain_crisis")).toBeInTheDocument();
+    const eventCard = screen.getByTestId("game-active-event-grain_crisis");
+    expect(eventCard).toBeInTheDocument();
     expect(screen.getByText("粮食歉收")).toBeInTheDocument();
-    expect(screen.getByText("剩余 2 回合")).toBeInTheDocument();
+    expect(eventCard).toHaveTextContent("剩余回合 2");
+    expect(screen.getByLabelText("事件效果")).toHaveTextContent("国内容量 -1");
+    expect(screen.getByLabelText("事件效果")).toHaveTextContent("平等主义思潮 +1");
     expect(screen.getByTestId("game-ideology-panel")).toBeInTheDocument();
     expect(screen.getByText("自由主义")).toBeInTheDocument();
     expect(screen.getByText("5 / 10")).toBeInTheDocument();

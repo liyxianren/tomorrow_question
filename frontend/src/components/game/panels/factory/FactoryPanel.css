@@ -46,6 +46,13 @@
   background: rgba(255, 255, 255, 0.018);
 }
 
+.factory-panel__section--stages {
+  grid-column: 1 / -1;
+  background:
+    linear-gradient(135deg, rgba(232, 200, 120, 0.055), rgba(127, 180, 216, 0.035)),
+    rgba(255, 255, 255, 0.018);
+}
+
 .factory-section-label {
   display: flex;
   align-items: center;
@@ -59,6 +66,137 @@
 .factory-command-list {
   display: grid;
   gap: 8px;
+}
+
+.factory-stage-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.factory-stage-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid rgba(226, 232, 240, 0.08);
+  border-radius: 11px;
+  background: rgba(8, 12, 17, 0.34);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.factory-stage-card--locked {
+  opacity: 0.68;
+}
+
+.factory-stage-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.factory-stage-card__header h5 {
+  margin: 0;
+  color: var(--game-text-primary, #f4efe4);
+  font-family: var(--font-serif, Georgia, serif);
+  font-size: 14px;
+}
+
+.factory-stage-card__header p {
+  margin: 3px 0 0;
+  color: var(--game-text-secondary, rgba(230, 235, 238, 0.62));
+  font-size: 11px;
+}
+
+.factory-stage-card__header > span {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border: 1px solid rgba(232, 200, 120, 0.18);
+  border-radius: 999px;
+  color: var(--game-text-value, #e8c878);
+  font-size: 11px;
+}
+
+.factory-stage-card__metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.factory-stage-card__metrics span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 7px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--game-text-secondary, rgba(230, 235, 238, 0.62));
+  font-size: 11px;
+}
+
+.factory-stage-card__metrics strong {
+  color: var(--game-text-primary, #f4efe4);
+  font-size: 13px;
+}
+
+.factory-stage-card__actions {
+  display: grid;
+  gap: 7px;
+}
+
+.factory-stage-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid rgba(226, 232, 240, 0.07);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.026);
+}
+
+.factory-stage-action--selected {
+  border-color: rgba(104, 211, 145, 0.28);
+  background: rgba(104, 211, 145, 0.06);
+}
+
+.factory-stage-action--disabled {
+  opacity: 0.58;
+}
+
+.factory-stage-action > div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.factory-stage-action strong {
+  color: var(--game-text-primary, #f4efe4);
+  font-size: 12px;
+}
+
+.factory-stage-action span,
+.factory-stage-action em {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--game-text-secondary, rgba(230, 235, 238, 0.62));
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.factory-stage-action > div:first-child span {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.factory-stage-action em {
+  color: var(--game-text-value, #e8c878);
 }
 
 .factory-command-row {
@@ -132,6 +270,20 @@
   font-size: 11px;
 }
 
+.factory-command-row__effects .factory-command-row__effect--positive {
+  background: rgba(90, 173, 121, 0.13);
+  color: #afe2be;
+}
+
+.factory-command-row__effects .factory-command-row__effect--negative {
+  background: rgba(211, 116, 91, 0.14);
+  color: #f0b29c;
+}
+
+.factory-command-row__effects .factory-command-row__effect--temporary {
+  border: 1px solid rgba(127, 180, 216, 0.16);
+}
+
 .factory-command-row__control {
   display: flex;
   flex-direction: column;
@@ -196,14 +348,23 @@
   .factory-panel--v2__right {
     grid-template-columns: 1fr;
   }
+
+  .factory-stage-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 620px) {
-  .factory-command-row {
+  .factory-command-row,
+  .factory-stage-action {
     grid-template-columns: 1fr;
   }
 
   .factory-command-row__control {
     align-items: flex-start;
+  }
+
+  .factory-stage-card__metrics {
+    grid-template-columns: 1fr;
   }
 }

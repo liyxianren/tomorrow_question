@@ -197,7 +197,7 @@ class PhaseSubmitApiTests(unittest.TestCase):
                     domestic_action_ids=["market_fair"],
                     point_purchases=[{"pointType": "tech", "quantity": 1}],
                     tech_research=[{"techId": "textile_tech"}],
-                    military_action_ids=["recruit_infantry"],
+                    military_action_ids=["recruit_army"],
                     ability_selection={"abilityId": "workshop_of_the_world"},
                 )
             },
@@ -232,31 +232,29 @@ class PhaseSubmitApiTests(unittest.TestCase):
         )
         self.assertEqual(
             persisted["payload"]["militaryPlan"]["militaryActions"],
-            [{"actionId": "recruit_infantry"}],
+            [{"actionId": "recruit_army"}],
         )
         self.assertEqual(
             persisted["payload"]["abilitySelection"],
             {"abilityId": "workshop_of_the_world"},
         )
 
-    def test_submit_decision_rejects_military_point_overspend(self) -> None:
+    def test_submit_decision_accepts_fleet_build_from_government_policy_allowance(self) -> None:
         self.seed_active_game()
 
         response = self.client.post(
             "/api/v1/games/game-1/phases/decision/submit",
             json={
                 "payload": build_decision_payload(
-                    military_action_ids=["recruit_infantry", "naval_drill"],
+                    military_action_ids=["build_fleet"],
                 )
             },
             headers={"X-Session-Id": "session-1"},
         )
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 200)
         payload = response.get_json()
-        self.assertFalse(payload["ok"])
-        self.assertEqual(payload["error"]["code"], ErrorCode.INVALID_SUBMISSION.value)
-        self.assertIn("Military points exceeded", payload["error"]["message"])
+        self.assertTrue(payload["ok"])
 
     def test_last_decision_submit_advances_to_market(self) -> None:
         self.seed_active_game()

@@ -39,13 +39,12 @@ export type DecisionCardInteraction =
   | { type: "expansion"; routeId: string }
   | { type: "upgrade"; routeId: string }
   | { type: "newFactory"; routeId: string }
+  | { type: "factoryAction"; actionId: string }
   | { type: "governmentStrategy"; actionId: string }
   | { type: "technology"; techId: string }
   | { type: "ability"; abilityId: string }
   | { type: "militaryAction"; actionId: string }
   | { type: "diplomacyAction"; actionId: string }
-  | { type: "colonizationUnlock" }
-  | { type: "colonizationTarget"; targetRegionId: string }
   | { type: "talentUnlock"; nodeId: string }
   | { type: "pointPurchase"; pointType: "tech" | "military" }
   | { type: "selectResearchBranch"; branchId: string }

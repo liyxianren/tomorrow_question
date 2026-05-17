@@ -31,17 +31,19 @@ export function ResearchPanel({
     ? chains.flatMap((c) => c.techs).find((t) => t.techId === activeResearch)
     : undefined;
   const activeTechLabel = translateBackend(activeTech?.label ?? "") ?? (activeResearch ? fallbackTechLabel(activeResearch) : null);
+  const activeCatchUpTarget = activeTech ? getResearchTarget(activeTech) : 0;
+  const activeIsCatchUp = activeTech ? isCatchUpTech(activeTech) : false;
   const activeProgressDisplay = activeTech
-    ? Math.min(activeTech.progress, activeTech.effectiveThreshold)
+    ? Math.min(activeTech.progress, activeCatchUpTarget)
     : 0;
-  const activeProgressPercent = activeTech && activeTech.effectiveThreshold > 0
-    ? Math.min(100, Math.round((activeProgressDisplay / activeTech.effectiveThreshold) * 100))
+  const activeProgressPercent = activeTech && activeCatchUpTarget > 0
+    ? Math.min(100, Math.round((activeProgressDisplay / activeCatchUpTarget) * 100))
     : 0;
   const perTurnProgress = researchFacilities * progressPerFacility;
   const activeEtaTurns = activeTech && perTurnProgress > 0
-    ? Math.max(0, Math.ceil((activeTech.effectiveThreshold - activeTech.progress) / perTurnProgress))
+    ? Math.max(0, Math.ceil((activeCatchUpTarget - activeTech.progress) / perTurnProgress))
     : null;
-  const activeSuccessChance = activeTech
+  const activeSuccessChance = activeTech && !activeIsCatchUp
     ? formatBreakthroughChance(activeTech.effectiveThreshold, breakthroughDieSides, t)
     : null;
   const nextPerTurnProgress = (researchFacilities + 1) * progressPerFacility;
@@ -76,22 +78,32 @@ export function ResearchPanel({
                         />
                       </div>
                       <span className="research-status-card__progress-text">
-                        {activeProgressDisplay}/{activeTech.effectiveThreshold}
+                        {activeProgressDisplay}/{activeCatchUpTarget}
                       </span>
                     </div>
                     {activeEtaTurns !== null ? (
                       <div className="research-status-card__meta">
-                        {activeTech.progress >= activeTech.effectiveThreshold
-                          ? t("game:research.progressFull")
-                          : t("game:research.etaRounds", { turns: activeEtaTurns })}
+                        {activeTech.progress >= activeCatchUpTarget
+                          ? activeIsCatchUp
+                            ? t("game:research.catchUpReady")
+                            : t("game:research.progressFull")
+                          : activeIsCatchUp
+                            ? t("game:research.catchUpEtaRounds", { turns: activeEtaTurns })
+                            : t("game:research.etaRounds", { turns: activeEtaTurns })}
                       </div>
                     ) : null}
                     <div className="research-status-card__meta">
                       {t("game:research.autoConfirm")}
                     </div>
                     <div className="research-status-card__meta">
-                      {t("game:research.breakthroughCheck", { die: breakthroughDieSides, threshold: activeTech.effectiveThreshold })}
-                      {activeSuccessChance ? `（${activeSuccessChance}）` : ""}。
+                      {activeIsCatchUp
+                        ? t("game:research.catchUpDirectUnlock", { target: activeCatchUpTarget })
+                        : (
+                          <>
+                            {t("game:research.breakthroughCheck", { die: breakthroughDieSides, threshold: activeTech.effectiveThreshold })}
+                            {activeSuccessChance ? `（${activeSuccessChance}）` : ""}。
+                          </>
+                        )}
                     </div>
                   </>
                 ) : null}
@@ -237,6 +249,14 @@ function formatBreakthroughChance(effectiveThreshold: number, dieSides: number, 
   return t("game:research.breakthroughPercent", { percent: `${percent}%` });
 }
 
+function isCatchUpTech(tech: TechTreeChainTech): boolean {
+  return tech.isDiscovered && !tech.isUnlocked;
+}
+
+function getResearchTarget(tech: TechTreeChainTech): number {
+  return isCatchUpTech(tech) ? tech.threshold : tech.effectiveThreshold;
+}
+
 const CHAIN_META: Record<string, { icon: string; color: string }> = {
   industrialization: { icon: "🏭", color: "#d4af37" },
   electrical: { icon: "⚡", color: "#4a9eff" },
@@ -294,10 +314,11 @@ function ChainDetail({
               : "talent-node--locked";
 
         const isExpanded = expandedTechId === tech.techId;
-        const progressPercent = tech.effectiveThreshold > 0
-          ? Math.min(100, Math.round((Math.min(tech.progress, tech.effectiveThreshold) / tech.effectiveThreshold) * 100))
+        const researchTarget = getResearchTarget(tech);
+        const progressPercent = researchTarget > 0
+          ? Math.min(100, Math.round((Math.min(tech.progress, researchTarget) / researchTarget) * 100))
           : 0;
-        const progressDisplay = Math.min(tech.progress, tech.effectiveThreshold);
+        const progressDisplay = Math.min(tech.progress, researchTarget);
 
         const lockReason = tech.isUnlocked
           ? null
@@ -325,7 +346,7 @@ function ChainDetail({
                 </h4>
                 {!tech.isUnlocked && (
                   <span className="talent-node__cost">
-                    {progressDisplay}/{tech.effectiveThreshold}
+                    {progressDisplay}/{researchTarget}
                   </span>
                 )}
               </div>
@@ -340,7 +361,12 @@ function ChainDetail({
                       {getTechUnlockHint(tech.techId, t)}
                     </span>
                   ) : null}
-                  {tech.breakthroughAttempts > 0 && (
+                  {isCatchUpTech(tech) ? (
+                    <span className="talent-node__effect-tag">
+                      {t("game:research.catchUpDiscovered")}
+                    </span>
+                  ) : null}
+                  {!isCatchUpTech(tech) && tech.breakthroughAttempts > 0 && (
                     <span className="talent-node__effect-tag">
                       {t("game:research.breakthroughDie")} {tech.breakthroughAttempts} {t("game:flow.times")}
                     </span>

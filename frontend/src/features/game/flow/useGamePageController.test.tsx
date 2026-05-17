@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import { useEffect } from "react";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -22,6 +23,33 @@ function renderController(runtimeState: GameRuntimeState) {
   }
 
   render(<Harness />);
+}
+
+function MutableHarness({ state, shouldSeedPolicy }: { state: GameRuntimeState; shouldSeedPolicy: boolean }) {
+  const controller = useGamePageController({
+    runtimeState: state,
+    isLoadingContext: false,
+    settlementTargetPath: null,
+  });
+
+  useEffect(() => {
+    if (!shouldSeedPolicy) {
+      return;
+    }
+    controller.onDraftsChange((previous) => ({
+      ...previous,
+      decision: {
+        ...previous.decision,
+        activatePolicies: ["raise_commercial_tax"],
+      },
+    }));
+  }, [controller.onDraftsChange, shouldSeedPolicy]);
+
+  return <pre data-testid="draft-payload">{JSON.stringify(controller.draftPayload)}</pre>;
+}
+
+function renderMutableController(runtimeState: GameRuntimeState, seedPolicy = false) {
+  return render(<MutableHarness state={runtimeState} shouldSeedPolicy={seedPolicy} />);
 }
 
 function createRuntimeState(snapshot = createGameSnapshot()): GameRuntimeState {
@@ -114,6 +142,24 @@ describe("useGamePageController", () => {
           },
         },
       });
+    });
+  });
+
+  it("clears decision policy drafts when a new decision round is restored directly", async () => {
+    const roundOne = createGameSnapshot({ phase: "decision", round: 1 });
+    const view = renderMutableController(createRuntimeState(roundOne), true);
+
+    await waitFor(() => {
+      expect(JSON.parse(screen.getByTestId("draft-payload").textContent ?? "{}").activatePolicies).toEqual([
+        "raise_commercial_tax",
+      ]);
+    });
+
+    const roundTwo = createGameSnapshot({ phase: "decision", round: 2, snapshotId: "snapshot-2" });
+    view.rerender(<MutableHarness state={createRuntimeState(roundTwo)} shouldSeedPolicy={false} />);
+
+    await waitFor(() => {
+      expect(JSON.parse(screen.getByTestId("draft-payload").textContent ?? "{}").activatePolicies).toEqual([]);
     });
   });
 });

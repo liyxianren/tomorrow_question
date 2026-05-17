@@ -28,6 +28,15 @@
     "you": "你",
     "empty": "等待玩家加入..."
   },
+  "ai": {
+    "title": "AI 机器人",
+    "emptyHelper": "可用 AI 补齐空位",
+    "botCount": "已有 {{count}} 个 AI 机器人",
+    "description": "还可补充 {{count}} 个 AI 机器人。",
+    "fullDescription": "房间席位已满。",
+    "fillButton": "补充 AI 机器人",
+    "filling": "正在补充 AI..."
+  },
   "sideRailAriaLabel": "房间状态和开局操作",
   "roomExpiryNotice": "长时间无人时房间会自动关闭。",
   "errors": {

@@ -28,6 +28,10 @@ DEFAULT_TEMPORARY_EFFECTS = {
     "domesticPriceBonus": 0,
     "overseasMarketCapacityBonus": 0,
     "overseasPriceBonus": 0,
+    "governmentDomesticMarketCapacityBonus": 0,
+    "governmentDomesticPriceBonus": 0,
+    "governmentOverseasMarketCapacityBonus": 0,
+    "governmentOverseasPriceBonus": 0,
     "productionOutputMultiplier": 1,
 }
 

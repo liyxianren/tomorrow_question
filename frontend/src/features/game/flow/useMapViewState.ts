@@ -158,10 +158,12 @@ function buildBuildingDefs(
   if (!playerState) return [];
 
   const pos = POSITIONS_BY_COUNTRY[countryId] ?? DEFAULT_POSITIONS;
-  const budgetPools = decisionWorkspace?.budgetPools ?? playerState.budgetPools;
-  const militaryPoints = decisionWorkspace?.militaryWorkspace?.armyCap ?? (playerState as any)?.armyCap ?? 0;
+  const budgetPools = decisionWorkspace?.baseBudgetPools ?? decisionWorkspace?.budgetPools ?? playerState.budgetPools;
+  const fleetCount = decisionWorkspace?.militaryWorkspace?.navy?.fleets ?? (playerState as any)?.navy?.fleets ?? 0;
   const army: Record<string, number> = decisionWorkspace?.militaryWorkspace.army ?? playerState.army ?? {};
-  const armyTotal = Object.values(army).reduce((sum, value) => sum + Math.max(0, Math.floor(value)), 0);
+  const armyTotal = army.army !== undefined
+    ? Math.max(0, Math.floor(army.army))
+    : Object.values(army).reduce((sum, value) => sum + Math.max(0, Math.floor(value)), 0);
   const governmentBudgetMetric = `${budgetPools.governmentFiscal}`;
 
   if (phase === "decision") {
@@ -194,7 +196,7 @@ function buildBuildingDefs(
         id: "military",
         label: i18n.t("game:building.military", "军事要塞"),
         subtitle: i18n.t("game:buildingSubtitle.military", "军事行动"),
-        metric: i18n.t("game:military.militaryPoints", "军事点") + ` ${militaryPoints} / ` + i18n.t("game:unit.infantry", "陆军") + ` ${armyTotal}`,
+        metric: i18n.t("game:unit.fleets", "舰队") + ` ${fleetCount} / ` + i18n.t("game:unit.army", "陆军") + ` ${armyTotal}`,
         x: pos.military.x,
         y: pos.military.y,
       },

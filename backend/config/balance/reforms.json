@@ -22,8 +22,10 @@
         "path": "freedom",
         "label": "股票市场",
         "adminCost": 2,
-        "description": "建立资本市场和股份融资框架；当前不会立刻给预算或点数，主要作为自由路线的早期制度基础。",
-        "effects": {},
+        "description": "建立资本市场和股份融资框架，提高政府处理财政、市场与产业事务的行政力上限。",
+        "effects": {
+          "administrationCapacityDelta": 1
+        },
         "unlocksPolicies": [],
         "blocksOtherPaths": []
       },
@@ -32,8 +34,10 @@
         "path": "freedom",
         "label": "建立国会",
         "adminCost": 4,
-        "description": "建立议会程序，开放请愿与国会系政策空间，让后续政策能通过制度渠道处理。",
-        "effects": {},
+        "description": "建立议会程序，开放请愿与国会系政策空间，并进一步提高行政力上限。",
+        "effects": {
+          "administrationCapacityDelta": 1
+        },
         "unlocksPolicies": ["people_petition"],
         "blocksOtherPaths": []
       },
@@ -131,8 +135,10 @@
         "path": "equality",
         "label": "社会再分配",
         "adminCost": 4,
-        "description": "建立再分配制度，解锁资本税相关政策，后续可调节财政与阶级压力。",
-        "effects": {},
+        "description": "建立再分配制度，解锁资本税相关政策，并提高处理财政与阶级事务的行政力上限。",
+        "effects": {
+          "administrationCapacityDelta": 1
+        },
         "unlocksPolicies": ["capital_tax_increase", "capital_tax_decrease"],
         "blocksOtherPaths": []
       },
@@ -220,8 +226,10 @@
         "path": "national",
         "label": "现代海关",
         "adminCost": 4,
-        "description": "建立现代海关体系，解锁贸易开闭政策，用于控制海外贸易和收入结构。",
-        "effects": {},
+        "description": "建立现代海关体系，解锁贸易开闭政策，并提高政府处理海外贸易的行政力上限。",
+        "effects": {
+          "administrationCapacityDelta": 1
+        },
         "unlocksPolicies": ["open_trade", "close_trade"],
         "blocksOtherPaths": []
       },

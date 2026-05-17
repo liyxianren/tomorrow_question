@@ -57,7 +57,8 @@ describe("DecisionCardDemoPage", () => {
 
     await user.click(screen.getByRole("button", { name: "工业区" }));
     expect(screen.getByText("本轮生产")).toBeInTheDocument();
-    expect(screen.getByText("建设升级")).toBeInTheDocument();
+    expect(screen.getByText("产业建设")).toBeInTheDocument();
+    expect(screen.getByText("临时调度")).toBeInTheDocument();
     expect(screen.getByText("未解锁商品")).toBeInTheDocument();
 
     const grainCard = screen.getByText("粮食").closest("article");
@@ -90,18 +91,18 @@ describe("DecisionCardDemoPage", () => {
     expect(screen.getByText("海军建设")).toBeInTheDocument();
   });
 
-  it("allows confirm cards and market regulation toggles to update the shared draft", async () => {
+  it("allows factory dispatch and market regulation toggles to update the shared draft", async () => {
     renderDecisionCardDemoPage();
     const user = userEvent.setup();
 
     await screen.findByRole("heading", { name: "决策卡片 DEMO" });
     await user.click(screen.getByRole("button", { name: "工业区" }));
 
-    await user.click(screen.getByRole("button", { name: "确认扩产" }));
-    expect(screen.getByRole("button", { name: "取消扩产" })).toBeInTheDocument();
-    expect(screen.getByText("工厂预算 2")).toBeInTheDocument();
+    await user.click(screen.getByLabelText("原料统购"));
+    expect(screen.getByText("已加入本轮临时调度，工厂预算 -3。")).toBeInTheDocument();
+    expect(screen.getByText("工厂预算 7")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "取消扩产" }));
+    await user.click(screen.getByLabelText("原料统购"));
     await user.click(screen.getByTestId("decision-command-deck-tab-government"));
     await user.click(screen.getByLabelText("博览会"));
     expect(screen.getByText("已纳入本轮政府政策，财政 -5。")).toBeInTheDocument();

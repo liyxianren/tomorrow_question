@@ -98,9 +98,39 @@ export function Phase1MarketPanel({
   const domesticPriceBeforeCap = phase1Economy.domesticPriceBeforeCap ?? domesticPricePreview;
   const domesticPriceBonus = phase1Economy.domesticPriceBonus ?? 0;
   const overseasPriceBonus = phase1Economy.overseasPriceBonus ?? 0;
+  const domesticCapacityBonus = phase1Economy.domesticMarketCapacityBonus ?? 0;
+  const overseasCapacityBonus = phase1Economy.overseasMarketCapacityBonus ?? 0;
+  const policyDomesticCapacityBonus = phase1Economy.governmentDomesticMarketCapacityBonus ?? 0;
+  const policyDomesticPriceBonus = phase1Economy.governmentDomesticPriceBonus ?? 0;
+  const policyOverseasCapacityBonus = phase1Economy.governmentOverseasMarketCapacityBonus ?? 0;
+  const policyOverseasPriceBonus = phase1Economy.governmentOverseasPriceBonus ?? 0;
   const domesticPriceCeiling = phase1Economy.domesticPriceCeiling ?? 8;
   const overseasPriceCeiling = phase1Economy.overseasPriceCeiling ?? 24;
   const consumerPool = budgetPools.domesticMarket ?? 0;
+  const marketAdjustmentLabels = {
+    domesticCapacity: t("game:government.effect.domesticCapacity", "国内容量"),
+    domesticPrice: t("game:government.effect.domesticPrice", "国内价格"),
+    overseasCapacity: t("game:government.effect.overseasCapacity", "海外容量"),
+    overseasPrice: t("game:effect.overseasPriceBonusDelta", "海外价格"),
+  };
+  const activeGovernmentAdjustments = buildMarketAdjustmentLabels({
+    domesticCapacity: policyDomesticCapacityBonus,
+    domesticPrice: policyDomesticPriceBonus,
+    overseasCapacity: policyOverseasCapacityBonus,
+    overseasPrice: policyOverseasPriceBonus,
+    labels: marketAdjustmentLabels,
+  });
+  const netMarketAdjustments = buildMarketAdjustmentLabels({
+    domesticCapacity: domesticCapacityBonus,
+    domesticPrice: domesticPriceBonus,
+    overseasCapacity: overseasCapacityBonus,
+    overseasPrice: overseasPriceBonus,
+    labels: marketAdjustmentLabels,
+  });
+  const activeGovernmentAdjustmentText = activeGovernmentAdjustments.join(" · ");
+  const netMarketAdjustmentText = netMarketAdjustments.join(" · ");
+  const shouldShowNetAdjustments =
+    netMarketAdjustments.length > 0 && netMarketAdjustmentText !== activeGovernmentAdjustmentText;
 
   const externalAllocationTotal = externalAllocations.reduce(
     (sum, item) => sum + Math.max(0, item.quantity),
@@ -256,6 +286,28 @@ export function Phase1MarketPanel({
           <span className="phase1-market__stat-value">{domesticLimit}</span>
           <span className="phase1-market__stat-label">{t("game:market.capacityLimit")}</span>
         </div>
+      </div>
+
+      <div
+        className={[
+          "phase1-market__policy-banner",
+          activeGovernmentAdjustments.length > 0 && "phase1-market__policy-banner--active",
+        ].filter(Boolean).join(" ")}
+        data-testid="phase1-market-government-adjustments"
+      >
+        <strong>{t("game:market.governmentAdjustment", "政府市场政策")}</strong>
+        <span>
+          {activeGovernmentAdjustments.length > 0
+            ? activeGovernmentAdjustmentText
+            : shouldShowNetAdjustments
+              ? t("game:market.noGovernmentPolicyButNetAdjustments", "本轮暂无政府市场政策；下方净调整来自事件、既有市场状态或军事竞争。")
+              : t("game:market.noGovernmentAdjustment", "本轮暂无政府市场政策")}
+        </span>
+        {shouldShowNetAdjustments ? (
+          <span className="phase1-market__policy-banner-net">
+            {t("game:market.netAdjustment", "当前净调整")}：{netMarketAdjustmentText}
+          </span>
+        ) : null}
       </div>
 
       {/* ── Domestic Market Card ── */}
@@ -434,7 +486,9 @@ export function Phase1MarketPanel({
 
             const lockHint = !accessible ? getLockReasonLabel(region.lockReason, t) : null;
             const competitionLockHint = competitionLockedReason
-              ? getCompetitionLockReasonLabel(competitionLockedReason, t)
+              ? accessible && competitionLockedReason === "diplomacy_not_established"
+                ? t("game:market.openMarketNoCompetition", "开放市场可直接投放；市场争夺需要先建立双边外交。")
+                : getCompetitionLockReasonLabel(competitionLockedReason, t)
               : null;
 
             return (
@@ -766,8 +820,8 @@ function buildDomesticPriceNote(
 
   return [
     `${t("game:market.supplyDemandBalanced")} ${formatNumber(preview.supplyAdjustedPrice)}`,
-    `${t("game:market.domesticAllocated")} ${formatSignedValue(domesticPriceBonus)}`,
-    `${t("game:market.competition")} ${formatNumber(preview.priceBeforeCap)}`,
+    `${t("game:effect.domesticPriceBonusDelta", { defaultValue: "国内价格" })} ${formatSignedValue(domesticPriceBonus)}`,
+    `${t("game:market.priceBeforeCap", { defaultValue: "封顶前价格" })} ${formatNumber(preview.priceBeforeCap)}`,
     `${t("game:market.capacityLimit")} ${domesticPriceCeiling}`,
     preview.isPriceCapped ? t("game:market.domesticPriceNote_capped") : null,
   ].filter(Boolean).join("，");
@@ -775,4 +829,38 @@ function buildDomesticPriceNote(
 
 function formatSignedValue(value: number): string {
   return value > 0 ? `+${value}` : `${value}`;
+}
+
+function buildMarketAdjustmentLabels({
+  domesticCapacity,
+  domesticPrice,
+  overseasCapacity,
+  overseasPrice,
+  labels,
+}: {
+  domesticCapacity: number;
+  domesticPrice: number;
+  overseasCapacity: number;
+  overseasPrice: number;
+  labels: {
+    domesticCapacity: string;
+    domesticPrice: string;
+    overseasCapacity: string;
+    overseasPrice: string;
+  };
+}): string[] {
+  return [
+    domesticCapacity !== 0
+      ? `${labels.domesticCapacity} ${formatSignedValue(domesticCapacity)}`
+      : null,
+    domesticPrice !== 0
+      ? `${labels.domesticPrice} ${formatSignedValue(domesticPrice)}`
+      : null,
+    overseasCapacity !== 0
+      ? `${labels.overseasCapacity} ${formatSignedValue(overseasCapacity)}`
+      : null,
+    overseasPrice !== 0
+      ? `${labels.overseasPrice} ${formatSignedValue(overseasPrice)}`
+      : null,
+  ].filter((item): item is string => Boolean(item));
 }

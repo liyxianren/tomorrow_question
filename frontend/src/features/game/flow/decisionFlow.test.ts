@@ -43,7 +43,22 @@ describe("decisionFlow factory draft helpers", () => {
       },
     };
 
-    expect(getDecisionStepCompletionSummary(draft, "factory")).toBe("投料 3 原材料 / 建设 0 次");
+    expect(getDecisionStepCompletionSummary(draft, "factory")).toBe("投入 3 原材料 / 产业安排 0 项");
+  });
+
+  it("does not mark auto-filled phase-1 production as factory content when review is required", () => {
+    const draft = {
+      ...createInitialPhaseDraft("decision"),
+      phase1Production: {
+        rawMaterialAssignments: {
+          handicraft: 2,
+        },
+      },
+    };
+    const context = { requireFactoryReviewForPhase1: true };
+
+    expect(hasDecisionStepContent(draft, "factory", context)).toBe(false);
+    expect(getUncheckedDecisionSteps(createInitialDecisionFlowState(), draft, context)).toContain("factory");
   });
 
   it("counts research facility construction as research content without making government dirty", () => {
@@ -73,7 +88,7 @@ describe("decisionFlow factory draft helpers", () => {
     const context = { activeResearch: "internal_combustion" };
 
     expect(hasDecisionStepContent(draft, "research", context)).toBe(true);
-    expect(getDecisionStepCompletionSummary(draft, "research", context)).toBe("当前研究中：internal_combustion");
+    expect(getDecisionStepCompletionSummary(draft, "research", context)).toBe("正在研究中: internal_combustion");
     expect(getUncheckedDecisionSteps(createInitialDecisionFlowState(), draft, context)).not.toContain("research");
   });
 });

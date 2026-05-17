@@ -3,9 +3,9 @@
   "navyUnitCost": 3,
   "oceanControlThreshold": 2,
   "independenceThreshold": 10,
-  "colonizationUnlockCost": 5,
-  "colonizationBudgetCost": 4,
-  "colonizationIncomePerColonyPerRound": 5,
-  "maxColonizationsPerRound": 1,
+  "colonizationUnlockCost": 0,
+  "colonizationBudgetCost": 0,
+  "colonizationIncomePerColonyPerRound": 0,
+  "maxColonizationsPerRound": 0,
   "armyCapBase": 3
 }

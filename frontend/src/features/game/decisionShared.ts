@@ -27,7 +27,7 @@ const BUDGET_POOL_LABELS: Record<string, string> = {
 };
 
 export function getBaseBudgetPools(workspace: DecisionPlayerPhaseWorkspace): BudgetPools {
-  return workspace.budgetPools;
+  return workspace.baseBudgetPools ?? workspace.budgetPools;
 }
 
 export type DecisionMarketReferencePrice = {
@@ -131,8 +131,6 @@ function calculateNonResearchSpendByPool(
   const governmentPurchaseSpend = draft.governmentPlan.pointPurchases.reduce((sum, purchase) => {
     return sum + purchase.quantity * workspace.governmentActions.pointPurchaseCosts[purchase.pointType];
   }, 0);
-  const governmentAdminSpend = Math.max(0, draft.governmentPlan.adminPurchases ?? 0)
-    * (workspace.governmentReforms?.adminPurchaseCost ?? 0);
   const governmentStrategySpend = draft.governmentPlan.strategySelections.reduce((sum, selection) => {
     const action = workspace.governmentActions.strategies.find((item) => item.actionId === selection.actionId);
     return sum + (action?.cost ?? 0);
@@ -144,23 +142,23 @@ function calculateNonResearchSpendByPool(
     }
     return sum + policy.budgetCost || 0;
   }, 0);
+  const militaryActionSpend = draft.militaryPlan.militaryActions.reduce((sum, selection) => {
+    const action = workspace.militaryWorkspace.availableMilitaryActions.find((item) => item.actionId === selection.actionId);
+    return sum + (action?.cost ?? 0);
+  }, 0);
   const diplomacySpend = draft.militaryPlan.diplomacyActions.reduce((sum, selection) => {
     const action = workspace.militaryWorkspace.availableDiplomacyActions.find((item) => item.actionId === selection.actionId);
     return sum + (action?.cost ?? 0);
   }, 0);
-  const colonizationSpend = draft.militaryPlan.unlockColonization && !workspace.militaryWorkspace.colonizationCapability.isUnlocked
-    ? (workspace.militaryWorkspace.colonizationCapability.unlockCost ?? 0)
-    : 0;
   return {
     domesticMarket: domesticSpend - factoryActionDomesticBudgetDelta,
     factory: productionSpend + phase1ProductionSpend + expansionSpend + upgradeSpend + newFactorySpend + factoryActionSpend,
     governmentFiscal: (
       governmentPurchaseSpend
-      + governmentAdminSpend
       + governmentStrategySpend
       + policyActivationSpend
+      + militaryActionSpend
       + diplomacySpend
-      + colonizationSpend
       - factoryActionGovernmentBudgetDelta
     ),
   };
@@ -179,13 +177,14 @@ export function calculatePhase1ProductionSpend(
     }, 0);
   }
 
+  const capacityDeltaByMode = getSelectedProductionCapacityDeltaByMode(workspace, draft);
   const rawMaterials = Math.max(0, phase1.rawMaterials + sumSelectedFactoryActionEffect(workspace, draft, "rawMaterialsDelta"));
   let remainingRawMaterials = rawMaterials;
   let remainingCapacity = Math.max(
     0,
     phase1.productionModes
       .filter((mode) => mode.isAvailable && mode.mode !== "idle")
-      .reduce((sum, mode) => sum + Math.max(0, mode.currentCapacity), 0)
+      .reduce((sum, mode) => sum + Math.max(0, mode.currentCapacity + (capacityDeltaByMode[mode.mode] ?? 0)), 0)
       + sumSelectedFactoryActionEffect(workspace, draft, "phase1ProductionRawCapacityDelta"),
   );
   let rawUsed = 0;
@@ -194,7 +193,7 @@ export function calculatePhase1ProductionSpend(
     const requested = Math.max(0, Math.floor(assignments[mode.mode] ?? 0));
     const capped = Math.min(
       requested,
-      Math.max(0, mode.currentCapacity),
+      Math.max(0, mode.currentCapacity + (capacityDeltaByMode[mode.mode] ?? 0)),
       remainingRawMaterials,
       remainingCapacity,
     );
@@ -204,6 +203,148 @@ export function calculatePhase1ProductionSpend(
   }
 
   return rawUsed * unitCost;
+}
+
+export function clampDecisionPhase1ProductionDraft(
+  workspace: DecisionPlayerPhaseWorkspace,
+  draft: PhaseDraftByPhase["decision"],
+): PhaseDraftByPhase["decision"] {
+  const phase1 = workspace.phase1Economy;
+  const assignments = draft.phase1Production?.rawMaterialAssignments ?? {};
+  if (!phase1 || phase1.productionModes.length === 0 || Object.keys(assignments).length === 0) {
+    return draft;
+  }
+
+  const requested = shiftUpgradedPhase1Assignments(workspace, draft, assignments);
+  const capacityDeltaByMode = getSelectedProductionCapacityDeltaByMode(workspace, draft);
+  const rawMaterials = Math.max(0, phase1.rawMaterials + sumSelectedFactoryActionEffect(workspace, draft, "rawMaterialsDelta"));
+  const unitCost = workspace.productionOptions.find((option) => option.goodsId === "phase1_goods")?.unitBudgetCost ?? 1;
+  const availableFactoryBudget = Math.max(0, workspace.budgetPools.factory + getSelectedFactoryBudgetDelta(workspace, draft) - calculateFactorySpendExcludingPhase1(workspace, draft));
+  let remainingBudgetRaw = unitCost > 0 ? Math.floor(availableFactoryBudget / unitCost) : Number.MAX_SAFE_INTEGER;
+  let remainingRawMaterials = rawMaterials;
+  let remainingCapacity = Math.max(
+    0,
+    phase1.productionModes
+      .filter((mode) => mode.isAvailable && mode.mode !== "idle")
+      .reduce((sum, mode) => sum + Math.max(0, mode.currentCapacity + (capacityDeltaByMode[mode.mode] ?? 0)), 0)
+      + sumSelectedFactoryActionEffect(workspace, draft, "phase1ProductionRawCapacityDelta"),
+  );
+  const nextAssignments: Record<string, number> = {};
+
+  for (const mode of phase1.productionModes.filter((item) => item.mode !== "idle")) {
+    const requestedQuantity = Math.max(0, Math.floor(requested[mode.mode] ?? 0));
+    const capped = Math.min(
+      requestedQuantity,
+      Math.max(0, mode.currentCapacity + (capacityDeltaByMode[mode.mode] ?? 0)),
+      remainingRawMaterials,
+      remainingCapacity,
+      remainingBudgetRaw,
+    );
+    if (capped > 0) {
+      nextAssignments[mode.mode] = capped;
+    }
+    remainingRawMaterials -= capped;
+    remainingCapacity -= capped;
+    remainingBudgetRaw -= capped;
+  }
+
+  if (areNumberRecordsEqual(assignments, nextAssignments)) {
+    return draft;
+  }
+
+  return {
+    ...draft,
+    phase1Production: Object.keys(nextAssignments).length > 0
+      ? { rawMaterialAssignments: nextAssignments }
+      : undefined,
+  };
+}
+
+function shiftUpgradedPhase1Assignments(
+  workspace: DecisionPlayerPhaseWorkspace,
+  draft: PhaseDraftByPhase["decision"],
+  assignments: Record<string, number>,
+): Record<string, number> {
+  const shifted: Record<string, number> = { ...assignments };
+
+  for (const order of draft.factoryPlan.upgradeOrders) {
+    const option = workspace.upgradeOptions.find((item) => item.routeId === order.routeId);
+    if (!option) {
+      continue;
+    }
+    const quantity = Math.min(
+      Math.max(0, Math.floor(order.quantity ?? 0)),
+      Math.max(0, option.maxQuantity),
+    );
+    if (quantity <= 0) {
+      continue;
+    }
+    const capacityDelta = quantity * Math.max(1, option.capacityDelta ?? 1);
+    const sourceCapacity = workspace.phase1Economy?.productionModes.find((mode) => mode.mode === option.sourceRouteId)?.currentCapacity ?? 0;
+    const sourceAfterUpgrade = Math.max(0, sourceCapacity - capacityDelta);
+    const sourceRequested = Math.max(0, Math.floor(shifted[option.sourceRouteId] ?? 0));
+    const overflow = Math.max(0, sourceRequested - sourceAfterUpgrade);
+    if (overflow <= 0) {
+      continue;
+    }
+    const remainingSource = sourceRequested - overflow;
+    if (remainingSource > 0) {
+      shifted[option.sourceRouteId] = remainingSource;
+    } else {
+      delete shifted[option.sourceRouteId];
+    }
+    shifted[option.routeId] = Math.max(0, Math.floor(shifted[option.routeId] ?? 0)) + overflow;
+  }
+
+  return shifted;
+}
+
+function calculateFactorySpendExcludingPhase1(
+  workspace: DecisionPlayerPhaseWorkspace,
+  draft: PhaseDraftByPhase["decision"],
+): number {
+  const productionSpend = draft.factoryPlan.productionOrders.reduce((sum, item) => {
+    const option = workspace.productionOptions.find((candidate) => candidate.goodsId === item.goodsId);
+    return sum + item.quantity * (option?.unitBudgetCost ?? 0);
+  }, 0);
+  const expansionSpend = draft.factoryPlan.expansionOrders.reduce((sum, item) => {
+    const option = workspace.expansionOptions.find((candidate) => candidate.routeId === item.routeId);
+    return sum + item.quantity * (option?.unitBudgetCost ?? 0);
+  }, 0);
+  const upgradeSpend = draft.factoryPlan.upgradeOrders.reduce((sum, item) => {
+    const option = workspace.upgradeOptions.find((candidate) => candidate.routeId === item.routeId);
+    return sum + item.quantity * (option?.unitBudgetCost ?? 0);
+  }, 0);
+  const newFactorySpend = draft.factoryPlan.newFactoryOrders.reduce((sum, item) => {
+    const option = workspace.newFactoryOptions.find((candidate) => candidate.routeId === item.routeId);
+    return sum + item.quantity * (option?.unitBudgetCost ?? 0);
+  }, 0);
+  const factoryActionSpend = (draft.factoryPlan.factoryActions ?? []).reduce((sum, selection) => {
+    const action = workspace.factoryActions?.find((item) => item.actionId === selection.actionId);
+    if (!action) return sum;
+    return sum + action.cost;
+  }, 0);
+  return productionSpend + expansionSpend + upgradeSpend + newFactorySpend + factoryActionSpend;
+}
+
+function getSelectedFactoryBudgetDelta(
+  workspace: DecisionPlayerPhaseWorkspace,
+  draft: PhaseDraftByPhase["decision"],
+): number {
+  return (draft.factoryPlan.factoryActions ?? []).reduce((sum, selection) => {
+    const action = workspace.factoryActions?.find((item) => item.actionId === selection.actionId);
+    return sum + getNumericEffect(action?.effects, "factoryBudgetDelta");
+  }, 0);
+}
+
+function areNumberRecordsEqual(left: Record<string, number>, right: Record<string, number>): boolean {
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  for (const key of keys) {
+    if (Math.max(0, Math.floor(left[key] ?? 0)) !== Math.max(0, Math.floor(right[key] ?? 0))) {
+      return false;
+    }
+  }
+  return true;
 }
 
 export function calculateDecisionSpendSummary(
@@ -230,6 +371,7 @@ export type GovernmentSpendBreakdown = {
   marketRegulationAllowance: number;
   marketRegulationOverflow: number;
   baseGovernmentBudget: number;
+  policyBudgetSupplement: number;
   baseGovernmentRemaining: number;
   effectiveGovernmentBudget: number;
   effectiveGovernmentRemaining: number;
@@ -249,6 +391,7 @@ export function calculateGovernmentSpendBreakdown(
     marketRegulationAllowance: state.marketRegulationAllowance,
     marketRegulationOverflow: state.marketRegulationOverflow,
     baseGovernmentBudget: state.baseGovernmentBudget,
+    policyBudgetSupplement: state.policyBudgetSupplement,
     baseGovernmentRemaining: state.baseGovernmentRemaining,
     effectiveGovernmentBudget: state.effectiveGovernmentBudget,
     effectiveGovernmentRemaining: state.effectiveGovernmentRemaining,
@@ -257,6 +400,7 @@ export function calculateGovernmentSpendBreakdown(
 
 export type GovernmentFiscalState = {
   baseGovernmentBudget: number;
+  policyBudgetSupplement: number;
   marketRegulationAllowance: number;
   effectiveGovernmentBudget: number;
   coreGovernmentSpend: number;
@@ -285,11 +429,14 @@ export function calculateGovernmentFiscalState(
     0,
     getBaseBudgetPools(workspace).governmentFiscal + factoryActionGovernmentBudgetDelta,
   );
+  const effectiveGovernmentBudget = Math.max(
+    baseGovernmentBudget,
+    workspace.budgetPools.governmentFiscal + factoryActionGovernmentBudgetDelta,
+  );
+  const policyBudgetSupplement = Math.max(0, effectiveGovernmentBudget - baseGovernmentBudget);
   const governmentPurchaseSpend = draft.governmentPlan.pointPurchases.reduce((sum, purchase) => {
     return sum + purchase.quantity * workspace.governmentActions.pointPurchaseCosts[purchase.pointType];
   }, 0);
-  const governmentAdminSpend = Math.max(0, draft.governmentPlan.adminPurchases ?? 0)
-    * (workspace.governmentReforms?.adminPurchaseCost ?? 0);
   const coreGovernmentStrategySpend = draft.governmentPlan.strategySelections.reduce((sum, selection) => {
     const action = workspace.governmentActions.strategies.find((item) => item.actionId === selection.actionId);
     return isMarketRegulationAction(action) ? sum : sum + (action?.cost ?? 0);
@@ -305,22 +452,23 @@ export function calculateGovernmentFiscalState(
     }
     return sum + policy.budgetCost || 0;
   }, 0);
+  const militaryActionSpend = draft.militaryPlan.militaryActions.reduce((sum, selection) => {
+    const action = workspace.militaryWorkspace.availableMilitaryActions.find((item) => item.actionId === selection.actionId);
+    return sum + (action?.cost ?? 0);
+  }, 0);
   const diplomacySpend = draft.militaryPlan.diplomacyActions.reduce((sum, selection) => {
     const action = workspace.militaryWorkspace.availableDiplomacyActions.find((item) => item.actionId === selection.actionId);
     return sum + (action?.cost ?? 0);
   }, 0);
-  const colonizationSpend = draft.militaryPlan.unlockColonization && !workspace.militaryWorkspace.colonizationCapability.isUnlocked
-    ? (workspace.militaryWorkspace.colonizationCapability.unlockCost ?? 0)
-    : 0;
 
-  const coreGovernmentSpend = governmentPurchaseSpend + governmentAdminSpend + coreGovernmentStrategySpend + policyActivationSpend;
-  const militaryFiscalSpend = diplomacySpend + colonizationSpend;
+  const coreGovernmentSpend = governmentPurchaseSpend + coreGovernmentStrategySpend + policyActivationSpend;
+  const militaryFiscalSpend = militaryActionSpend + diplomacySpend;
   const marketRegulationOverflow = marketRegulationSpend;
-  const baseFiscalSpend = coreGovernmentSpend + militaryFiscalSpend + marketRegulationSpend;
   const totalDecisionSpend = coreGovernmentSpend + militaryFiscalSpend + marketRegulationSpend;
-  const effectiveGovernmentBudget = baseGovernmentBudget;
+  const baseFiscalSpend = Math.max(0, totalDecisionSpend - policyBudgetSupplement);
   return {
     baseGovernmentBudget,
+    policyBudgetSupplement,
     marketRegulationAllowance,
     effectiveGovernmentBudget,
     coreGovernmentSpend,
@@ -402,7 +550,7 @@ export function buildMilitaryActionDescription(
 ): string {
   const parts = [action.description ?? i18n.t("game:effect.defaultMilitaryDesc", "执行后会改变当前海外扩张态势。")];
   if ("maxPerRound" in action) {
-    parts.push(i18n.t("game:effect.militaryPointsCost", "消耗军事点 {{cost}}。", { cost: action.cost }));
+    parts.push(i18n.t("game:effect.militaryGovernmentFiscalCost", "消耗政府财政 {{cost}}。", { cost: action.cost }));
     parts.push(i18n.t("game:effect.maxPerRound", "本轮上限 {{max}} 次。", { max: action.maxPerRound }));
   }
   if ("targetRegionLabel" in action) {
@@ -419,7 +567,7 @@ export function getRegionAccessLevelLabel(accessLevel: RegionAccessLevel): strin
     case "concession":
       return i18n.t("game:accessLabel.concession", "特许权市场");
     case "colony":
-      return i18n.t("game:accessLabel.colony", "殖民市场");
+      return i18n.t("game:accessLabel.colony", "控制市场");
     case "closed":
     default:
       return i18n.t("game:accessLabel.closed", "封闭市场");
@@ -683,6 +831,7 @@ const EFFECT_LABELS: Record<string, string> = {
   phase1ProductionOutputBonusPercent: i18n.t("game:effect.phase1ProductionOutputBonusPercent", "生产产出"),
   rawMaterialsDelta: i18n.t("game:effect.rawMaterialsDelta", "原材料"),
   phase1ProductionRawCapacityDelta: i18n.t("game:effect.phase1ProductionRawCapacityDelta", "投料上限"),
+  administrationCapacityDelta: i18n.t("game:effect.administrationCapacityDelta", "行政力上限"),
 };
 
 const TEMPORARY_EFFECT_KEYS = new Set([
@@ -709,10 +858,16 @@ const COST_REDUCTION_EFFECT_KEYS = new Set([
 
 const NESTED_EFFECT_LABELS: Record<string, Record<string, string>> = {
   armyDelta: {
+    army: i18n.t("game:unit.army", "陆军"),
     infantry: i18n.t("game:unit.infantry", "步兵"),
     artillery: i18n.t("game:unit.artillery", "炮兵"),
   },
+  navyDelta: {
+    fleets: i18n.t("game:unit.fleets", "舰队"),
+  },
 };
+
+const IDEOLOGY_EFFECT_KEYS = new Set(["ideologyDelta", "ideologyLevelDelta"]);
 
 export interface EffectMetric {
   label: string;
@@ -744,17 +899,44 @@ export function buildEffectMetrics(
       metrics.push({ label, value: displayValue, tone, temporary });
     } else if (typeof value === "object" && value !== null) {
       const nestedLabels = NESTED_EFFECT_LABELS[key];
-      if (!nestedLabels) continue;
       for (const [subKey, subValue] of Object.entries(value)) {
-        const subLabel = nestedLabels[subKey];
+        const subLabel = resolveNestedEffectLabel(key, subKey, nestedLabels);
         if (!subLabel || typeof subValue !== "number") continue;
-        const tone = subValue > 0 ? "positive" : subValue < 0 ? "negative" : undefined;
+        const tone = resolveNestedEffectTone(key, subValue);
         metrics.push({ label: subLabel, value: formatSignedValue(subValue), tone });
       }
     }
   }
 
   return metrics;
+}
+
+function resolveNestedEffectLabel(
+  effectKey: string,
+  subKey: string,
+  nestedLabels: Record<string, string> | undefined,
+): string | undefined {
+  if (IDEOLOGY_EFFECT_KEYS.has(effectKey)) {
+    const ideologyLabel = i18n.t(`game:ideology.${subKey}`, subKey);
+    const suffix = i18n.t("game:government.ideologySuffix", "思潮");
+    return i18n.language.startsWith("zh")
+      ? `${ideologyLabel}${suffix}`
+      : `${ideologyLabel} ${suffix}`;
+  }
+
+  return nestedLabels?.[subKey];
+}
+
+function resolveNestedEffectTone(effectKey: string, value: number): EffectMetric["tone"] {
+  if (value === 0) {
+    return undefined;
+  }
+
+  if (IDEOLOGY_EFFECT_KEYS.has(effectKey)) {
+    return value > 0 ? "negative" : "positive";
+  }
+
+  return value > 0 ? "positive" : "negative";
 }
 
 function getNumericEffect(
@@ -765,7 +947,43 @@ function getNumericEffect(
   return typeof value === "number" ? value : 0;
 }
 
-function sumSelectedFactoryActionEffect(
+export function getSelectedFactoryActionCapacityDeltaByMode(
+  workspace: DecisionPlayerPhaseWorkspace,
+  draft: PhaseDraftByPhase["decision"],
+): Record<string, number> {
+  const handicraftDelta = sumSelectedFactoryActionEffect(workspace, draft, "handicraftCapacityDelta");
+  return handicraftDelta === 0 ? {} : { handicraft: handicraftDelta };
+}
+
+export function getSelectedProductionCapacityDeltaByMode(
+  workspace: DecisionPlayerPhaseWorkspace,
+  draft: PhaseDraftByPhase["decision"],
+): Record<string, number> {
+  const capacityDeltaByMode: Record<string, number> = {
+    ...getSelectedFactoryActionCapacityDeltaByMode(workspace, draft),
+  };
+
+  for (const order of draft.factoryPlan.upgradeOrders) {
+    const option = workspace.upgradeOptions.find((item) => item.routeId === order.routeId);
+    if (!option) {
+      continue;
+    }
+    const quantity = Math.min(
+      Math.max(0, Math.floor(order.quantity ?? 0)),
+      Math.max(0, option.maxQuantity),
+    );
+    if (quantity <= 0) {
+      continue;
+    }
+    const capacityDelta = quantity * Math.max(1, option.capacityDelta ?? 1);
+    capacityDeltaByMode[option.sourceRouteId] = (capacityDeltaByMode[option.sourceRouteId] ?? 0) - capacityDelta;
+    capacityDeltaByMode[option.routeId] = (capacityDeltaByMode[option.routeId] ?? 0) + capacityDelta;
+  }
+
+  return capacityDeltaByMode;
+}
+
+export function sumSelectedFactoryActionEffect(
   workspace: DecisionPlayerPhaseWorkspace,
   draft: PhaseDraftByPhase["decision"],
   effectKey: string,
