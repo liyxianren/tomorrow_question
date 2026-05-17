@@ -877,7 +877,7 @@ describe("RoomPage", () => {
 
     const notice = screen.getByTestId("room-ready-waiting-notice");
     expect(notice).toHaveTextContent("等待游戏开始");
-    expect(notice).toHaveTextContent("这不是 bug");
+    expect(notice).toHaveTextContent("云端开局可能需要等待十几秒");
 
     await user.click(within(notice).getByLabelText("关闭"));
 

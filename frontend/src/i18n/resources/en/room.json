@@ -40,7 +40,7 @@
   "readyNotice": {
     "eyebrow": "Ready",
     "title": "Waiting for Game Start",
-    "body": "You are ready. Cloud rooms can take several seconds to start; the room will sync and enter the game automatically. This is not a bug.",
+    "body": "You are ready. Cloud rooms can take several seconds to start; the room will sync and enter the game automatically.",
     "footer": "Stay on this room page and wait for automatic start"
   },
   "sideRailAriaLabel": "Room status and game start operations",
