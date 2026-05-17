@@ -37,6 +37,12 @@
     "fillButton": "补充 AI 机器人",
     "filling": "正在补充 AI..."
   },
+  "readyNotice": {
+    "eyebrow": "已准备",
+    "title": "等待游戏开始",
+    "body": "你已经完成准备。云端开局可能需要等待十几秒，房间会自动同步并进入游戏，这不是 bug。",
+    "footer": "请停留在房间页等待自动开始"
+  },
   "sideRailAriaLabel": "房间状态和开局操作",
   "roomExpiryNotice": "长时间无人时房间会自动关闭。",
   "errors": {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
@@ -16,7 +16,9 @@ export function RoomPage() {
   const { t } = useTranslation("room");
   const navigate = useNavigate();
   const {
+    currentMember,
     pendingAction,
+    room,
     viewModel,
     handleFillBots,
     handleRemoveBot,
@@ -26,6 +28,19 @@ export function RoomPage() {
   const [hasCopiedRoomCode, setHasCopiedRoomCode] = useState(false);
   const [hasCopiedInviteLink, setHasCopiedInviteLink] = useState(false);
   const [isReturningToLobby, setReturningToLobby] = useState(false);
+  const [isReadyNoticeDismissed, setReadyNoticeDismissed] = useState(false);
+  const shouldShowReadyWaitingNotice = Boolean(
+    currentMember?.isReady &&
+    room.status !== "in_game" &&
+    room.status !== "finished" &&
+    !isReadyNoticeDismissed,
+  );
+
+  useEffect(() => {
+    if (!currentMember?.isReady || room.status === "in_game" || room.status === "finished") {
+      setReadyNoticeDismissed(false);
+    }
+  }, [currentMember?.isReady, room.status]);
 
   async function handleCopyRoomCode(): Promise<void> {
     if (!viewModel.header.roomCode) {
@@ -113,6 +128,26 @@ export function RoomPage() {
           {t("roomExpiryNotice")}
         </p>
       </div>
+
+      {shouldShowReadyWaitingNotice ? (
+        <div className="room-ready-notice" data-testid="room-ready-waiting-notice" role="dialog" aria-modal="true">
+          <button
+            aria-label={t("common:close")}
+            className="room-ready-notice__close"
+            onClick={() => setReadyNoticeDismissed(true)}
+            type="button"
+          >
+            ×
+          </button>
+          <div className="room-ready-notice__content">
+            <p className="room-ready-notice__eyebrow">{t("readyNotice.eyebrow")}</p>
+            <h2>{t("readyNotice.title")}</h2>
+            <p>{t("readyNotice.body")}</p>
+            <div className="room-ready-notice__line" />
+            <span>{t("readyNotice.footer")}</span>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

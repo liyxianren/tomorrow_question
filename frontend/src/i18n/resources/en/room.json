@@ -37,6 +37,12 @@
     "fillButton": "Add AI Bots",
     "filling": "Adding AI..."
   },
+  "readyNotice": {
+    "eyebrow": "Ready",
+    "title": "Waiting for Game Start",
+    "body": "You are ready. Cloud rooms can take several seconds to start; the room will sync and enter the game automatically. This is not a bug.",
+    "footer": "Stay on this room page and wait for automatic start"
+  },
   "sideRailAriaLabel": "Room status and game start operations",
   "roomExpiryNotice": "This room will automatically close if no one is here for a while.",
   "errors": {

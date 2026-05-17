@@ -837,6 +837,95 @@ describe("RoomPage", () => {
     expect(screen.getByTestId("room-ready-button")).toBeEnabled();
   });
 
+  it("shows a dismissible large waiting notice after the current player is ready", async () => {
+    const user = userEvent.setup();
+    const socket = createMockSocket();
+    mockConnectSocket.mockReturnValue(socket);
+
+    renderRoomPage(
+      createBootstrap({
+        room: createRoom({
+          members: [
+            {
+              playerId: "player-1",
+              nickname: "Britain",
+              selectedCountry: "britain",
+              connectionStatus: "online",
+              isReady: true,
+            },
+            {
+              playerId: "player-2",
+              nickname: "France",
+              selectedCountry: null,
+              connectionStatus: "online",
+              isReady: false,
+            },
+          ],
+          countrySlots: {
+            britain: "player-1",
+            france: null,
+            prussia: null,
+            austria: null,
+            russia: null,
+          },
+        }),
+        session: createSession({
+          selectedCountry: "britain",
+        }),
+      }),
+    );
+
+    const notice = screen.getByTestId("room-ready-waiting-notice");
+    expect(notice).toHaveTextContent("等待游戏开始");
+    expect(notice).toHaveTextContent("这不是 bug");
+
+    await user.click(within(notice).getByLabelText("关闭"));
+
+    expect(screen.queryByTestId("room-ready-waiting-notice")).not.toBeInTheDocument();
+  });
+
+  it("does not show the ready waiting notice once the room is already in game", () => {
+    const socket = createMockSocket();
+    mockConnectSocket.mockReturnValue(socket);
+
+    renderRoomPage(
+      createBootstrap({
+        room: createRoom({
+          status: "in_game",
+          currentGameId: "game-1",
+          members: [
+            {
+              playerId: "player-1",
+              nickname: "Britain",
+              selectedCountry: "britain",
+              connectionStatus: "online",
+              isReady: true,
+            },
+            {
+              playerId: "player-2",
+              nickname: "France",
+              selectedCountry: "france",
+              connectionStatus: "online",
+              isReady: true,
+            },
+          ],
+          countrySlots: {
+            britain: "player-1",
+            france: "player-2",
+            prussia: null,
+            austria: null,
+            russia: null,
+          },
+        }),
+        session: createSession({
+          selectedCountry: "britain",
+        }),
+      }),
+    );
+
+    expect(screen.queryByTestId("room-ready-waiting-notice")).not.toBeInTheDocument();
+  });
+
   it("loads the authoritative game context when room.updated reports an in-game room", async () => {
     const socket = createMockSocket();
     mockConnectSocket.mockReturnValue(socket);
