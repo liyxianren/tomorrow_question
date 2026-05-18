@@ -113,7 +113,7 @@ export function buildDecisionCommandDeckViewModel({
       fiscalState,
       governmentPointPreview,
       ratioPreview,
-      remainingGovernmentBudget: remainingBudgets.governmentFiscal,
+      remainingGovernmentBudget: fiscalState.baseGovernmentRemaining,
       techResearchPreview,
       workspace,
     }),

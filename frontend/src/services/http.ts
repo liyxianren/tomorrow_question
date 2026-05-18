@@ -166,7 +166,7 @@ async function runApiRequest<T>(
 
 function createBackendUnavailableError(cause?: unknown): ApiRequestError {
   const error = new ApiRequestError(
-    i18n.t("common:backendUnavailable", "Backend service unavailable. Please confirm the local API is running."),
+    i18n.t("common:backendUnavailable", "Unable to reach the server right now. This may be cloud startup or network delay; wait a few seconds and retry."),
     0,
     "BACKEND_UNAVAILABLE",
   );

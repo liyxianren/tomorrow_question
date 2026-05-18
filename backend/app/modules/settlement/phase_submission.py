@@ -7,7 +7,10 @@ from typing import Any
 
 from app.contracts.enums import ErrorCode, GamePhase, PlayerSubmissionStatus
 from app.modules.balance_config import get_balance_config
-from app.modules.game_state.budgeting import decision_phase_government_fiscal_budget
+from app.modules.game_state.budgeting import (
+    GOVERNMENT_POLICY_BUDGET_SUPPLEMENT,
+    decision_phase_government_fiscal_budget,
+)
 from app.modules.game_state.effects import apply_effects
 from app.modules.game_state.factory_economy import (
     action_locked_reason,
@@ -837,6 +840,7 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
     balance = get_balance_config()
     factory_budget = int(player_state.budget_pools.get("factory", 0))
     domestic_budget = int(player_state.budget_pools.get("domesticMarket", 0))
+    base_government_budget = int(player_state.budget_pools.get("governmentFiscal", 0))
     government_budget = decision_phase_government_fiscal_budget(player_state)
     shared_route_usage: dict[str, int] = {}
     upgradeable_source_capacity = {
@@ -876,6 +880,8 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
         raw_materials_delta += int(action.effects.get("rawMaterialsDelta", 0))
         factory_budget += int(action.effects.get("factoryBudgetDelta", 0))
         domestic_budget += int(action.effects.get("domesticMarketBudgetDelta", 0))
+        base_government_budget += int(action.effects.get("governmentFiscalBudgetDelta", 0))
+        base_government_budget += int(action.effects.get("governmentFiscalDelta", 0))
         government_budget += int(action.effects.get("governmentFiscalBudgetDelta", 0))
         government_budget += int(action.effects.get("governmentFiscalDelta", 0))
 
@@ -1144,8 +1150,8 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
             "Government fiscal exceeded for the submitted military plan.",
             details={
                 "reason": (
-                    f"政府财政不足：军事计划 {military_plan_spend} > "
-                    f"可用 {remaining_budget}"
+                    f"政府决策额度不足：军事计划 {military_plan_spend} > "
+                    f"可用决策额度 {remaining_budget}"
                 ),
             },
         )
@@ -1157,8 +1163,9 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
             "Government fiscal budget exceeded for the submitted plan.",
             details={
                 "reason": (
-                    f"政府财政预算超支：计划 {fiscal_spend} > "
-                    f"可用 {government_budget}"
+                    f"政府决策额度超支：计划 {fiscal_spend} > "
+                    f"可用 {government_budget}（政府财政 {base_government_budget}，"
+                    f"政策专项 {GOVERNMENT_POLICY_BUDGET_SUPPLEMENT}）"
                 ),
             },
         )

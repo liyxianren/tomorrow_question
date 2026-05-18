@@ -13,7 +13,7 @@
   "loadFailed": "加载失败",
   "saveSuccess": "保存成功",
   "saveFailed": "保存失败",
-  "backendUnavailable": "后端服务不可用，请确认本地 API 已启动。",
+  "backendUnavailable": "暂时无法连接服务器，可能是云端冷启动或网络波动。请稍等几秒后重试。",
   "confirm": "确认",
   "revoke": "撤回",
   "selected": "已选择",

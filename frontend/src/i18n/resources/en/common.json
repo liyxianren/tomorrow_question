@@ -13,7 +13,7 @@
   "loadFailed": "Failed to load",
   "saveSuccess": "Saved successfully",
   "saveFailed": "Save failed",
-  "backendUnavailable": "Backend service unavailable. Please confirm the local API is running.",
+  "backendUnavailable": "Unable to reach the server right now. This may be cloud startup or network delay; wait a few seconds and retry.",
   "confirm": "Confirm",
   "revoke": "Revoke",
   "selected": "Selected",

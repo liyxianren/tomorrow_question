@@ -44,20 +44,19 @@ export function DecisionResourceBar({ workspace, draft, activeStep }: DecisionRe
       />
       <ResourceChip
         label={t("game:government.budget", "Government Fiscal")}
-        total={governmentBreakdown.effectiveGovernmentBudget}
-        spent={governmentBreakdown.total}
+        total={governmentBreakdown.baseGovernmentBudget}
+        spent={governmentBreakdown.baseGovernmentBudget - governmentBreakdown.baseGovernmentRemaining}
         active={activeChip === "government"}
         breakdown={governmentBreakdown.policyBudgetSupplement > 0
           ? t(
             "game:government.policyBudgetBreakdown",
-            "实际财政 {{remaining}}/{{total}} · 政策额度 +{{supplement}}",
+            "Policy allowance {{remaining}} / {{total}}; not counted as fiscal",
             {
-              remaining: governmentBreakdown.baseGovernmentRemaining,
-              total: governmentBreakdown.baseGovernmentBudget,
-              supplement: governmentBreakdown.policyBudgetSupplement,
+              remaining: governmentBreakdown.policyBudgetSupplementRemaining,
+              total: governmentBreakdown.policyBudgetSupplement,
             },
           )
-          : t("game:government.budget", "Government Fiscal") + " " + governmentBreakdown.baseGovernmentRemaining + "/" + governmentBreakdown.baseGovernmentBudget}
+          : undefined}
       />
       <ResourceChip
         label={t("game:military.army", "Army")}

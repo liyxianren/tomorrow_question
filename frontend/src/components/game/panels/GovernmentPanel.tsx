@@ -599,6 +599,13 @@ export function GovernmentPanel({
   const activePolicies = reforms.availablePolicies.filter((policy) => policy.isActive);
   const inactivePolicies = reforms.availablePolicies.filter((policy) => !policy.isActive);
   const fiscalState = calculateGovernmentFiscalState(workspace, draft);
+  const policyBudgetSupplementItem = fiscalState.policyBudgetSupplement > 0
+    ? [{
+        icon: "🧾",
+        value: `${fiscalState.policyBudgetSupplementRemaining} / ${fiscalState.policyBudgetSupplement}`,
+        label: t("game:government.policyBudgetAllowance", "Policy allowance"),
+      }]
+    : [];
 
   const canAddMarketPolicy = () => projectedAdmin >= MARKET_POLICY_ADMIN_COST;
   const marketPolicySection = strategies.length > 0 ? (
@@ -662,7 +669,7 @@ export function GovernmentPanel({
       <div className="government-panel__header">
         <h3 className="government-panel__title">🏛️ {t("game:government.title")}</h3>
         <div className="government-panel__budget-stack">
-          <span className="government-panel__budget">{t("game:government.budget")} {fiscalState.effectiveGovernmentRemaining} / {fiscalState.effectiveGovernmentBudget}</span>
+          <span className="government-panel__budget">{t("game:government.budget")} {fiscalState.baseGovernmentRemaining} / {fiscalState.baseGovernmentBudget}</span>
         </div>
       </div>
 
@@ -671,9 +678,10 @@ export function GovernmentPanel({
         items={[
           {
             icon: "💰",
-            value: `${fiscalState.effectiveGovernmentRemaining} / ${fiscalState.effectiveGovernmentBudget}`,
+            value: `${fiscalState.baseGovernmentRemaining} / ${fiscalState.baseGovernmentBudget}`,
             label: t("game:government.budget"),
           },
+          ...policyBudgetSupplementItem,
           {
             icon: "🏛️",
             value: `${projectedAdmin} / ${projectedAdminTotal}`,

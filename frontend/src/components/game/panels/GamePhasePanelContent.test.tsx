@@ -205,6 +205,35 @@ describe("GamePhasePanelContent", () => {
     expect(screen.getAllByText("财政不足").length).toBeGreaterThan(0);
   });
 
+  it("keeps the government fiscal display separate from the policy allowance", async () => {
+    renderPanel("decision", {
+      decisionWorkspace: createDecisionPlayerWorkspace({
+        budgetPools: {
+          domesticMarket: 12,
+          factory: 15,
+          governmentFiscal: 18,
+        },
+        baseBudgetPools: {
+          domesticMarket: 12,
+          factory: 15,
+          governmentFiscal: 10,
+        },
+      }),
+    });
+    const user = userEvent.setup();
+
+    expect(screen.getByTestId("decision-resource-bar")).toHaveTextContent("政府财政");
+    expect(screen.getByTestId("decision-resource-bar")).toHaveTextContent("10 / 10");
+    expect(screen.getByTestId("decision-resource-bar")).toHaveTextContent("政策专项额度 8 / 8");
+    expect(screen.getByTestId("decision-resource-bar")).not.toHaveTextContent("18 / 18");
+
+    await user.click(screen.getByRole("button", { name: "下一步：政府政策" }));
+
+    expect(screen.getByText("政府财政 10 / 10")).toBeInTheDocument();
+    expect(screen.getByTestId("government-resource-strip")).toHaveTextContent("政策专项额度");
+    expect(screen.getByTestId("government-resource-strip")).toHaveTextContent("8 / 8");
+  });
+
   it("labels one-round fiscal policies with government fiscal and this-round allocation", async () => {
     const workspace = createDecisionPlayerWorkspace();
     renderPanel("decision", {

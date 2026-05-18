@@ -10,6 +10,7 @@
     },
     "heroActions": {
       "enterLobby": "Enter Lobby",
+      "ariaLabel": "Room entry flow",
       "rule1": "5-Player Fixed Game",
       "rule2": "Pick a Nation",
       "rule3": "All Ready Up",

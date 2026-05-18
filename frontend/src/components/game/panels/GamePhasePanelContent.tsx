@@ -351,16 +351,8 @@ export function MilitaryDecisionStep({
 }) {
   const militaryWorkspace = workspace.militaryWorkspace;
   const fiscalState = calculateGovernmentFiscalState(workspace, draft);
-  const remainingBudget = fiscalState.effectiveGovernmentRemaining;
-  const availableMilitaryBudget = fiscalState.effectiveGovernmentBudget;
-  const selectedMilitaryFiscalSpend = draft.militaryPlan.militaryActions.reduce((sum, selection) => {
-    const action = militaryWorkspace.availableMilitaryActions.find((item) => item.actionId === selection.actionId);
-    return sum + (action?.cost ?? 0);
-  }, 0);
-  const remainingMilitaryBudget = Math.max(
-    0,
-    availableMilitaryBudget - selectedMilitaryFiscalSpend,
-  );
+  const remainingBudget = fiscalState.baseGovernmentRemaining;
+  const remainingDecisionBudget = Math.max(0, fiscalState.effectiveGovernmentRemaining);
   const navalActions = militaryWorkspace.availableMilitaryActions.filter((action) => action.actionId === "naval_drill");
   const armyActions = militaryWorkspace.availableMilitaryActions.filter((action) => (
     action.actionId === "recruit_army"
@@ -378,7 +370,7 @@ export function MilitaryDecisionStep({
     if (selectedCount >= maxPerRound) {
       return false;
     }
-    return remainingMilitaryBudget >= cost;
+    return remainingDecisionBudget >= cost;
   }
 
   const { t } = useTranslation();
@@ -392,8 +384,10 @@ export function MilitaryDecisionStep({
           </div>
           <div className="gp-step-header__pills">
             <span className="gp-step-pill">{t("game:military.fiscalRemaining")} <strong>{remainingBudget}</strong></span>
-            <span className="gp-step-pill">{t("game:military.militaryBudgetAvailable")} <strong>{availableMilitaryBudget}</strong></span>
-            <span className="gp-step-pill">{t("game:military.militaryBudgetRemainingPill")} <strong>{remainingMilitaryBudget}</strong></span>
+            {fiscalState.policyBudgetSupplement > 0 ? (
+              <span className="gp-step-pill">{t("game:government.policyBudgetAllowance", "Policy allowance")} <strong>{fiscalState.policyBudgetSupplementRemaining} / {fiscalState.policyBudgetSupplement}</strong></span>
+            ) : null}
+            <span className="gp-step-pill">{t("game:military.decisionBudgetRemainingPill", "Decision budget remaining")} <strong>{remainingDecisionBudget}</strong></span>
             <span className="gp-step-pill">{t("game:military.overseasCapacityPill")} <strong>{militaryWorkspace.overseasCapacity}</strong></span>
             <span className="gp-step-pill">{t("game:military.establishedDiplomacyPill", { count: militaryWorkspace.establishedDiplomacy.length })}</span>
           </div>
@@ -498,7 +492,7 @@ export function MilitaryDecisionStep({
           <div className="gp-grid">
             {militaryWorkspace.availableDiplomacyActions.map((action) => {
               const checked = draft.militaryPlan.diplomacyActions.some((item) => item.actionId === action.actionId);
-              const confirmDisabled = action.isEstablished || (!checked && remainingBudget < action.cost);
+              const confirmDisabled = action.isEstablished || (!checked && remainingDecisionBudget < action.cost);
               return (
                 <ConfirmActionCard
                   key={action.actionId}

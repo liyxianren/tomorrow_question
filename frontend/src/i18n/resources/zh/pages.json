@@ -10,6 +10,7 @@
     },
     "heroActions": {
       "enterLobby": "进入大厅",
+      "ariaLabel": "进入房间流程",
       "rule1": "5 人固定局",
       "rule2": "选国家",
       "rule3": "全员准备",

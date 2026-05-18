@@ -372,6 +372,7 @@ export type GovernmentSpendBreakdown = {
   marketRegulationOverflow: number;
   baseGovernmentBudget: number;
   policyBudgetSupplement: number;
+  policyBudgetSupplementRemaining: number;
   baseGovernmentRemaining: number;
   effectiveGovernmentBudget: number;
   effectiveGovernmentRemaining: number;
@@ -392,6 +393,7 @@ export function calculateGovernmentSpendBreakdown(
     marketRegulationOverflow: state.marketRegulationOverflow,
     baseGovernmentBudget: state.baseGovernmentBudget,
     policyBudgetSupplement: state.policyBudgetSupplement,
+    policyBudgetSupplementRemaining: state.policyBudgetSupplementRemaining,
     baseGovernmentRemaining: state.baseGovernmentRemaining,
     effectiveGovernmentBudget: state.effectiveGovernmentBudget,
     effectiveGovernmentRemaining: state.effectiveGovernmentRemaining,
@@ -403,6 +405,7 @@ export type GovernmentFiscalState = {
   policyBudgetSupplement: number;
   marketRegulationAllowance: number;
   effectiveGovernmentBudget: number;
+  policyBudgetSupplementRemaining: number;
   coreGovernmentSpend: number;
   marketRegulationSpend: number;
   marketRegulationOverflow: number;
@@ -466,11 +469,13 @@ export function calculateGovernmentFiscalState(
   const marketRegulationOverflow = marketRegulationSpend;
   const totalDecisionSpend = coreGovernmentSpend + militaryFiscalSpend + marketRegulationSpend;
   const baseFiscalSpend = Math.max(0, totalDecisionSpend - policyBudgetSupplement);
+  const policyBudgetSupplementRemaining = Math.max(0, policyBudgetSupplement - Math.min(totalDecisionSpend, policyBudgetSupplement));
   return {
     baseGovernmentBudget,
     policyBudgetSupplement,
     marketRegulationAllowance,
     effectiveGovernmentBudget,
+    policyBudgetSupplementRemaining,
     coreGovernmentSpend,
     marketRegulationSpend,
     marketRegulationOverflow,

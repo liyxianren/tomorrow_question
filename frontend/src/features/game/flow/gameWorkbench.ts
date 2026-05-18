@@ -613,8 +613,20 @@ function buildCurrentResourceLines({
       ? i18n.t("game:flow.resourcesMarketLine", "市场 需求 {{demand}} · 承接 {{capacity}} · 均衡价 {{price}}", { demand: formatNumber(phase1.domesticDemand), capacity: formatNumber(projectedMarketCapacity ?? 0), price: formatNumber(projectedMarketPrice ?? 0) })
       : i18n.t("game:flow.resourcesMarketWaiting", "市场数值等待同步");
 
+    const governmentLines = [
+      i18n.t("game:flow.resourcesGovernmentLine", "政府财政 · 剩余 {{remaining}} / {{budget}}", { remaining: fiscalState.baseGovernmentRemaining, budget: fiscalState.baseGovernmentBudget }),
+    ];
+    if (fiscalState.policyBudgetSupplement > 0) {
+      governmentLines.push(
+        i18n.t("game:flow.resourcesPolicyBudgetLine", "政策专项额度 · 剩余 {{remaining}} / {{budget}}（不计入财政）", {
+          remaining: fiscalState.policyBudgetSupplementRemaining,
+          budget: fiscalState.policyBudgetSupplement,
+        }),
+      );
+    }
+
     return [
-      i18n.t("game:flow.resourcesGovernmentLine", "政府财政 · 剩余 {{remaining}} / {{budget}}", { remaining: fiscalState.effectiveGovernmentRemaining, budget: fiscalState.effectiveGovernmentBudget }),
+      ...governmentLines,
       marketLine,
       i18n.t("game:flow.resourcesRatioPreview", "比例预告 {{ratio}}", { ratio: formatRatio(calculateRatioPreview(workspace, draftPayload)) }),
     ];
