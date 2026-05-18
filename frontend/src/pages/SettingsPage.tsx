@@ -5,6 +5,8 @@ import { LanguageSwitcher } from "../components/i18n/LanguageSwitcher";
 import { PageShell } from "../components/ui/PageShell";
 import { PrimaryButton } from "../components/ui/PrimaryButton";
 import { SectionCard } from "../components/ui/SectionCard";
+import { DecisionParameterSandbox, type DecisionSandboxPayload } from "../components/settings/DecisionParameterSandbox";
+import type { ParameterBindingSource } from "../features/game/parameterInspector";
 import i18n from "../i18n";
 import { apiRequest } from "../services/http";
 
@@ -37,6 +39,7 @@ type SettingsPayload = {
     naturalShiftRules: Record<string, IdeologyShiftRule>;
   };
   numericConfig: Record<string, NumericConfigEntry[]>;
+  decisionSandbox?: DecisionSandboxPayload;
 };
 
 type SaveStatus =
@@ -115,8 +118,48 @@ function numericPathKey(fileName: string, path: NumericPathSegment[]): string {
   return `${fileName}:${JSON.stringify(path)}`;
 }
 
+function pathsEqual(left: NumericPathSegment[], right: NumericPathSegment[]): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 function isCoveredNumericEntry(fileName: string, entry: NumericConfigEntry): boolean {
   return COVERED_NUMERIC_PATHS.has(numericPathKey(fileName, entry.path));
+}
+
+function getCoveredNumericValue(
+  data: SettingsPayload,
+  fileName: string,
+  path: NumericPathSegment[],
+): number | null {
+  if (fileName === "production.json" && path[0] === "newFactoryCosts" && typeof path[1] === "string") {
+    return data.production.newFactoryCosts[path[1]] ?? 0;
+  }
+  if (fileName === "production.json" && path[0] === "upgradeCosts" && typeof path[1] === "string") {
+    return data.production.upgradeCosts[path[1]] ?? 0;
+  }
+  if (fileName === "countries.json" && path[0] === "countries" && typeof path[1] === "string" && (path[2] === "initialRawMaterials" || path[2] === "rawMaterialsPerTurn")) {
+    return data.countries[path[1]]?.[path[2]] ?? 0;
+  }
+  if (fileName === "global.json" && pathsEqual(path, ["baseIncomePerRound"])) {
+    return data.global.baseIncomePerRound;
+  }
+  if (fileName === "regions.json" && path[0] === "regions" && typeof path[1] === "number" && path[2] === "priceMultiplier") {
+    const regionKey = Object.keys(REGION_LABELS)[path[1]];
+    return regionKey ? data.regions[regionKey] ?? 0 : 0;
+  }
+  if (fileName === "politics.json" && path[0] === "administrationCost") {
+    return data.government.administrationCost;
+  }
+  if (fileName === "politics.json" && path[0] === "ideologyMin") {
+    return data.government.ideologyMin;
+  }
+  if (fileName === "politics.json" && path[0] === "ideologyMax") {
+    return data.government.ideologyMax;
+  }
+  if (fileName === "politics.json" && path[0] === "naturalShiftRules" && typeof path[1] === "string" && (path[2] === "highThreshold" || path[2] === "lowThreshold")) {
+    return data.government.naturalShiftRules[path[1]]?.[path[2]] ?? 0;
+  }
+  return null;
 }
 
 
@@ -249,15 +292,69 @@ export function SettingsPage() {
     });
   };
 
-  const buildSavePayload = (): SettingsPayload => ({
-    ...data,
-    numericConfig: Object.fromEntries(
-      Object.entries(data.numericConfig).map(([fileName, entries]) => [
-        fileName,
-        entries.filter((entry) => !isCoveredNumericEntry(fileName, entry)),
-      ]),
-    ),
-  });
+  const getNumericSourceValue = (source: ParameterBindingSource): number => {
+    const coveredValue = getCoveredNumericValue(data, source.fileName, source.path);
+    if (coveredValue !== null) {
+      return coveredValue;
+    }
+    const entry = data.numericConfig[source.fileName]?.find((item) => pathsEqual(item.path, source.path));
+    return entry?.value ?? source.value;
+  };
+
+  const updateNumericSourceValue = (source: ParameterBindingSource, value: number) => {
+    if (updateCoveredNumericValue(source.fileName, source.path, value)) {
+      return;
+    }
+    updateNumericEntry(source.fileName, source.path, value);
+  };
+
+  const buildSavePayload = (): Omit<SettingsPayload, "decisionSandbox"> => {
+    const { decisionSandbox: _decisionSandbox, ...settingsData } = data;
+    return {
+      ...settingsData,
+      numericConfig: Object.fromEntries(
+        Object.entries(data.numericConfig).map(([fileName, entries]) => [
+          fileName,
+          entries.filter((entry) => !isCoveredNumericEntry(fileName, entry)),
+        ]),
+      ),
+    };
+  };
+
+  function updateCoveredNumericValue(fileName: string, path: NumericPathSegment[], value: number): boolean {
+    if (fileName === "production.json" && path[0] === "newFactoryCosts" && typeof path[1] === "string") {
+      updateNewFactoryCost(path[1], value);
+      return true;
+    }
+    if (fileName === "production.json" && path[0] === "upgradeCosts" && typeof path[1] === "string") {
+      updateUpgradeCost(path[1], value);
+      return true;
+    }
+    if (fileName === "countries.json" && path[0] === "countries" && typeof path[1] === "string" && (path[2] === "initialRawMaterials" || path[2] === "rawMaterialsPerTurn")) {
+      updateCountry(path[1], path[2], value);
+      return true;
+    }
+    if (fileName === "global.json" && pathsEqual(path, ["baseIncomePerRound"])) {
+      updateGlobalIncome(value);
+      return true;
+    }
+    if (fileName === "regions.json" && path[0] === "regions" && typeof path[1] === "number" && path[2] === "priceMultiplier") {
+      const regionKey = Object.keys(REGION_LABELS)[path[1]];
+      if (regionKey) {
+        updateRegion(regionKey, value);
+        return true;
+      }
+    }
+    if (fileName === "politics.json" && (path[0] === "administrationCost" || path[0] === "ideologyMin" || path[0] === "ideologyMax")) {
+      updateGovernmentField(path[0], value);
+      return true;
+    }
+    if (fileName === "politics.json" && path[0] === "naturalShiftRules" && typeof path[1] === "string" && (path[2] === "highThreshold" || path[2] === "lowThreshold")) {
+      updateShiftThreshold(path[1], path[2], value);
+      return true;
+    }
+    return false;
+  }
 
   const handleSave = async () => {
     setStatus({ kind: "saving" });
@@ -273,7 +370,7 @@ export function SettingsPage() {
   };
 
   return (
-    <PageShell className="settings-page" width="wide">
+    <PageShell className="settings-page" width="workbench">
       <SectionCard title="Language / 语言" tone="muted" eyebrow="i18n">
         <LanguageSwitcher />
       </SectionCard>
@@ -298,6 +395,19 @@ export function SettingsPage() {
             <span style={{ color: "#b8323a" }}>{status.message}</span>
           ) : null}
         </div>
+      </SectionCard>
+
+      <SectionCard
+        className="settings-parameter-sandbox-card"
+        title="参数关系沙盒"
+        eyebrow="Decision Sandbox"
+        description="复用真实地图和真实决策按钮；点击按钮内的数值关系可以查看并编辑对应配置。这里不会提交真实游戏回合。"
+      >
+        <DecisionParameterSandbox
+          sandbox={data.decisionSandbox}
+          getSourceValue={getNumericSourceValue}
+          onSourceValueChange={updateNumericSourceValue}
+        />
       </SectionCard>
 
       <SectionCard title={t("settings.productionCost.title")} eyebrow={t("settings.productionCost.eyebrow")}>

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { translateBackend } from "../../../i18n";
 import type { DecisionPlayerPhaseWorkspace } from "../../../types";
 import type { PhaseDraftByPhase } from "../../../features/game/forms";
+import type { ParameterInspector } from "../../../features/game/parameterInspector";
 import { buildEffectMetrics } from "../../../features/game/decisionShared";
 import { DecisionStatStrip } from "./shared/DecisionStatStrip";
 import { DecisionActionCard } from "./shared/DecisionActionCard";
@@ -45,6 +46,7 @@ export interface MilitaryPanelProps {
   onNavalDeploymentChange: (nodeId: string, count: number) => void;
   onConquestChange?: (regionId: string, army: number) => void;
   onLootingToggle?: (regionId: string, resourceType: string) => void;
+  parameterInspector?: ParameterInspector;
 }
 
 export function MilitaryPanel({
@@ -55,6 +57,7 @@ export function MilitaryPanel({
   onRemoveMilitary,
   onToggleDiplomacy,
   onNavalDeploymentChange,
+  parameterInspector,
 }: MilitaryPanelProps) {
   const mil = workspace.militaryWorkspace;
   const getCount = (actionId: string) =>
@@ -133,6 +136,7 @@ export function MilitaryPanel({
                 diplomacySelected={diplomacySelected}
                 remainingGovernmentBudget={remainingGovernmentBudget}
                 onToggleDiplomacy={onToggleDiplomacy}
+                parameterInspector={parameterInspector}
               />
             );
           })}
@@ -198,7 +202,12 @@ export function MilitaryPanel({
                 cancelAriaLabel: t("game:military.revokeAction", { label: translateBackend(action.label) }),
                 hideCancelWhenNotSelected: true,
               }}
-            />
+            >
+              {parameterInspector?.render(`military.action.${action.actionId}`, {
+                title: translateBackend(action.label),
+                currentEffect: translateBackend(action.description),
+              })}
+            </DecisionActionCard>
           );
         })}
       </div>

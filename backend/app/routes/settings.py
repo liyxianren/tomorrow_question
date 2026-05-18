@@ -8,7 +8,10 @@ from flask import Blueprint, current_app, request
 
 from app.contracts.api import error_response, ok_response
 from app.contracts.enums import ErrorCode
+from app.contracts.enums import CountryCode
+from app.modules.balance_config import use_balance_config_dir
 from app.modules.balance_config.loader import _load_balance_config_cached
+from app.modules.game_state.factory import create_game, create_initial_snapshot
 
 
 settings_bp = Blueprint("settings", __name__, url_prefix="/api/v1")
@@ -203,6 +206,7 @@ def get_settings():
     politics = _read_json(config_dir / "politics.json")
 
     politics_shift_rules = politics.get("naturalShiftRules", {})
+    numeric_config = _build_numeric_config_payload(config_dir)
     payload = {
         "production": {
             "newFactoryCosts": {
@@ -249,7 +253,8 @@ def get_settings():
                 for ideology in _IDEOLOGY_KEYS
             },
         },
-        "numericConfig": _build_numeric_config_payload(config_dir),
+        "numericConfig": numeric_config,
+        "decisionSandbox": _build_decision_sandbox_payload(config_dir, numeric_config),
     }
     return ok_response(payload)
 
@@ -414,6 +419,285 @@ def _build_numeric_config_payload(config_dir: Path) -> dict[str, list[dict[str, 
         _collect_numeric_entries(data, [], entries, [])
         payload[path.name] = entries
     return payload
+
+
+def _build_decision_sandbox_payload(
+    config_dir: Path,
+    numeric_config: dict[str, list[dict[str, Any]]],
+) -> dict[str, Any]:
+    with use_balance_config_dir(config_dir):
+        game = create_game(room_code="SETTINGS")
+        assignments = {
+            "settings-britain": CountryCode.BRITAIN,
+            "settings-france": CountryCode.FRANCE,
+            "settings-prussia": CountryCode.PRUSSIA,
+            "settings-austria": CountryCode.AUSTRIA,
+            "settings-russia": CountryCode.RUSSIA,
+        }
+        snapshot = create_initial_snapshot(game=game, player_assignments=assignments)
+        player = next(
+            item for item in snapshot.player_states if item.player_id == "settings-britain"
+        )
+        workspace = snapshot.phase_workspace["players"][player.player_id]
+
+    return {
+        "countryId": "britain",
+        "playerId": player.player_id,
+        "roundNo": snapshot.round_no,
+        "phase": snapshot.phase.value,
+        "playerState": player.to_payload(),
+        "decisionWorkspace": workspace,
+        "parameterBindings": _build_parameter_bindings(config_dir, numeric_config, workspace),
+    }
+
+
+def _build_parameter_bindings(
+    config_dir: Path,
+    numeric_config: dict[str, list[dict[str, Any]]],
+    workspace: dict[str, Any],
+) -> list[dict[str, Any]]:
+    raw_config = {
+        path.name: _read_json(path)
+        for path in sorted(config_dir.glob(f"*{_JSON_SUFFIX}"))
+    }
+    bindings: list[dict[str, Any]] = []
+
+    def add_binding(
+        target_key: str,
+        title: str,
+        current_effect: str,
+        specs: list[tuple[str, list[str | int], bool]],
+    ) -> None:
+        sources = _resolve_binding_sources(numeric_config, specs)
+        if not sources:
+            return
+        bindings.append(
+            {
+                "targetKey": target_key,
+                "title": title,
+                "currentEffect": current_effect,
+                "sources": sources,
+            }
+        )
+
+    production = raw_config.get("production.json", {})
+    for route_id in ("handicraft", "mechanized", "steam", "electrified"):
+        add_binding(
+            f"factory.construction.expansion.{route_id}",
+            f"工厂增加：{_SEGMENT_LABELS.get(route_id, route_id)}",
+            "玩家按 + 后会安排 1 次扩建：立刻占用工厂预算；本回合不增加产量，下回合该阶段产能 +1。",
+            [
+                ("production.json", ["expansionCosts", route_id], False),
+                ("production.json", ["outputMultipliers", route_id], False),
+            ],
+        )
+        add_binding(
+            f"factory.construction.newFactory.{route_id}",
+            f"新建工厂：{_SEGMENT_LABELS.get(route_id, route_id)}",
+            "玩家按 + 后会安排新建首座工厂：立刻占用工厂预算；本回合不增加产量，下回合该阶段产能 +2。",
+            [
+                ("production.json", ["newFactoryCosts", route_id], False),
+                ("production.json", ["outputMultipliers", route_id], False),
+            ],
+        )
+        add_binding(
+            f"factory.construction.upgrade.{route_id}",
+            f"产业升级：{_SEGMENT_LABELS.get(route_id, route_id)}",
+            "玩家按 + 后会安排 1 次产业升级：立刻占用工厂预算，并把上一级 1 点产能转换为本阶段 1 点产能；这不是新增总产能。",
+            [
+                ("production.json", ["upgradeCosts", route_id], False),
+                ("production.json", ["outputMultipliers", route_id], False),
+            ],
+        )
+
+    for goods_id, goods in production.get("goods", {}).items():
+        if isinstance(goods, dict):
+            add_binding(
+                f"factory.production.{goods_id}",
+                f"生产：{goods.get('label') or goods_id}",
+                "玩家分配原材料后会消耗工厂预算和原材料，并按单位产出生成库存；产出的商品会进入后续市场出售。",
+                [("production.json", ["goods", goods_id], True)],
+            )
+
+    decision_actions = raw_config.get("decision_actions.json", {})
+    for action in workspace.get("factoryActions", []) or []:
+        action_id = str(action.get("actionId"))
+        add_binding(
+            f"factory.action.{action_id}",
+            f"工厂调度：{action.get('label') or action_id}",
+            f"玩家选择后会把这项临时调度加入本回合工厂计划：{action.get('description') or '影响本回合生产。'}",
+            [("decision_actions.json", ["factoryActions", action_id], True)],
+        )
+
+    for action in workspace.get("governmentActions", {}).get("strategies", []) or []:
+        action_id = str(action.get("actionId"))
+        specs = [("decision_actions.json", ["governmentActions", action_id], True)]
+        if action_id in (decision_actions.get("domesticMarketActions") or {}):
+            specs.append(("decision_actions.json", ["domesticMarketActions", action_id], True))
+        add_binding(
+            f"government.strategy.{action_id}",
+            f"政府/市场政策：{action.get('label') or action_id}",
+            f"玩家选择后会把这项政府行动加入本回合计划：{action.get('description') or '改变财政、市场、研究或收入结构。'}",
+            specs,
+        )
+
+    for action_id in ("market_subsidy", "price_control", "trade_promotion"):
+        action = (decision_actions.get("governmentActions") or {}).get(action_id)
+        if not isinstance(action, dict):
+            continue
+        add_binding(
+            f"government.strategy.{action_id}",
+            f"市场政策：{action.get('label') or action_id}",
+            f"玩家选择后会消耗 1 点行政力，并只影响本回合市场预览和出售结果：{action.get('description') or '改变本轮市场参数。'}",
+            [("decision_actions.json", ["governmentActions", action_id], True)],
+        )
+
+    reforms_cfg = raw_config.get("reforms.json", {})
+    for path_key, reform_list in (reforms_cfg.get("reforms") or {}).items():
+        if not isinstance(reform_list, list):
+            continue
+        for index, reform in enumerate(reform_list):
+            if not isinstance(reform, dict):
+                continue
+            reform_id = str(reform.get("reformId") or "")
+            if not reform_id:
+                continue
+            add_binding(
+                f"government.reform.{reform_id}",
+                f"国家路径：{reform.get('label') or reform_id}",
+                f"玩家实施后会消耗行政力，并永久改变国家路径或解锁政策：{reform.get('description') or '带来制度效果。'}",
+                [("reforms.json", ["reforms", path_key, index], True)],
+            )
+
+    for policy_id, policy in (reforms_cfg.get("regularPolicies") or {}).items():
+        if not isinstance(policy, dict):
+            continue
+        add_binding(
+            f"government.policy.{policy_id}",
+            f"政府政策：{policy.get('label') or policy_id}",
+            f"玩家激活后会占用本回合行政力，并在结算或本回合预览中改变收入分配、财政或思潮：{policy.get('description') or '政策效果。'}",
+            [("reforms.json", ["regularPolicies", str(policy_id)], True)],
+        )
+
+    ability = workspace.get("nationalAbility")
+    if isinstance(ability, dict) and ability.get("abilityId"):
+        ability_id = str(ability["abilityId"])
+        add_binding(
+            f"government.ability.{ability_id}",
+            f"国家能力：{ability.get('label') or ability_id}",
+            f"玩家启用后会触发国家专属能力；通常每局次数有限：{ability.get('description') or '国家能力效果。'}",
+            [("abilities.json", ["nationalAbilities", ability_id], True)],
+        )
+
+    add_binding(
+        "domestic.preview",
+        "国内市场预览",
+        "这里不是提交按钮，而是告诉玩家：按当前工厂产出和政府市场政策，本回合国内市场能买多少、价格大概是多少。",
+        [
+            ("market.json", [], True),
+            ("production.json", ["goods"], True),
+        ],
+    )
+
+    for action in workspace.get("militaryWorkspace", {}).get("availableMilitaryActions", []) or []:
+        action_id = str(action.get("actionId"))
+        add_binding(
+            f"military.action.{action_id}",
+            f"军事行动：{action.get('label') or action_id}",
+            f"玩家选择后会消耗政府财政，并把军事变化加入本回合计划：{action.get('description') or '改变军力或海外市场能力。'}",
+            [
+                ("military_actions.json", ["militaryActions", action_id], True),
+                ("military.json", [], True),
+            ],
+        )
+
+    for action in workspace.get("militaryWorkspace", {}).get("availableDiplomacyActions", []) or []:
+        action_id = str(action.get("actionId"))
+        add_binding(
+            f"military.diplomacy.{action_id}",
+            f"外交行动：{action.get('label') or action_id}",
+            f"玩家选择后会消耗政府财政建立外交关系；成功后目标区域贸易通道会长期开放：{action.get('description') or '外交行动。'}",
+            [("military_actions.json", ["diplomacyActions", action_id], True)],
+        )
+
+    add_binding(
+        "research.facility",
+        "建立研究院",
+        "玩家选择后会从政府财政支付成本，建设研究设施；之后每回合研究进度都会更快。",
+        [
+            ("technology.json", ["researchFacilityCost"], False),
+            ("technology.json", ["researchFacilityProgressPerTurn"], False),
+            ("technology.json", ["breakthroughDieSides"], False),
+            ("decision_actions.json", ["governmentActions", "expand_research"], True),
+        ],
+    )
+
+    technology_cfg = raw_config.get("technology.json", {})
+    for chain_id, chain in (technology_cfg.get("chains") or {}).items():
+        techs = chain.get("techs") if isinstance(chain, dict) else None
+        if not isinstance(techs, list):
+            continue
+        for index, tech in enumerate(techs):
+            if not isinstance(tech, dict):
+                continue
+            tech_id = str(tech.get("id") or "")
+            if not tech_id:
+                continue
+            add_binding(
+                f"research.tech.{tech_id}",
+                f"科技研究：{tech.get('label') or tech_id}",
+                "玩家选择后会把该科技设为研究目标；研究进度达到门槛后，会进入突破或追赶解锁逻辑，并可能开放新产业阶段。",
+                [
+                    ("technology.json", ["chains", str(chain_id), "techs", index, "threshold"], False),
+                    ("technology.json", ["breakthroughDieSides"], False),
+                ],
+            )
+
+    return bindings
+
+
+def _resolve_binding_sources(
+    numeric_config: dict[str, list[dict[str, Any]]],
+    specs: list[tuple[str, list[str | int], bool]],
+) -> list[dict[str, Any]]:
+    sources: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for file_name, path_prefix, include_children in specs:
+        for entry in numeric_config.get(file_name, []):
+            entry_path = entry.get("path")
+            if not isinstance(entry_path, list):
+                continue
+            matched = (
+                _path_starts_with(entry_path, path_prefix)
+                if include_children
+                else entry_path == path_prefix
+            )
+            if not matched:
+                continue
+            key = (file_name, json.dumps(entry_path, ensure_ascii=False))
+            if key in seen:
+                continue
+            seen.add(key)
+            sources.append(
+                {
+                    "fileName": file_name,
+                    "path": entry_path,
+                    "pathLabel": entry.get("pathLabel"),
+                    "label": entry.get("label"),
+                    "contextLabel": entry.get("contextLabel"),
+                    "fieldLabel": entry.get("fieldLabel"),
+                    "value": entry.get("value"),
+                }
+            )
+    return sources
+
+
+def _path_starts_with(path: list[Any], prefix: list[str | int]) -> bool:
+    if not prefix:
+        return True
+    if len(path) < len(prefix):
+        return False
+    return path[: len(prefix)] == prefix
 
 
 def _collect_numeric_entries(

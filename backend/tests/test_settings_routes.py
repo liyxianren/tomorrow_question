@@ -71,6 +71,38 @@ class SettingsRoutesTests(unittest.TestCase):
             )
         )
 
+    def test_get_settings_exposes_decision_parameter_sandbox(self) -> None:
+        response = self.client.get("/api/v1/settings")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        sandbox = payload["data"]["decisionSandbox"]
+
+        self.assertEqual(sandbox["countryId"], "britain")
+        self.assertEqual(sandbox["roundNo"], 1)
+        self.assertEqual(sandbox["phase"], "decision")
+        self.assertEqual(sandbox["playerState"]["countryId"], "britain")
+        self.assertIn("phase1Economy", sandbox["decisionWorkspace"])
+
+        bindings = {
+            binding["targetKey"]: binding
+            for binding in sandbox["parameterBindings"]
+        }
+        for key in (
+            "factory.construction.expansion.handicraft",
+            "government.strategy.market_subsidy",
+            "domestic.preview",
+            "military.action.recruit_army",
+            "research.facility",
+            "research.tech.spinning_jenny",
+        ):
+            self.assertIn(key, bindings)
+            self.assertGreater(len(bindings[key]["sources"]), 0)
+
+        source = bindings["factory.construction.expansion.handicraft"]["sources"][0]
+        self.assertEqual(source["fileName"], "production.json")
+        self.assertEqual(source["path"], ["expansionCosts", "handicraft"])
+
     def test_post_settings_updates_numeric_values_by_json_path(self) -> None:
         response = self.client.post(
             "/api/v1/settings",

@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import i18n, { translateBackend } from "../../../i18n";
 import type { DecisionPlayerPhaseWorkspace } from "../../../types";
 import type { PhaseDraftByPhase } from "../../../features/game/forms";
+import type { ParameterInspector } from "../../../features/game/parameterInspector";
 import {
   calculateDecisionMarketReferencePrice,
   formatSignedValue,
@@ -96,12 +97,14 @@ export interface DomesticPanelProps {
   workspace: DecisionPlayerPhaseWorkspace;
   draft: PhaseDraftByPhase["decision"];
   remainingDomesticBudget: number;
+  parameterInspector?: ParameterInspector;
 }
 
 export function DomesticPanel({
   workspace,
   draft,
   remainingDomesticBudget,
+  parameterInspector,
 }: DomesticPanelProps) {
   const { t } = useTranslation();
   const queuedStrategyIds = new Set(
@@ -144,6 +147,10 @@ export function DomesticPanel({
         <h3 className="domestic-panel__title">🏛️ {t("game:domestic.title")}</h3>
         <span className="domestic-panel__budget">{t("game:domestic.marketPreview")}</span>
       </div>
+      {parameterInspector?.render("domestic.preview", {
+        title: t("game:domestic.marketPreview"),
+        currentEffect: t("game:domestic.domesticEconomyDesc"),
+      })}
 
       <DecisionStatStrip
         items={[

@@ -15,6 +15,7 @@ import type {
   DecisionFlowState,
   DecisionStepId,
 } from "../../../features/game/flow/decisionFlow";
+import type { ParameterInspector } from "../../../features/game/parameterInspector";
 import {
   clearDecisionStepDraft,
   getDecisionStepLabel,
@@ -83,6 +84,7 @@ type GamePhasePanelContentProps = {
   onComplete?: () => void;
   secondsRemaining?: number | null;
   isFinalRoundSettlement?: boolean;
+  parameterInspector?: ParameterInspector;
 };
 
 // All game phase panel styles are in CSS classes (gp-*) defined in styles.css
@@ -98,6 +100,7 @@ export function GamePhasePanelContent({
   onComplete,
   secondsRemaining,
   isFinalRoundSettlement = false,
+  parameterInspector,
 }: GamePhasePanelContentProps) {
   const { t } = useTranslation();
 
@@ -124,6 +127,7 @@ export function GamePhasePanelContent({
           }
           onComplete={onComplete}
           onDecisionFlowChange={onDecisionFlowChange}
+          parameterInspector={parameterInspector}
           workspace={currentPlayerWorkspace as DecisionPlayerPhaseWorkspace}
         />
       );
@@ -162,6 +166,7 @@ export function DecisionWorkbench({
   onChange,
   onDecisionFlowChange,
   onComplete,
+  parameterInspector,
 }: {
   workspace: DecisionPlayerPhaseWorkspace;
   draft: PhaseDraftByPhase["decision"];
@@ -169,6 +174,7 @@ export function DecisionWorkbench({
   onChange: (value: PhaseDraftByPhase["decision"]) => void;
   onDecisionFlowChange: Dispatch<SetStateAction<DecisionFlowState>>;
   onComplete?: () => void;
+  parameterInspector?: ParameterInspector;
 }) {
   const { t } = useTranslation();
 
@@ -272,12 +278,14 @@ export function DecisionWorkbench({
               ),
             );
           }}
+          parameterInspector={parameterInspector}
         />
       ) : activeStep === "domestic" ? (
         <DomesticPanel
           workspace={workspace}
           draft={draft}
           remainingDomesticBudget={workspace.budgetPools.domesticMarket - spendSummary.domesticSpend}
+          parameterInspector={parameterInspector}
         />
       ) : activeStep === "government" ? (
         <GovernmentPanel
@@ -301,6 +309,7 @@ export function DecisionWorkbench({
             if (!workspace.nationalAbility) return;
             handleDraftChange("government", setAbilitySelectionTarget(draft, workspace.nationalAbility.abilityId, ideology));
           }}
+          parameterInspector={parameterInspector}
         />
       ) : activeStep === "military" ? (
         <MilitaryPanel
@@ -311,6 +320,7 @@ export function DecisionWorkbench({
           onRemoveMilitary={(actionId) => handleDraftChange("military", removeMilitaryActionSelection(draft, actionId))}
           onToggleDiplomacy={(actionId, checked) => handleDraftChange("military", toggleDiplomacyActionSelection(draft, actionId, checked))}
           onNavalDeploymentChange={(nodeId, count) => handleDraftChange("military", setNavalDeployment(draft, nodeId, count))}
+          parameterInspector={parameterInspector}
         />
       ) : activeStep === "research" ? (
         <ResearchPanel
@@ -320,6 +330,7 @@ export function DecisionWorkbench({
           onToggleResearchFacility={(checked) => handleDraftChange("research", toggleGovernmentStrategySelection(draft, "expand_research", checked))}
           remainingGovernmentBudget={fiscalState.effectiveGovernmentRemaining}
           isResearchFacilitySelected={draft.governmentPlan.strategySelections.some((s) => s.actionId === "expand_research")}
+          parameterInspector={parameterInspector}
         />
       ) : null}
       <DecisionStepFooter

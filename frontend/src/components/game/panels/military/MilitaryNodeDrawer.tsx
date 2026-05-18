@@ -6,6 +6,7 @@ import type {
   OceanNodeOption,
   RegionAccessStatus,
 } from "../../../../types";
+import type { ParameterInspector } from "../../../../features/game/parameterInspector";
 import { getOceanNodeLabel, getGoodsLabel } from "../../../../features/game/panelGlossary";
 import "./MilitaryNodeDrawer.css";
 
@@ -39,6 +40,7 @@ type RegionDrawerProps = {
   diplomacySelected: boolean;
   remainingGovernmentBudget: number;
   onToggleDiplomacy: (actionId: string, checked: boolean) => void;
+  parameterInspector?: ParameterInspector;
 };
 
 export type MilitaryNodeDrawerProps = OceanDrawerProps | RegionDrawerProps;
@@ -149,6 +151,7 @@ function RegionDrawer({
   diplomacySelected,
   remainingGovernmentBudget,
   onToggleDiplomacy,
+  parameterInspector,
 }: RegionDrawerProps) {
   const { t } = useTranslation();
   const icon = REGION_ICONS[nodeId] ?? "🌐";
@@ -198,6 +201,10 @@ function RegionDrawer({
                 <span className="mnd__hint mnd__hint--benefit">
                   {t("game:military.diplomacyBenefit")}
                 </span>
+                {parameterInspector?.render(`military.diplomacy.${diplomacyAction.actionId}`, {
+                  title: translateBackend(diplomacyAction.label),
+                  currentEffect: translateBackend(diplomacyAction.description),
+                })}
                 <div className="mnd__diplo-controls">
                   {diplomacySelected ? (
                     <>

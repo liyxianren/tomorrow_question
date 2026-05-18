@@ -4,6 +4,7 @@ import i18n, { translateBackend } from "../../../i18n";
 import { getReformLabel } from "../../../features/game/panelGlossary";
 import type { DecisionPlayerPhaseWorkspace, IdeologyKey } from "../../../types";
 import type { PhaseDraftByPhase } from "../../../features/game/forms";
+import type { ParameterInspector } from "../../../features/game/parameterInspector";
 import type { DecisionActionCardEffect } from "./shared/DecisionActionCard";
 import { DecisionStatStrip } from "./shared/DecisionStatStrip";
 import { DecisionActionCard } from "./shared/DecisionActionCard";
@@ -500,6 +501,7 @@ export interface GovernmentPanelProps {
   onToggleStrategy: (actionId: string, checked: boolean) => void;
   onToggleAbility?: (checked: boolean) => void;
   onAbilityTargetChange?: (ideology: IdeologyKey) => void;
+  parameterInspector?: ParameterInspector;
 }
 
 export function GovernmentPanel({
@@ -511,6 +513,7 @@ export function GovernmentPanel({
   onToggleStrategy,
   onToggleAbility,
   onAbilityTargetChange,
+  parameterInspector,
 }: GovernmentPanelProps) {
   const { t } = useTranslation();
   const [activeReformPath, setActiveReformPath] = useState<ReformPath>("freedom");
@@ -657,7 +660,12 @@ export function GovernmentPanel({
                 ariaLabel: `${t("common:select")}：${translateBackend(strategy.label)}`,
                 disabled: isDisabled,
               }}
-            />
+            >
+              {parameterInspector?.render(`government.strategy.${strategy.actionId}`, {
+                title: translateBackend(strategy.label),
+                currentEffect: stripGeneratedEffectSummary(translateBackend(strategy.description) ?? undefined),
+              })}
+            </DecisionActionCard>
           );
         })}
       </div>
@@ -876,7 +884,12 @@ export function GovernmentPanel({
                   ariaLabel: t("game:government.implementReform", { label: reform.label }),
                   disabled: isDisabled || (!queued && lockedReason !== null),
                 }}
-              />
+              >
+                {parameterInspector?.render(`government.reform.${reform.reformId}`, {
+                  title: translateBackend(reform.label),
+                  currentEffect: resolveReformDescription(reform),
+                })}
+              </DecisionActionCard>
             );
           })}
         </div>
@@ -901,7 +914,12 @@ export function GovernmentPanel({
                     status="selected"
                     statusText={"✓ " + t("game:government.executeThisRound")}
                     doneBadge={t("game:government.marketPolicyActions", "市场政策")}
-                  />
+                  >
+                    {parameterInspector?.render(`government.strategy.${strategy.actionId}`, {
+                      title: translateBackend(strategy.label),
+                      currentEffect: stripGeneratedEffectSummary(translateBackend(strategy.description) ?? undefined),
+                    })}
+                  </DecisionActionCard>
                 ))}
                 {activePolicies.map((policy) => {
                   const active = isPolicyActiveAfter(policy.policyId, policy.isActive);
@@ -926,7 +944,12 @@ export function GovernmentPanel({
                         ariaLabel: `${active ? t("game:government.deactivatePolicy", { label: policy.label }) : t("game:government.activatePolicy", { label: policy.label })}`,
                         disabled: restoreLockedReason !== null,
                       }}
-                    />
+                    >
+                      {parameterInspector?.render(`government.policy.${policy.policyId}`, {
+                        title: translateBackend(policy.label),
+                        currentEffect: translateBackend(policy.description),
+                      })}
+                    </DecisionActionCard>
                   );
                 })}
               </div>
@@ -974,6 +997,10 @@ export function GovernmentPanel({
                     disabled: !ability.isAvailable || !onToggleAbility,
                   }}
                 >
+                  {parameterInspector?.render(`government.ability.${ability.abilityId}`, {
+                    title: translateBackend(ability.label),
+                    currentEffect: translateBackend(ability.description),
+                  })}
                   {ability.requiresTargetIdeology && abilitySelected ? (
                     <div className="government-ability-targets" role="radiogroup" aria-label={t("game:government.abilityTargetIdeology", "{{label}} 目标意识形态", { label: ability.label })}>
                       {IDEOLOGY_KEYS.map((key) => (
@@ -1041,7 +1068,12 @@ export function GovernmentPanel({
                         ariaLabel: t("game:government.activatePolicy", { label: policy.label }),
                         disabled: isDisabled,
                       }}
-                    />
+                    >
+                      {parameterInspector?.render(`government.policy.${policy.policyId}`, {
+                        title: translateBackend(policy.label),
+                        currentEffect: translateBackend(policy.description),
+                      })}
+                    </DecisionActionCard>
                   );
                 })}
               </div>

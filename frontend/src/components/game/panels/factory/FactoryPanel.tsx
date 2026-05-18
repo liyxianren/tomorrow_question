@@ -3,6 +3,7 @@ import type { TFunction } from "i18next";
 import i18n, { translateBackend } from "../../../../i18n";
 import type { DecisionPlayerPhaseWorkspace, FactoryExpansionOption, FactoryNewFactoryOption, FactoryUpgradeOption, Phase1ProductionMode } from "../../../../types";
 import type { PhaseDraftByPhase } from "../../../../features/game/forms";
+import type { ParameterInspector } from "../../../../features/game/parameterInspector";
 import {
   getRouteOrderQuantity,
 } from "../../../../features/game/decisionDrafts";
@@ -32,6 +33,7 @@ export function FactoryPanel({
   onFactoryActionToggle,
   onTechnologyToggle,
   onPhase1RawMaterialAssignmentChange,
+  parameterInspector,
 }: {
   workspace: DecisionPlayerPhaseWorkspace;
   draft: PhaseDraftByPhase["decision"];
@@ -45,6 +47,7 @@ export function FactoryPanel({
   onFactoryActionToggle: (actionId: string, checked: boolean) => void;
   onTechnologyToggle: (techId: string, checked: boolean) => void;
   onPhase1RawMaterialAssignmentChange?: (mode: string, quantity: number) => void;
+  parameterInspector?: ParameterInspector;
 }) {
   const { t } = useTranslation();
   const techPreview = calculateTechResearchPreview(workspace, draft);
@@ -91,7 +94,9 @@ export function FactoryPanel({
     title: string,
     description: string,
     noOptionReason: string,
+    routeId: string,
   ) => {
+    const inspectorKey = `factory.construction.${kind}.${routeId}`;
     if (!option) {
       return (
         <article className="factory-stage-action factory-stage-action--disabled">
@@ -104,6 +109,10 @@ export function FactoryPanel({
             <strong>0</strong>
             <button type="button" disabled aria-label={title}>+</button>
           </div>
+          {parameterInspector?.render(inspectorKey, {
+            title,
+            currentEffect: description || noOptionReason,
+          })}
         </article>
       );
     }
@@ -151,6 +160,10 @@ export function FactoryPanel({
             +
           </button>
         </div>
+        {parameterInspector?.render(inspectorKey, {
+          title,
+          currentEffect: description,
+        })}
       </article>
     );
   };
@@ -244,6 +257,7 @@ export function FactoryPanel({
                           t("game:factory.factoryIncrease", "工厂增加"),
                           increaseDescription,
                           t("game:factory.noFactoryIncreasePath", "当前无法为该阶段增加工厂"),
+                          mode.mode,
                         )}
                         {renderConstructionControl(
                           upgradeOption,
@@ -253,6 +267,7 @@ export function FactoryPanel({
                           mode.mode === "handicraft"
                             ? t("game:factory.baseStageNoUpgrade", "基础阶段无需升级")
                             : t("game:factory.noUpgradePath", "当前没有可用升级路径"),
+                          mode.mode,
                         )}
                       </div>
                     </article>
@@ -302,6 +317,10 @@ export function FactoryPanel({
                           {selected ? t("common:revoke") : t("common:select")}
                         </button>
                       </div>
+                      {parameterInspector?.render(`factory.action.${action.actionId}`, {
+                        title: translateBackend(action.label),
+                        currentEffect: translateBackend(action.description) ?? undefined,
+                      })}
                     </article>
                   );
                 })}

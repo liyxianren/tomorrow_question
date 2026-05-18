@@ -107,6 +107,7 @@ export function AppShell() {
     location.pathname.startsWith("/room/")
     || location.pathname.startsWith("/game/")
     || location.pathname.startsWith("/settlement/")
+    || location.pathname.startsWith("/setting")
     || location.pathname.startsWith("/design/decision-card-demo");
   const shellWidth = isWorkbenchRoute || isLobbyRoute ? "workbench" : "wide";
 

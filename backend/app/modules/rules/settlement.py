@@ -48,7 +48,10 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
             player_state.pending_production_capacity[route_key] = 0
         for goods_id, quantity in player_state.goods_allocation.items():
             total_sold_by_goods[goods_id] = int(total_sold_by_goods.get(goods_id, 0)) + int(quantity)
-        signal_values_by_player_id[player_state.player_id] = _build_ideology_signals(player_state)
+        signal_values_by_player_id[player_state.player_id] = _build_ideology_signals(
+            player_state,
+            allocation=allocation,
+        )
 
         summary_lines.append(
             (
@@ -235,9 +238,9 @@ def _build_market_price_adjustments(
     return new_adjustments
 
 
-def _build_ideology_signals(player_state) -> dict[str, int]:
+def _build_ideology_signals(player_state, *, allocation: dict[str, int]) -> dict[str, int]:
     return {
-        "industryStrength": int(player_state.budget_pools.get("factory", 0)),
+        "industryStrength": int(allocation.get("factory", 0)),
         "domesticStrength": int(player_state.domestic_sales_revenue),
         "externalBalance": int(player_state.overseas_sales_revenue)
         - int(player_state.domestic_sales_revenue),

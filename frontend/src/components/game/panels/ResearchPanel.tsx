@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { translateBackend } from "../../../i18n";
 import { getTechnologyLabel as fallbackTechLabel } from "../../../features/game/panelGlossary";
+import type { ParameterInspector } from "../../../features/game/parameterInspector";
 import type { TechTreeData, TechTreeChainTech } from "../../../types";
 import "./ResearchPanel.css";
 
@@ -12,6 +13,7 @@ interface ResearchPanelProps {
   onToggleResearchFacility: (checked: boolean) => void;
   remainingGovernmentBudget: number;
   isResearchFacilitySelected: boolean;
+  parameterInspector?: ParameterInspector;
 }
 
 export function ResearchPanel({
@@ -21,6 +23,7 @@ export function ResearchPanel({
   onToggleResearchFacility,
   remainingGovernmentBudget,
   isResearchFacilitySelected,
+  parameterInspector,
 }: ResearchPanelProps) {
   const { t } = useTranslation();
   const { chains, researchFacilities, facilityCost, progressPerFacility, activeResearch } = techTree;
@@ -185,6 +188,10 @@ export function ResearchPanel({
             >
               {isResearchFacilitySelected ? t("game:research.cancelBuildFacility") : "🏗️ " + t("game:research.buildFacility")}
             </button>
+            {parameterInspector?.render("research.facility", {
+              title: t("game:research.researchFacilities"),
+              currentEffect: t("game:research.projectedAfterBuild", { progress: nextPerTurnProgress }),
+            })}
           </div>
         </div>
 
@@ -228,6 +235,7 @@ export function ResearchPanel({
               selectedTechIds={selectedTechIds}
               onToggleTech={onToggleTech}
               activeResearch={activeResearch}
+              parameterInspector={parameterInspector}
             />
           ) : (
             <p className="talent-tree__hint">{t("game:research.noTechChains")}</p>
@@ -280,11 +288,13 @@ function ChainDetail({
   selectedTechIds,
   onToggleTech,
   activeResearch,
+  parameterInspector,
 }: {
   chain: { chainId: string; label: string; techs: TechTreeChainTech[] };
   selectedTechIds: Set<string>;
   onToggleTech: (techId: string, checked: boolean) => void;
   activeResearch: string | null;
+  parameterInspector?: ParameterInspector;
 }) {
   const { t } = useTranslation();
   const meta = CHAIN_META[chain.chainId] ?? { icon: "🔬", color: "#888" };
@@ -400,6 +410,10 @@ function ChainDetail({
               {lockReason ? (
                 <p className="talent-node__lock-reason">{lockReason}</p>
               ) : null}
+              {parameterInspector?.render(`research.tech.${tech.techId}`, {
+                title: translateBackend(tech.label),
+                currentEffect: `${progressDisplay}/${researchTarget}`,
+              })}
             </div>
 
             <div className="talent-node__action">

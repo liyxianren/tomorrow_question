@@ -82,15 +82,31 @@ class V2FeatureRulesTests(unittest.TestCase):
     def test_settlement_advances_ideology_and_unlocks_milestone(self) -> None:
         snapshot = build_snapshot(GamePhase.SETTLEMENT)
         prussia = get_player(snapshot, "player-3")
-        prussia.national_income = 10
+        prussia.national_income = 20
+        prussia.income_allocation_ratio = {
+            "domesticMarket": 0.0,
+            "factory": 1.0,
+            "governmentFiscal": 0.0,
+        }
         prussia.ideology_levels["liberalism"] = 4
-        prussia.budget_pools["factory"] = 20
 
         resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
 
         updated_prussia = get_player(resolution.updated_snapshot, "player-3")
         self.assertEqual(updated_prussia.ideology_levels["liberalism"], 5)
         self.assertIn("产业自由化", updated_prussia.reforms)
+
+    def test_liberalism_does_not_rise_from_accumulated_factory_budget_without_new_investment(self) -> None:
+        snapshot = build_snapshot(GamePhase.SETTLEMENT)
+        prussia = get_player(snapshot, "player-3")
+        prussia.national_income = 0
+        prussia.ideology_levels["liberalism"] = 4
+        prussia.budget_pools["factory"] = 200
+
+        resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
+
+        updated_prussia = get_player(resolution.updated_snapshot, "player-3")
+        self.assertEqual(updated_prussia.ideology_levels["liberalism"], 3)
 
 
 if __name__ == "__main__":

@@ -45,7 +45,7 @@ type BuildingPositions = {
   market: { x: number; y: number };
 };
 
-const MAP_IMAGE_BY_COUNTRY: Record<string, string> = {
+export const MAP_IMAGE_BY_COUNTRY: Record<string, string> = {
   britain: "/images/map-uk.png",
   france: "/images/map-france.png",
   prussia: "/images/map-prussia.png",
@@ -149,7 +149,7 @@ export function useMapViewState({
   };
 }
 
-function buildBuildingDefs(
+export function buildBuildingDefs(
   phase: GamePhase | null,
   playerState: PlayerState | null,
   countryId: string,

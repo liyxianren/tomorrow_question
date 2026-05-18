@@ -19,6 +19,7 @@ type GameMapViewProps = {
   onModalClose: () => void;
   bottomDock: ReactNode;
   inlineContent?: ReactNode;
+  showBackLink?: boolean;
 };
 
 export function GameMapView({
@@ -33,12 +34,15 @@ export function GameMapView({
   onModalClose,
   bottomDock,
   inlineContent,
+  showBackLink = true,
 }: GameMapViewProps) {
   const { t } = useTranslation();
   return (
     <div className="game-map-view" data-testid="game-map-view">
       <aside className="game-map-sidebar">
-        <Link className="game-map-sidebar__back" to="/lobby">{t("common:backToLobby")}</Link>
+        {showBackLink ? (
+          <Link className="game-map-sidebar__back" to="/lobby">{t("common:backToLobby")}</Link>
+        ) : null}
         <div className="game-map-sidebar__info">
           {situationBar}
         </div>
