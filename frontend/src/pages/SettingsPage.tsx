@@ -114,6 +114,14 @@ const IDEOLOGY_LABELS: Array<{ key: string; label: string }> = [
   { key: "nationalism", label: i18n.t("game:ideology.nationalism") },
 ];
 
+const TECH_LABELS: Record<string, string> = {
+  spinning_jenny: "珍妮纺纱机",
+  lathe: "车床",
+  watt_engine: "瓦特蒸汽机",
+  power_generation: "发电技术",
+  combustion_engine: "内燃机",
+};
+
 const CONFIG_FILE_LABELS: Record<string, string> = {
   "abilities.json": i18n.t("pages:settings.configFiles.abilities.json"),
   "countries.json": i18n.t("pages:settings.configFiles.countries.json"),
@@ -212,6 +220,12 @@ function formatFormulaNumber(value: number | null): string {
   return value.toFixed(2).replace(/\.?0+$/, "");
 }
 
+function formatTechRequirement(value: string | string[] | null): string {
+  if (!value) return "无";
+  const techIds = Array.isArray(value) ? value : [value];
+  return techIds.map((techId) => TECH_LABELS[techId] ?? techId).join(" + ");
+}
+
 function getBudgetFormulaContext(data: SettingsPayload): BudgetFormulaContext {
   const workspace = data.decisionSandbox?.decisionWorkspace;
   const phase1Economy = workspace?.phase1Economy;
@@ -301,7 +315,7 @@ function FormulaCard({
           ))}
         </div>
       ) : null}
-      <span className="settings-formula-source">{source}</span>
+      <span className="settings-formula-source">规则位置：{source}</span>
     </article>
   );
 }
@@ -605,7 +619,7 @@ export function SettingsPage() {
               <strong>当前实现最重要的三个口径</strong>
               <span>国内市场池当前不是收入回流池，市场卖货收入不会按比例进入国内市场池。</span>
               <span>政府财政有“真实财政池”和“决策显示池”两层；每回合 8 点政策专项额度不结转、不存入真实国库。</span>
-              <span>工厂升级当轮可用；新建/扩建先进产能进入 pending，结算后才转成下回合真实产能。</span>
+              <span>工厂升级当轮可用；新建/扩建先进产能会先排队，结算后才转成下回合真实产能。</span>
             </div>
           </div>
 
@@ -628,16 +642,14 @@ export function SettingsPage() {
                 <tbody>
                   {budgetFormula.productionModes.map((mode) => (
                     <tr key={mode.mode}>
-                      <td>{mode.label} <code>{mode.mode}</code></td>
+                      <td>{mode.label}</td>
                       <td>{mode.currentCapacity}</td>
                       <td>{mode.outputRatio}x</td>
                       <td>{formatFormulaNumber(mode.demandCoefficient)}</td>
                       <td>{mode.buildCost === null ? "无" : mode.buildCost}</td>
                       <td>{mode.upgradeCost === null ? "无" : mode.upgradeCost}</td>
                       <td>
-                        {mode.requiredTech
-                          ? Array.isArray(mode.requiredTech) ? mode.requiredTech.join(" + ") : mode.requiredTech
-                          : mode.isAvailable ? "无" : "未配置"}
+                        {formatTechRequirement(mode.requiredTech)}
                       </td>
                     </tr>
                   ))}
@@ -656,14 +668,14 @@ export function SettingsPage() {
               ]}
               explanation="市场阶段只负责把卖货结果换成国家收入；这笔钱不会立刻变成可花预算，要等财政结算阶段分账。"
               details={[
-                "市场阶段结束时，系统写入 domesticSalesRevenue、overseasSalesRevenue、nationalIncome 三个结果字段。",
+                "市场阶段结束时，系统会记录国内销售额、海外销售额和国家收入三个结果。",
                 "当前殖民地收入在结算中是 0；控制区域不额外增加国家收入。",
                 "国家收入只是本轮待分账收入，不等同于政府财政，也不等同于三个预算池总和。",
               ]}
               examples={[
                 "例：国内卖 10 件 × 4 = 40，海外卖 5 件 × 6 = 30，则国家收入 = 70。",
               ]}
-              source="backend/app/modules/rules/market.py::_apply_phase1_market"
+              source="市场出售结算"
             />
             <FormulaCard
               title="2. 国内市场 / 民间购买力池"
@@ -680,27 +692,27 @@ export function SettingsPage() {
               examples={[
                 `当前基线国内市场池 = ${budgetFormula.currentPools.domesticMarket}；即使国家收入为 70，结算新增仍是 0。`,
               ]}
-              source="backend/app/modules/rules/settlement.py::_allocate_income_phase1"
+              source="财政结算分账"
               tone="warning"
             />
             <FormulaCard
               title="3. 工厂预算池"
               formula={[
                 "有效权重 = 工厂权重 + 政府财政权重",
-                "新增工厂预算 = floor(国家收入 × 工厂权重 / 有效权重)",
+                "新增工厂预算 = 向下取整(国家收入 × 工厂权重 / 有效权重)",
                 "下回合工厂预算 = 当前工厂预算 + 新增工厂预算",
               ]}
-              explanation="工厂预算用于下回合生产、工厂增加和产业升级。floor 表示向下取整，所以小数部分不会进入工厂预算。"
+              explanation="工厂预算用于下回合生产、工厂增加和产业升级。这里使用向下取整，所以小数部分不会进入工厂预算。"
               details={[
-                "结算时会忽略 domesticMarket 权重，只拿 factory 和 governmentFiscal 两个权重计算有效权重。",
+                "结算时会忽略国内市场权重，只拿工厂和政府两个权重计算有效权重。",
                 "工厂预算新增使用向下取整，余数不会丢失，而是由政府财政承接。",
                 "工厂预算会被生产投料、工厂增加、新建工厂、产业升级、工厂行动共同消耗。",
               ]}
               examples={[
                 `当前有效权重 = ${formatFormulaNumber(budgetFormula.factoryWeight)} + ${formatFormulaNumber(budgetFormula.governmentWeight)} = ${formatFormulaNumber(budgetFormula.effectiveWeight)}。`,
-                "例：国家收入 51，工厂权重 3，政府权重 3，则工厂新增 floor(51×3/6)=25，政府新增 26。",
+                "例：国家收入 51，工厂权重 3，政府权重 3，则工厂新增向下取整(51×3/6)=25，政府新增 26。",
               ]}
-              source="backend/app/modules/rules/settlement.py::_allocate_income_phase1"
+              source="财政结算分账"
             />
             <FormulaCard
               title="4. 政府财政池"
@@ -717,14 +729,14 @@ export function SettingsPage() {
               examples={[
                 "例：国家收入 51，工厂新增 25，则政府财政新增 26；不是 25.5，也不是四舍五入。",
               ]}
-              source="backend/app/modules/rules/settlement.py::_allocate_income_phase1"
+              source="财政结算分账"
             />
             <FormulaCard
               title="5. 国内成交与价格"
               formula={[
                 "国内成交 = min(投放量, 库存, 国内需求, 国内容量)",
                 "国内需求 = Σ(各路线产能 × 需求系数)",
-                "国内最终价格 = clamp(供需浮动价 + 国内价格加成, 1, 国内价格上限)",
+                "国内最终价格 = 限制在 1 到价格上限之间(供需浮动价 + 国内价格加成)",
               ]}
               explanation={`当前基线：国内容量 ${formatFormulaNumber(budgetFormula.domesticCapacity)}，国内需求 ${formatFormulaNumber(budgetFormula.domesticDemand)}，国内价格上限 ${formatFormulaNumber(budgetFormula.domesticPriceCeiling)}。`}
               details={[
@@ -735,13 +747,13 @@ export function SettingsPage() {
               examples={[
                 "例：库存 20、投放 12、需求 8.5、国内容量 10，则国内成交最多是 8.5，提交侧通常按 8 检查。",
               ]}
-              source="backend/app/modules/rules/market.py::_apply_phase1_market"
+              source="国内市场出售"
             />
             <FormulaCard
               title="6. 海外成交与价格"
               formula={[
                 "海外成交受库存、海外容量、区域准入、路线可达性和竞争奖励限制",
-                "海外单价 = clamp(floor(均衡价 × 区域倍率) + 海外价格加成 + 竞争价格奖励, 1, 海外价格上限)",
+                "海外单价 = 限制在 1 到海外价格上限之间(向下取整(均衡价 × 区域倍率) + 加成)",
               ]}
               explanation={`当前基线：海外容量 ${formatFormulaNumber(budgetFormula.overseasCapacity)}，海外价格上限 ${formatFormulaNumber(budgetFormula.overseasPriceCeiling)}。区域倍率在下方市场参数表可编辑。`}
               details={[
@@ -752,7 +764,7 @@ export function SettingsPage() {
               examples={[
                 "区域倍率例：均衡价 3，非洲倍率 1.2，则基础海外单价 int(3×1.2)=3。",
               ]}
-              source="backend/app/modules/rules/market.py::_apply_phase1_market"
+              source="海外市场出售"
             />
             <FormulaCard
               title="7. 下回合价格漂移"
@@ -770,46 +782,46 @@ export function SettingsPage() {
               examples={[
                 "当前统一商品漂移边界：min = 2 - 5 = -3，max = 12 - 5 = 7。",
               ]}
-              source="backend/app/modules/rules/settlement.py::_build_market_price_adjustments"
+              source="下回合价格趋势"
             />
             <FormulaCard
               title="8. 政策专项额度与行政力"
               formula={[
                 "政策专项额度 = 决策阶段显示政府财政 - 真实政府财政池",
                 "真实政府财政超支检查 = 总决策财政支出 - 可用政策专项额度 <= 真实政府财政池",
-                "行政力本回合可用 = 行政力上限 + 本回合购买 - 已排队改革消耗 - 已激活政策占用",
+                "行政力本回合可用 = 行政力上限 + 本回合购买 - 改革消耗 - 政策占用",
               ]}
               explanation={`当前基线：显示政府财政 ${budgetFormula.displayedGovernmentBudget}，真实政府财政池 ${budgetFormula.currentPools.governmentFiscal}，政策专项额度 ${budgetFormula.policyBudgetSupplement}；行政力上限 ${budgetFormula.adminCapacity}，购买 1 点行政力成本 ${formatFormulaNumber(budgetFormula.adminPurchaseCost)}。政策专项额度和行政力是决策阶段资源，不参与卖货收入分账。`}
               details={[
-                "当前 8 点专项额度会优先抵扣本轮政府、市场政策、行政力购买、政策激活、军事和外交支出；它不是只给 regular policy 用。",
-                "购买行政力会永久增加 baseAdminCapacity，并且本回合立刻可用。",
-                "改革消耗 baseAdminCapacity，是永久消耗；regular policy 占用 administrationCapacity，本轮结算后返还。",
-                "政策效果中 administrationCapacityDelta、armyCapDelta、domesticMarketCapacityDelta、overseasMarketCapacityDelta、productionCapacityDelta 等容量/上限类会永久留下；ratioDelta 和多数收入分配效果只影响本轮。",
+                "当前 8 点专项额度会优先抵扣本轮政府、市场政策、行政力购买、政策激活、军事和外交支出；它不是只给某一类政策用。",
+                "购买行政力会永久增加行政力上限，并且本回合立刻可用。",
+                "改革消耗行政力上限，是永久消耗；激活政策只是占用本回合行政力，本轮结算后返还。",
+                "政策效果里，容量和上限类通常会永久留下；收入分配类和多数临时加成只影响本轮。",
               ]}
               examples={[
                 "例：真实财政 10，专项 8，本轮花 10，则真实财政只扣 2；花 18 才扣完真实财政 10；花 19 会被拒绝。",
               ]}
-              source="backend/app/modules/game_state/budgeting.py · frontend/src/features/game/decisionShared.ts"
+              source="政府决策资源"
               tone="warning"
             />
             <FormulaCard
               title="9. 工厂增加与产业升级"
               formula={[
-                "新建工厂：pendingProductionCapacity[target] += 2，下回合生效",
-                "扩建工厂：pendingProductionCapacity[current] += 1，下回合生效",
-                "产业升级：sourceCapacity -= quantity，targetCapacity += quantity，当轮生效",
+                "新建工厂：目标工业路线产能 +2，下回合生效",
+                "扩建工厂：当前工业路线产能 +1，下回合生效",
+                "产业升级：上一阶段产能减少，下一阶段产能增加，当轮生效",
               ]}
               explanation="工厂增加是扩大某一工业阶段的总产能；产业升级是把上一阶段产能转化为下一阶段产能。两者都花工厂预算，但生效时点不同。"
               details={[
                 "当前升级链是 handicraft -> mechanized -> steam -> electrified，不支持跨级跳转。",
                 "机械化需要 spinning_jenny；蒸汽需要 watt_engine + lathe；电气需要 power_generation + combustion_engine。",
                 "升级在生产投料前执行，所以升级后的高级产能本回合可以参与生产；新建/扩建要等结算后转正。",
-                "政策或改革也可能通过 productionCapacityDelta 直接给产能，这类容量效果通常永久生效。",
+                "政策或改革也可能直接给产能，这类容量效果通常永久生效。",
               ]}
               examples={[
                 "例：把 2 点手工业升级到机械化，本回合手工业 -2、机械化 +2，并且这 2 点机械化本回合可生产。",
               ]}
-              source="backend/app/modules/rules/decision.py::_apply_phase1_production_plan · production.json · technology.json"
+              source="工厂建设与产业升级"
             />
             <FormulaCard
               title="10. 生产投料与商品产出"
@@ -822,12 +834,12 @@ export function SettingsPage() {
               details={[
                 "当前统一商品单位预算成本为 1，即每投 1 原材料消耗 1 工厂预算。",
                 "手工业产出 1x，机械化 2x，蒸汽 4x，电气 8x；高级路线会显著放大同样原材料的商品产出。",
-                "factory_overtime_shift 等效果可以临时提高产出倍率；factory_raw_procurement 可以花工厂预算立刻补原材料。",
+                "部分工厂政策可以临时提高产出倍率；原材料采购类行动可以花工厂预算立刻补原材料。",
               ]}
               examples={[
                 "例：蒸汽路线投 3 原材料，基础商品产出 = 3 × 4 = 12。",
               ]}
-              source="backend/app/modules/rules/decision.py::_apply_phase1_production_plan · phase1_economy.py"
+              source="工厂生产"
             />
             <FormulaCard
               title="11. 军事、外交与海外市场"
@@ -846,26 +858,26 @@ export function SettingsPage() {
               examples={[
                 "例：被其他国家封锁到目标区域的 requiredNodes 后，该区域海外销售、外交建交、市场竞争都会被阻断。",
               ]}
-              source="backend/config/balance/military_actions.json · backend/app/modules/rules/route_utils.py"
+              source="军事与航路"
             />
             <FormulaCard
               title="12. 研究设施、科技与解锁"
               formula={[
                 "研究进度/轮 = 研究设施总数 × 每设施进度",
-                "达到阈值后首发现者掷 D10：roll >= effectiveThreshold 成功",
-                "失败后 breakthroughAttempts +1，下次 effectiveThreshold -1",
+                "达到阈值后首发现者掷十面骰：骰点 >= 当前突破难度则成功",
+                "失败后下次突破难度 -1，进度保留",
               ]}
               explanation="研究是把政府财政转化为工业路线解锁的长期系统；科技不会直接给钱，但会打开更高级的工厂新建和产业升级路径。"
               details={[
-                "建研究院花政府财政；设置研究目标本身免费，只写 activeResearch。",
+                "建研究院花政府财政；设置研究目标本身免费，只是指定当前研究方向。",
                 "主线科技顺序是 spinning_jenny -> lathe -> watt_engine -> power_generation -> combustion_engine。",
                 "如果其他国家已经首发现，后续国家达到原始阈值即可解锁，不再掷骰。",
                 "科技解锁会被工厂模块检查；缺科技时高级路线不可新建或升级。",
               ]}
               examples={[
-                "例：2 个研究设施、每设施进度 1，则每轮给 activeResearch +2 进度。",
+                "例：2 个研究设施、每设施进度 1，则当前研究方向每轮 +2 进度。",
               ]}
-              source="backend/config/balance/technology.json · backend/app/modules/rules/settlement.py::_apply_phase3_research_progress"
+              source="研究与科技解锁"
             />
           </div>
         </div>
