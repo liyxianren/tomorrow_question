@@ -177,6 +177,7 @@ class PlayerState:
     unlocked_talents: list[str] = field(default_factory=list)
     used_abilities: list[str] = field(default_factory=list)
     temporary_effects: dict[str, Any] = field(default_factory=lambda: dict(DEFAULT_TEMPORARY_EFFECTS))
+    permanent_effects: dict[str, Any] = field(default_factory=dict)
     phase1_economy: Phase1EconomyState = field(default_factory=Phase1EconomyState)
 
     def to_payload(self) -> NationalStatePayload:
@@ -216,6 +217,7 @@ class PlayerState:
             "colonizationUnlocked": bool(self.colonization_unlocked),
             "usedAbilities": _copy_string_list(self.used_abilities),
             "temporaryEffects": _copy_any_mapping(self.temporary_effects),
+            "permanentEffects": _copy_any_mapping(self.permanent_effects),
             "phase1Economy": self.phase1_economy.to_payload(),
         }
 
@@ -258,6 +260,7 @@ class PlayerState:
             colonization_unlocked=bool(payload.get("colonizationUnlocked", False)),
             used_abilities=_copy_string_list(payload.get("usedAbilities", [])),
             temporary_effects=_copy_any_mapping(payload.get("temporaryEffects", DEFAULT_TEMPORARY_EFFECTS)),
+            permanent_effects=_copy_any_mapping(payload.get("permanentEffects", {})),
             phase1_economy=Phase1EconomyState.from_payload(payload.get("phase1Economy")),
         )
 

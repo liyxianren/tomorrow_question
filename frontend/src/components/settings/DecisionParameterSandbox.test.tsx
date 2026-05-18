@@ -17,6 +17,15 @@ const factoryActionCostSource: ParameterBindingSource = {
   value: 3,
 };
 
+const adminPurchaseCostSource: ParameterBindingSource = {
+  fileName: "politics.json",
+  path: ["administrationCost"],
+  pathLabel: "administrationCost",
+  label: "购买行政能力价格",
+  fieldLabel: "购买行政能力价格",
+  value: 10,
+};
+
 function createSandboxPayload(): DecisionSandboxPayload {
   return {
     countryId: "britain",
@@ -37,6 +46,12 @@ function createSandboxPayload(): DecisionSandboxPayload {
         title: "工厂调度：原料统购",
         currentEffect: "立刻补充本回合原材料。",
         sources: [factoryActionCostSource],
+      },
+      {
+        targetKey: "government.adminPurchase",
+        title: "购买行政力",
+        currentEffect: "玩家按 + 后会用政府财政永久增加行政力上限；新增行政力本回合立刻可用于改革、政策和市场政策。",
+        sources: [adminPurchaseCostSource],
       },
     ],
   };
@@ -68,6 +83,23 @@ describe("DecisionParameterSandbox", () => {
     await user.type(input, "5");
 
     expect(onSourceValueChange).toHaveBeenLastCalledWith(factoryActionCostSource, 5);
+  });
+
+  it("shows the permanent admin-purchase relationship in the settings sandbox", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <SandboxHarness onSourceValueChange={vi.fn()} />,
+    );
+
+    await user.click(screen.getByLabelText("议会厅"));
+    const adminPurchaseCard = screen.getByTestId("government-admin-purchase");
+    await user.click(within(adminPurchaseCard).getByRole("button", { name: "查看数值关系" }));
+
+    expect(within(adminPurchaseCard).getByText("本次点击变化")).toBeInTheDocument();
+    expect(within(adminPurchaseCard).getByText(/永久增加行政力上限/)).toBeInTheDocument();
+    expect(within(adminPurchaseCard).getAllByText(/控制永久购买 1 点行政力上限/).length).toBeGreaterThan(0);
+    expect(within(adminPurchaseCard).getByText(/politics\.json .* administrationCost/)).toBeInTheDocument();
   });
 });
 

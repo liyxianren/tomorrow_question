@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.modules.balance_config import get_balance_config
-from app.modules.game_state.models import DEFAULT_TEMPORARY_EFFECTS
+from app.modules.game_state.models import DEFAULT_PHASE1_CAPACITY_BY_MODE, DEFAULT_TEMPORARY_EFFECTS
 
 
 TEMPORARY_EFFECT_SPECS: dict[str, tuple[str, str, int]] = {
@@ -12,6 +12,61 @@ TEMPORARY_EFFECT_SPECS: dict[str, tuple[str, str, int]] = {
     "overseasMarketCapacityDelta": ("overseasMarketCapacityBonus", "overseasMarketCapacity", 0),
     "overseasPriceBonusDelta": ("overseasPriceBonus", "overseasPriceBonus", 0),
 }
+
+PERMANENT_MARKET_CAP_EFFECT_SPECS: dict[str, str] = {
+    "domesticMarketCapacityDelta": "domesticMarketCapacityBonus",
+    "overseasMarketCapacityDelta": "overseasMarketCapacityBonus",
+}
+
+PERMANENT_CAP_EFFECT_KEYS = frozenset(
+    {
+        "administrationCapacityDelta",
+        "armyCapDelta",
+        "domesticMarketCapacityDelta",
+        "handicraftCapacityDelta",
+        "overseasMarketCapacityDelta",
+        "productionCapacityDelta",
+    }
+)
+
+
+def split_permanent_capacity_effects(effects: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    if not isinstance(effects, dict):
+        return {}, {}
+    permanent: dict[str, Any] = {}
+    transient: dict[str, Any] = {}
+    for key, value in effects.items():
+        if key in PERMANENT_CAP_EFFECT_KEYS:
+            permanent[key] = value
+        else:
+            transient[key] = value
+    return permanent, transient
+
+
+def apply_permanent_capacity_effects(player_state, effects: dict[str, Any]) -> None:
+    if not isinstance(effects, dict):
+        return
+
+    for effect_key, permanent_key in PERMANENT_MARKET_CAP_EFFECT_SPECS.items():
+        if effect_key not in effects:
+            continue
+        current = int(player_state.permanent_effects.get(permanent_key, 0))
+        player_state.permanent_effects[permanent_key] = current + int(effects[effect_key])
+
+    if "administrationCapacityDelta" in effects:
+        delta = int(effects["administrationCapacityDelta"])
+        player_state.base_admin_capacity = max(0, int(player_state.base_admin_capacity) + delta)
+        player_state.administration_capacity = max(0, int(player_state.administration_capacity) + delta)
+
+    if "armyCapDelta" in effects:
+        player_state.army_cap = max(0, int(player_state.army_cap) + int(effects["armyCapDelta"]))
+
+    if "handicraftCapacityDelta" in effects:
+        _apply_production_capacity_delta(player_state, {"handicraft": int(effects["handicraftCapacityDelta"])})
+
+    production_capacity_delta = effects.get("productionCapacityDelta")
+    if isinstance(production_capacity_delta, dict):
+        _apply_production_capacity_delta(player_state, production_capacity_delta)
 
 
 def reset_temporary_effects(player_state) -> None:
@@ -129,6 +184,7 @@ def get_effect_bonus(player_state, temporary_key: str) -> int:
             if candidate_key == temporary_key:
                 current_value = int(player_state.income_summary.get(legacy_key, default_value))
                 break
+    current_value += int(player_state.permanent_effects.get(temporary_key, 0))
     current_value += _milestone_effect_bonus(player_state, temporary_key)
     current_value += _talent_effect_bonus(player_state, temporary_key)
     return current_value
@@ -145,6 +201,32 @@ def _apply_budget_delta(player_state, effects: dict[str, Any], effect_key: str, 
         0,
         int(player_state.budget_pools.get(budget_key, 0)) + int(effects[effect_key]),
     )
+
+
+def _apply_production_capacity_delta(player_state, capacity_delta: dict[str, Any]) -> None:
+    for raw_key, raw_delta in capacity_delta.items():
+        delta = int(raw_delta)
+        if str(raw_key) == "all":
+            target_keys = {
+                key
+                for key in (
+                    set(DEFAULT_PHASE1_CAPACITY_BY_MODE)
+                    | set(player_state.production_capacity)
+                    | set(player_state.phase1_economy.capacity_by_mode)
+                )
+                if key != "idle"
+            }
+        else:
+            target_keys = {str(raw_key)}
+        for cap_key in target_keys:
+            phase_current = int(player_state.phase1_economy.capacity_by_mode.get(cap_key, 0))
+            production_current = int(player_state.production_capacity.get(cap_key, phase_current))
+            next_capacity = max(0, production_current + delta)
+            player_state.production_capacity[cap_key] = next_capacity
+            player_state.phase1_economy.capacity_by_mode[cap_key] = max(
+                0,
+                phase_current + delta,
+            )
 
 
 def _milestone_effect_bonus(player_state, temporary_key: str) -> int:

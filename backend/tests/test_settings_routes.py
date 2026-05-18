@@ -90,7 +90,9 @@ class SettingsRoutesTests(unittest.TestCase):
         }
         for key in (
             "factory.construction.expansion.handicraft",
+            "government.adminPurchase",
             "government.strategy.market_subsidy",
+            "government.policy.raise_commercial_tax",
             "domestic.preview",
             "military.action.recruit_army",
             "research.facility",
@@ -102,6 +104,16 @@ class SettingsRoutesTests(unittest.TestCase):
         source = bindings["factory.construction.expansion.handicraft"]["sources"][0]
         self.assertEqual(source["fileName"], "production.json")
         self.assertEqual(source["path"], ["expansionCosts", "handicraft"])
+
+        admin_binding = bindings["government.adminPurchase"]
+        self.assertIn("永久增加行政力上限", admin_binding["currentEffect"])
+        self.assertEqual(admin_binding["sources"][0]["fileName"], "politics.json")
+        self.assertEqual(admin_binding["sources"][0]["path"], ["administrationCost"])
+
+        tax_binding = bindings["government.policy.raise_commercial_tax"]
+        self.assertIn("思潮", tax_binding["currentEffect"])
+        self.assertEqual(tax_binding["sources"][0]["fileName"], "decision_actions.json")
+        self.assertEqual(tax_binding["sources"][0]["path"][:2], ["regularPolicies", "raise_commercial_tax"])
 
     def test_post_settings_updates_numeric_values_by_json_path(self) -> None:
         response = self.client.post(

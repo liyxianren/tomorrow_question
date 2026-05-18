@@ -1,9 +1,16 @@
 from __future__ import annotations
 
 import random
+from collections.abc import Callable
 
 from app.modules.balance_config import get_balance_config
-from app.modules.game_state.effects import apply_effects, get_raw_materials_per_turn, reset_temporary_effects
+from app.modules.game_state.effects import (
+    apply_effects,
+    apply_permanent_capacity_effects,
+    get_raw_materials_per_turn,
+    reset_temporary_effects,
+    split_permanent_capacity_effects,
+)
 
 from .common import RuleResolution, clone_snapshot
 from .decision import _apply_reform_or_policy_effects, _reset_round_policy_state
@@ -30,7 +37,7 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
         player_state.national_income = int(player_state.national_income) + colony_income
 
         reset_temporary_effects(player_state)
-        _apply_active_policy_effects(player_state, balance)
+        policy_cleanups = _apply_active_policy_effects(player_state, balance)
 
         effective_income = int(player_state.national_income)
         allocation = _allocate_income_phase1(
@@ -91,9 +98,12 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
         research_summary = _apply_phase3_research_progress(player_state, updated_snapshot, balance)
         if research_summary:
             summary_lines.append(f"{player_state.country.value} {research_summary}")
+        for cleanup in policy_cleanups:
+            cleanup()
         # Policies are one-round decisions: they affect this settlement, then
         # the next decision workspace must start with refreshed admin points.
         _reset_round_policy_state(player_state, balance)
+        _reset_decision_action_ratio_state(player_state)
         player_state.phase1_economy.income_allocation_ratio = _phase1_ratio_from_legacy(
             player_state.income_allocation_ratio
         )
@@ -396,25 +406,65 @@ def _apply_permanent_effects(player_state, permanent: dict) -> None:
         )
 
 
-def _apply_active_policy_effects(player_state, balance) -> None:
-    """Apply this turn's active policy effects. Policies are single-turn and auto-cleared at next DECISION start."""
+def _apply_active_policy_effects(player_state, balance) -> list[Callable[[], None]]:
+    """Apply active policy effects for this settlement.
+
+    Capacity and cap effects are permanent by rule; other policy effects are
+    applied only for this settlement or as a one-time state delta before the
+    policy expires.
+    """
+    cleanup_callbacks: list[Callable[[], None]] = []
     for policy_id in list(player_state.active_policies):
         policy = balance.reforms.regular_policies.get(policy_id)
         if policy is None:
             continue
-        recurring_effects = {
-            key: value
-            for key, value in policy.effects.items()
-            if key != "ratioDelta"
-        }
-        _apply_reform_or_policy_effects(player_state, recurring_effects)
+        permanent_effects, transient_effects = split_permanent_capacity_effects(policy.effects)
+        apply_permanent_capacity_effects(player_state, permanent_effects)
+        transient_effects.pop("ratioDelta", None)
+        transient_effects.pop("permanent", None)
+        research_facility_delta = transient_effects.pop("researchFacilityDelta", None)
+        if isinstance(research_facility_delta, dict):
+            cleanup_callbacks.append(_apply_temporary_research_facility_delta(player_state, research_facility_delta))
+        if transient_effects:
+            _apply_reform_or_policy_effects(player_state, transient_effects)
         permanent = policy.effects.get("permanent") if isinstance(policy.effects, dict) else None
         if isinstance(permanent, dict):
             _apply_permanent_effects(player_state, permanent)
+    return cleanup_callbacks
+
+
+def _apply_temporary_research_facility_delta(player_state, facility_delta: dict) -> Callable[[], None]:
+    applied: dict[str, int] = {}
+    for key, raw_delta in facility_delta.items():
+        delta = int(raw_delta)
+        if delta == 0:
+            continue
+        facility_key = str(key)
+        before = int(player_state.research_facilities.get(facility_key, 0))
+        after = max(0, before + delta)
+        applied[facility_key] = after - before
+        player_state.research_facilities[facility_key] = after
+
+    def cleanup() -> None:
+        for facility_key, delta in applied.items():
+            player_state.research_facilities[facility_key] = max(
+                0,
+                int(player_state.research_facilities.get(facility_key, 0)) - int(delta),
+            )
+
+    return cleanup
 
 
 def _reverse_policy_ratio_effect(player_state, effects: dict) -> None:
     ratio_delta = effects.get("ratioDelta")
+    if not isinstance(ratio_delta, dict):
+        return
+    reversed_delta = {key: -float(value) for key, value in ratio_delta.items()}
+    _apply_reform_or_policy_effects(player_state, {"ratioDelta": reversed_delta})
+
+
+def _reset_decision_action_ratio_state(player_state) -> None:
+    ratio_delta = player_state.income_summary.pop("decisionActionRatioDelta", None)
     if not isinstance(ratio_delta, dict):
         return
     reversed_delta = {key: -float(value) for key, value in ratio_delta.items()}

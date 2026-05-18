@@ -569,14 +569,14 @@ def _build_parameter_bindings(
                 [("reforms.json", ["reforms", path_key, index], True)],
             )
 
-    for policy_id, policy in (reforms_cfg.get("regularPolicies") or {}).items():
+    for policy_id, policy in (decision_actions.get("regularPolicies") or {}).items():
         if not isinstance(policy, dict):
             continue
         add_binding(
             f"government.policy.{policy_id}",
             f"政府政策：{policy.get('label') or policy_id}",
             f"玩家激活后会占用本回合行政力，并在结算或本回合预览中改变收入分配、财政或思潮：{policy.get('description') or '政策效果。'}",
-            [("reforms.json", ["regularPolicies", str(policy_id)], True)],
+            [("decision_actions.json", ["regularPolicies", str(policy_id)], True)],
         )
 
     ability = workspace.get("nationalAbility")
@@ -588,6 +588,13 @@ def _build_parameter_bindings(
             f"玩家启用后会触发国家专属能力；通常每局次数有限：{ability.get('description') or '国家能力效果。'}",
             [("abilities.json", ["nationalAbilities", ability_id], True)],
         )
+
+    add_binding(
+        "government.adminPurchase",
+        "购买行政力",
+        "玩家按 + 后会用政府财政永久增加行政力上限；新增行政力本回合立刻可用于改革、政策和市场政策。",
+        [("politics.json", ["administrationCost"], False)],
+    )
 
     add_binding(
         "domestic.preview",

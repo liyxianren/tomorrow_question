@@ -433,10 +433,10 @@ def _normalize_decision_submission(payload: dict[str, object]) -> dict[str, Any]
     normalized["governmentPlan"]["techResearch"] = _normalize_tech_research_list(
         government_plan.get("techResearch") or []
     )
-    # Kept only for old clients/save payloads. Administrative capacity is no
-    # longer bought with fiscal budget; all government pressure lives in policy
-    # choices and reforms.
-    normalized["governmentPlan"]["adminPurchases"] = 0
+    normalized["governmentPlan"]["adminPurchases"] = _normalize_non_negative_int(
+        government_plan.get("adminPurchases", 0),
+        "governmentPlan.adminPurchases",
+    )
 
     raw_reforms = payload.get("reforms")
     if isinstance(raw_reforms, list):
@@ -755,6 +755,16 @@ def _normalize_point_purchase_list(value: object) -> list[dict[str, int | str]]:
     return normalized
 
 
+def _normalize_non_negative_int(value: object, field_name: str) -> int:
+    try:
+        return max(0, int(value or 0))
+    except (TypeError, ValueError) as exc:
+        raise PhaseSubmissionError(
+            ErrorCode.INVALID_SUBMISSION,
+            f"Decision submission.{field_name} must be an integer.",
+        ) from exc
+
+
 def _normalize_ability_selection(value: object) -> dict[str, str]:
     if not isinstance(value, dict):
         raise PhaseSubmissionError(
@@ -1023,6 +1033,8 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
     core_government_spend = 0
     market_regulation_spend = 0
     administration_spend = 0
+    admin_purchases = max(0, int(payload.get("governmentPlan", {}).get("adminPurchases", 0) or 0))
+    core_government_spend += admin_purchases * int(balance.politics.administration_cost)
     point_costs = POINT_PURCHASE_COSTS
     for purchase in payload.get("governmentPlan", {}).get("pointPurchases", []):
         point_type = str(purchase.get("pointType") or "")
@@ -1067,7 +1079,7 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
             continue
         administration_spend += int(reform.admin_cost)
 
-    available_administration = int(player_state.administration_capacity)
+    available_administration = int(player_state.administration_capacity) + admin_purchases
     if administration_spend > available_administration:
         raise PhaseSubmissionError(
             ErrorCode.INVALID_SUBMISSION,

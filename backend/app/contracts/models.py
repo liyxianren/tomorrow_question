@@ -123,6 +123,7 @@ class NationalStatePayload(TypedDict):
     establishedDiplomacy: list[str]
     usedAbilities: list[str]
     temporaryEffects: dict[str, Any]
+    permanentEffects: dict[str, Any]
     phase1Economy: Phase1EconomyPayload
 
 

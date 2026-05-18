@@ -19,11 +19,11 @@ describe("game i18n additions", () => {
       expect(translateBackend("全球通商")).toBe("Global Commerce");
       expect(translateBackend("民族复兴")).toBe("National Revival");
       expect(translateBackend("海外事务局")).toBe("Overseas Affairs Bureau");
-      expect(translateBackend("动用行政力组织本轮内需补贴，扩大国内承接量。")).toBe(
-        "Spend administrative power to organize domestic-demand subsidies this round, expanding domestic capacity.",
+      expect(translateBackend("动用行政力组织内需补贴，永久提高国内市场承接上限。")).toBe(
+        "Spend administrative power on domestic-demand subsidies, permanently increasing domestic market capacity.",
       );
-      expect(translateBackend("动用行政力协调贸易渠道，扩大本回合海外市场容量。")).toBe(
-        "Spend administrative power to coordinate trade channels, expanding overseas market capacity this round.",
+      expect(translateBackend("动用行政力协调贸易渠道，永久提高海外市场承接上限。")).toBe(
+        "Spend administrative power coordinating trade channels, permanently increasing overseas market capacity.",
       );
       expect(translateBackend("动用行政力调控本轮国内收购价格。")).toBe(
         "Spend administrative power to regulate domestic purchase prices this round.",
@@ -36,7 +36,7 @@ describe("game i18n additions", () => {
       expect(i18n.t("game:government.marketPolicyActions")).toBe("市场政策");
       expect(i18n.t("game:government.selectedMarketPolicies", { count: 2 })).toBe("已选 2 项");
       expect(i18n.t("game:government.strategy.tradePromotionDesc")).toBe(
-        "动用行政力协调贸易渠道，扩大本回合海外市场容量。",
+        "动用行政力协调贸易渠道，永久提高海外市场承接上限。",
       );
     });
 
@@ -44,7 +44,7 @@ describe("game i18n additions", () => {
       expect(i18n.t("game:government.marketPolicyActions")).toBe("Market Policies");
       expect(i18n.t("game:government.selectedMarketPolicies", { count: 2 })).toBe("2 selected");
       expect(i18n.t("game:government.strategy.tradePromotionDesc")).toBe(
-        "Spend administrative power to coordinate trade channels, expanding overseas market capacity this round.",
+        "Spend administrative power coordinating trade channels, permanently increasing overseas market capacity.",
       );
     });
   });

@@ -82,6 +82,11 @@
   color: #a8c8ff;
 }
 
+.dac__effect-tag--permanent {
+  background: rgba(149, 214, 176, 0.12);
+  color: #a7e5bc;
+}
+
 .dac__warning {
   font-size: 12px;
   line-height: 1.4;

@@ -144,6 +144,21 @@ describe("GamePhasePanelContent", () => {
     expect(screen.getByTestId("decision-step-tab-factory")).toHaveAttribute("aria-pressed", "true");
   });
 
+  it("lets players buy administrative power from the government panel", async () => {
+    renderPanel("decision");
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "下一步：政府政策" }));
+    const adminPurchase = screen.getByTestId("government-admin-purchase");
+
+    expect(adminPurchase).toHaveTextContent("购买行政力");
+    expect(adminPurchase).toHaveTextContent("把政府财政永久转为行政力上限");
+    await user.click(within(adminPurchase).getByRole("button", { name: "购买行政力" }));
+
+    expect(readDraftJson().governmentPlan.adminPurchases).toBe(1);
+    expect(screen.getByTestId("government-resource-strip")).toHaveTextContent("4 / 4");
+  });
+
   it("renders factory panel with the header", () => {
     renderPanel("decision");
 

@@ -149,6 +149,31 @@ class PhaseSubmissionServiceTests(unittest.TestCase):
         )
         self.assertEqual(britain.military_points, 0, "submission validation must not consume active events early")
 
+    def test_decision_submission_preserves_admin_purchase_quantity(self) -> None:
+        room = build_room()
+        game, snapshot = build_snapshot()
+        assign_phase_deadline(
+            snapshot,
+            started_at=datetime(2026, 3, 29, 12, 0, tzinfo=UTC),
+            duration=timedelta(minutes=2),
+        )
+
+        payload = empty_decision_payload()
+        payload["governmentPlan"]["adminPurchases"] = 1
+
+        result = PhaseSubmissionService().submit(
+            room=room,
+            game=game,
+            snapshot=snapshot,
+            phase_state=PhaseSubmissionState.from_snapshot(snapshot),
+            player_id="player-1",
+            requested_phase=GamePhase.DECISION,
+            payload=payload,
+            submitted_at=datetime(2026, 3, 29, 12, 1, tzinfo=UTC),
+        )
+
+        self.assertEqual(result.player_turn_input.payload["governmentPlan"]["adminPurchases"], 1)
+
     def test_submit_rejects_phase_mismatch(self) -> None:
         room = build_room()
         game, snapshot = build_snapshot()

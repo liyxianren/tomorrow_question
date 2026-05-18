@@ -4,7 +4,12 @@ from decimal import Decimal
 from typing import Any
 
 from app.modules.balance_config import get_balance_config
-from app.modules.game_state.effects import apply_effects, get_talent_effect_total
+from app.modules.game_state.effects import (
+    apply_effects,
+    apply_permanent_capacity_effects,
+    get_talent_effect_total,
+    split_permanent_capacity_effects,
+)
 from app.modules.game_state.budgeting import (
     GOVERNMENT_POLICY_BUDGET_SUPPLEMENT,
     decision_phase_government_fiscal_budget,
@@ -336,12 +341,8 @@ def _apply_factory_actions(player_state, factory_plan: dict[str, Any], balance) 
             continue
         player_state.budget_pools["factory"] = max(0, int(player_state.budget_pools.get("factory", 0)) - cost)
         spent += cost
-        apply_effects(player_state, action.effects)
-        for pool_key, delta in action.ratio_delta.items():
-            player_state.income_allocation_ratio[pool_key] = max(
-                0.0,
-                float(player_state.income_allocation_ratio.get(pool_key, 0.0)) + float(delta),
-            )
+        _apply_decision_action_effects(player_state, action.effects)
+        _apply_decision_action_ratio_delta_once(player_state, action.ratio_delta)
     return spent
 
 
@@ -361,7 +362,7 @@ def _apply_domestic_market_plan(player_state, domestic_plan: dict[str, Any], bal
         if action is None or action_locked_reason(player_state, action_id) is not None or remaining_budget - spent < action.budget_pool_cost:
             continue
         spent += int(action.budget_pool_cost)
-        apply_effects(player_state, action.effects)
+        _apply_decision_action_effects(player_state, action.effects)
 
     player_state.budget_pools["domesticMarket"] = max(0, remaining_budget - spent)
     return spent
@@ -387,6 +388,19 @@ def _apply_government_plan(player_state, government_plan: dict[str, Any], balanc
     available_budget = decision_phase_government_fiscal_budget(player_state)
 
     # Process point purchases (tech/military)
+    admin_purchase_cost = int(balance.politics.administration_cost)
+    admin_purchases = max(0, int(government_plan.get("adminPurchases", 0) or 0))
+    if admin_purchase_cost >= 0 and admin_purchases > 0:
+        affordable_admin = (
+            admin_purchases
+            if admin_purchase_cost == 0
+            else min(admin_purchases, max(0, available_budget - spent) // admin_purchase_cost)
+        )
+        if affordable_admin > 0:
+            spent += affordable_admin * admin_purchase_cost
+            player_state.base_admin_capacity = int(player_state.base_admin_capacity) + affordable_admin
+            player_state.administration_capacity = int(player_state.administration_capacity) + affordable_admin
+
     point_costs = POINT_PURCHASE_COSTS
     for purchase in government_plan.get("pointPurchases") or []:
         point_type = str(purchase.get("pointType", ""))
@@ -401,7 +415,6 @@ def _apply_government_plan(player_state, government_plan: dict[str, Any], balanc
                 player_state.tech_points = int(player_state.tech_points) + affordable
 
     # Process strategy selections (government actions)
-    from app.modules.game_state.effects import apply_effects
     for selection in government_plan.get("strategySelections") or []:
         action_id = str(selection.get("actionId") or "")
         action, _is_market_regulation = _resolve_government_strategy_action(balance, action_id)
@@ -418,13 +431,9 @@ def _apply_government_plan(player_state, government_plan: dict[str, Any], balanc
         if admin_cost > 0:
             player_state.administration_capacity = int(player_state.administration_capacity) - admin_cost
 
-        apply_effects(player_state, action.effects)
+        _apply_decision_action_effects(player_state, action.effects)
         _record_government_market_policy_effect(player_state, action.effects)
-        for pool_key, delta in action.ratio_delta.items():
-            player_state.income_allocation_ratio[pool_key] = max(
-                0.0,
-                float(player_state.income_allocation_ratio.get(pool_key, 0.0)) + float(delta),
-            )
+        _apply_decision_action_ratio_delta_once(player_state, action.ratio_delta)
 
     actual_fiscal_spend = max(0, spent - decision_budget_supplement)
     player_state.budget_pools["governmentFiscal"] = max(
@@ -489,7 +498,7 @@ def _apply_military_plan(
         spent += budget_cost
         if action_id == "recruit_army":
             army_current += 1
-        apply_effects(player_state, action.effects)
+        _apply_decision_action_effects(player_state, action.effects)
 
     if snapshot is not None:
         _apply_naval_deployment(player_state, military_plan, snapshot, balance)
@@ -631,7 +640,7 @@ def _apply_ability_selection(player_state, selection: Any, balance) -> None:
             player_state.production_capacity["idle"] = 0
             player_state.production_capacity["handicraft"] = int(player_state.production_capacity.get("handicraft", 0)) + idle_capacity
 
-    apply_effects(player_state, effects)
+    _apply_decision_action_effects(player_state, effects)
     player_state.used_abilities.append(ability_id)
 
 
@@ -640,6 +649,27 @@ def _clamp_ideology_level(value: int, balance) -> int:
         int(balance.politics.ideology_min),
         min(int(balance.politics.ideology_max), int(value)),
     )
+
+
+def _apply_decision_action_effects(player_state, effects: dict[str, Any]) -> None:
+    permanent_effects, transient_effects = split_permanent_capacity_effects(effects)
+    apply_permanent_capacity_effects(player_state, permanent_effects)
+    apply_effects(player_state, transient_effects)
+
+
+def _apply_decision_action_ratio_delta_once(player_state, ratio_delta: dict[str, Any]) -> None:
+    if not isinstance(ratio_delta, dict):
+        return
+    accumulated = dict(player_state.income_summary.get("decisionActionRatioDelta") or {})
+    for raw_key, raw_delta in ratio_delta.items():
+        key = _normalize_reform_ratio_key(str(raw_key))
+        delta = float(raw_delta)
+        player_state.income_allocation_ratio[key] = max(
+            0.0,
+            float(player_state.income_allocation_ratio.get(key, 0.0)) + delta,
+        )
+        accumulated[key] = float(accumulated.get(key, 0.0)) + delta
+    player_state.income_summary["decisionActionRatioDelta"] = accumulated
 
 
 _REFORM_RATIO_KEY_ALIASES = {
@@ -807,8 +837,13 @@ def _apply_reform_plan(player_state, payload: dict[str, Any], balance) -> tuple[
                 errors.append(f"改革「{reform.label}」需要先完成前置改革：{'、'.join(missing)}")
                 continue
 
-        player_state.administration_capacity = (
-            int(player_state.administration_capacity) - int(reform.admin_cost)
+        player_state.base_admin_capacity = max(
+            0,
+            int(player_state.base_admin_capacity) - int(reform.admin_cost),
+        )
+        player_state.administration_capacity = max(
+            0,
+            int(player_state.administration_capacity) - int(reform.admin_cost),
         )
         player_state.completed_reforms.append(reform_id)
         _apply_reform_or_policy_effects(player_state, reform.effects)

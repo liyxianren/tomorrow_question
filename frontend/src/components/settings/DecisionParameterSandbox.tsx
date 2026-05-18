@@ -226,6 +226,9 @@ function describeSourceImpact(source: ParameterBindingSource): string {
   if (pathText.includes("expansionCosts") || pathText.includes("newFactoryCosts") || pathText.includes("upgradeCosts")) {
     return `${label}：控制玩家点击这个工厂建设按钮要花多少工厂预算；调高会放慢工业扩张，调低会更容易堆产能。`;
   }
+  if (last === "administrationCost") {
+    return `${label}：控制永久购买 1 点行政力上限要花多少政府财政；调高会限制改革和政策连点，调低会让政府行动更宽松。`;
+  }
   if (last === "budgetPoolCost" || last === "budgetCost" || last === "cost" || last === "unitBudgetCost") {
     return `${label}：控制玩家点击这个按钮要花多少预算；调高会更难选择，调低会更容易连续使用。`;
   }
@@ -251,10 +254,10 @@ function describeSourceImpact(source: ParameterBindingSource): string {
     return `${label}：控制出售价格或价格倍率；调高通常会提高卖货收入。`;
   }
   if (last.includes("ideology") || pathText.includes("ideology") || pathText.includes("Ideology")) {
-    return `${label}：控制思潮压力变化；正数会推高对应思潮，负数会缓和风险。`;
+    return `${label}：控制思潮压力变化；正数会永久推高对应思潮，负数会永久缓和风险。`;
   }
   if (last === "ratioDelta" || pathText.includes("ratioDelta")) {
-    return `${label}：控制收入分配变化；会改变钱流向消费、工厂预算或政府财政的比例。`;
+    return `${label}：控制本轮收入分配变化；会临时改变钱流向消费、工厂预算或政府财政的比例。`;
   }
   if (last === "researchFacilityCost" || pathText.includes("researchFacility")) {
     return `${label}：控制研究院成本或每回合研究推进速度；影响玩家研究节奏。`;

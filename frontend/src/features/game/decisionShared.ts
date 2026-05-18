@@ -128,9 +128,11 @@ function calculateNonResearchSpendByPool(
     const action = workspace.domesticMarketActions.find((item) => item.actionId === selection.actionId);
     return sum + (action?.cost ?? 0);
   }, 0);
+  const adminPurchaseSpend = Math.max(0, draft.governmentPlan.adminPurchases ?? 0)
+    * (workspace.governmentReforms?.adminPurchaseCost ?? 0);
   const governmentPurchaseSpend = draft.governmentPlan.pointPurchases.reduce((sum, purchase) => {
     return sum + purchase.quantity * workspace.governmentActions.pointPurchaseCosts[purchase.pointType];
-  }, 0);
+  }, adminPurchaseSpend);
   const governmentStrategySpend = draft.governmentPlan.strategySelections.reduce((sum, selection) => {
     const action = workspace.governmentActions.strategies.find((item) => item.actionId === selection.actionId);
     return sum + (action?.cost ?? 0);
@@ -437,9 +439,11 @@ export function calculateGovernmentFiscalState(
     workspace.budgetPools.governmentFiscal + factoryActionGovernmentBudgetDelta,
   );
   const policyBudgetSupplement = Math.max(0, effectiveGovernmentBudget - baseGovernmentBudget);
+  const adminPurchaseSpend = Math.max(0, draft.governmentPlan.adminPurchases ?? 0)
+    * (workspace.governmentReforms?.adminPurchaseCost ?? 0);
   const governmentPurchaseSpend = draft.governmentPlan.pointPurchases.reduce((sum, purchase) => {
     return sum + purchase.quantity * workspace.governmentActions.pointPurchaseCosts[purchase.pointType];
-  }, 0);
+  }, adminPurchaseSpend);
   const coreGovernmentStrategySpend = draft.governmentPlan.strategySelections.reduce((sum, selection) => {
     const action = workspace.governmentActions.strategies.find((item) => item.actionId === selection.actionId);
     return isMarketRegulationAction(action) ? sum : sum + (action?.cost ?? 0);
@@ -824,6 +828,7 @@ const EFFECT_LABELS: Record<string, string> = {
   overseasMarketCapacityDelta: i18n.t("game:effect.overseasMarketCapacityDelta", "海外容量"),
   overseasPriceBonusDelta: i18n.t("game:effect.overseasPriceBonusDelta", "海外价格"),
   militaryPointsDelta: i18n.t("game:effect.militaryPointsDelta", "军事点"),
+  armyCapDelta: i18n.t("game:effect.armyCapDelta", "军事力量上限"),
   controlledRegionsDelta: i18n.t("game:effect.controlledRegionsDelta", "控制区域"),
   factoryBudgetDelta: i18n.t("game:effect.factoryBudgetDelta", "工厂预算"),
   governmentFiscalBudgetDelta: i18n.t("game:effect.governmentFiscalBudgetDelta", "政府预算"),
@@ -840,12 +845,18 @@ const EFFECT_LABELS: Record<string, string> = {
 };
 
 const TEMPORARY_EFFECT_KEYS = new Set([
-  "domesticMarketCapacityDelta",
   "domesticPriceBonusDelta",
-  "overseasMarketCapacityDelta",
   "overseasPriceBonusDelta",
   "phase1ProductionRawCapacityDelta",
   "productionOutputMultiplier",
+]);
+
+const PERMANENT_EFFECT_KEYS = new Set([
+  "administrationCapacityDelta",
+  "armyCapDelta",
+  "domesticMarketCapacityDelta",
+  "handicraftCapacityDelta",
+  "overseasMarketCapacityDelta",
 ]);
 
 const PERCENT_EFFECT_KEYS = new Set([
@@ -879,6 +890,7 @@ export interface EffectMetric {
   value: string;
   tone?: "positive" | "negative";
   temporary?: boolean;
+  permanent?: boolean;
 }
 
 export function buildEffectMetrics(
@@ -894,6 +906,7 @@ export function buildEffectMetrics(
       if (!label) continue;
       const tone = value > 0 ? "positive" : value < 0 ? "negative" : undefined;
       const temporary = TEMPORARY_EFFECT_KEYS.has(key);
+      const permanent = PERMANENT_EFFECT_KEYS.has(key);
       const displayValue = key === "productionOutputMultiplier"
         ? `x${value}`
         : PERCENT_EFFECT_KEYS.has(key)
@@ -901,7 +914,7 @@ export function buildEffectMetrics(
           ? `-${Math.abs(value)}%`
           : `${value > 0 ? "+" : ""}${value}%`
         : formatSignedValue(value);
-      metrics.push({ label, value: displayValue, tone, temporary });
+      metrics.push({ label, value: displayValue, tone, temporary, permanent });
     } else if (typeof value === "object" && value !== null) {
       const nestedLabels = NESTED_EFFECT_LABELS[key];
       for (const [subKey, subValue] of Object.entries(value)) {

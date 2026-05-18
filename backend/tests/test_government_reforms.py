@@ -21,8 +21,11 @@ sys.path.insert(0, str(ROOT))
 from app.contracts.enums import CountryCode, GamePhase
 from app.modules.balance_config import get_balance_config
 from app.modules.game_state.factory import create_game, create_initial_snapshot
+from app.modules.game_state.effects import get_effect_bonus, reset_temporary_effects
 from app.modules.game_state.models import GameSnapshot, PlayerState
 from app.modules.rules.decision import (
+    _apply_government_plan,
+    _apply_military_plan,
     _apply_policy_plan,
     _apply_reform_plan,
     resolve_decision_phase,
@@ -273,6 +276,118 @@ class SettlementEffectsTests(unittest.TestCase):
         updated = _get_player(resolution.updated_snapshot, "player-1")
 
         self.assertEqual(updated.tech_points, 6)
+
+    def test_expand_army_policy_permanently_increases_army_cap_and_expires(self) -> None:
+        balance = get_balance_config()
+        snapshot = _build_snapshot()
+        player = _get_player(snapshot, "player-1")
+        player.administration_capacity = 2
+        player.base_admin_capacity = 2
+        player.budget_pools["governmentFiscal"] = 100
+        initial_army_cap = int(player.army_cap)
+
+        activated = _apply_policy_plan(player, {"activatePolicies": ["expand_army"]}, balance)
+
+        self.assertEqual(activated, ["expand_army"])
+        self.assertEqual(player.budget_pools["governmentFiscal"], 92)
+        resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+
+        self.assertEqual(updated.army_cap, initial_army_cap + 1)
+        self.assertEqual(updated.active_policies, [])
+        self.assertEqual(updated.administration_capacity, 2)
+
+    def test_private_research_policy_facility_bonus_is_one_round_only(self) -> None:
+        balance = get_balance_config()
+        snapshot = _build_snapshot()
+        player = _get_player(snapshot, "player-1")
+        player.completed_reforms = ["patent_system"]
+        player.administration_capacity = 2
+        player.base_admin_capacity = 2
+        player.budget_pools["governmentFiscal"] = 100
+        player.active_research = "spinning_jenny"
+        player.research_progress = {"spinning_jenny": 0}
+        player.research_facilities = {}
+
+        activated = _apply_policy_plan(player, {"activatePolicies": ["private_research"]}, balance)
+
+        self.assertEqual(activated, ["private_research"])
+        resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+
+        self.assertEqual(updated.research_progress["spinning_jenny"], 1)
+        self.assertEqual(updated.research_facilities.get("academy", 0), 0)
+        self.assertEqual(updated.active_policies, [])
+
+    def test_policy_ideology_delta_is_permanent_once(self) -> None:
+        balance = get_balance_config()
+        snapshot = _build_snapshot()
+        player = _get_player(snapshot, "player-1")
+        player.administration_capacity = 2
+        player.base_admin_capacity = 2
+        player.ideology_levels = {"liberalism": 2, "egalitarianism": 3, "nationalism": 1}
+        player.national_income = 0
+
+        activated = _apply_policy_plan(player, {"activatePolicies": ["raise_commercial_tax"]}, balance)
+
+        self.assertEqual(activated, ["raise_commercial_tax"])
+        resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+
+        # Natural low-domestic-demand progression adds +1 egalitarianism in
+        # this setup; the policy's own +1 is a permanent one-time change.
+        self.assertEqual(updated.ideology_levels["egalitarianism"], 5)
+        self.assertEqual(updated.active_policies, [])
+        self.assertEqual(updated.administration_capacity, 2)
+
+    def test_military_market_capacity_delta_is_permanent_cap_growth(self) -> None:
+        balance = get_balance_config()
+        snapshot = _build_snapshot()
+        player = _get_player(snapshot, "player-1")
+        player.budget_pools["governmentFiscal"] = 100
+        initial_bonus = get_effect_bonus(player, "overseasMarketCapacityBonus")
+
+        spent = _apply_military_plan(
+            player,
+            {"militaryActions": [{"actionId": "naval_drill"}], "diplomacyActions": []},
+            balance,
+            snapshot,
+        )
+
+        self.assertEqual(spent, 4)
+        self.assertEqual(get_effect_bonus(player, "overseasMarketCapacityBonus"), initial_bonus + 1)
+        reset_temporary_effects(player)
+        self.assertEqual(get_effect_bonus(player, "overseasMarketCapacityBonus"), initial_bonus + 1)
+
+    def test_government_strategy_ratio_is_one_round_but_capacity_is_permanent(self) -> None:
+        balance = get_balance_config()
+        snapshot = _build_snapshot()
+        player = _get_player(snapshot, "player-1")
+        player.administration_capacity = 5
+        player.base_admin_capacity = 5
+        player.budget_pools["governmentFiscal"] = 100
+        player.national_income = 70
+        player.income_allocation_ratio = {
+            "domesticMarket": 3.0,
+            "factory": 3.0,
+            "governmentFiscal": 4.0,
+        }
+
+        spent, _ = _apply_government_plan(
+            player,
+            {"strategySelections": [{"actionId": "domestic_stimulus"}]},
+            balance,
+        )
+
+        self.assertEqual(spent, 10)
+        self.assertAlmostEqual(player.income_allocation_ratio["domesticMarket"], 3.15)
+        self.assertEqual(get_effect_bonus(player, "domesticMarketCapacityBonus"), 3)
+        resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
+        updated = _get_player(resolution.updated_snapshot, "player-1")
+
+        self.assertEqual(updated.income_allocation_ratio["domesticMarket"], 3.0)
+        self.assertEqual(updated.income_allocation_ratio["governmentFiscal"], 4.0)
+        self.assertEqual(get_effect_bonus(updated, "domesticMarketCapacityBonus"), 3)
 
 
 if __name__ == "__main__":

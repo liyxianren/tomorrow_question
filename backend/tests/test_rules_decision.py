@@ -176,6 +176,81 @@ class DecisionRulesTests(unittest.TestCase):
         self.assertEqual(updated_britain.military_points, 0)
         self.assertEqual(updated_britain.army.get("infantry", 0), starting_infantry + 1)
 
+    def test_government_plan_can_buy_admin_and_spend_it_same_round(self) -> None:
+        snapshot = build_snapshot()
+        britain = get_player(snapshot, "player-1")
+        britain.budget_pools = {"domesticMarket": 12, "factory": 12, "governmentFiscal": 18}
+        britain.administration_capacity = 0
+        britain.base_admin_capacity = 0
+
+        resolution = resolve_decision_phase(
+            snapshot=snapshot,
+            turn_inputs=[
+                build_turn_input(
+                    "player-1",
+                    {
+                        "factoryPlan": {
+                            "productionOrders": [],
+                            "expansionOrders": [],
+                            "upgradeOrders": [],
+                            "newFactoryOrders": [],
+                        },
+                        "domesticMarketPlan": {"domesticMarketActions": []},
+                        "governmentPlan": {
+                            "pointPurchases": [],
+                            "strategySelections": [{"actionId": "market_subsidy"}],
+                            "adminPurchases": 1,
+                        },
+                        "militaryPlan": empty_military_plan(),
+                    },
+                )
+            ],
+        )
+
+        updated_britain = get_player(resolution.updated_snapshot, "player-1")
+        self.assertEqual(updated_britain.administration_capacity, 0)
+        self.assertEqual(updated_britain.base_admin_capacity, 1)
+        self.assertGreater(
+            int(updated_britain.temporary_effects.get("governmentDomesticMarketCapacityBonus", 0)),
+            0,
+        )
+
+    def test_reform_permanently_consumes_administration_capacity(self) -> None:
+        snapshot = build_snapshot()
+        britain = get_player(snapshot, "player-1")
+        britain.administration_capacity = 3
+        britain.base_admin_capacity = 3
+
+        resolution = resolve_decision_phase(
+            snapshot=snapshot,
+            turn_inputs=[
+                build_turn_input(
+                    "player-1",
+                    {
+                        "factoryPlan": {
+                            "productionOrders": [],
+                            "expansionOrders": [],
+                            "upgradeOrders": [],
+                            "newFactoryOrders": [],
+                        },
+                        "domesticMarketPlan": {"domesticMarketActions": []},
+                        "governmentPlan": {
+                            "pointPurchases": [],
+                            "strategySelections": [],
+                            "adminPurchases": 0,
+                        },
+                        "militaryPlan": empty_military_plan(),
+                        "reforms": ["constitution"],
+                    },
+                )
+            ],
+        )
+
+        updated_britain = get_player(resolution.updated_snapshot, "player-1")
+        self.assertIn("constitution", updated_britain.completed_reforms)
+        self.assertEqual(updated_britain.administration_capacity, 1)
+        self.assertEqual(updated_britain.base_admin_capacity, 1)
+
     def test_build_fleet_costs_3_military_points(self) -> None:
         snapshot = build_snapshot()
         britain = get_player(snapshot, "player-1")

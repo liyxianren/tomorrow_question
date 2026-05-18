@@ -38,7 +38,7 @@ export const AUSTRIA_DECISION_DEMO_WORKSPACE: DecisionPlayerPhaseWorkspace = {
       {
         actionId: "market_fair",
         cost: 5,
-        description: i18n.t("game:demo.marketFairDesc", "举办商品博览会，低成本扩大本回合国内承接量。"),
+        description: i18n.t("game:demo.marketFairDesc", "举办商品博览会，永久提高国内市场承接上限。"),
         label: i18n.t("game:demo.marketFair", "博览会"),
         lockedReason: null,
         effects: { domesticMarketCapacityDelta: 2 },
@@ -94,7 +94,7 @@ export const AUSTRIA_DECISION_DEMO_WORKSPACE: DecisionPlayerPhaseWorkspace = {
       {
         actionId: "trade_hub",
         cost: 15,
-        description: i18n.t("game:demo.tradeHubDesc", "建设临时商贸枢纽，本回合扩展海外市场承接能力。"),
+        description: i18n.t("game:demo.tradeHubDesc", "建设商贸枢纽，永久扩展海外市场承接上限。"),
         label: i18n.t("game:demo.tradeHub", "商贸枢纽"),
         lockedReason: i18n.t("game:demo.needGlobalHegemony", "需要研究「全球霸权」"),
         effects: { overseasMarketCapacityDelta: 1 },
@@ -203,7 +203,7 @@ export const AUSTRIA_DECISION_DEMO_WORKSPACE: DecisionPlayerPhaseWorkspace = {
         label: i18n.t("game:demo.navalDrill", "海军演练"),
         cost: 1,
         maxPerRound: 2,
-        description: i18n.t("game:demo.navalDrillDesc", "消耗军事点开展海军演练，扩展本轮海外市场承接力。"),
+        description: i18n.t("game:demo.navalDrillDesc", "消耗政府财政开展海军演练，永久提高海外市场承接上限。"),
         effects: { overseasMarketCapacityDelta: 1 },
       },
       {

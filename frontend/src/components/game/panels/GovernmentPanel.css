@@ -138,6 +138,11 @@
   color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
 }
 
+.government-admin-purchase {
+  display: grid;
+  grid-template-columns: minmax(260px, 520px);
+}
+
 /* ── Condensed Market Policies ── */
 
 .government-market-policy-summary {

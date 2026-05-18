@@ -31,6 +31,7 @@ import {
   addMilitaryActionSelection,
   removeMilitaryActionSelection,
   setAbilitySelectionTarget,
+  setAdminPurchases,
   setNavalDeployment,
   setProductionOrderQuantity,
   setRouteDecisionOrderQuantity,
@@ -300,6 +301,9 @@ export function DecisionWorkbench({
           }}
           onToggleStrategy={(actionId, checked) => {
             handleDraftChange("government", toggleGovernmentStrategySelection(draft, actionId, checked));
+          }}
+          onAdminPurchasesChange={(quantity) => {
+            handleDraftChange("government", setAdminPurchases(draft, quantity));
           }}
           onToggleAbility={(checked) => {
             if (!workspace.nationalAbility) return;

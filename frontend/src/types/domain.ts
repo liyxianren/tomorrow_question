@@ -112,6 +112,7 @@ export interface NationalState {
   colonizationUnlocked: boolean;
   usedAbilities: string[];
   temporaryEffects: Record<string, unknown>;
+  permanentEffects?: Record<string, unknown>;
 }
 
 export type PlayerState = NationalState;

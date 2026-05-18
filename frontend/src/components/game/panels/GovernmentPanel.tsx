@@ -361,7 +361,7 @@ function formatPolicyEffects(
   if (ratioDelta) {
     const parts = formatRatioDeltaParts(ratioDelta, ALLOCATION_LABELS);
     if (parts.length > 0) {
-      effects.push({ label: i18n.t("game:government.incomeAllocationPerTurn", "本轮收入分配"), value: parts.join("，") });
+      effects.push({ label: i18n.t("game:government.incomeAllocationPerTurn", "本轮收入分配"), value: parts.join("，"), temporary: true });
     }
   }
 
@@ -372,7 +372,11 @@ function formatPolicyEffects(
       return `${label} ${formatSigned(delta)}`;
     });
     if (parts.length > 0) {
-      effects.push({ label: i18n.t("game:government.ideologyPressure", "思潮压力"), value: i18n.t("game:government.ideologyPressureValue", "{{parts}}（{{threshold}} 最高警戒）", { parts: parts.join("，"), threshold: revolutionThreshold }) });
+      effects.push({
+        label: i18n.t("game:government.ideologyPressure", "思潮压力"),
+        value: i18n.t("game:government.ideologyPressureValue", "{{parts}}（{{threshold}} 最高警戒）", { parts: parts.join("，"), threshold: revolutionThreshold }),
+        permanent: true,
+      });
     }
   }
 
@@ -383,7 +387,17 @@ function formatPolicyEffects(
 
   if (e.armyCapDelta !== undefined) {
     const delta = e.armyCapDelta as number;
-    effects.push({ label: i18n.t("game:government.armyCapMax", "军事力量上限"), value: formatSigned(delta) });
+    effects.push({ label: i18n.t("game:government.armyCapMax", "军事力量上限"), value: formatSigned(delta), permanent: true });
+  }
+
+  if (e.domesticMarketCapacityDelta !== undefined) {
+    const delta = e.domesticMarketCapacityDelta as number;
+    effects.push({ label: i18n.t("game:government.effect.domesticCapacity", "国内容量"), value: formatSigned(delta), permanent: true });
+  }
+
+  if (e.overseasMarketCapacityDelta !== undefined) {
+    const delta = e.overseasMarketCapacityDelta as number;
+    effects.push({ label: i18n.t("game:government.effect.overseasCapacity", "海外容量"), value: formatSigned(delta), permanent: true });
   }
 
   if (e.fiscalRefund !== undefined) {
@@ -394,7 +408,7 @@ function formatPolicyEffects(
   if (researchFacilityDelta) {
     const total = Object.values(researchFacilityDelta).reduce((sum, delta) => sum + Number(delta || 0), 0);
     if (total !== 0) {
-      effects.push({ label: i18n.t("game:government.researchFacilities", "研究设施"), value: formatSigned(total) });
+      effects.push({ label: i18n.t("game:government.researchFacilities", "研究设施"), value: formatSigned(total), temporary: true });
     }
   }
 
@@ -405,7 +419,7 @@ function formatPolicyEffects(
       return `${label} ${formatSigned(delta)}`;
     });
     if (parts.length > 0) {
-      effects.push({ label: i18n.t("game:government.productionCapacity", "产能"), value: parts.join("，") });
+      effects.push({ label: i18n.t("game:government.productionCapacity", "产能"), value: parts.join("，"), permanent: true });
     }
   }
 
@@ -425,7 +439,7 @@ function buildMarketPolicyStrategies(
       actionId: "market_subsidy",
       label: i18n.t("game:government.strategy.marketSubsidy", "市场补贴"),
       cost: 0,
-      description: i18n.t("game:government.strategy.marketSubsidyDesc", "动用行政力组织本轮内需补贴，扩大国内承接量。"),
+      description: i18n.t("game:government.strategy.marketSubsidyDesc", "动用行政力组织内需补贴，永久提高国内市场承接上限。"),
       techPointDelta: 0,
       militaryPointDelta: 0,
       lockedReason: null,
@@ -445,7 +459,7 @@ function buildMarketPolicyStrategies(
       actionId: "trade_promotion",
       label: i18n.t("game:government.strategy.tradePromotion", "贸易促进"),
       cost: 0,
-      description: i18n.t("game:government.strategy.tradePromotionDesc", "动用行政力协调贸易渠道，扩大本回合海外市场容量。"),
+      description: i18n.t("game:government.strategy.tradePromotionDesc", "动用行政力协调贸易渠道，永久提高海外市场承接上限。"),
       techPointDelta: 0,
       militaryPointDelta: 0,
       lockedReason: null,
@@ -496,6 +510,7 @@ export interface GovernmentPanelProps {
   workspace: DecisionPlayerPhaseWorkspace;
   draft: PhaseDraftByPhase["decision"];
   remainingGovernmentBudget: number;
+  onAdminPurchasesChange: (quantity: number) => void;
   onEnactReform: (reformId: string, queued: boolean) => void;
   onTogglePolicy: (policyId: string, active: boolean) => void;
   onToggleStrategy: (actionId: string, checked: boolean) => void;
@@ -508,6 +523,7 @@ export function GovernmentPanel({
   workspace,
   draft,
   remainingGovernmentBudget,
+  onAdminPurchasesChange,
   onEnactReform,
   onTogglePolicy,
   onToggleStrategy,
@@ -533,6 +549,7 @@ export function GovernmentPanel({
   const queuedReformIds = new Set(draft.reforms ?? []);
   const queuedActivateIds = new Set(draft.activatePolicies ?? []);
   const queuedDeactivateIds = new Set(draft.deactivatePolicies ?? []);
+  const adminPurchases = Math.max(0, draft.governmentPlan.adminPurchases ?? 0);
 
   const strategies = buildMarketPolicyStrategies(workspace.governmentActions?.strategies ?? []);
   const queuedStrategyIds = new Set(
@@ -562,6 +579,7 @@ export function GovernmentPanel({
   const abilityTarget = IDEOLOGY_KEYS.includes(draft.abilitySelection?.targetIdeology as IdeologyKey)
     ? draft.abilitySelection?.targetIdeology as IdeologyKey
     : "liberalism";
+  const fiscalState = calculateGovernmentFiscalState(workspace, draft);
 
   const queuedReformAdminCost = reforms.availableReforms
     .filter((reform) => queuedReformIds.has(reform.reformId))
@@ -577,11 +595,23 @@ export function GovernmentPanel({
   const projectedPolicyAdminUse = projectedActivePolicyUpkeep + queuedMarketPolicyAdminCost;
   const rawProjectedAdmin =
     reforms.administrationCapacity
+    + adminPurchases
     - queuedReformAdminCost
     - projectedActivePolicyUpkeep
     - queuedMarketPolicyAdminCost;
   const projectedAdmin = Math.max(0, rawProjectedAdmin);
-  const projectedAdminTotal = reforms.administrationCapacity;
+  const projectedAdminTotal = Math.max(0, reforms.administrationCapacity + adminPurchases - queuedReformAdminCost);
+  const adminPurchaseCost = Math.max(0, reforms.adminPurchaseCost ?? 0);
+  const adminPurchaseSpend = adminPurchases * adminPurchaseCost;
+  const maxAdminPurchases = adminPurchaseCost > 0
+    ? adminPurchases + Math.max(0, Math.floor(fiscalState.effectiveGovernmentRemaining / adminPurchaseCost))
+    : adminPurchases + 99;
+  const canBuyMoreAdmin = maxAdminPurchases > adminPurchases;
+  const adminPurchaseStatus = adminPurchases > 0
+    ? "selected"
+    : canBuyMoreAdmin
+      ? "available"
+      : "disabled";
 
   const isPolicyActiveAfter = (policyId: string, currentlyActive: boolean): boolean => {
     if (queuedActivateIds.has(policyId)) return true;
@@ -601,7 +631,6 @@ export function GovernmentPanel({
 
   const activePolicies = reforms.availablePolicies.filter((policy) => policy.isActive);
   const inactivePolicies = reforms.availablePolicies.filter((policy) => !policy.isActive);
-  const fiscalState = calculateGovernmentFiscalState(workspace, draft);
   const policyBudgetSupplementItem = fiscalState.policyBudgetSupplement > 0
     ? [{
         icon: "🧾",
@@ -704,6 +733,53 @@ export function GovernmentPanel({
           },
         ]}
       />
+
+      <div className="government-admin-purchase" data-testid="government-admin-purchase">
+        <DecisionActionCard
+          icon="🏛️"
+          title={t("game:government.buyAdmin", "购买行政力")}
+          costLabel={`${adminPurchaseCost} ${t("game:government.budget", "政府财政")} / +1 ${t("game:government.adminCapacity", "行政力")}`}
+          description={t("game:government.buyAdminDesc", "把政府财政永久转为行政力上限，本回合立刻可用于改革或选择政策。")}
+          effects={[
+            {
+              label: t("game:government.adminCapacityPermanent", "行政力上限"),
+              value: adminPurchases > 0 ? `+${adminPurchases}` : "+1",
+            },
+            ...(adminPurchases > 0
+              ? [{
+                  label: t("game:government.budget", "政府财政"),
+                  value: `-${adminPurchaseSpend}`,
+                  temporary: true,
+                }]
+              : []),
+          ]}
+          status={adminPurchaseStatus}
+          statusText={
+            adminPurchases > 0
+              ? t("game:government.purchasedThisRound", "本轮：财政 -{{cost}}，行政力 +{{quantity}}", {
+                  cost: adminPurchaseSpend,
+                  quantity: adminPurchases,
+                })
+              : canBuyMoreAdmin
+                ? t("game:government.canPurchase", "可兑换")
+                : t("game:government.insufficientBudget", "财政不足")
+          }
+          control={{
+            kind: "stepper",
+            value: adminPurchases,
+            min: 0,
+            max: maxAdminPurchases,
+            onChange: onAdminPurchasesChange,
+            incrementAriaLabel: t("game:government.buyAdmin", "购买行政力"),
+            decrementAriaLabel: t("common:decrease"),
+          }}
+        >
+          {parameterInspector?.render("government.adminPurchase", {
+            title: t("game:government.buyAdmin", "购买行政力"),
+            currentEffect: t("game:government.buyAdminDesc", "把政府财政永久转为行政力上限，本回合立刻可用于改革或选择政策。"),
+          })}
+        </DecisionActionCard>
+      </div>
 
       {/* ── 思潮信号 ── */}
       <h4 className="government-section-label">

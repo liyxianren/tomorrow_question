@@ -120,7 +120,7 @@ describe("calculateDecisionSpendSummary", () => {
     expect(summary.factorySpend).toBe(7);
   });
 
-  it("ignores legacy administration purchases and counts policy activation as government spend", () => {
+  it("counts administration purchases and policy activation as government spend", () => {
     const workspace = createDecisionPlayerWorkspace();
     const draft = createInitialPhaseDraft("decision");
 
@@ -129,7 +129,7 @@ describe("calculateDecisionSpendSummary", () => {
 
     const summary = calculateDecisionSpendSummary(workspace, draft);
 
-    expect(summary.governmentSpend).toBe(6);
+    expect(summary.governmentSpend).toBe(22);
   });
 
   it("moves phase-1 assignments from an upgraded source route to the target route", () => {

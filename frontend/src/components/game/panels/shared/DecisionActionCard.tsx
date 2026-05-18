@@ -6,6 +6,7 @@ export type DecisionActionCardEffect = {
   label: string;
   value: string | number;
   temporary?: boolean;
+  permanent?: boolean;
 };
 
 export type DecisionActionCardStatus = "available" | "selected" | "disabled" | "danger" | "done";
@@ -97,9 +98,11 @@ export function DecisionActionCard({
           {effects.map((effect, index) => (
             <span
               key={`${effect.label}-${index}`}
-              className={`dac__effect-tag${effect.temporary ? " dac__effect-tag--temporary" : ""}`}
+              className={`dac__effect-tag${effect.temporary ? " dac__effect-tag--temporary" : ""}${effect.permanent ? " dac__effect-tag--permanent" : ""}`}
             >
-              {effect.label} {effect.value}{effect.temporary ? ` ${t("game:thisRound")}` : ""}
+              {effect.label} {effect.value}
+              {effect.temporary ? ` ${t("game:thisRound")}` : ""}
+              {effect.permanent ? ` ${t("game:permanent")}` : ""}
             </span>
           ))}
         </div>
