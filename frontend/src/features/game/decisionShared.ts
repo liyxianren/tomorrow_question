@@ -821,27 +821,27 @@ function formatRatioValue(value: number): string {
   return Number.isInteger(rounded) ? `${rounded}` : `${rounded}`;
 }
 
-const EFFECT_LABELS: Record<string, string> = {
-  handicraftCapacityDelta: i18n.t("game:effect.handicraftCapacityDelta", "手工业产能"),
-  domesticMarketCapacityDelta: i18n.t("game:effect.domesticMarketCapacityDelta", "国内容量"),
-  domesticPriceBonusDelta: i18n.t("game:effect.domesticPriceBonusDelta", "国内价格"),
-  overseasMarketCapacityDelta: i18n.t("game:effect.overseasMarketCapacityDelta", "海外容量"),
-  overseasPriceBonusDelta: i18n.t("game:effect.overseasPriceBonusDelta", "海外价格"),
-  militaryPointsDelta: i18n.t("game:effect.militaryPointsDelta", "军事点"),
-  armyCapDelta: i18n.t("game:effect.armyCapDelta", "军事力量上限"),
-  controlledRegionsDelta: i18n.t("game:effect.controlledRegionsDelta", "控制区域"),
-  factoryBudgetDelta: i18n.t("game:effect.factoryBudgetDelta", "工厂预算"),
-  governmentFiscalBudgetDelta: i18n.t("game:effect.governmentFiscalBudgetDelta", "政府预算"),
-  domesticMarketBudgetDelta: i18n.t("game:effect.domesticMarketBudgetDelta", "国内预算"),
-  productionOutputMultiplier: i18n.t("game:effect.productionOutputMultiplier", "产出倍率"),
-  rawMaterialsPerTurnDelta: i18n.t("game:effect.rawMaterialsPerTurnDelta", "每回合原材料"),
-  factoryUpgradeCostReductionPercent: i18n.t("game:effect.factoryUpgradeCostReductionPercent", "升级成本"),
-  factoryExpansionCostReductionPercent: i18n.t("game:effect.factoryExpansionCostReductionPercent", "扩产成本"),
-  newFactoryCostReductionPercent: i18n.t("game:effect.newFactoryCostReductionPercent", "新建成本"),
-  phase1ProductionOutputBonusPercent: i18n.t("game:effect.phase1ProductionOutputBonusPercent", "生产产出"),
-  rawMaterialsDelta: i18n.t("game:effect.rawMaterialsDelta", "原材料"),
-  phase1ProductionRawCapacityDelta: i18n.t("game:effect.phase1ProductionRawCapacityDelta", "投料上限"),
-  administrationCapacityDelta: i18n.t("game:effect.administrationCapacityDelta", "行政力上限"),
+const EFFECT_LABEL_KEYS: Record<string, { key: string; fallback: string }> = {
+  handicraftCapacityDelta: { key: "game:effect.handicraftCapacityDelta", fallback: "手工业产能" },
+  domesticMarketCapacityDelta: { key: "game:effect.domesticMarketCapacityDelta", fallback: "国内容量" },
+  domesticPriceBonusDelta: { key: "game:effect.domesticPriceBonusDelta", fallback: "国内价格" },
+  overseasMarketCapacityDelta: { key: "game:effect.overseasMarketCapacityDelta", fallback: "海外容量" },
+  overseasPriceBonusDelta: { key: "game:effect.overseasPriceBonusDelta", fallback: "海外价格" },
+  militaryPointsDelta: { key: "game:effect.militaryPointsDelta", fallback: "军事点" },
+  armyCapDelta: { key: "game:effect.armyCapDelta", fallback: "军事力量上限" },
+  controlledRegionsDelta: { key: "game:effect.controlledRegionsDelta", fallback: "控制区域" },
+  factoryBudgetDelta: { key: "game:effect.factoryBudgetDelta", fallback: "工厂预算" },
+  governmentFiscalBudgetDelta: { key: "game:effect.governmentFiscalBudgetDelta", fallback: "政府预算" },
+  domesticMarketBudgetDelta: { key: "game:effect.domesticMarketBudgetDelta", fallback: "国内预算" },
+  productionOutputMultiplier: { key: "game:effect.productionOutputMultiplier", fallback: "产出倍率" },
+  rawMaterialsPerTurnDelta: { key: "game:effect.rawMaterialsPerTurnDelta", fallback: "每回合原材料" },
+  factoryUpgradeCostReductionPercent: { key: "game:effect.factoryUpgradeCostReductionPercent", fallback: "升级成本" },
+  factoryExpansionCostReductionPercent: { key: "game:effect.factoryExpansionCostReductionPercent", fallback: "扩产成本" },
+  newFactoryCostReductionPercent: { key: "game:effect.newFactoryCostReductionPercent", fallback: "新建成本" },
+  phase1ProductionOutputBonusPercent: { key: "game:effect.phase1ProductionOutputBonusPercent", fallback: "生产产出" },
+  rawMaterialsDelta: { key: "game:effect.rawMaterialsDelta", fallback: "原材料" },
+  phase1ProductionRawCapacityDelta: { key: "game:effect.phase1ProductionRawCapacityDelta", fallback: "投料上限" },
+  administrationCapacityDelta: { key: "game:effect.administrationCapacityDelta", fallback: "行政力上限" },
 };
 
 const TEMPORARY_EFFECT_KEYS = new Set([
@@ -872,18 +872,28 @@ const COST_REDUCTION_EFFECT_KEYS = new Set([
   "newFactoryCostReductionPercent",
 ]);
 
-const NESTED_EFFECT_LABELS: Record<string, Record<string, string>> = {
-  armyDelta: {
-    army: i18n.t("game:unit.army", "陆军"),
-    infantry: i18n.t("game:unit.infantry", "步兵"),
-    artillery: i18n.t("game:unit.artillery", "炮兵"),
-  },
-  navyDelta: {
-    fleets: i18n.t("game:unit.fleets", "舰队"),
-  },
-};
-
 const IDEOLOGY_EFFECT_KEYS = new Set(["ideologyDelta", "ideologyLevelDelta"]);
+
+function resolveEffectLabel(key: string): string | undefined {
+  const entry = EFFECT_LABEL_KEYS[key];
+  return entry ? i18n.t(entry.key, entry.fallback) : undefined;
+}
+
+function resolveNestedLabels(effectKey: string): Record<string, string> | undefined {
+  if (effectKey === "armyDelta") {
+    return {
+      army: i18n.t("game:unit.army", "陆军"),
+      infantry: i18n.t("game:unit.infantry", "步兵"),
+      artillery: i18n.t("game:unit.artillery", "炮兵"),
+    };
+  }
+  if (effectKey === "navyDelta") {
+    return {
+      fleets: i18n.t("game:unit.fleets", "舰队"),
+    };
+  }
+  return undefined;
+}
 
 export interface EffectMetric {
   label: string;
@@ -902,7 +912,7 @@ export function buildEffectMetrics(
 
   for (const [key, value] of Object.entries(effects)) {
     if (typeof value === "number") {
-      const label = EFFECT_LABELS[key];
+      const label = resolveEffectLabel(key);
       if (!label) continue;
       const tone = value > 0 ? "positive" : value < 0 ? "negative" : undefined;
       const temporary = TEMPORARY_EFFECT_KEYS.has(key);
@@ -916,7 +926,7 @@ export function buildEffectMetrics(
         : formatSignedValue(value);
       metrics.push({ label, value: displayValue, tone, temporary, permanent });
     } else if (typeof value === "object" && value !== null) {
-      const nestedLabels = NESTED_EFFECT_LABELS[key];
+      const nestedLabels = resolveNestedLabels(key);
       for (const [subKey, subValue] of Object.entries(value)) {
         const subLabel = resolveNestedEffectLabel(key, subKey, nestedLabels);
         if (!subLabel || typeof subValue !== "number") continue;

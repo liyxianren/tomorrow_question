@@ -756,7 +756,9 @@
       "handicraft": "Handicraft",
       "overseasCapacity": "Overseas Capacity"
     },
-    "budgetBasePlusMarket": "Government Fiscal"
+    "budgetBasePlusMarket": "Government Fiscal",
+    "adminCapacityPermanent": "Admin Cap",
+    "milestoneTitleLine": "Lv{{level}}: {{label}} ({{summary}})"
   },
   "commandDock": {
     "linkStatus": "Link Status",
@@ -1413,7 +1415,14 @@
     "本轮已规划": "Planned This Round",
     "无科技链": "No Tech Chains",
     "须先解锁": "Must first unlock",
-    "欧洲": "Europe"
+    "欧洲": "Europe",
+    "建立资本市场和股份融资框架，提高政府处理财政、市场与产业事务的行政力上限。": "Establish capital markets and equity financing frameworks, increasing the government admin-capacity ceiling for fiscal, market, and industrial affairs.",
+    "建立议会程序，开放请愿与国会系政策空间，并进一步提高行政力上限。": "Establish parliamentary procedures, opening petition and parliamentary policy space while further increasing admin capacity.",
+    "自由主义": "Liberalism",
+    "平等主义": "Egalitarianism",
+    "民族主义": "Nationalism",
+    "国民消费": "Consumption",
+    "行政力上限": "Admin Cap"
   },
   "milestone": {
     "tradeLicense": "Trade License",
