@@ -1,0 +1,311 @@
+.settings-budget-formula-card .section-card__body {
+  display: grid;
+  gap: 18px;
+}
+
+.settings-formula-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.settings-formula-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.settings-formula-summary > div {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid rgba(81, 63, 34, 0.12);
+  border-radius: 14px;
+  background:
+    linear-gradient(145deg, rgba(248, 241, 220, 0.86), rgba(236, 224, 194, 0.5)),
+    #f8f1dc;
+}
+
+.settings-formula-summary span {
+  color: rgba(74, 58, 35, 0.66);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.settings-formula-summary strong {
+  color: #2e2416;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.settings-formula-flow {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  align-items: center;
+}
+
+.settings-formula-flow span {
+  position: relative;
+  display: grid;
+  min-height: 44px;
+  place-items: center;
+  padding: 8px 12px;
+  border: 1px solid rgba(54, 86, 111, 0.16);
+  border-radius: 999px;
+  background: rgba(236, 244, 247, 0.86);
+  color: #284258;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.settings-formula-flow span:not(:last-child)::after {
+  content: ">";
+  position: absolute;
+  right: -10px;
+  z-index: 1;
+  color: rgba(54, 86, 111, 0.46);
+  font-weight: 900;
+}
+
+.settings-rule-book {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(43, 59, 74, 0.14);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top left, rgba(99, 130, 156, 0.18), transparent 36%),
+    linear-gradient(135deg, rgba(251, 248, 238, 0.94), rgba(234, 241, 239, 0.78));
+}
+
+.settings-rule-book__eyebrow {
+  color: rgba(40, 66, 88, 0.72);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.settings-rule-book h3,
+.settings-production-reference h3 {
+  margin: 4px 0 8px;
+  color: #302416;
+  font-family: var(--font-serif, Georgia, serif);
+  font-size: 20px;
+}
+
+.settings-rule-book p,
+.settings-production-reference p {
+  margin: 0;
+  color: rgba(62, 47, 28, 0.76);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.settings-rule-book__notes {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid rgba(162, 103, 28, 0.18);
+  border-radius: 14px;
+  background: rgba(255, 246, 222, 0.82);
+}
+
+.settings-rule-book__notes strong {
+  color: #5f3b12;
+  font-size: 14px;
+}
+
+.settings-rule-book__notes span {
+  position: relative;
+  padding-left: 14px;
+  color: rgba(68, 49, 25, 0.78);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.settings-rule-book__notes span::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.64em;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: #a2671c;
+}
+
+.settings-production-reference {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid rgba(57, 43, 25, 0.1);
+  border-radius: 18px;
+  background: rgba(255, 252, 244, 0.72);
+}
+
+.settings-production-reference__table-wrap {
+  overflow-x: auto;
+}
+
+.settings-production-reference__table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  color: #302416;
+  font-size: 13px;
+}
+
+.settings-production-reference__table th,
+.settings-production-reference__table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid rgba(57, 43, 25, 0.1);
+  text-align: left;
+  vertical-align: top;
+}
+
+.settings-production-reference__table th {
+  color: rgba(62, 47, 28, 0.72);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.settings-production-reference__table code {
+  display: inline-block;
+  margin-left: 4px;
+  color: rgba(64, 78, 91, 0.78);
+  font-size: 11px;
+}
+
+.settings-formula-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.settings-formula-card {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(57, 43, 25, 0.12);
+  border-radius: 16px;
+  background:
+    linear-gradient(160deg, rgba(255, 252, 244, 0.94), rgba(245, 237, 216, 0.86)),
+    #fffaf0;
+  box-shadow: 0 12px 30px rgba(54, 42, 24, 0.08);
+}
+
+.settings-formula-card--warning {
+  border-color: rgba(162, 103, 28, 0.28);
+  background:
+    linear-gradient(160deg, rgba(255, 247, 223, 0.96), rgba(246, 230, 188, 0.88)),
+    #fff3ce;
+}
+
+.settings-formula-card h3 {
+  margin: 0;
+  color: #302416;
+  font-family: var(--font-serif, Georgia, serif);
+  font-size: 18px;
+}
+
+.settings-formula-equations {
+  display: grid;
+  gap: 6px;
+}
+
+.settings-formula-equations code {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  padding: 9px 10px;
+  border: 1px solid rgba(42, 57, 72, 0.12);
+  border-radius: 10px;
+  background: rgba(20, 31, 43, 0.92);
+  color: #f6df9d;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: nowrap;
+}
+
+.settings-formula-card p {
+  margin: 0;
+  color: rgba(62, 47, 28, 0.78);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.settings-formula-details {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-formula-details li {
+  position: relative;
+  padding-left: 15px;
+  color: rgba(56, 45, 31, 0.78);
+  font-size: 12px;
+  line-height: 1.52;
+}
+
+.settings-formula-details li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: #58748d;
+}
+
+.settings-formula-examples {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid rgba(88, 116, 141, 0.16);
+  border-radius: 10px;
+  background: rgba(236, 244, 247, 0.76);
+}
+
+.settings-formula-examples span {
+  color: #284258;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.settings-formula-source {
+  display: block;
+  overflow: hidden;
+  color: rgba(77, 89, 98, 0.78);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 980px) {
+  .settings-formula-summary,
+  .settings-formula-grid,
+  .settings-rule-book {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-formula-flow {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-formula-flow span:not(:last-child)::after {
+    bottom: -16px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%) rotate(90deg);
+  }
+}
