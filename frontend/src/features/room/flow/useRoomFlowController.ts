@@ -103,6 +103,7 @@ export function useRoomFlowController() {
   const [socketState, setSocketState] = useState<RoomSocketState>("idle");
   const [messageOverride, setMessageOverride] = useState<RoomFlowMessage | null>(null);
   const waitingRoomSyncVersionRef = useRef(0);
+  const navigatedGameIdRef = useRef<string | null>(bootstrap?.activeGame?.gameId ?? null);
   const sessionRef = useRef<PlayerSession | null>(bootstrap?.session ?? null);
   const roomContextRef = useRef<RoomContextResponse | null>(
     bootstrap
@@ -163,6 +164,17 @@ export function useRoomFlowController() {
     });
 
     if (context.activeGame?.gameId && context.activeSnapshot) {
+      if (navigatedGameIdRef.current === context.activeGame.gameId) {
+        logRoomStart("navigate.game.skip_duplicate", {
+          roomCode: context.room.roomCode,
+          gameId: context.activeGame.gameId,
+          snapshotId: context.activeSnapshot.snapshotId,
+          phase: context.activeSnapshot.phase,
+        });
+        return;
+      }
+
+      navigatedGameIdRef.current = context.activeGame.gameId;
       logRoomStart("navigate.game", {
         roomCode: context.room.roomCode,
         gameId: context.activeGame.gameId,
@@ -367,7 +379,11 @@ export function useRoomFlowController() {
         currentGameId: updatedRoom.currentGameId ?? null,
         syncVersion: waitingRoomSyncVersionRef.current,
       });
-      if (updatedRoom.status === "in_game" && !roomContextRef.current?.activeGame?.gameId) {
+      if (
+        updatedRoom.status === "in_game" &&
+        !roomContextRef.current?.activeGame?.gameId &&
+        !navigatedGameIdRef.current
+      ) {
         setMessageOverride(createSuccessMessage(i18n.t("room:status.in_game")));
         void syncAuthoritativeRoomContext(updatedRoom.roomCode).catch(() => {
           setRoomContext((previous) => ({
@@ -407,19 +423,24 @@ export function useRoomFlowController() {
         syncVersion: waitingRoomSyncVersionRef.current,
       });
       setMessageOverride(createSuccessMessage(i18n.t("room:status.in_game")));
-      void syncAuthoritativeRoomContext(room.roomCode).catch(() => {
-        logRoomStart("socket.game_started.context_fallback", {
-          roomCode: room.roomCode,
-          gameId: nextGame.gameId,
-          snapshotId: nextSnapshot.snapshotId,
-        });
-        const fallbackContext = {
-          room: roomContextRef.current?.room ?? createFallbackRoom(room.roomCode),
-          activeGame: nextGame,
-          activeSnapshot: nextSnapshot,
-        };
-        applyAuthoritativeRoomContext(fallbackContext);
+
+      const currentRoom = roomContextRef.current?.room ?? createFallbackRoom(room.roomCode);
+      const socketContext: RoomContextResponse = {
+        room: {
+          ...currentRoom,
+          status: "in_game",
+          currentGameId: nextGame.gameId,
+        },
+        activeGame: nextGame,
+        activeSnapshot: nextSnapshot,
+      };
+      logRoomStart("socket.game_started.apply_payload", {
+        roomCode: room.roomCode,
+        gameId: nextGame.gameId,
+        snapshotId: nextSnapshot.snapshotId,
+        snapshotPhase: nextSnapshot.phase,
       });
+      applyAuthoritativeRoomContext(socketContext);
     };
     const handleSnapshotSync = (envelope: SocketEnvelope<SnapshotSyncPayload>) => {
       const nextRoom = envelope.payload?.room;
