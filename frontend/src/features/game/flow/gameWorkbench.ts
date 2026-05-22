@@ -28,6 +28,7 @@ import {
   calculateGovernmentFiscalState,
   calculateRatioPreview as calculateRatioPreviewFromDraft,
   getSelectedProductionCapacityDeltaByMode,
+  getSelectedRawMaterialPurchaseQuantity,
   sumSelectedFactoryActionEffect,
 } from "../decisionShared";
 import type { DecisionPhaseDraft } from "../forms";
@@ -559,7 +560,9 @@ function buildCurrentResourceLines({
         const totalAssigned = Object.values(assignments).reduce((s, v) => s + v, 0);
         const availableRawMaterials = Math.max(
           0,
-          phase1.rawMaterials + sumSelectedFactoryActionEffect(workspace, draft, "rawMaterialsDelta"),
+          phase1.rawMaterials
+            + sumSelectedFactoryActionEffect(workspace, draft, "rawMaterialsDelta")
+            + getSelectedRawMaterialPurchaseQuantity(workspace, draft),
         );
         lines.push(i18n.t("game:flow.resourcesRawMaterials", "原材料 {{materials}} · 已分配 {{allocated}}", { materials: availableRawMaterials, allocated: totalAssigned }));
         lines.push(i18n.t("game:flow.resourcesInventoryDemand", "库存 {{inventory}} · 国内需求 {{demand}}", { inventory: phase1.goodsInventory, demand: formatNumber(phase1.domesticDemand) }));
@@ -579,8 +582,8 @@ function buildCurrentResourceLines({
 
     if (decisionFlowState.activeStep === "military") {
       return [
-        i18n.t("game:flow.resourcesMilitary", "军事 · 政策额度剩余 {{remaining}}", { remaining: fiscalState.effectiveGovernmentRemaining }),
-        i18n.t("game:flow.resourcesMilitaryActions", "军事动作 {{actions}} 次 / 建交 {{diplomacy}} 项", { actions: draft.militaryPlan.militaryActions.length, diplomacy: draft.militaryPlan.diplomacyActions.length }),
+        i18n.t("game:flow.resourcesMilitary", "军事 · 政府财政剩余 {{remaining}}", { remaining: fiscalState.effectiveGovernmentRemaining }),
+        i18n.t("game:flow.resourcesMilitaryActions", "军事动作 {{actions}} 次", { actions: draft.militaryPlan.militaryActions.length }),
         i18n.t("game:flow.resourcesOverseasPreview", "海外承接预览 {{capacity}}", { capacity: workspace.militaryWorkspace.overseasCapacity }),
       ];
     }
@@ -613,20 +616,8 @@ function buildCurrentResourceLines({
       ? i18n.t("game:flow.resourcesMarketLine", "市场 需求 {{demand}} · 承接 {{capacity}} · 均衡价 {{price}}", { demand: formatNumber(phase1.domesticDemand), capacity: formatNumber(projectedMarketCapacity ?? 0), price: formatNumber(projectedMarketPrice ?? 0) })
       : i18n.t("game:flow.resourcesMarketWaiting", "市场数值等待同步");
 
-    const governmentLines = [
-      i18n.t("game:flow.resourcesGovernmentLine", "政府财政 · 剩余 {{remaining}} / {{budget}}", { remaining: fiscalState.baseGovernmentRemaining, budget: fiscalState.baseGovernmentBudget }),
-    ];
-    if (fiscalState.policyBudgetSupplement > 0) {
-      governmentLines.push(
-        i18n.t("game:flow.resourcesPolicyBudgetLine", "政策专项额度 · 剩余 {{remaining}} / {{budget}}（不计入财政）", {
-          remaining: fiscalState.policyBudgetSupplementRemaining,
-          budget: fiscalState.policyBudgetSupplement,
-        }),
-      );
-    }
-
     return [
-      ...governmentLines,
+      i18n.t("game:flow.resourcesGovernmentLine", "政府财政 · 剩余 {{remaining}} / {{budget}}", { remaining: fiscalState.baseGovernmentRemaining, budget: fiscalState.baseGovernmentBudget }),
       marketLine,
       i18n.t("game:flow.resourcesRatioPreview", "比例预告 {{ratio}}", { ratio: formatRatio(calculateRatioPreview(workspace, draftPayload)) }),
     ];
@@ -702,7 +693,7 @@ function buildSubmitLines({
     const spendSummary = calculateDecisionSpendSummary(currentPlayerWorkspace, draftPayload);
     lines.push(i18n.t("game:flow.submitSpendSummary", "工厂预计消耗 {{factory}}，内需预计消耗 {{domestic}}，政府预计消耗 {{government}}。", { factory: spendSummary.factorySpend, domestic: spendSummary.domesticSpend, government: spendSummary.governmentSpend }));
     lines.push(i18n.t("game:flow.submitProductionBatches", "当前已规划生产批次 {{batches}}。", { batches: spendSummary.productionBatches }));
-    lines.push(i18n.t("game:flow.submitMilitarySummary", "当前已规划军事动作 {{actions}} 次，建交 {{diplomacy}} 项。", { actions: normalizeDecisionDraft(draftPayload).militaryPlan.militaryActions.length, diplomacy: normalizeDecisionDraft(draftPayload).militaryPlan.diplomacyActions.length }));
+    lines.push(i18n.t("game:flow.submitMilitarySummary", "当前已规划军事动作 {{actions}} 次。", { actions: normalizeDecisionDraft(draftPayload).militaryPlan.militaryActions.length }));
     return lines;
   }
 
@@ -762,7 +753,9 @@ function buildValidationLines({
       const totalAssigned = Object.values(rawAssignments).reduce((s, v) => s + v, 0);
       const availableRawMaterials = Math.max(
         0,
-        phase1.rawMaterials + sumSelectedFactoryActionEffect(currentPlayerWorkspace, draft, "rawMaterialsDelta"),
+        phase1.rawMaterials
+          + sumSelectedFactoryActionEffect(currentPlayerWorkspace, draft, "rawMaterialsDelta")
+          + getSelectedRawMaterialPurchaseQuantity(currentPlayerWorkspace, draft),
       );
       if (totalAssigned > availableRawMaterials) {
         lines.push(
@@ -801,15 +794,6 @@ function buildValidationLines({
       const selectedCount = draft.militaryPlan.militaryActions.filter((item) => item.actionId === action.actionId).length;
       if (selectedCount > action.maxPerRound) {
         lines.push(i18n.t("game:flow.validateMilitaryActionLimit", "{{label}} 已安排 {{count}} 次，超过本轮上限 {{max}}。", { label: action.label, count: selectedCount, max: action.maxPerRound }));
-      }
-    }
-    for (const action of currentPlayerWorkspace.militaryWorkspace.availableDiplomacyActions) {
-      const selectedCount = draft.militaryPlan.diplomacyActions.filter((item) => item.actionId === action.actionId).length;
-      if (action.isEstablished && selectedCount > 0) {
-        lines.push(i18n.t("game:flow.validateDiplomacyAlreadyEstablished", "{{region}} 已完成建交，本轮不能重复提交。", { region: action.targetRegionLabel }));
-      }
-      if (selectedCount > 1) {
-        lines.push(i18n.t("game:flow.validateDiplomacyDuplicate", "{{region}} 建交动作本轮只能提交 1 次。", { region: action.targetRegionLabel }));
       }
     }
     return lines.length > 0 ? lines : [i18n.t("game:flow.validateNoBreach", "当前草稿未突破任何硬约束。")];
@@ -962,11 +946,8 @@ function validateMarketCompetitionDraft(
 }
 
 function formatCompetitionLockReason(reason: string | null | undefined): string {
-  if (reason === "diplomacy_not_established") {
-    return i18n.t("game:flow.competeLockedNeedsDiplomacy", "需要先建交");
-  }
   if (reason === "route_blocked") {
-    return i18n.t("game:flow.competeLockedRouteBlocked", "航线被封锁");
+    return i18n.t("game:flow.competeLockedRouteBlocked", "地区被封锁");
   }
   if (reason === "no_army") {
     return i18n.t("game:flow.competeLockedNoArmy", "没有可投放陆军");
@@ -1016,6 +997,7 @@ function normalizeDecisionDraft(draftPayload: Record<string, unknown>): Decision
       expansionOrders?: Array<{ routeId: string; quantity: number }>;
       upgradeOrders?: Array<{ routeId: string; quantity: number }>;
       newFactoryOrders?: Array<{ routeId: string; quantity: number }>;
+      rawMaterialPurchaseQuantity?: number;
       factoryActions?: Array<{ actionId: string }>;
     };
     domesticMarketPlan?: {
@@ -1030,9 +1012,9 @@ function normalizeDecisionDraft(draftPayload: Record<string, unknown>): Decision
     militaryPlan?: {
       unlockColonization?: boolean;
       militaryActions?: Array<{ actionId: string }>;
-      diplomacyActions?: Array<{ actionId: string }>;
       colonizationActions?: Array<{ targetRegionId: string }>;
       navalDeployment?: Record<string, number>;
+      regionBlockades?: Record<string, number>;
       conquestActions?: Array<{ regionId: string; infantry: number; artillery: number }>;
       lootingActions?: Array<{ regionId: string; resourceType: string }>;
     };
@@ -1068,6 +1050,7 @@ function normalizeDecisionDraft(draftPayload: Record<string, unknown>): Decision
       expansionOrders: draft.factoryPlan?.expansionOrders ?? [],
       upgradeOrders: draft.factoryPlan?.upgradeOrders ?? [],
       newFactoryOrders: draft.factoryPlan?.newFactoryOrders ?? [],
+      rawMaterialPurchaseQuantity: Math.max(0, Math.floor(draft.factoryPlan?.rawMaterialPurchaseQuantity ?? 0)),
       factoryActions: draft.factoryPlan?.factoryActions ?? [],
     },
     domesticMarketPlan: {
@@ -1082,9 +1065,9 @@ function normalizeDecisionDraft(draftPayload: Record<string, unknown>): Decision
     militaryPlan: {
       unlockColonization: false,
       militaryActions: draft.militaryPlan?.militaryActions ?? [],
-      diplomacyActions: draft.militaryPlan?.diplomacyActions ?? [],
       colonizationActions: [],
       navalDeployment: draft.militaryPlan?.navalDeployment ?? {},
+      regionBlockades: draft.militaryPlan?.regionBlockades ?? {},
       conquestActions: [],
       lootingActions: [],
     },

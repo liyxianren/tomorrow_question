@@ -7,12 +7,17 @@ import type {
   IncomeAllocationRatio,
   Phase1EconomyWorkspace,
   PriceTrend,
+  RegionAccessStatus,
   RegionAccessLevel,
   TechTreeData,
   TechTreeChainTech,
   TechTreeNode,
 } from "../../types";
 import type { PhaseDraftByPhase } from "./forms";
+import {
+  DOMESTIC_PRICE_CEILING_RATIO,
+  DOMESTIC_PRICE_FLOOR_RATIO,
+} from "./marketMath";
 
 const RATIO_KEY_LABELS: Record<string, string> = {
   domesticMarket: i18n.t("game:ratioKey.domesticMarket", "内需"),
@@ -26,6 +31,62 @@ const BUDGET_POOL_LABELS: Record<string, string> = {
   governmentFiscal: i18n.t("game:budgetPool.governmentFiscal", "政府预算"),
 };
 
+const DEFAULT_INCOME_ALLOCATION_RATIO: IncomeAllocationRatio = {
+  domesticMarket: 3,
+  factory: 3,
+  governmentFiscal: 4,
+};
+
+const INCOME_RATIO_KEYS = ["domesticMarket", "factory", "governmentFiscal"] as const;
+type IncomeRatioKey = typeof INCOME_RATIO_KEYS[number];
+
+function normalizeRatioKey(key: string): IncomeRatioKey | null {
+  if (key === "consumption") return "domesticMarket";
+  if (key === "fiscal") return "governmentFiscal";
+  if ((INCOME_RATIO_KEYS as readonly string[]).includes(key)) return key as IncomeRatioKey;
+  return null;
+}
+
+function normalizeIncomeRatio(ratio: Partial<IncomeAllocationRatio> | undefined): IncomeAllocationRatio {
+  return {
+    domesticMarket: Math.max(0, ratio?.domesticMarket ?? DEFAULT_INCOME_ALLOCATION_RATIO.domesticMarket),
+    factory: Math.max(0, ratio?.factory ?? DEFAULT_INCOME_ALLOCATION_RATIO.factory),
+    governmentFiscal: Math.max(0, ratio?.governmentFiscal ?? DEFAULT_INCOME_ALLOCATION_RATIO.governmentFiscal),
+  };
+}
+
+function applyRatioDelta(
+  ratio: IncomeAllocationRatio,
+  delta: Partial<IncomeAllocationRatio> | Record<string, unknown> | undefined,
+  multiplier = 1,
+): IncomeAllocationRatio {
+  const next = { ...ratio };
+  if (!delta) return next;
+  for (const [rawKey, rawValue] of Object.entries(delta)) {
+    const key = normalizeRatioKey(rawKey);
+    const value = typeof rawValue === "number" ? rawValue : Number(rawValue);
+    if (!key || !Number.isFinite(value)) continue;
+    next[key] = Math.max(0, next[key] + value * multiplier);
+  }
+  return next;
+}
+
+function applyRatioEffects(ratio: IncomeAllocationRatio, effects: Record<string, unknown> | undefined): IncomeAllocationRatio {
+  if (!effects) return ratio;
+  const override = effects.ratioOverride;
+  if (override && typeof override === "object") {
+    const next = { ...DEFAULT_INCOME_ALLOCATION_RATIO };
+    for (const [rawKey, rawValue] of Object.entries(override as Record<string, unknown>)) {
+      const key = normalizeRatioKey(rawKey);
+      const value = typeof rawValue === "number" ? rawValue : Number(rawValue);
+      if (!key || !Number.isFinite(value)) continue;
+      next[key] = Math.max(0, value);
+    }
+    return next;
+  }
+  return applyRatioDelta(ratio, effects.ratioDelta as Record<string, unknown> | undefined);
+}
+
 export function getBaseBudgetPools(workspace: DecisionPlayerPhaseWorkspace): BudgetPools {
   return workspace.baseBudgetPools ?? workspace.budgetPools;
 }
@@ -33,9 +94,11 @@ export function getBaseBudgetPools(workspace: DecisionPlayerPhaseWorkspace): Bud
 export type DecisionMarketReferencePrice = {
   basePrice?: number;
   existingPriceBonus: number;
-  priceBeforeCap?: number;
+  priceBeforeFloor?: number;
   price?: number;
-  priceCeiling: number;
+  minimumPrice: number;
+  maximumPrice: number;
+  isFloored: boolean;
   isCapped: boolean;
 };
 
@@ -43,27 +106,32 @@ export function calculateDecisionMarketReferencePrice(
   phase1: Phase1EconomyWorkspace | null | undefined,
   selectedPriceDelta = 0,
 ): DecisionMarketReferencePrice {
-  const priceCeiling = phase1?.domesticPriceCeiling ?? 12;
   const basePrice = pickFiniteNumber(
     phase1?.equilibriumPrice,
     phase1?.domesticBasePricePreview,
     phase1?.domesticPricePreview,
   );
+  const minimumPrice = phase1?.minimumDomesticPrice
+    ?? (basePrice == null ? 0 : Math.max(0, basePrice * DOMESTIC_PRICE_FLOOR_RATIO));
+  const maximumPrice = phase1?.domesticPriceCeiling
+    ?? (basePrice == null ? Number.POSITIVE_INFINITY : Math.max(0, basePrice * DOMESTIC_PRICE_CEILING_RATIO));
   const existingPriceBonus = phase1?.domesticPriceBonus ?? 0;
-  const priceBeforeCap = basePrice == null
+  const priceBeforeFloor = basePrice == null
     ? undefined
-    : Math.max(1, basePrice + existingPriceBonus + selectedPriceDelta);
-  const price = priceBeforeCap == null
+    : basePrice + existingPriceBonus + selectedPriceDelta;
+  const price = priceBeforeFloor == null
     ? undefined
-    : Math.max(1, Math.min(priceCeiling, priceBeforeCap));
+    : Math.min(maximumPrice, Math.max(minimumPrice, priceBeforeFloor));
 
   return {
     basePrice,
     existingPriceBonus,
-    priceBeforeCap,
+    priceBeforeFloor,
     price,
-    priceCeiling,
-    isCapped: priceBeforeCap != null && priceBeforeCap > priceCeiling,
+    minimumPrice,
+    maximumPrice,
+    isFloored: priceBeforeFloor != null && priceBeforeFloor < minimumPrice,
+    isCapped: priceBeforeFloor != null && priceBeforeFloor > maximumPrice,
   };
 }
 
@@ -109,6 +177,8 @@ function calculateNonResearchSpendByPool(
     const option = workspace.newFactoryOptions.find((candidate) => candidate.routeId === item.routeId);
     return sum + item.quantity * (option?.unitBudgetCost ?? 0);
   }, 0);
+  const rawMaterialPurchaseSpend = getSelectedRawMaterialPurchaseQuantity(workspace, draft)
+    * (workspace.phase1Economy?.rawMaterialPurchaseUnitCost ?? 1);
   const factoryActionSpend = (draft.factoryPlan.factoryActions ?? []).reduce((sum, selection) => {
     const action = workspace.factoryActions?.find((item) => item.actionId === selection.actionId);
     if (!action) return sum;
@@ -148,13 +218,10 @@ function calculateNonResearchSpendByPool(
     const action = workspace.militaryWorkspace.availableMilitaryActions.find((item) => item.actionId === selection.actionId);
     return sum + (action?.cost ?? 0);
   }, 0);
-  const diplomacySpend = draft.militaryPlan.diplomacyActions.reduce((sum, selection) => {
-    const action = workspace.militaryWorkspace.availableDiplomacyActions.find((item) => item.actionId === selection.actionId);
-    return sum + (action?.cost ?? 0);
-  }, 0);
+  const diplomacySpend = 0;
   return {
     domesticMarket: domesticSpend - factoryActionDomesticBudgetDelta,
-    factory: productionSpend + phase1ProductionSpend + expansionSpend + upgradeSpend + newFactorySpend + factoryActionSpend,
+    factory: productionSpend + phase1ProductionSpend + expansionSpend + upgradeSpend + newFactorySpend + rawMaterialPurchaseSpend + factoryActionSpend,
     governmentFiscal: (
       governmentPurchaseSpend
       + governmentStrategySpend
@@ -180,7 +247,12 @@ export function calculatePhase1ProductionSpend(
   }
 
   const capacityDeltaByMode = getSelectedProductionCapacityDeltaByMode(workspace, draft);
-  const rawMaterials = Math.max(0, phase1.rawMaterials + sumSelectedFactoryActionEffect(workspace, draft, "rawMaterialsDelta"));
+  const rawMaterials = Math.max(
+    0,
+    phase1.rawMaterials
+      + sumSelectedFactoryActionEffect(workspace, draft, "rawMaterialsDelta")
+      + getSelectedRawMaterialPurchaseQuantity(workspace, draft),
+  );
   let remainingRawMaterials = rawMaterials;
   let remainingCapacity = Math.max(
     0,
@@ -219,7 +291,12 @@ export function clampDecisionPhase1ProductionDraft(
 
   const requested = shiftUpgradedPhase1Assignments(workspace, draft, assignments);
   const capacityDeltaByMode = getSelectedProductionCapacityDeltaByMode(workspace, draft);
-  const rawMaterials = Math.max(0, phase1.rawMaterials + sumSelectedFactoryActionEffect(workspace, draft, "rawMaterialsDelta"));
+  const rawMaterials = Math.max(
+    0,
+    phase1.rawMaterials
+      + sumSelectedFactoryActionEffect(workspace, draft, "rawMaterialsDelta")
+      + getSelectedRawMaterialPurchaseQuantity(workspace, draft),
+  );
   const unitCost = workspace.productionOptions.find((option) => option.goodsId === "phase1_goods")?.unitBudgetCost ?? 1;
   const availableFactoryBudget = Math.max(0, workspace.budgetPools.factory + getSelectedFactoryBudgetDelta(workspace, draft) - calculateFactorySpendExcludingPhase1(workspace, draft));
   let remainingBudgetRaw = unitCost > 0 ? Math.floor(availableFactoryBudget / unitCost) : Number.MAX_SAFE_INTEGER;
@@ -321,12 +398,14 @@ function calculateFactorySpendExcludingPhase1(
     const option = workspace.newFactoryOptions.find((candidate) => candidate.routeId === item.routeId);
     return sum + item.quantity * (option?.unitBudgetCost ?? 0);
   }, 0);
+  const rawMaterialPurchaseSpend = getSelectedRawMaterialPurchaseQuantity(workspace, draft)
+    * (workspace.phase1Economy?.rawMaterialPurchaseUnitCost ?? 1);
   const factoryActionSpend = (draft.factoryPlan.factoryActions ?? []).reduce((sum, selection) => {
     const action = workspace.factoryActions?.find((item) => item.actionId === selection.actionId);
     if (!action) return sum;
     return sum + action.cost;
   }, 0);
-  return productionSpend + expansionSpend + upgradeSpend + newFactorySpend + factoryActionSpend;
+  return productionSpend + expansionSpend + upgradeSpend + newFactorySpend + rawMaterialPurchaseSpend + factoryActionSpend;
 }
 
 function getSelectedFactoryBudgetDelta(
@@ -371,10 +450,7 @@ export type GovernmentSpendBreakdown = {
   coreGovernment: number;
   marketRegulation: number;
   marketRegulationAllowance: number;
-  marketRegulationOverflow: number;
   baseGovernmentBudget: number;
-  policyBudgetSupplement: number;
-  policyBudgetSupplementRemaining: number;
   baseGovernmentRemaining: number;
   effectiveGovernmentBudget: number;
   effectiveGovernmentRemaining: number;
@@ -392,10 +468,7 @@ export function calculateGovernmentSpendBreakdown(
     coreGovernment: state.coreGovernmentSpend,
     marketRegulation: state.marketRegulationSpend,
     marketRegulationAllowance: state.marketRegulationAllowance,
-    marketRegulationOverflow: state.marketRegulationOverflow,
     baseGovernmentBudget: state.baseGovernmentBudget,
-    policyBudgetSupplement: state.policyBudgetSupplement,
-    policyBudgetSupplementRemaining: state.policyBudgetSupplementRemaining,
     baseGovernmentRemaining: state.baseGovernmentRemaining,
     effectiveGovernmentBudget: state.effectiveGovernmentBudget,
     effectiveGovernmentRemaining: state.effectiveGovernmentRemaining,
@@ -404,13 +477,10 @@ export function calculateGovernmentSpendBreakdown(
 
 export type GovernmentFiscalState = {
   baseGovernmentBudget: number;
-  policyBudgetSupplement: number;
   marketRegulationAllowance: number;
   effectiveGovernmentBudget: number;
-  policyBudgetSupplementRemaining: number;
   coreGovernmentSpend: number;
   marketRegulationSpend: number;
-  marketRegulationOverflow: number;
   militaryFiscalSpend: number;
   baseFiscalSpend: number;
   totalDecisionSpend: number;
@@ -434,11 +504,7 @@ export function calculateGovernmentFiscalState(
     0,
     getBaseBudgetPools(workspace).governmentFiscal + factoryActionGovernmentBudgetDelta,
   );
-  const effectiveGovernmentBudget = Math.max(
-    baseGovernmentBudget,
-    workspace.budgetPools.governmentFiscal + factoryActionGovernmentBudgetDelta,
-  );
-  const policyBudgetSupplement = Math.max(0, effectiveGovernmentBudget - baseGovernmentBudget);
+  const effectiveGovernmentBudget = baseGovernmentBudget;
   const adminPurchaseSpend = Math.max(0, draft.governmentPlan.adminPurchases ?? 0)
     * (workspace.governmentReforms?.adminPurchaseCost ?? 0);
   const governmentPurchaseSpend = draft.governmentPlan.pointPurchases.reduce((sum, purchase) => {
@@ -463,26 +529,18 @@ export function calculateGovernmentFiscalState(
     const action = workspace.militaryWorkspace.availableMilitaryActions.find((item) => item.actionId === selection.actionId);
     return sum + (action?.cost ?? 0);
   }, 0);
-  const diplomacySpend = draft.militaryPlan.diplomacyActions.reduce((sum, selection) => {
-    const action = workspace.militaryWorkspace.availableDiplomacyActions.find((item) => item.actionId === selection.actionId);
-    return sum + (action?.cost ?? 0);
-  }, 0);
+  const diplomacySpend = 0;
 
   const coreGovernmentSpend = governmentPurchaseSpend + coreGovernmentStrategySpend + policyActivationSpend;
   const militaryFiscalSpend = militaryActionSpend + diplomacySpend;
-  const marketRegulationOverflow = marketRegulationSpend;
   const totalDecisionSpend = coreGovernmentSpend + militaryFiscalSpend + marketRegulationSpend;
-  const baseFiscalSpend = Math.max(0, totalDecisionSpend - policyBudgetSupplement);
-  const policyBudgetSupplementRemaining = Math.max(0, policyBudgetSupplement - Math.min(totalDecisionSpend, policyBudgetSupplement));
+  const baseFiscalSpend = totalDecisionSpend;
   return {
     baseGovernmentBudget,
-    policyBudgetSupplement,
     marketRegulationAllowance,
     effectiveGovernmentBudget,
-    policyBudgetSupplementRemaining,
     coreGovernmentSpend,
     marketRegulationSpend,
-    marketRegulationOverflow,
     militaryFiscalSpend,
     baseFiscalSpend,
     totalDecisionSpend,
@@ -495,16 +553,31 @@ export function calculateRatioPreview(
   workspace: DecisionPlayerPhaseWorkspace,
   draft: PhaseDraftByPhase["decision"],
 ): IncomeAllocationRatio {
-  const nextRatio = { ...workspace.incomeAllocationRatio };
+  let nextRatio = normalizeIncomeRatio(workspace.effectiveIncomeAllocationRatio ?? workspace.incomeAllocationRatio);
 
   for (const selection of draft.governmentPlan.strategySelections) {
     const action = workspace.governmentActions.strategies.find((item) => item.actionId === selection.actionId);
-    if (!action?.ratioDelta) {
-      continue;
+    nextRatio = applyRatioDelta(nextRatio, action?.ratioDelta);
+  }
+
+  for (const reformId of draft.reforms ?? []) {
+    const reform = workspace.governmentReforms?.availableReforms.find((item) => item.reformId === reformId);
+    nextRatio = applyRatioEffects(nextRatio, reform?.effects);
+  }
+
+  for (const policyId of draft.activatePolicies ?? []) {
+    const policy = workspace.governmentReforms?.availablePolicies.find((item) => item.policyId === policyId);
+    if (policy && !policy.isActive) {
+      nextRatio = applyRatioEffects(nextRatio, policy.effects);
     }
-    nextRatio.domesticMarket += action.ratioDelta.domesticMarket ?? 0;
-    nextRatio.factory += action.ratioDelta.factory ?? 0;
-    nextRatio.governmentFiscal += action.ratioDelta.governmentFiscal ?? 0;
+  }
+
+  for (const policyId of draft.deactivatePolicies ?? []) {
+    const policy = workspace.governmentReforms?.availablePolicies.find((item) => item.policyId === policyId);
+    const ratioDelta = policy?.effects?.ratioDelta;
+    if (policy?.isActive && ratioDelta && typeof ratioDelta === "object") {
+      nextRatio = applyRatioDelta(nextRatio, ratioDelta as Record<string, unknown>, -1);
+    }
   }
 
   return {
@@ -553,18 +626,12 @@ export function buildGovernmentActionDescription(
 }
 
 export function buildMilitaryActionDescription(
-  action:
-    | DecisionPlayerPhaseWorkspace["militaryWorkspace"]["availableMilitaryActions"][number]
-    | DecisionPlayerPhaseWorkspace["militaryWorkspace"]["availableDiplomacyActions"][number],
+  action: DecisionPlayerPhaseWorkspace["militaryWorkspace"]["availableMilitaryActions"][number],
 ): string {
   const parts = [action.description ?? i18n.t("game:effect.defaultMilitaryDesc", "执行后会改变当前海外扩张态势。")];
   if ("maxPerRound" in action) {
     parts.push(i18n.t("game:effect.militaryGovernmentFiscalCost", "消耗政府财政 {{cost}}。", { cost: action.cost }));
     parts.push(i18n.t("game:effect.maxPerRound", "本轮上限 {{max}} 次。", { max: action.maxPerRound }));
-  }
-  if ("targetRegionLabel" in action) {
-    parts.push(i18n.t("game:effect.governmentFiscalCost", "消耗政府财政 {{cost}}。", { cost: action.cost }));
-    parts.push(i18n.t("game:effect.targetRegion", "目标区域：{{region}}。", { region: action.targetRegionLabel }));
   }
   return parts.join(" ");
 }
@@ -585,16 +652,56 @@ export function getRegionAccessLevelLabel(accessLevel: RegionAccessLevel): strin
 
 export function buildRegionAccessDescription(
   status: DecisionPlayerPhaseWorkspace["militaryWorkspace"]["regionAccessStatus"][number],
+  options: { includeRouteBlockadeDetail?: boolean } = {},
 ): string {
   const parts = [
     i18n.t("game:accessLabel.marketLevel", "市场级别：{{level}}。", { level: getRegionAccessLevelLabel(status.accessLevel) }),
     status.isAccessible ? i18n.t("game:accessLabel.accessible", "当前可进入。") : i18n.t("game:accessLabel.notAccessible", "当前仍不可进入。"),
-    status.isDiplomacyEstablished ? i18n.t("game:accessLabel.diplomacyEstablished", "已建交。") : i18n.t("game:accessLabel.diplomacyNotEstablished", "尚未建交。"),
   ];
   if (status.acceptedGoods.length > 0) {
     parts.push(i18n.t("game:accessLabel.sellable", "可售：{{goods}}。", { goods: status.acceptedGoods.map(getGoodsLabel).join("、") }));
   }
+  if (options.includeRouteBlockadeDetail !== false) {
+    const routeBlockadeDetail = buildRegionRouteBlockadeDetail(status);
+    if (routeBlockadeDetail) {
+      parts.push(routeBlockadeDetail);
+    }
+  }
   return parts.join(" ");
+}
+
+export function buildRegionRouteBlockadeDetail(status: RegionAccessStatus): string | null {
+  if (status.lockReason !== "route_blocked") {
+    return null;
+  }
+  return i18n.t("game:market.routeBlockedDetail", {
+    nodes: formatBlockedOceanNodeList(status.blockedOceanNodes),
+    effect: i18n.t("game:market.routeBlockedEffect", "无法向该区域出售；容量视为 0。"),
+    resolution: i18n.t("game:market.routeBlockedResolution", "向该地区投入更多舰队、打破对方地区封锁，或等待事件 / 政策变化。"),
+    defaultValue: "封锁地区：{{nodes}}。影响：{{effect}} 解除方式：{{resolution}}",
+  });
+}
+
+export function formatBlockedOceanNodeList(
+  nodes: RegionAccessStatus["blockedOceanNodes"] | undefined,
+): string {
+  if (!nodes || nodes.length === 0) {
+    return i18n.t("game:market.unknownOceanNode", "未知地区");
+  }
+  return nodes.map((node) => {
+    const label = node.label
+      || i18n.t(`game:region.${node.nodeId}`, {
+        defaultValue: i18n.t(`game:oceanNode.${node.nodeId}`, node.nodeId),
+      });
+    const controller = node.controllerLabel || i18n.t(`game:country.${node.controller}`, node.controller);
+    return node.controller
+      ? i18n.t("game:market.blockedOceanNodeWithController", {
+          node: label,
+          controller,
+          defaultValue: "{{node}}（控制：{{controller}}）",
+        })
+      : label;
+  }).join("、");
 }
 
 export function calculateGovernmentPointPreview(
@@ -826,7 +933,6 @@ const EFFECT_LABEL_KEYS: Record<string, { key: string; fallback: string }> = {
   domesticMarketCapacityDelta: { key: "game:effect.domesticMarketCapacityDelta", fallback: "国内容量" },
   domesticPriceBonusDelta: { key: "game:effect.domesticPriceBonusDelta", fallback: "国内价格" },
   overseasMarketCapacityDelta: { key: "game:effect.overseasMarketCapacityDelta", fallback: "海外容量" },
-  overseasPriceBonusDelta: { key: "game:effect.overseasPriceBonusDelta", fallback: "海外价格" },
   militaryPointsDelta: { key: "game:effect.militaryPointsDelta", fallback: "军事点" },
   armyCapDelta: { key: "game:effect.armyCapDelta", fallback: "军事力量上限" },
   controlledRegionsDelta: { key: "game:effect.controlledRegionsDelta", fallback: "控制区域" },
@@ -837,7 +943,7 @@ const EFFECT_LABEL_KEYS: Record<string, { key: string; fallback: string }> = {
   rawMaterialsPerTurnDelta: { key: "game:effect.rawMaterialsPerTurnDelta", fallback: "每回合原材料" },
   factoryUpgradeCostReductionPercent: { key: "game:effect.factoryUpgradeCostReductionPercent", fallback: "升级成本" },
   factoryExpansionCostReductionPercent: { key: "game:effect.factoryExpansionCostReductionPercent", fallback: "扩产成本" },
-  newFactoryCostReductionPercent: { key: "game:effect.newFactoryCostReductionPercent", fallback: "新建成本" },
+  newFactoryCostReductionPercent: { key: "game:effect.newFactoryCostReductionPercent", fallback: "兼容新建成本" },
   phase1ProductionOutputBonusPercent: { key: "game:effect.phase1ProductionOutputBonusPercent", fallback: "生产产出" },
   rawMaterialsDelta: { key: "game:effect.rawMaterialsDelta", fallback: "原材料" },
   phase1ProductionRawCapacityDelta: { key: "game:effect.phase1ProductionRawCapacityDelta", fallback: "投料上限" },
@@ -846,7 +952,6 @@ const EFFECT_LABEL_KEYS: Record<string, { key: string; fallback: string }> = {
 
 const TEMPORARY_EFFECT_KEYS = new Set([
   "domesticPriceBonusDelta",
-  "overseasPriceBonusDelta",
   "phase1ProductionRawCapacityDelta",
   "productionOutputMultiplier",
 ]);
@@ -991,6 +1096,40 @@ export function getSelectedProductionCapacityDeltaByMode(
     ...getSelectedFactoryActionCapacityDeltaByMode(workspace, draft),
   };
 
+  for (const order of draft.factoryPlan.expansionOrders) {
+    const option = workspace.expansionOptions.find((item) => item.routeId === order.routeId);
+    if (!option) {
+      continue;
+    }
+    const quantity = Math.min(
+      Math.max(0, Math.floor(order.quantity ?? 0)),
+      Math.max(0, option.maxQuantity),
+    );
+    if (quantity <= 0) {
+      continue;
+    }
+    const capacityDelta = quantity * Math.max(1, option.capacityDelta ?? 1);
+    capacityDeltaByMode.idle = (capacityDeltaByMode.idle ?? 0) - capacityDelta;
+    capacityDeltaByMode[option.routeId] = (capacityDeltaByMode[option.routeId] ?? 0) + capacityDelta;
+  }
+
+  for (const order of draft.factoryPlan.newFactoryOrders) {
+    const option = workspace.newFactoryOptions.find((item) => item.routeId === order.routeId);
+    if (!option) {
+      continue;
+    }
+    const quantity = Math.min(
+      Math.max(0, Math.floor(order.quantity ?? 0)),
+      Math.max(0, option.maxQuantity),
+    );
+    if (quantity <= 0) {
+      continue;
+    }
+    const capacityDelta = quantity * Math.max(1, option.capacityDelta ?? 1);
+    capacityDeltaByMode.idle = (capacityDeltaByMode.idle ?? 0) - capacityDelta;
+    capacityDeltaByMode[option.routeId] = (capacityDeltaByMode[option.routeId] ?? 0) + capacityDelta;
+  }
+
   for (const order of draft.factoryPlan.upgradeOrders) {
     const option = workspace.upgradeOptions.find((item) => item.routeId === order.routeId);
     if (!option) {
@@ -1009,6 +1148,23 @@ export function getSelectedProductionCapacityDeltaByMode(
   }
 
   return capacityDeltaByMode;
+}
+
+export function getSelectedRawMaterialPurchaseQuantity(
+  workspace: DecisionPlayerPhaseWorkspace,
+  draft: PhaseDraftByPhase["decision"],
+): number {
+  const requested = Math.max(0, Math.floor(draft.factoryPlan.rawMaterialPurchaseQuantity ?? 0));
+  const phase1 = workspace.phase1Economy;
+  if (!phase1) {
+    return requested;
+  }
+  const unitCost = Math.max(0, phase1.rawMaterialPurchaseUnitCost ?? 1);
+  const cap = Math.max(0, phase1.materialPurchaseCapPerTurn ?? phase1.maxRawMaterialPurchase ?? requested);
+  const budgetLimit = unitCost > 0
+    ? Math.max(0, Math.floor(workspace.budgetPools.factory / unitCost))
+    : cap;
+  return Math.min(requested, cap, budgetLimit);
 }
 
 export function sumSelectedFactoryActionEffect(

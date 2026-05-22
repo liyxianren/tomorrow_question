@@ -183,7 +183,7 @@ class MarketPhaseMirrorsPhase1EconomyTests(unittest.TestCase):
         )
         expected_final = calculate_domestic_price(
             equilibrium_price=expected_equilibrium,
-            supply=Decimal(5),
+            supply=Decimal(0),
             demand=expected_demand,
             minimum_price=1,
         )
@@ -247,10 +247,10 @@ class SettlementPhaseMirrorsPhase1EconomyTests(unittest.TestCase):
         resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
 
         updated_britain = _get_player(resolution.updated_snapshot, "player-1")
-        # Untouched -> the default 5:3:2 split survives.
-        self.assertEqual(updated_britain.phase1_economy.income_allocation_ratio["consumption"], 0.5)
+        # Untouched -> the default 3:3:4 split survives.
+        self.assertEqual(updated_britain.phase1_economy.income_allocation_ratio["consumption"], 0.3)
         self.assertEqual(updated_britain.phase1_economy.income_allocation_ratio["investment"], 0.3)
-        self.assertEqual(updated_britain.phase1_economy.income_allocation_ratio["fiscal"], 0.2)
+        self.assertEqual(updated_britain.phase1_economy.income_allocation_ratio["fiscal"], 0.4)
 
 if __name__ == "__main__":
     unittest.main()

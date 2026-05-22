@@ -31,6 +31,17 @@ describe("game i18n additions", () => {
     });
   });
 
+  it("coerces localized backend label objects into renderable text", async () => {
+    await withLanguage("zh", () => {
+      expect(translateBackend({ zh: "工业化主线", en: "Industrialization Path" })).toBe("工业化主线");
+    });
+
+    await withLanguage("en", () => {
+      expect(translateBackend({ zh: "工业化主线", en: "Industrialization Path" })).toBe("Industrialization Path");
+      expect(translateBackend({ label: "珍妮纺纱机" })).toBe("Spinning Jenny");
+    });
+  });
+
   it("defines market-policy panel copy in both supported languages", async () => {
     await withLanguage("zh", () => {
       expect(i18n.t("game:government.marketPolicyActions")).toBe("市场政策");
@@ -67,16 +78,16 @@ describe("game i18n additions", () => {
 
   it("defines market preview and settlement clarification copy in both supported languages", async () => {
     await withLanguage("zh", () => {
-      expect(i18n.t("game:market.governmentAdjustment")).toBe("政府市场政策");
-      expect(i18n.t("game:market.noGovernmentAdjustment")).toBe("本轮暂无政府市场政策");
+      expect(i18n.t("game:market.governmentAdjustment")).toBe("市场容量调整");
+      expect(i18n.t("game:market.noGovernmentAdjustment")).toBe("本轮暂无市场调整");
       expect(i18n.t("game:market.netAdjustment")).toBe("当前净调整");
       expect(i18n.t("game:domestic.existingPriceBonus")).toBe("已有价格调整");
       expect(i18n.t("game:settlement.effectiveRatio")).toBe("本轮有效回流比例");
     });
 
     await withLanguage("en", () => {
-      expect(i18n.t("game:market.governmentAdjustment")).toBe("Government Market Policy");
-      expect(i18n.t("game:market.noGovernmentAdjustment")).toBe("No government market policy this round");
+      expect(i18n.t("game:market.governmentAdjustment")).toBe("Market Capacity Adjustment");
+      expect(i18n.t("game:market.noGovernmentAdjustment")).toBe("No market adjustment this round");
       expect(i18n.t("game:market.netAdjustment")).toBe("Current net adjustment");
       expect(i18n.t("game:domestic.existingPriceBonus")).toBe("Existing Price Adjustment");
       expect(i18n.t("game:settlement.effectiveRatio")).toBe("Effective Return Ratio");

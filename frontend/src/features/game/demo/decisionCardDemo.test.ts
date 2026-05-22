@@ -25,7 +25,6 @@ describe("decisionCardDemo adapter", () => {
     expect(viewModel.locations.factory.sections.map((section) => section.id)).toEqual([
       "production",
       "industrial-development",
-      "factory-dispatch",
       "locked-goods",
     ]);
     expect(viewModel.locations.domestic.sections.map((section) => section.id)).toEqual([
@@ -59,7 +58,7 @@ describe("decisionCardDemo adapter", () => {
       },
       governmentPlan: {
         pointPurchases: [],
-        strategySelections: [{ actionId: "market_subsidy" }],
+        strategySelections: [{ actionId: "trade_promotion" }],
         techResearch: [],
       },
     };
@@ -75,7 +74,7 @@ describe("decisionCardDemo adapter", () => {
     expect(viewModel.summary.ratioPreview.factory).toBe(3);
     expect(viewModel.locations.factory.sections[0].cards.find((card) => card.id === "production-coal")?.feedback).toContain("已安排 2 批");
     expect(
-      viewModel.locations.government.sections.flatMap((section) => section.cards).find((card) => card.id === "strategy-market_subsidy")?.selected,
+      viewModel.locations.government.sections.flatMap((section) => section.cards).find((card) => card.id === "strategy-trade_promotion")?.selected,
     ).toBe(true);
   });
 
@@ -159,15 +158,25 @@ describe("decisionCardDemo adapter", () => {
     });
 
     expect(
-      viewModel.locations.government.sections.flatMap((section) => section.cards).find((card) => card.id === "strategy-market_fair")?.badges,
-    ).toContain("国内容量 +2");
+      viewModel.locations.government.sections.flatMap((section) => section.cards).find((card) => card.id === "strategy-trade_promotion")?.badges,
+    ).toContain("海外容量 +2");
     expect(
       viewModel.locations.government.sections.flatMap((section) => section.cards).some((card) => card.id === "strategy-expand_research"),
     ).toBe(false);
   });
 
   it("does not lock factory production when a research target is selected", () => {
-    const scenario = createSeedDecisionCardDemoScenario();
+    const seedScenario = createSeedDecisionCardDemoScenario();
+    const scenario = createDecisionCardDemoScenario({
+      source: "seed",
+      workspace: {
+        ...seedScenario.workspace,
+        budgetPools: {
+          ...seedScenario.workspace.budgetPools,
+          factory: 12,
+        },
+      },
+    });
     const draft = {
       ...createInitialPhaseDraft("decision"),
       governmentPlan: {
@@ -247,7 +256,7 @@ describe("decisionCardDemo adapter", () => {
       ...createInitialPhaseDraft("decision"),
       governmentPlan: {
         pointPurchases: [],
-        strategySelections: [{ actionId: "market_fair" }],
+        strategySelections: [{ actionId: "trade_promotion" }],
         techResearch: [],
       },
     };
@@ -262,8 +271,8 @@ describe("decisionCardDemo adapter", () => {
       .find((card) => card.id === "market-regulation-preview");
 
     expect(viewModel.summary.remainingBudgets.domesticMarket).toBe(10);
-    expect(viewModel.summary.remainingBudgets.governmentFiscal).toBe(10);
-    expect(regulationCard?.badges).toContain("国内容量 +2");
+    expect(viewModel.summary.remainingBudgets.governmentFiscal).toBe(15);
+    expect(regulationCard?.badges).toContain("海外容量 +2");
     expect(regulationCard?.feedback).toContain("governmentPlan.strategySelections");
   });
 });

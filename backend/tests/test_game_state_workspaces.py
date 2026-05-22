@@ -52,9 +52,6 @@ class GameStateWorkspaceTests(unittest.TestCase):
 
         workspace = build_decision_player_workspace(snapshot, britain)
         grain_option = next(option for option in workspace["productionOptions"] if option["goodsId"] == "grain")
-        consumer_subsidy = next(
-            action for action in workspace["domesticMarketActions"] if action["actionId"] == "consumer_subsidy"
-        )
         spinning_jenny = next(node for node in workspace["techTree"] if node["techId"] == "spinning_jenny")
 
         self.assertEqual(workspace["activeEvents"][0]["eventId"], "grain_crisis")
@@ -62,16 +59,12 @@ class GameStateWorkspaceTests(unittest.TestCase):
         self.assertTrue(workspace["nationalAbility"]["isAvailable"])
         self.assertEqual(grain_option["priceAdjustment"], 1)
         self.assertEqual(grain_option["priceTrend"], "up")
-        self.assertEqual(consumer_subsidy["lockedReason"], "需要研究「市场经济」")
+        self.assertEqual(workspace["domesticMarketActions"], [])
         self.assertEqual(spinning_jenny["budgetPool"], "factory")
         self.assertEqual(spinning_jenny["budgetCost"], 7)
         self.assertFalse(spinning_jenny["isUnlocked"])
         self.assertIn("militaryWorkspace", workspace)
         self.assertEqual(workspace["militaryWorkspace"]["regionAccessStatus"][2]["regionId"], "africa")
-        self.assertEqual(
-            workspace["militaryWorkspace"]["availableDiplomacyActions"][0]["targetRegion"],
-            "americas",
-        )
 
     def test_market_workspace_exposes_price_trend_on_sellable_inventory(self) -> None:
         snapshot = build_snapshot()
@@ -86,19 +79,26 @@ class GameStateWorkspaceTests(unittest.TestCase):
         self.assertEqual(grain_inventory["priceTrend"], "down")
         self.assertIn("regionAccessStatus", workspace)
 
-    def test_market_workspace_marks_concession_region_accessible_after_diplomacy(self) -> None:
+    def test_decision_military_workspace_ocean_nodes_include_reachable_routes(self) -> None:
         snapshot = build_snapshot()
         britain = next(player for player in snapshot.player_states if player.player_id == "player-1")
-        britain.established_diplomacy = ["africa"]
-        britain.military_points = 0
+
+        workspace = build_decision_player_workspace(snapshot, britain)
+        ocean_nodes = workspace["militaryWorkspace"]["oceanNodes"]
+        north_atlantic = next(node for node in ocean_nodes if node["nodeId"] == "north_atlantic")
+
+        self.assertEqual(north_atlantic["reachableRoutes"], ["mediterranean", "pacific"])
+
+    def test_market_workspace_marks_overseas_regions_accessible_by_default(self) -> None:
+        snapshot = build_snapshot()
+        britain = next(player for player in snapshot.player_states if player.player_id == "player-1")
 
         workspace = build_market_player_workspace(snapshot, britain)
         africa = next(item for item in workspace["regionAccessStatus"] if item["regionId"] == "africa")
         middle_east = next(item for item in workspace["regionAccessStatus"] if item["regionId"] == "middle_east")
 
         self.assertTrue(africa["isAccessible"])
-        self.assertTrue(africa["isDiplomacyEstablished"])
-        self.assertFalse(middle_east["isAccessible"])
+        self.assertTrue(middle_east["isAccessible"])
 
     def test_market_workspace_exposes_government_market_policy_bonuses(self) -> None:
         snapshot = build_snapshot()
@@ -108,11 +108,9 @@ class GameStateWorkspaceTests(unittest.TestCase):
                 "domesticMarketCapacityBonus": 2,
                 "domesticPriceBonus": 2,
                 "overseasMarketCapacityBonus": 2,
-                "overseasPriceBonus": 1,
                 "governmentDomesticMarketCapacityBonus": 2,
                 "governmentDomesticPriceBonus": 2,
                 "governmentOverseasMarketCapacityBonus": 2,
-                "governmentOverseasPriceBonus": 1,
             }
         )
 
@@ -122,11 +120,9 @@ class GameStateWorkspaceTests(unittest.TestCase):
         self.assertEqual(phase1["domesticMarketCapacityBonus"], 2)
         self.assertEqual(phase1["domesticPriceBonus"], 2)
         self.assertEqual(phase1["overseasMarketCapacityBonus"], 2)
-        self.assertEqual(phase1["overseasPriceBonus"], 1)
         self.assertEqual(phase1["governmentDomesticMarketCapacityBonus"], 2)
         self.assertEqual(phase1["governmentDomesticPriceBonus"], 2)
         self.assertEqual(phase1["governmentOverseasMarketCapacityBonus"], 2)
-        self.assertEqual(phase1["governmentOverseasPriceBonus"], 1)
 
     @unittest.skip("Sellable inventory test uses old multi-goods model; needs rewrite for phase1_goods economy")
     def test_market_workspace_only_exposes_overseas_prices_for_regions_that_accept_the_goods(self) -> None:
@@ -152,17 +148,13 @@ class GameStateWorkspaceTests(unittest.TestCase):
 
         workspace = build_decision_player_workspace(snapshot, britain)
         capability = workspace["militaryWorkspace"]["colonizationCapability"]
-        americas = next(
-            option for option in workspace["militaryWorkspace"]["colonizationOptions"] if option["regionId"] == "americas"
-        )
 
         self.assertFalse(capability["isUnlocked"])
-        self.assertEqual(capability["unlockCost"], 5)
-        self.assertEqual(capability["militaryPointCost"], 2)
-        self.assertEqual(capability["incomePerColonyPerRound"], 5)
-        self.assertEqual(capability["maxColonizationsPerRound"], 1)
-        self.assertNotIn("budgetCost", americas)
-        self.assertEqual(americas["lockedReason"], "需先永久解锁殖民扩张")
+        self.assertEqual(capability["unlockCost"], 0)
+        self.assertEqual(capability["budgetCost"], 0)
+        self.assertEqual(capability["incomePerColonyPerRound"], 0)
+        self.assertEqual(capability["maxColonizationsPerRound"], 0)
+        self.assertEqual(workspace["militaryWorkspace"]["colonizationOptions"], [])
 
     def test_tech_tree_marks_unlocked_techs_as_discovered(self) -> None:
         snapshot = build_snapshot()
@@ -209,21 +201,30 @@ class GameStateWorkspaceTests(unittest.TestCase):
         self.assertIn("pointPurchaseCosts", gov)
         self.assertGreater(len(gov["strategies"]), 0, "should expose at least one strategy")
 
-        market_fair = next((s for s in gov["strategies"] if s["actionId"] == "market_fair"), None)
-        self.assertIsNotNone(market_fair, "market_fair should be exposed as a government market-regulation strategy")
-        self.assertEqual(market_fair["label"], "博览会")
-        self.assertEqual(market_fair["cost"], 5)
-        self.assertTrue(market_fair["isMarketRegulation"])
-        self.assertIn("description", market_fair)
-        self.assertIn("效果", market_fair["description"], "description should include effect summary")
+        self.assertEqual(
+            [strategy["actionId"] for strategy in gov["strategies"]],
+            ["trade_promotion", "expand_research"],
+        )
+        trade_promotion = gov["strategies"][0]
+        self.assertEqual(trade_promotion["label"], "贸易促进")
+        self.assertEqual(trade_promotion["cost"], 0)
+        self.assertTrue(trade_promotion["isMarketRegulation"])
+        self.assertEqual(trade_promotion["effects"], {"overseasMarketCapacityDelta": 2})
+        self.assertFalse(
+            any(
+                "domesticMarketCapacityDelta" in strategy["effects"]
+                or "domesticPriceBonusDelta" in strategy["effects"]
+                for strategy in gov["strategies"]
+            )
+        )
 
-        self.assertEqual(gov["pointPurchaseCosts"], {"tech": 2, "military": 6})
+        self.assertEqual(gov["pointPurchaseCosts"], {"tech": 2})
 
     def test_decision_workspace_previews_active_event_effects(self) -> None:
         snapshot = build_snapshot()
         britain = next(p for p in snapshot.player_states if p.player_id == "player-1")
         britain.budget_pools["governmentFiscal"] = 10
-        britain.military_points = 0
+        britain.tech_points = 0
         snapshot.active_events = [
             {
                 "eventId": "test_event",
@@ -231,7 +232,7 @@ class GameStateWorkspaceTests(unittest.TestCase):
                 "effects": {
                     "governmentFiscalBudgetDelta": -2,
                     "domesticMarketCapacityDelta": 2,
-                    "militaryPointsDelta": 1,
+                    "techPointsDelta": 1,
                 },
             }
         ]
@@ -240,27 +241,22 @@ class GameStateWorkspaceTests(unittest.TestCase):
 
         self.assertEqual(workspace["baseBudgetPools"]["governmentFiscal"], 8)
         self.assertEqual(workspace["marketRegulationAllowance"], 0)
-        self.assertEqual(workspace["budgetPools"]["governmentFiscal"], 16)
-        self.assertEqual(workspace["domesticMarketCapacity"], 10)
-        self.assertEqual(workspace["militaryWorkspace"]["militaryPoints"], 1)
+        self.assertEqual(workspace["budgetPools"]["governmentFiscal"], 8)
+        self.assertEqual(workspace["domesticMarketCapacity"], 26)
+        self.assertEqual(workspace["techPoints"], 1)
         self.assertEqual(britain.budget_pools["governmentFiscal"], 10, "workspace preview must not mutate snapshot state")
-        self.assertEqual(britain.military_points, 0, "workspace preview must not consume event effects early")
+        self.assertEqual(britain.tech_points, 0, "workspace preview must not consume event effects early")
 
-    def test_decision_workspace_marks_region_colonizable_after_unlock_and_diplomacy(self) -> None:
+    def test_decision_workspace_keeps_colonization_disabled_after_diplomacy(self) -> None:
         snapshot = build_snapshot()
         britain = next(player for player in snapshot.player_states if player.player_id == "player-1")
         britain.colonization_unlocked = True
         britain.established_diplomacy = ["americas"]
-        britain.military_points = 3
 
         workspace = build_decision_player_workspace(snapshot, britain)
-        americas = next(
-            option for option in workspace["militaryWorkspace"]["colonizationOptions"] if option["regionId"] == "americas"
-        )
 
-        self.assertTrue(workspace["militaryWorkspace"]["colonizationCapability"]["isUnlocked"])
-        self.assertTrue(americas["canColonize"])
-        self.assertIsNone(americas["lockedReason"])
+        self.assertFalse(workspace["militaryWorkspace"]["colonizationCapability"]["isUnlocked"])
+        self.assertEqual(workspace["militaryWorkspace"]["colonizationOptions"], [])
 
 
 if __name__ == "__main__":

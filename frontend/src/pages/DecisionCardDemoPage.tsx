@@ -10,8 +10,8 @@ import {
   removeMilitaryActionSelection,
   setAbilitySelectionTarget,
   setProductionOrderQuantity,
+  setRawMaterialPurchaseQuantity,
   setRouteDecisionOrderQuantity,
-  toggleDiplomacyActionSelection,
   toggleFactoryActionSelection,
   toggleGovernmentStrategySelection,
   toggleNationalAbilitySelection,
@@ -115,6 +115,8 @@ export function DecisionCardDemoPage() {
           return setRouteDecisionOrderQuantity(previous, "upgradeOrders", card.interaction.routeId, quantity);
         case "newFactory":
           return setRouteDecisionOrderQuantity(previous, "newFactoryOrders", card.interaction.routeId, quantity);
+        case "rawMaterialPurchase":
+          return setRawMaterialPurchaseQuantity(previous, quantity);
         default:
           return previous;
       }
@@ -159,8 +161,6 @@ export function DecisionCardDemoPage() {
           return setRouteDecisionOrderQuantity(previous, "newFactoryOrders", card.interaction.routeId, 1);
         case "militaryAction":
           return addMilitaryActionSelection(previous, card.interaction.actionId);
-        case "diplomacyAction":
-          return toggleDiplomacyActionSelection(previous, card.interaction.actionId, true);
         default:
           return previous;
       }
@@ -182,8 +182,6 @@ export function DecisionCardDemoPage() {
           return setRouteDecisionOrderQuantity(previous, "newFactoryOrders", card.interaction.routeId, 0);
         case "militaryAction":
           return removeMilitaryActionSelection(previous, card.interaction.actionId);
-        case "diplomacyAction":
-          return toggleDiplomacyActionSelection(previous, card.interaction.actionId, false);
         default:
           return previous;
       }

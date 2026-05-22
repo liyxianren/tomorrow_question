@@ -8,13 +8,13 @@ import type { ParameterBindingSource } from "../../features/game/parameterInspec
 
 import { DecisionParameterSandbox, type DecisionSandboxPayload } from "./DecisionParameterSandbox";
 
-const factoryActionCostSource: ParameterBindingSource = {
-  fileName: "decision_actions.json",
-  path: ["factoryActions", "factory_raw_procurement", "budgetPoolCost"],
-  pathLabel: "factoryActions.factory_raw_procurement.budgetPoolCost",
-  label: "工厂行动 / 原料统购 - 预算池消耗",
-  fieldLabel: "预算池消耗",
-  value: 3,
+const rawMaterialPurchaseCostSource: ParameterBindingSource = {
+  fileName: "production.json",
+  path: ["rawMaterialPurchaseUnitCost"],
+  pathLabel: "rawMaterialPurchaseUnitCost",
+  label: "材料购买单位成本",
+  fieldLabel: "材料购买单位成本",
+  value: 1,
 };
 
 const adminPurchaseCostSource: ParameterBindingSource = {
@@ -39,13 +39,46 @@ function createSandboxPayload(): DecisionSandboxPayload {
     decisionWorkspace: createDecisionPlayerWorkspace({
       budgetPools: { domesticMarket: 10, factory: 15, governmentFiscal: 17 },
       baseBudgetPools: { domesticMarket: 10, factory: 15, governmentFiscal: 9 },
+      phase1Economy: {
+        capacityByMode: { idle: 2, handicraft: 1 },
+        rawMaterials: 4,
+        goodsInventory: 0,
+        factoryTotalCap: 3,
+        factoryEnabledCount: 1,
+        idleCapacity: 2,
+        factoryCapsByMode: { handicraft: 3, mechanized: 3, steam: 3, electrified: 3 },
+        materialPurchaseCapPerTurn: 5,
+        rawMaterialPurchaseUnitCost: 1,
+        maxRawMaterialPurchase: 5,
+        productionModes: [
+          {
+            mode: "handicraft",
+            label: "手工业",
+            inputRatio: 1,
+            outputRatio: 1,
+            demandCoefficient: 2,
+            buildCost: 12,
+            upgradeCost: 6,
+            currentCapacity: 1,
+            factoryCap: 3,
+            requiredTech: null,
+            isAvailable: true,
+          },
+        ],
+        domesticDemand: 2,
+        equilibriumPrice: 3,
+        domesticPricePreview: 3,
+        investmentPool: 12,
+        incomeAllocationRatio: {},
+        marketMetrics: {},
+      },
     }),
     parameterBindings: [
       {
-        targetKey: "factory.action.factory_raw_procurement",
-        title: "工厂调度：原料统购",
-        currentEffect: "立刻补充本回合原材料。",
-        sources: [factoryActionCostSource],
+        targetKey: "factory.rawMaterialPurchase",
+        title: "材料购买",
+        currentEffect: "每购买 1 原材料，立即增加本回合可投料数量，并消耗工厂预算。",
+        sources: [rawMaterialPurchaseCostSource],
       },
       {
         targetKey: "government.adminPurchase",
@@ -68,21 +101,21 @@ describe("DecisionParameterSandbox", () => {
 
     await user.click(screen.getByLabelText("工业区"));
     const factoryPanel = screen.getByTestId("factory-panel");
-    const actionCard = within(factoryPanel).getByText("原料统购").closest("article");
-    expect(actionCard).not.toBeNull();
-    await user.click(within(actionCard as HTMLElement).getByRole("button", { name: "查看数值关系" }));
+    const materialPurchaseCard = within(factoryPanel).getByText("材料购买").closest("section");
+    expect(materialPurchaseCard).not.toBeNull();
+    await user.click(within(materialPurchaseCard as HTMLElement).getByRole("button", { name: "查看数值关系" }));
 
     expect(screen.getByText("本次点击变化")).toBeInTheDocument();
     expect(screen.getByText("玩家视角怎么理解")).toBeInTheDocument();
     expect(screen.getByText("可编辑参数")).toBeInTheDocument();
-    expect(screen.getAllByText(/控制玩家点击这个按钮要花多少预算/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/decision_actions\.json .* factoryActions\.factory_raw_procurement\.budgetPoolCost/)).toBeInTheDocument();
+    expect(screen.getAllByText(/控制每购买 1 原材料需要消耗多少工厂预算/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/production\.json .* rawMaterialPurchaseUnitCost/)).toBeInTheDocument();
 
-    const input = screen.getByDisplayValue("3");
+    const input = screen.getByDisplayValue("1");
     await user.clear(input);
-    await user.type(input, "5");
+    await user.type(input, "2");
 
-    expect(onSourceValueChange).toHaveBeenLastCalledWith(factoryActionCostSource, 5);
+    expect(onSourceValueChange).toHaveBeenLastCalledWith(rawMaterialPurchaseCostSource, 2);
   });
 
   it("shows the permanent admin-purchase relationship in the settings sandbox", async () => {
@@ -108,7 +141,7 @@ function SandboxHarness({
 }: {
   onSourceValueChange: (source: ParameterBindingSource, value: number) => void;
 }) {
-  const [value, setValue] = useState(3);
+  const [value, setValue] = useState(1);
   return (
     <DecisionParameterSandbox
       sandbox={createSandboxPayload()}

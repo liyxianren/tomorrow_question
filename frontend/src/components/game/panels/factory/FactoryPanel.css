@@ -31,6 +31,11 @@
   min-width: 0;
 }
 
+.factory-panel--v2__left {
+  display: grid;
+  gap: 10px;
+}
+
 .factory-panel--v2__right {
   display: grid;
   grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
@@ -51,6 +56,94 @@
   background:
     linear-gradient(135deg, rgba(232, 200, 120, 0.055), rgba(127, 180, 216, 0.035)),
     rgba(255, 255, 255, 0.018);
+}
+
+.factory-overview,
+.factory-material-purchase {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.022);
+}
+
+.factory-overview {
+  display: grid;
+  gap: 10px;
+}
+
+.factory-overview__headline {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--game-text-secondary, rgba(230, 235, 238, 0.62));
+  font-size: 12px;
+}
+
+.factory-overview__headline strong {
+  color: var(--game-text-value, #e8c878);
+  font-size: 16px;
+}
+
+.factory-overview__chips,
+.factory-material-purchase__metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.factory-overview__chips span,
+.factory-material-purchase__metrics span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--game-text-secondary, rgba(230, 235, 238, 0.62));
+  font-size: 11px;
+}
+
+.factory-overview__chips strong,
+.factory-material-purchase__metrics strong {
+  color: var(--game-text-primary, #f4efe4);
+}
+
+.factory-overview__chips em {
+  color: var(--game-text-muted, rgba(230, 235, 238, 0.45));
+  font-style: normal;
+}
+
+.factory-material-purchase {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.factory-material-purchase__main {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.factory-material-purchase h4 {
+  margin: 0;
+  color: var(--game-text-primary, #f4efe4);
+  font-family: var(--font-serif, Georgia, serif);
+  font-size: 14px;
+}
+
+.factory-material-purchase p {
+  margin: 3px 0 0;
+  color: var(--game-text-secondary, rgba(230, 235, 238, 0.62));
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.factory-material-purchase__stepper {
+  align-self: center;
 }
 
 .factory-section-label {
@@ -356,7 +449,8 @@
 
 @media (max-width: 620px) {
   .factory-command-row,
-  .factory-stage-action {
+  .factory-stage-action,
+  .factory-material-purchase {
     grid-template-columns: 1fr;
   }
 

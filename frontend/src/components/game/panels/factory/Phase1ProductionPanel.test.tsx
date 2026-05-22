@@ -107,7 +107,7 @@ describe("Phase1ProductionPanel", () => {
     renderProductionPanel();
 
     expect(screen.queryByTestId("production-route-idle")).not.toBeInTheDocument();
-    expect(screen.getByTestId("idle-status-chip")).toHaveTextContent(/空置产能\s*2/);
+    expect(screen.getByTestId("idle-status-chip")).toHaveTextContent(/闲置工厂\s*2/);
     expect(screen.getByTestId("production-route-handicraft")).toBeInTheDocument();
   });
 

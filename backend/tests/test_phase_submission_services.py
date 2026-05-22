@@ -57,6 +57,7 @@ def empty_decision_payload() -> dict[str, object]:
             "expansionOrders": [],
             "upgradeOrders": [],
             "newFactoryOrders": [],
+            "rawMaterialPurchaseQuantity": 0,
             "factoryActions": [],
         },
         "domesticMarketPlan": {"domesticMarketActions": []},
@@ -66,6 +67,8 @@ def empty_decision_payload() -> dict[str, object]:
         "militaryPlan": {
             "militaryActions": [],
             "diplomacyActions": [],
+            "navalDeployment": {},
+            "regionBlockades": {},
         },
         "talentPlan": {"talentUnlocks": []},
     }
@@ -115,12 +118,12 @@ class PhaseSubmissionServiceTests(unittest.TestCase):
         room = build_room()
         game, snapshot = build_snapshot()
         britain = next(player for player in snapshot.player_states if player.player_id == "player-1")
-        britain.military_points = 0
+        britain.budget_pools["governmentFiscal"] = 0
         snapshot.active_events = [
             {
                 "eventId": "militia_drive",
                 "label": "民兵动员",
-                "effects": {"militaryPointsDelta": 1},
+                "effects": {"governmentFiscalDelta": 5},
             }
         ]
         assign_phase_deadline(
@@ -130,7 +133,7 @@ class PhaseSubmissionServiceTests(unittest.TestCase):
         )
 
         payload = empty_decision_payload()
-        payload["militaryPlan"]["militaryActions"] = [{"actionId": "recruit_infantry"}]
+        payload["militaryPlan"]["militaryActions"] = [{"actionId": "recruit_army"}]
 
         result = PhaseSubmissionService().submit(
             room=room,
@@ -145,9 +148,13 @@ class PhaseSubmissionServiceTests(unittest.TestCase):
 
         self.assertEqual(
             result.player_turn_input.payload["militaryPlan"]["militaryActions"],
-            [{"actionId": "recruit_infantry"}],
+            [{"actionId": "recruit_army"}],
         )
-        self.assertEqual(britain.military_points, 0, "submission validation must not consume active events early")
+        self.assertEqual(
+            britain.budget_pools["governmentFiscal"],
+            0,
+            "submission validation must not consume active events early",
+        )
 
     def test_decision_submission_preserves_admin_purchase_quantity(self) -> None:
         room = build_room()
@@ -391,10 +398,11 @@ class PhaseSubmissionServiceTests(unittest.TestCase):
         self.assertEqual(timeout_input.payload, empty_decision_payload())
         self.assertTrue(timeout_input.is_timeout_generated)
 
-    def test_submit_rejects_repeated_diplomacy_action_for_established_region(self) -> None:
+    def test_submit_strips_legacy_diplomacy_actions(self) -> None:
         room = build_room()
         game, snapshot = build_snapshot()
         snapshot.player_states[0].established_diplomacy = ["africa"]
+        snapshot.player_states[0].budget_pools["governmentFiscal"] = 30
         assign_phase_deadline(
             snapshot,
             started_at=datetime(2026, 3, 29, 12, 0, tzinfo=UTC),
@@ -403,25 +411,23 @@ class PhaseSubmissionServiceTests(unittest.TestCase):
 
         payload = empty_decision_payload()
         payload["militaryPlan"]["diplomacyActions"] = [{"actionId": "establish_africa"}]
-        with self.assertRaises(PhaseSubmissionError) as error:
-            PhaseSubmissionService().submit(
-                room=room,
-                game=game,
-                snapshot=snapshot,
-                phase_state=PhaseSubmissionState.from_snapshot(snapshot),
-                player_id="player-1",
-                requested_phase=GamePhase.DECISION,
-                payload=payload,
-                submitted_at=datetime(2026, 3, 29, 12, 1, tzinfo=UTC),
-            )
+        result = PhaseSubmissionService().submit(
+            room=room,
+            game=game,
+            snapshot=snapshot,
+            phase_state=PhaseSubmissionState.from_snapshot(snapshot),
+            player_id="player-1",
+            requested_phase=GamePhase.DECISION,
+            payload=payload,
+            submitted_at=datetime(2026, 3, 29, 12, 1, tzinfo=UTC),
+        )
 
-        self.assertEqual(error.exception.error_code, ErrorCode.INVALID_SUBMISSION)
+        self.assertEqual(result.player_turn_input.payload["militaryPlan"]["diplomacyActions"], [])
 
-    def test_submit_accepts_same_round_diplomacy_unlock_and_colonization(self) -> None:
+    def test_submit_strips_legacy_colonization_payload(self) -> None:
         room = build_room()
         game, snapshot = build_snapshot()
         snapshot.player_states[0].budget_pools["governmentFiscal"] = 18
-        snapshot.player_states[0].military_points = 3
         assign_phase_deadline(
             snapshot,
             started_at=datetime(2026, 3, 29, 12, 0, tzinfo=UTC),
@@ -430,7 +436,6 @@ class PhaseSubmissionServiceTests(unittest.TestCase):
 
         payload = empty_decision_payload()
         payload["militaryPlan"]["unlockColonization"] = True
-        payload["militaryPlan"]["diplomacyActions"] = [{"actionId": "establish_americas"}]
         payload["militaryPlan"]["colonizationActions"] = [{"targetRegionId": "americas"}]
         result = PhaseSubmissionService().submit(
             room=room,
@@ -443,13 +448,13 @@ class PhaseSubmissionServiceTests(unittest.TestCase):
             submitted_at=datetime(2026, 3, 29, 12, 1, tzinfo=UTC),
         )
 
-        self.assertEqual(result.player_turn_input.payload["militaryPlan"]["unlockColonization"], True)
+        self.assertEqual(result.player_turn_input.payload["militaryPlan"]["unlockColonization"], False)
         self.assertEqual(
             result.player_turn_input.payload["militaryPlan"]["colonizationActions"],
-            [{"targetRegionId": "americas"}],
+            [],
         )
 
-    def test_submit_rejects_overseas_competition_without_diplomacy(self) -> None:
+    def test_submit_accepts_overseas_competition_without_diplomacy(self) -> None:
         room = build_room()
         game, snapshot = build_snapshot()
         game.current_phase = GamePhase.MARKET
@@ -461,6 +466,41 @@ class PhaseSubmissionServiceTests(unittest.TestCase):
         )
         britain = snapshot.player_states[0]
         britain.army = {"infantry": 1, "artillery": 0}
+
+        result = PhaseSubmissionService().submit(
+            room=room,
+            game=game,
+            snapshot=snapshot,
+            phase_state=PhaseSubmissionState.from_snapshot(snapshot),
+            player_id="player-1",
+            requested_phase=GamePhase.MARKET,
+            payload={
+                "saleOrders": [],
+                "phase1Market": {
+                    "domesticAllocation": 0,
+                    "externalCompetitionDeployments": [
+                        {"marketId": "africa", "infantry": 1, "artillery": 0}
+                    ],
+                },
+            },
+            submitted_at=datetime(2026, 3, 29, 12, 1, tzinfo=UTC),
+        )
+
+        self.assertEqual(
+            result.player_turn_input.payload["phase1Market"]["externalCompetitionDeployments"],
+            [{"marketId": "africa", "infantry": 1, "artillery": 0}],
+        )
+
+    def test_submit_rejects_unknown_phase1_external_allocation_region(self) -> None:
+        room = build_room()
+        game, snapshot = build_snapshot()
+        game.current_phase = GamePhase.MARKET
+        snapshot.phase = GamePhase.MARKET
+        assign_phase_deadline(
+            snapshot,
+            started_at=datetime(2026, 3, 29, 12, 0, tzinfo=UTC),
+            duration=timedelta(minutes=2),
+        )
 
         with self.assertRaises(PhaseSubmissionError) as error:
             PhaseSubmissionService().submit(
@@ -474,16 +514,51 @@ class PhaseSubmissionServiceTests(unittest.TestCase):
                     "saleOrders": [],
                     "phase1Market": {
                         "domesticAllocation": 0,
-                        "externalCompetitionDeployments": [
-                            {"marketId": "africa", "infantry": 1, "artillery": 0}
-                        ],
+                        "externalAllocations": [{"marketId": "unknown", "quantity": 1}],
                     },
                 },
                 submitted_at=datetime(2026, 3, 29, 12, 1, tzinfo=UTC),
             )
 
         self.assertEqual(error.exception.error_code, ErrorCode.INVALID_SUBMISSION)
-        self.assertIn("requires established diplomacy", error.exception.message)
+        self.assertIn("region unknown is invalid", error.exception.message)
+
+    def test_submit_rejects_blocked_phase1_external_allocation_region(self) -> None:
+        room = build_room()
+        game, snapshot = build_snapshot()
+        game.current_phase = GamePhase.MARKET
+        snapshot.phase = GamePhase.MARKET
+        assign_phase_deadline(
+            snapshot,
+            started_at=datetime(2026, 3, 29, 12, 0, tzinfo=UTC),
+            duration=timedelta(minutes=2),
+        )
+        britain = snapshot.player_states[0]
+        britain.phase1_economy.goods_inventory = 5
+        africa = next(region for region in snapshot.region_states if region.region_id == "africa")
+        africa.is_blockaded = True
+        africa.blockade_controller = "france"
+
+        with self.assertRaises(PhaseSubmissionError) as error:
+            PhaseSubmissionService().submit(
+                room=room,
+                game=game,
+                snapshot=snapshot,
+                phase_state=PhaseSubmissionState.from_snapshot(snapshot),
+                player_id="player-1",
+                requested_phase=GamePhase.MARKET,
+                payload={
+                    "saleOrders": [],
+                    "phase1Market": {
+                        "domesticAllocation": 0,
+                        "externalAllocations": [{"marketId": "africa", "quantity": 1}],
+                    },
+                },
+                submitted_at=datetime(2026, 3, 29, 12, 1, tzinfo=UTC),
+            )
+
+        self.assertEqual(error.exception.error_code, ErrorCode.INVALID_SUBMISSION)
+        self.assertIn("region africa route is blocked", error.exception.message)
 
     def test_submit_rejects_overseas_competition_army_overcommit(self) -> None:
         room = build_room()
@@ -496,7 +571,6 @@ class PhaseSubmissionServiceTests(unittest.TestCase):
             duration=timedelta(minutes=2),
         )
         britain = snapshot.player_states[0]
-        britain.established_diplomacy = ["asia_pacific"]
         britain.army = {"infantry": 0, "artillery": 0}
 
         with self.assertRaises(PhaseSubmissionError) as error:

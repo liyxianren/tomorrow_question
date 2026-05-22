@@ -15,7 +15,11 @@ from app.modules.game_state.effects import apply_effects
 from app.modules.game_state.models import GameSnapshot, PlayerState, RegionState
 from app.modules.game_state.turn_input import PlayerTurnInput
 from app.modules.rules.market import resolve_market_phase
-from app.modules.rules.phase1_economy import calculate_domestic_price, calculate_equilibrium_price
+from app.modules.rules.phase1_economy import (
+    calculate_domestic_demand,
+    calculate_domestic_price,
+    calculate_equilibrium_price,
+)
 
 
 def build_snapshot() -> GameSnapshot:
@@ -82,14 +86,15 @@ class MarketRulesTests(unittest.TestCase):
         )
 
         updated = get_player(resolution.updated_snapshot, "player-1")
+        expected_soft_cap = calculate_domestic_demand(britain.phase1_economy.capacity_by_mode)
         expected_equilibrium = calculate_equilibrium_price(
-            demand=Decimal(4),
+            consumption_pool=Decimal(12),
+            effective_capacity=expected_soft_cap,
         )
         expected_final = calculate_domestic_price(
             equilibrium_price=expected_equilibrium,
             supply=Decimal(3),
-            demand=Decimal(4),
-            minimum_price=1,
+            demand=expected_soft_cap,
         )
         self.assertAlmostEqual(
             updated.phase1_economy.market_metrics["finalPrice"],
@@ -125,10 +130,10 @@ class MarketRulesTests(unittest.TestCase):
         )
 
         updated = get_player(resolution.updated_snapshot, "player-1")
-        self.assertEqual(updated.phase1_economy.market_metrics["finalPrice"], 5.0)
-        self.assertEqual(updated.domestic_sales_revenue, 15)
+        self.assertEqual(updated.phase1_economy.market_metrics["finalPrice"], 8.0)
+        self.assertEqual(updated.domestic_sales_revenue, 24)
 
-    def test_phase1_overseas_price_bonus_applies_to_external_sales(self) -> None:
+    def test_phase1_overseas_sales_use_region_fixed_price(self) -> None:
         snapshot = build_snapshot()
         britain = get_player(snapshot, "player-1")
         britain.phase1_economy.capacity_by_mode = {
@@ -141,9 +146,6 @@ class MarketRulesTests(unittest.TestCase):
         britain.phase1_economy.goods_inventory = 1
         britain.goods_stock = {"phase1_goods": 1}
         britain.budget_pools = {"domesticMarket": 24, "factory": 0, "governmentFiscal": 0}
-        britain.established_diplomacy = ["asia_pacific"]
-        apply_effects(britain, {"overseasPriceBonusDelta": 2})
-
         resolution = resolve_market_phase(
             snapshot=snapshot,
             turn_inputs=[
@@ -161,9 +163,9 @@ class MarketRulesTests(unittest.TestCase):
         )
 
         updated = get_player(resolution.updated_snapshot, "player-1")
-        self.assertEqual(updated.overseas_sales_revenue, 5)
+        self.assertEqual(updated.overseas_sales_revenue, 6)
 
-    def test_external_competition_win_grants_extra_capacity_and_price(self) -> None:
+    def test_external_competition_win_grants_extra_capacity_only(self) -> None:
         snapshot = build_snapshot()
         britain = get_player(snapshot, "player-1")
         britain.phase1_economy.capacity_by_mode = {
@@ -176,7 +178,6 @@ class MarketRulesTests(unittest.TestCase):
         britain.phase1_economy.goods_inventory = 13
         britain.goods_stock = {"phase1_goods": 13}
         britain.budget_pools = {"domesticMarket": 24, "factory": 0, "governmentFiscal": 0}
-        britain.established_diplomacy = ["asia_pacific"]
         britain.army = {"infantry": 1, "artillery": 0}
 
         resolution = resolve_market_phase(
@@ -201,10 +202,10 @@ class MarketRulesTests(unittest.TestCase):
         updated = get_player(resolution.updated_snapshot, "player-1")
         region = get_region(resolution.updated_snapshot, "asia_pacific")
         self.assertEqual(updated.army["infantry"], 0)
-        self.assertEqual(updated.overseas_sales_revenue, 52)
-        self.assertEqual(updated.phase1_economy.goods_inventory, 0)
+        self.assertEqual(updated.overseas_sales_revenue, 42)
+        self.assertEqual(updated.phase1_economy.goods_inventory, 6)
         self.assertIsNone(region.controller)
-        self.assertEqual(region.access_level, RegionAccessLevel.CONCESSION)
+        self.assertEqual(region.access_level, RegionAccessLevel.OPEN)
 
     def test_external_competition_can_use_generic_recruited_army(self) -> None:
         snapshot = build_snapshot()
@@ -218,7 +219,6 @@ class MarketRulesTests(unittest.TestCase):
         }
         britain.phase1_economy.goods_inventory = 13
         britain.goods_stock = {"phase1_goods": 13}
-        britain.established_diplomacy = ["asia_pacific"]
         britain.army = {"army": 1}
 
         resolution = resolve_market_phase(
@@ -242,7 +242,7 @@ class MarketRulesTests(unittest.TestCase):
 
         updated = get_player(resolution.updated_snapshot, "player-1")
         self.assertEqual(updated.army["army"], 0)
-        self.assertEqual(updated.overseas_sales_revenue, 52)
+        self.assertEqual(updated.overseas_sales_revenue, 42)
 
     def test_external_competition_highest_power_wins_and_loser_keeps_army(self) -> None:
         snapshot = build_snapshot()
@@ -259,7 +259,6 @@ class MarketRulesTests(unittest.TestCase):
             player.phase1_economy.goods_inventory = 13
             player.goods_stock = {"phase1_goods": 13}
             player.budget_pools = {"domesticMarket": 24, "factory": 0, "governmentFiscal": 0}
-            player.established_diplomacy = ["africa"]
         britain.army = {"infantry": 0, "artillery": 1}
         france.army = {"infantry": 1, "artillery": 0}
 
@@ -299,8 +298,8 @@ class MarketRulesTests(unittest.TestCase):
         updated_france = get_player(resolution.updated_snapshot, "player-2")
         self.assertEqual(updated_britain.army["artillery"], 0)
         self.assertEqual(updated_france.army["infantry"], 1)
-        self.assertEqual(updated_britain.overseas_sales_revenue, 52)
-        self.assertEqual(updated_france.overseas_sales_revenue, 15)
+        self.assertEqual(updated_britain.overseas_sales_revenue, 28)
+        self.assertEqual(updated_france.overseas_sales_revenue, 20)
 
     def test_external_competition_tie_has_no_winner_or_army_loss(self) -> None:
         snapshot = build_snapshot()
@@ -317,7 +316,6 @@ class MarketRulesTests(unittest.TestCase):
             player.phase1_economy.goods_inventory = 13
             player.goods_stock = {"phase1_goods": 13}
             player.budget_pools = {"domesticMarket": 24, "factory": 0, "governmentFiscal": 0}
-            player.established_diplomacy = ["africa"]
             player.army = {"infantry": 1, "artillery": 0}
 
         resolution = resolve_market_phase(
@@ -356,5 +354,5 @@ class MarketRulesTests(unittest.TestCase):
         updated_france = get_player(resolution.updated_snapshot, "player-2")
         self.assertEqual(updated_britain.army["infantry"], 1)
         self.assertEqual(updated_france.army["infantry"], 1)
-        self.assertEqual(updated_britain.overseas_sales_revenue, 15)
-        self.assertEqual(updated_france.overseas_sales_revenue, 15)
+        self.assertEqual(updated_britain.overseas_sales_revenue, 20)
+        self.assertEqual(updated_france.overseas_sales_revenue, 20)

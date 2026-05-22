@@ -16,7 +16,7 @@ from app.modules.game_state.budgeting import (
     decision_phase_budget_pools,
     market_regulation_allowance,
 )
-from app.modules.rules.route_utils import check_route_accessible
+from app.modules.rules.route_utils import explain_route_access
 from app.modules.rules.common import POINT_PURCHASE_COSTS
 from app.modules.rules.phase1_economy import (
     PRODUCTION_MODE_DEMAND_COEFFICIENTS,
@@ -24,6 +24,8 @@ from app.modules.rules.phase1_economy import (
     calculate_domestic_demand,
     calculate_domestic_price,
     calculate_equilibrium_price,
+    calculate_maximum_domestic_price,
+    calculate_minimum_domestic_price,
 )
 
 from .factory_economy import (
@@ -32,18 +34,23 @@ from .factory_economy import (
     build_region_reference_prices,
     current_route_capacity,
     domestic_reference_price,
-    expansion_unit_budget_cost,
+    enabled_factory_count,
     expansion_option_max_quantity,
+    factory_caps_by_mode,
+    factory_total_cap,
     get_route_label,
     goods_locked_reason,
+    idle_factory_capacity,
     iter_visible_route_ids,
-    new_factory_unit_budget_cost,
+    expansion_unit_budget_cost,
     new_factory_option_max_quantity,
+    new_factory_unit_budget_cost,
     overseas_reference_price_range,
     pending_route_capacity,
     production_option_max_quantity,
     region_label,
     route_locked_reason,
+    route_technology_locked_reason,
     upgrade_unit_budget_cost,
     upgrade_option_max_quantity,
 )
@@ -58,6 +65,17 @@ PHASE1_MODE_LABELS: dict[str, str] = {
     "mechanized": "机械化",
     "steam": "蒸汽工业",
     "electrified": "电气工业",
+}
+
+INCOME_RATIO_KEYS = ("domesticMarket", "factory", "governmentFiscal")
+DEFAULT_INCOME_ALLOCATION_RATIO = {
+    "domesticMarket": 3.0,
+    "factory": 3.0,
+    "governmentFiscal": 4.0,
+}
+INCOME_RATIO_KEY_ALIASES = {
+    "consumption": "domesticMarket",
+    "fiscal": "governmentFiscal",
 }
 
 
@@ -179,15 +197,20 @@ def build_phase_settlement_workspace(
 def build_decision_player_workspace(snapshot: GameSnapshot, player: PlayerState) -> dict[str, Any]:
     balance = get_balance_config()
     player = _player_with_active_event_preview(snapshot, player)
-    market_action_ids = set(balance.decision_actions.domestic_market_actions)
-    # Domestic-market actions are now exposed as government one-shot market
-    # regulation strategies. Keep the legacy workspace field empty so old
-    # payloads remain valid without teaching the UI a second action entry.
+    government_market_action_ids = {"trade_promotion"}
+    market_action_ids = government_market_action_ids
+    # Domestic market pricing and capacity are calculated by the Phase 1 market
+    # formula. Do not expose old domestic regulation actions as government
+    # strategy cards; only the overseas capacity policy remains active.
     domestic_actions: list[dict[str, Any]] = []
-    market_regulation_actions = list(balance.decision_actions.domestic_market_actions.values())
+    government_market_actions = [
+        action
+        for action_id, action in balance.decision_actions.government_actions.items()
+        if action_id in government_market_action_ids
+    ]
     research_facility_action = balance.decision_actions.government_actions.get("expand_research")
     government_workspace_actions = [
-        *market_regulation_actions,
+        *government_market_actions,
         *([research_facility_action] if research_facility_action is not None else []),
     ]
     government_strategies = [
@@ -216,6 +239,7 @@ def build_decision_player_workspace(snapshot: GameSnapshot, player: PlayerState)
         for action in balance.decision_actions.factory_actions.values()
         if action.action_id != "industrial_upgrade"
     ]
+    income_allocation_preview = _build_income_allocation_preview(player, balance)
     return {
         "countryCode": player.country.value,
         "countryLabel": COUNTRY_LABELS.get(player.country.value, player.country.value),
@@ -225,6 +249,7 @@ def build_decision_player_workspace(snapshot: GameSnapshot, player: PlayerState)
         "domesticMarketCapacity": resolve_domestic_market_capacity(player),
         "overseasMarketCapacity": resolve_overseas_market_capacity(player),
         "incomeAllocationRatio": deepcopy(player.income_allocation_ratio),
+        **income_allocation_preview,
         "techPoints": player.tech_points,
         "armyCap": player.army_cap,
         "routeSummaries": _build_route_summaries(player),
@@ -333,17 +358,37 @@ def _is_reform_blocked_for_workspace(player: PlayerState, reform: Any, balance: 
 
 
 def _decision_phase1_economy(snapshot: GameSnapshot, player: PlayerState) -> dict[str, Any]:
+    balance = get_balance_config()
     payload: dict[str, Any] = dict(player.phase1_economy.to_payload())
     payload.update(_build_phase1_market_preview(snapshot, player))
     payload["investmentPool"] = int(player.budget_pools.get("factory", 0))
     payload["rawMaterialsPerTurn"] = get_raw_materials_per_turn(player)
+    payload["factoryTotalCap"] = factory_total_cap(player)
+    payload["factoryEnabledCount"] = enabled_factory_count(player)
+    payload["idleCapacity"] = idle_factory_capacity(player)
+    payload["factoryCapsByMode"] = factory_caps_by_mode(player)
+    country_config = balance.countries.get(player.country.value)
+    purchase_cap = int(country_config.material_purchase_cap_per_turn) if country_config is not None else 0
+    unit_cost = max(0, int(balance.production.raw_material_purchase_unit_cost))
+    payload["materialPurchaseCapPerTurn"] = purchase_cap
+    payload["rawMaterialPurchaseUnitCost"] = unit_cost
+    payload["maxRawMaterialPurchase"] = min(
+        purchase_cap,
+        int(player.budget_pools.get("factory", 0)) // unit_cost if unit_cost > 0 else purchase_cap,
+    )
     return payload
 
 
 def build_market_player_workspace(snapshot: GameSnapshot, player: PlayerState) -> dict[str, Any]:
     domestic_capacity = resolve_domestic_market_capacity(player)
     overseas_capacity = resolve_overseas_market_capacity(player)
-    competition = get_balance_config().market.overseas_competition
+    balance = get_balance_config()
+    competition = balance.market.overseas_competition
+    income_allocation_preview = _build_income_allocation_preview(
+        player,
+        balance,
+        national_income=int(player.national_income),
+    )
     return {
         "countryCode": player.country.value,
         "countryLabel": COUNTRY_LABELS.get(player.country.value, player.country.value),
@@ -363,11 +408,12 @@ def build_market_player_workspace(snapshot: GameSnapshot, player: PlayerState) -
         ],
         "domesticMarketCapacity": domestic_capacity,
         "overseasMarketCapacity": overseas_capacity,
+        "incomeAllocationRatio": deepcopy(player.income_allocation_ratio),
+        **income_allocation_preview,
         "regionAccessStatus": _build_region_access_status(snapshot, player),
         "overseasCompetition": {
             "availableArmy": _market_competition_available_army(player),
             "rewardCapacityBonus": int(competition.reward_capacity_bonus),
-            "rewardPriceBonus": int(competition.reward_price_bonus),
             "infantryPower": int(competition.infantry_power),
             "artilleryPower": int(competition.artillery_power),
             "minimumPower": int(competition.minimum_power),
@@ -380,6 +426,10 @@ def _market_phase1_economy(snapshot: GameSnapshot, player: PlayerState) -> dict[
     payload: dict[str, Any] = dict(player.phase1_economy.to_payload())
     payload.update(_build_phase1_market_preview(snapshot, player))
     payload["phase1GoodsAvailable"] = int(player.phase1_economy.goods_inventory)
+    payload["factoryTotalCap"] = factory_total_cap(player)
+    payload["factoryEnabledCount"] = enabled_factory_count(player)
+    payload["idleCapacity"] = idle_factory_capacity(player)
+    payload["factoryCapsByMode"] = factory_caps_by_mode(player)
     return payload
 
 
@@ -405,9 +455,8 @@ def build_settlement_player_workspace(snapshot: GameSnapshot, player: PlayerStat
 def _settlement_phase1_economy(player: PlayerState, national_income: int) -> dict[str, Any]:
     payload: dict[str, Any] = dict(player.phase1_economy.to_payload())
     allocation = _preview_budget_allocation(national_income, player.income_allocation_ratio)
-    # consumption pool is frozen — domesticMarket receives 0 allocation
     payload["poolDeltaPreview"] = {
-        "consumption": 0.0,
+        "consumption": float(allocation["domesticMarket"]),
         "investment": float(allocation["factory"]),
         "fiscal": float(allocation["governmentFiscal"]),
     }
@@ -437,10 +486,16 @@ def _build_phase1_production_modes(player: PlayerState) -> list[dict[str, Any]]:
                 "label": PHASE1_MODE_LABELS.get(mode, mode),
                 "inputRatio": 1,
                 "outputRatio": int(PRODUCTION_MODE_OUTPUT_RATIOS[mode]),
-                "demandCoefficient": float(PRODUCTION_MODE_DEMAND_COEFFICIENTS[mode]),
-                "buildCost": new_factory_unit_budget_cost(player, mode),
+                "demandCoefficient": float(
+                    balance.production.demand_coefficients.get(
+                        mode,
+                        float(PRODUCTION_MODE_DEMAND_COEFFICIENTS[mode]),
+                    )
+                ),
+                "buildCost": expansion_unit_budget_cost(player, mode),
                 "upgradeCost": upgrade_unit_budget_cost(player, mode),
                 "currentCapacity": int(capacity_by_mode.get(mode, 0)),
+                "factoryCap": factory_total_cap(player),
                 "requiredTech": required_techs,
                 "isAvailable": is_available,
             }
@@ -452,56 +507,69 @@ def _build_phase1_market_preview(snapshot: GameSnapshot, player: PlayerState) ->
     balance = get_balance_config()
     capacity_by_mode = player.phase1_economy.capacity_by_mode
     goods_inventory = int(player.phase1_economy.goods_inventory)
-    goods_config = balance.production.goods.get("phase1_goods")
-    domestic_price_ceiling = int(goods_config.price_ceiling) if goods_config is not None else 8
-    overseas_price_ceiling = int(goods_config.overseas_price_ceiling) if goods_config is not None else 24
     domestic_price_bonus = int(get_effect_bonus(player, "domesticPriceBonus"))
-    overseas_price_bonus = int(get_effect_bonus(player, "overseasPriceBonus"))
     domestic_capacity_bonus = int(get_effect_bonus(player, "domesticMarketCapacityBonus"))
     overseas_capacity_bonus = int(get_effect_bonus(player, "overseasMarketCapacityBonus"))
     government_domestic_capacity_bonus = int(player.temporary_effects.get("governmentDomesticMarketCapacityBonus", 0))
     government_domestic_price_bonus = int(player.temporary_effects.get("governmentDomesticPriceBonus", 0))
     government_overseas_capacity_bonus = int(player.temporary_effects.get("governmentOverseasMarketCapacityBonus", 0))
-    government_overseas_price_bonus = int(player.temporary_effects.get("governmentOverseasPriceBonus", 0))
 
-    demand = calculate_domestic_demand(capacity_by_mode)
-    equilibrium = calculate_equilibrium_price(demand=demand)
-    price_drift = int(getattr(snapshot, "market_price_adjustments", {}).get("phase1_goods", 0))
-    if price_drift:
-        equilibrium = max(Decimal("1"), equilibrium + Decimal(str(price_drift)))
+    demand = calculate_domestic_demand(capacity_by_mode, balance.production.demand_coefficients)
+    domestic_soft_cap = Decimal(max(1, int(resolve_domestic_market_capacity(player))))
+    consumption_pool = Decimal(max(0, int(player.budget_pools.get("domesticMarket", 0))))
+    equilibrium = calculate_equilibrium_price(
+        consumption_pool=consumption_pool,
+        effective_capacity=domestic_soft_cap,
+    )
+    minimum_domestic_price = calculate_minimum_domestic_price(equilibrium)
+    maximum_domestic_price = calculate_maximum_domestic_price(equilibrium)
     base_domestic_price_preview = calculate_domestic_price(
         equilibrium_price=equilibrium,
-        supply=goods_inventory,
-        demand=demand,
-        maximum_price=domestic_price_ceiling,
+        allocation=goods_inventory,
+        effective_capacity=domestic_soft_cap,
     )
-    domestic_price_before_cap = max(
-        Decimal("1"),
-        base_domestic_price_preview + Decimal(domestic_price_bonus),
+    domestic_price_preview = calculate_domestic_price(
+        equilibrium_price=equilibrium,
+        allocation=goods_inventory,
+        effective_capacity=domestic_soft_cap,
+        price_bonus=domestic_price_bonus,
     )
-    domestic_price_preview = min(
-        Decimal(domestic_price_ceiling),
-        domestic_price_before_cap,
+    domestic_price_before_floor = (
+        equilibrium * (Decimal("2") - (Decimal(goods_inventory) / domestic_soft_cap))
+        + Decimal(domestic_price_bonus)
+    )
+    shortage_rate = (
+        (domestic_soft_cap - Decimal(goods_inventory)) / domestic_soft_cap
+        if Decimal(goods_inventory) < domestic_soft_cap
+        else Decimal("0")
+    )
+    surplus_rate = (
+        (Decimal(goods_inventory) - domestic_soft_cap) / domestic_soft_cap
+        if Decimal(goods_inventory) > domestic_soft_cap
+        else Decimal("0")
     )
     return {
         "productionModes": _build_phase1_production_modes(player),
         "domesticDemand": float(demand),
+        "domesticSoftCap": float(domestic_soft_cap),
+        "consumptionPool": float(consumption_pool),
         "equilibriumPrice": float(equilibrium),
         "domesticBasePricePreview": float(base_domestic_price_preview),
-        "domesticPriceBeforeCap": float(domestic_price_before_cap),
+        "domesticPriceBeforeFloor": float(domestic_price_before_floor),
+        "domesticPriceBeforeCap": float(domestic_price_preview),
         "domesticPricePreview": float(domestic_price_preview),
-        "domesticPriceCapReached": domestic_price_before_cap > Decimal(domestic_price_ceiling),
-        "marketPriceDrift": price_drift,
+        "domesticPriceCapReached": False,
+        "marketPriceDrift": 0,
         "domesticPriceBonus": domestic_price_bonus,
-        "overseasPriceBonus": overseas_price_bonus,
         "domesticMarketCapacityBonus": domestic_capacity_bonus,
         "overseasMarketCapacityBonus": overseas_capacity_bonus,
         "governmentDomesticMarketCapacityBonus": government_domestic_capacity_bonus,
         "governmentDomesticPriceBonus": government_domestic_price_bonus,
         "governmentOverseasMarketCapacityBonus": government_overseas_capacity_bonus,
-        "governmentOverseasPriceBonus": government_overseas_price_bonus,
-        "domesticPriceCeiling": domestic_price_ceiling,
-        "overseasPriceCeiling": overseas_price_ceiling,
+        "minimumDomesticPrice": float(minimum_domestic_price),
+        "domesticPriceCeiling": float(maximum_domestic_price),
+        "shortageRate": float(shortage_rate),
+        "surplusRate": float(surplus_rate),
     }
 
 
@@ -552,18 +620,21 @@ def _build_expansion_options(player: PlayerState) -> list[dict[str, Any]]:
     balance = get_balance_config()
     options: list[dict[str, Any]] = []
     for route_id in balance.production.expansion_costs:
-        if current_route_capacity(player, route_id) <= 0:
+        locked_reason = route_technology_locked_reason(player, route_id)
+        if locked_reason is not None:
             continue
         unit_cost = expansion_unit_budget_cost(player, route_id)
         max_quantity = expansion_option_max_quantity(player, route_id)
+        if max_quantity <= 0 and idle_factory_capacity(player) <= 0:
+            locked_reason = "工厂总上限已满"
         options.append(
             {
                 "routeId": route_id,
                 "routeLabel": get_route_label(route_id),
-                "unitBudgetCost": unit_cost,
+                "unitBudgetCost": int(unit_cost),
                 "capacityDelta": 1,
                 "maxQuantity": max_quantity,
-                "lockedReason": None if max_quantity > 0 else "预算不足",
+                "lockedReason": locked_reason or (None if max_quantity > 0 else "预算不足"),
             }
         )
     return options
@@ -575,7 +646,7 @@ def _build_upgrade_options(player: PlayerState) -> list[dict[str, Any]]:
     for target_route, source_route in balance.production.upgrade_source_levels.items():
         if current_route_capacity(player, source_route) <= 0:
             continue
-        locked_reason = route_locked_reason(player, target_route)
+        locked_reason = route_technology_locked_reason(player, target_route)
         if locked_reason is not None:
             continue
         max_quantity = upgrade_option_max_quantity(player, target_route)
@@ -598,17 +669,19 @@ def _build_new_factory_options(player: PlayerState) -> list[dict[str, Any]]:
     balance = get_balance_config()
     options: list[dict[str, Any]] = []
     for route_id in balance.production.new_factory_costs:
-        locked_reason = route_locked_reason(player, route_id) if route_id != "handicraft" else None
+        locked_reason = route_technology_locked_reason(player, route_id)
         if locked_reason is not None:
             continue
         unit_cost = new_factory_unit_budget_cost(player, route_id)
         max_quantity = new_factory_option_max_quantity(player, route_id) if not locked_reason else 0
+        if max_quantity <= 0 and idle_factory_capacity(player) <= 0:
+            locked_reason = "工厂总上限已满"
         options.append(
             {
                 "routeId": route_id,
                 "routeLabel": get_route_label(route_id),
                 "unitBudgetCost": int(unit_cost),
-                "capacityDelta": 2,
+                "capacityDelta": 1,
                 "maxQuantity": max_quantity,
                 "lockedReason": locked_reason or (None if max_quantity > 0 else "预算不足"),
             }
@@ -638,7 +711,6 @@ def _build_military_workspace(snapshot: GameSnapshot, player: PlayerState) -> di
         "controlledRegions": sum(
             1 for region in snapshot.region_states if region.controller == player.country.value
         ),
-        "establishedDiplomacy": list(player.established_diplomacy),
         "overseasCapacity": resolve_overseas_market_capacity(player),
         "oceanControlThreshold": int(balance.military.ocean_control_threshold),
         "regionAccessStatus": _build_region_access_status(snapshot, player),
@@ -652,19 +724,6 @@ def _build_military_workspace(snapshot: GameSnapshot, player: PlayerState) -> di
                 "effects": deepcopy(action.effects),
             }
             for action in balance.military_actions.military_actions.values()
-        ],
-        "availableDiplomacyActions": [
-            {
-                "actionId": action.action_id,
-                "label": action.label,
-                "cost": action.budget_pool_cost,
-                "targetRegion": action.target_region,
-                "targetRegionLabel": region_label(action.target_region),
-                "description": action.description,
-                "isEstablished": action.target_region in player.established_diplomacy,
-            }
-            for action in balance.military_actions.diplomacy_actions.values()
-            if check_route_accessible(player.country.value, action.target_region, snapshot, balance)
         ],
         "colonizationCapability": {
             "isUnlocked": False,
@@ -681,6 +740,7 @@ def _build_military_workspace(snapshot: GameSnapshot, player: PlayerState) -> di
                 "controller": node.controller,
                 "isBlockaded": node.is_blockaded,
                 "myFleet": int(node.navy_by_country.get(player.country.value, 0)),
+                "reachableRoutes": list(node.reachable_routes),
             }
             for node in snapshot.ocean_node_states
         ],
@@ -737,18 +797,17 @@ def _build_region_access_status(snapshot: GameSnapshot, player: PlayerState) -> 
     )
     statuses: list[dict[str, Any]] = []
     for region in snapshot.region_states:
-        route_blocked = not check_route_accessible(
+        route_status = explain_route_access(
             player.country.value, region.region_id, snapshot, balance
         )
+        route_blocked = not bool(route_status["isAccessible"])
         lock_reason = region_lock_reason(
             region.access_level,
             region_id=region.region_id,
             established_diplomacy=player.established_diplomacy,
             route_blocked=route_blocked,
         )
-        if region.region_id not in player.established_diplomacy:
-            competition_lock_reason = "diplomacy_not_established"
-        elif route_blocked:
+        if route_blocked:
             competition_lock_reason = "route_blocked"
         elif army_power < int(competition.minimum_power):
             competition_lock_reason = "no_army"
@@ -761,36 +820,103 @@ def _build_region_access_status(snapshot: GameSnapshot, player: PlayerState) -> 
                 "accessLevel": region.access_level,
                 "isAccessible": lock_reason is None,
                 "lockReason": lock_reason,
-                "isDiplomacyEstablished": region.region_id in player.established_diplomacy,
+                "requiredOceanNodes": list(route_status["requiredOceanNodes"]),
+                "blockedOceanNodes": [
+                    {
+                        **node,
+                        "label": region_label(node["nodeId"])
+                        if node.get("nodeId") == region.region_id
+                        else str(node.get("nodeId", "")),
+                    }
+                    for node in route_status["blockedOceanNodes"]
+                ],
+                "navyByCountry": dict(region.navy_by_country),
+                "blockadeController": region.blockade_controller,
+                "isBlockaded": bool(region.is_blockaded),
+                "myBlockadeFleet": int(region.navy_by_country.get(player.country.value, 0)),
                 "canCompete": competition_lock_reason is None,
                 "competitionLockedReason": competition_lock_reason,
                 "competitionRewardCapacityBonus": int(competition.reward_capacity_bonus),
-                "competitionRewardPriceBonus": int(competition.reward_price_bonus),
                 "competitionMinimumPower": int(competition.minimum_power),
                 "acceptedGoods": list(region.resource_limit),
                 "isColonized": region.controller is not None,
                 "controller": region.controller,
                 "garrison": dict(region.garrison),
-                "priceMultiplier": float(
-                    balance.regions.region_blueprints[region.region_id].price_multiplier
-                ) if region.region_id in balance.regions.region_blueprints else 1.0,
+                "fixedOverseasPrice": int(
+                    balance.regions.region_blueprints[region.region_id].fixed_overseas_price
+                ) if region.region_id in balance.regions.region_blueprints else 1,
             }
         )
     return statuses
 
 
 def _preview_budget_allocation(national_income: int, ratio: dict[str, float]) -> dict[str, int]:
-    total_weight = float(ratio.get("factory", 0.0) + ratio.get("governmentFiscal", 0.0))
+    total_weight = float(
+        ratio.get("domesticMarket", 0.0)
+        + ratio.get("factory", 0.0)
+        + ratio.get("governmentFiscal", 0.0)
+    )
     if national_income <= 0 or total_weight <= 0:
         return {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
 
+    domestic = int(national_income * (float(ratio.get("domesticMarket", 0.0)) / total_weight))
     factory = int(national_income * (float(ratio.get("factory", 0.0)) / total_weight))
-    government = int(national_income) - factory
+    government = int(national_income) - domestic - factory
     return {
-        "domesticMarket": 0,
+        "domesticMarket": domestic,
         "factory": factory,
         "governmentFiscal": government,
     }
+
+
+def _normalize_income_ratio_key(key: str) -> str:
+    return INCOME_RATIO_KEY_ALIASES.get(key, key)
+
+
+def _normalized_income_ratio(ratio: dict[str, float] | None) -> dict[str, float]:
+    source = ratio or {}
+    return {
+        key: max(0.0, float(source.get(key, DEFAULT_INCOME_ALLOCATION_RATIO[key])))
+        for key in INCOME_RATIO_KEYS
+    }
+
+
+def _active_policy_ratio_delta(player: PlayerState, balance) -> dict[str, float]:
+    delta = {key: 0.0 for key in INCOME_RATIO_KEYS}
+    for policy_id in getattr(player, "active_policies", []):
+        policy = balance.reforms.regular_policies.get(policy_id)
+        if policy is None:
+            continue
+        ratio_delta = policy.effects.get("ratioDelta") if isinstance(policy.effects, dict) else None
+        if not isinstance(ratio_delta, dict):
+            continue
+        for raw_key, raw_value in ratio_delta.items():
+            key = _normalize_income_ratio_key(str(raw_key))
+            if key in delta:
+                delta[key] += float(raw_value)
+    return delta
+
+
+def _build_income_allocation_preview(
+    player: PlayerState,
+    balance,
+    *,
+    national_income: int | None = None,
+) -> dict[str, Any]:
+    effective = _normalized_income_ratio(player.income_allocation_ratio)
+    temporary_delta = _active_policy_ratio_delta(player, balance)
+    base = {
+        key: max(0.0, effective[key] - temporary_delta[key])
+        for key in INCOME_RATIO_KEYS
+    }
+    payload: dict[str, Any] = {
+        "baseIncomeAllocationRatio": base,
+        "effectiveIncomeAllocationRatio": effective,
+        "incomeAllocationDelta": temporary_delta,
+    }
+    if national_income is not None:
+        payload["estimatedBudgetAllocation"] = _preview_budget_allocation(national_income, effective)
+    return payload
 
 
 def _build_national_ability(player: PlayerState) -> dict[str, Any] | None:
@@ -874,7 +1000,6 @@ _EFFECT_LABELS: dict[str, str] = {
     "domesticMarketCapacityDelta": "国内容量",
     "domesticPriceBonusDelta": "国内价格",
     "overseasMarketCapacityDelta": "海外容量",
-    "overseasPriceBonusDelta": "海外价格",
     "techPointsDelta": "科技点",
     "armyCapDelta": "军事上限",
     "controlledRegionsDelta": "控制区域",

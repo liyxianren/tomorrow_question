@@ -1,7 +1,7 @@
 """M4 tests: workspace phase1Economy block exposes computed preview fields.
 
 Verifies that decision/market/settlement workspaces enrich the phase1Economy
-block with productionModes metadata, demand/price preview, and 5:3:2 pool delta
+block with productionModes metadata, demand/price preview, and 3:3:4 pool delta
 so that the frontend has everything needed without recomputing locally.
 """
 from __future__ import annotations
@@ -160,9 +160,9 @@ class DecisionWorkspaceMarketPreviewTests(unittest.TestCase):
         workspace_surplus = build_decision_player_workspace(snapshot, britain)
         price_surplus = workspace_surplus["phase1Economy"]["domesticPricePreview"]
 
-        # Shortage drives price up above equilibrium; surplus drives it down (clamped at min=1)
+        # Shortage drives price up above equilibrium; surplus drives it down and clamps at dynamic 0.1×P0.
         self.assertGreater(price_short, price_surplus)
-        self.assertGreaterEqual(price_surplus, 1.0)
+        self.assertGreaterEqual(price_surplus, workspace_surplus["phase1Economy"]["minimumDomesticPrice"])
 
     def test_zero_capacity_yields_zero_demand_and_min_price(self) -> None:
         snapshot = _build_snapshot()
@@ -175,9 +175,10 @@ class DecisionWorkspaceMarketPreviewTests(unittest.TestCase):
         phase1 = workspace["phase1Economy"]
 
         self.assertEqual(phase1["domesticDemand"], 0)
-        self.assertEqual(phase1["equilibriumPrice"], 0.0)
-        # When demand=0 the price floor is the minimum.
-        self.assertEqual(phase1["domesticPricePreview"], 1.0)
+        self.assertEqual(phase1["domesticSoftCap"], 1.0)
+        self.assertEqual(phase1["equilibriumPrice"], float(russia.budget_pools["domesticMarket"]))
+        # K is protected at 1; zero allocation shows the formula's 2×P0 ceiling reference.
+        self.assertEqual(phase1["domesticPricePreview"], float(russia.budget_pools["domesticMarket"] * 2))
 
     def test_investment_pool_mirrors_factory_budget(self) -> None:
         snapshot = _build_snapshot()
@@ -248,7 +249,7 @@ class DecisionWorkspaceRouteUnlockTests(unittest.TestCase):
             option for option in workspace["upgradeOptions"] if option["routeId"] == "mechanized"
         )
 
-        self.assertEqual(mechanized_upgrade["unitBudgetCost"], 10)
+        self.assertEqual(mechanized_upgrade["unitBudgetCost"], 8)
 
     def test_industry_specialization_increases_raw_materials_per_turn(self) -> None:
         snapshot = _build_snapshot()
@@ -308,7 +309,7 @@ class MarketWorkspaceEnrichmentTests(unittest.TestCase):
 
 
 class SettlementWorkspacePoolDeltaPreviewTests(unittest.TestCase):
-    def test_pool_delta_preview_splits_5_3_2(self) -> None:
+    def test_pool_delta_preview_splits_3_3_4(self) -> None:
         snapshot = _build_snapshot()
         snapshot.phase = GamePhase.SETTLEMENT
         britain = _get_player(snapshot, "player-1")
@@ -317,9 +318,9 @@ class SettlementWorkspacePoolDeltaPreviewTests(unittest.TestCase):
         workspace = build_settlement_player_workspace(snapshot, britain)
         delta = workspace["phase1Economy"]["poolDeltaPreview"]
 
-        self.assertAlmostEqual(delta["consumption"], 50.0, places=6)
+        self.assertAlmostEqual(delta["consumption"], 30.0, places=6)
         self.assertAlmostEqual(delta["investment"], 30.0, places=6)
-        self.assertAlmostEqual(delta["fiscal"], 20.0, places=6)
+        self.assertAlmostEqual(delta["fiscal"], 40.0, places=6)
 
     def test_pool_delta_preview_matches_pure_function(self) -> None:
         snapshot = _build_snapshot()
@@ -334,7 +335,7 @@ class SettlementWorkspacePoolDeltaPreviewTests(unittest.TestCase):
         self.assertEqual(delta["investment"], float(workspace["budgetAllocation"]["factory"]))
         self.assertEqual(delta["fiscal"], float(workspace["budgetAllocation"]["governmentFiscal"]))
 
-    def test_settlement_preview_includes_pending_colony_income(self) -> None:
+    def test_settlement_preview_keeps_colony_income_disabled(self) -> None:
         snapshot = _build_snapshot()
         snapshot.phase = GamePhase.SETTLEMENT
         britain = _get_player(snapshot, "player-1")
@@ -346,8 +347,8 @@ class SettlementWorkspacePoolDeltaPreviewTests(unittest.TestCase):
         delta = workspace["phase1Economy"]["poolDeltaPreview"]
 
         self.assertEqual(workspace["marketIncome"], 12)
-        self.assertEqual(workspace["colonyIncome"], 5)
-        self.assertEqual(workspace["nationalIncome"], 17)
+        self.assertEqual(workspace["colonyIncome"], 0)
+        self.assertEqual(workspace["nationalIncome"], 12)
         self.assertEqual(delta["consumption"], float(workspace["budgetAllocation"]["domesticMarket"]))
         self.assertEqual(delta["investment"], float(workspace["budgetAllocation"]["factory"]))
         self.assertEqual(delta["fiscal"], float(workspace["budgetAllocation"]["governmentFiscal"]))

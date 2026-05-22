@@ -16,6 +16,7 @@ from .phase1_economy import (
     calculate_domestic_demand,
     calculate_domestic_price,
     calculate_equilibrium_price,
+    round_market_revenue,
 )
 from .route_utils import check_route_accessible
 
@@ -107,45 +108,43 @@ def _apply_phase1_market(
     snapshot,
     competition_rewards_by_region: dict[str, dict[str, int]] | None = None,
 ) -> tuple[int, int]:
-    """Phase-1 unified market: one good, supply-demand pricing, optional external markets at the same price."""
+    """Phase-1 unified market: one good, domestic soft-cap pricing, fixed-price external markets."""
     balance = get_balance_config()
     capacity_by_mode = player_state.phase1_economy.capacity_by_mode
-    demand = calculate_domestic_demand(capacity_by_mode)
+    demand = calculate_domestic_demand(capacity_by_mode, balance.production.demand_coefficients)
     available_inventory = int(player_state.phase1_economy.goods_inventory)
     original_inventory = available_inventory
     supply = Decimal(original_inventory)
 
-    equilibrium_price = calculate_equilibrium_price(demand=demand)
-    goods_config = balance.production.goods.get(PHASE1_GOODS_KEY)
-    domestic_price_ceiling = int(goods_config.price_ceiling) if goods_config is not None else 8
-    overseas_price_ceiling = int(goods_config.overseas_price_ceiling) if goods_config is not None else 24
     domestic_price_bonus = Decimal(int(get_effect_bonus(player_state, "domesticPriceBonus")))
-    overseas_price_bonus = int(get_effect_bonus(player_state, "overseasPriceBonus"))
-    # Apply cross-round price drift from settlement adjustments.
-    price_drift = int(getattr(snapshot, "market_price_adjustments", {}).get("phase1_goods", 0))
-    if price_drift:
-        equilibrium_price = max(Decimal("1"), equilibrium_price + Decimal(str(price_drift)))
     domestic_request = max(0, int(phase1_market.get("domesticAllocation", 0) or 0))
-    domestic_capacity = max(0, int(resolve_domestic_market_capacity(player_state)))
-    sold_domestic_d = min(
-        Decimal(domestic_request),
-        Decimal(available_inventory),
-        demand,
-        Decimal(domestic_capacity),
+    domestic_soft_cap = Decimal(max(1, int(resolve_domestic_market_capacity(player_state))))
+    consumption_pool = Decimal(max(0, int(player_state.budget_pools.get("domesticMarket", 0))))
+    equilibrium_price = calculate_equilibrium_price(
+        consumption_pool=consumption_pool,
+        effective_capacity=domestic_soft_cap,
     )
-    price_supply = sold_domestic_d if domestic_request > 0 else supply
-    base_final_price = calculate_domestic_price(
+    sold_domestic_d = min(Decimal(domestic_request), Decimal(available_inventory))
+    final_price = calculate_domestic_price(
         equilibrium_price=equilibrium_price,
-        supply=price_supply,
-        demand=demand,
-        minimum_price=1,
-        maximum_price=domestic_price_ceiling,
+        allocation=sold_domestic_d,
+        effective_capacity=domestic_soft_cap,
+        price_bonus=domestic_price_bonus,
     )
-    final_price = min(Decimal(domestic_price_ceiling), max(Decimal("1"), base_final_price + domestic_price_bonus))
     sold_domestic = int(sold_domestic_d)
     available_inventory -= sold_domestic
     domestic_revenue_d = sold_domestic_d * final_price
-    domestic_revenue = int(domestic_revenue_d)
+    domestic_revenue = round_market_revenue(domestic_revenue_d)
+    shortage_rate = (
+        (domestic_soft_cap - sold_domestic_d) / domestic_soft_cap
+        if sold_domestic_d < domestic_soft_cap
+        else Decimal("0")
+    )
+    surplus_rate = (
+        (sold_domestic_d - domestic_soft_cap) / domestic_soft_cap
+        if sold_domestic_d > domestic_soft_cap
+        else Decimal("0")
+    )
 
     overseas_revenue = 0
     sold_overseas = 0
@@ -153,10 +152,6 @@ def _apply_phase1_market(
     rewards_by_region = competition_rewards_by_region or {}
     competition_capacity_remaining = {
         region_id: max(0, int(reward.get("capacityBonus", 0)))
-        for region_id, reward in rewards_by_region.items()
-    }
-    competition_price_bonus_by_region = {
-        region_id: max(0, int(reward.get("priceBonus", 0)))
         for region_id, reward in rewards_by_region.items()
     }
     for alloc in phase1_market.get("externalAllocations", []) or []:
@@ -192,14 +187,8 @@ def _apply_phase1_market(
         if sold <= 0:
             continue
         region_blueprint = balance.regions.region_blueprints.get(region_id)
-        multiplier = float(region_blueprint.price_multiplier) if region_blueprint else 1.0
-        competition_price_bonus = int(competition_price_bonus_by_region.get(region_id, 0))
-        overseas_unit_price = (
-            int(Decimal(str(equilibrium_price)) * Decimal(str(multiplier)))
-            + overseas_price_bonus
-            + competition_price_bonus
-        )
-        overseas_unit_price = max(1, min(overseas_price_ceiling, overseas_unit_price))
+        overseas_unit_price = int(region_blueprint.fixed_overseas_price) if region_blueprint else 1
+        overseas_unit_price = max(1, overseas_unit_price)
         revenue = int(Decimal(sold) * Decimal(str(overseas_unit_price)))
         overseas_revenue += revenue
         sold_overseas += sold
@@ -218,11 +207,16 @@ def _apply_phase1_market(
     player_state.phase1_economy.market_metrics = {
         "demand": float(demand),
         "supply": float(supply),
+        "domesticAllocation": float(sold_domestic_d),
+        "domesticSoftCap": float(domestic_soft_cap),
+        "consumptionPool": float(consumption_pool),
         "equilibriumPrice": float(equilibrium_price),
         "finalPrice": float(final_price),
         "soldQuantity": float(sold_quantity),
         "unsoldQuantity": float(unsold_quantity),
         "revenue": float(domestic_revenue + overseas_revenue),
+        "shortageRate": float(shortage_rate),
+        "surplusRate": float(surplus_rate),
     }
 
     legacy_stock = {key: int(value) for key, value in player_state.goods_stock.items()}
@@ -271,8 +265,6 @@ def _resolve_external_market_competitions(
             seen_regions.add(region_id)
             if region_id not in region_states_by_id:
                 continue
-            if region_id not in player_state.established_diplomacy:
-                continue
             if not check_route_accessible(player_state.country.value, region_id, snapshot, balance):
                 continue
 
@@ -310,7 +302,6 @@ def _resolve_external_market_competitions(
         )
         rewards_by_player.setdefault(winner_player.player_id, {})[region_id] = {
             "capacityBonus": int(competition.reward_capacity_bonus),
-            "priceBonus": int(competition.reward_price_bonus),
         }
     return rewards_by_player
 
@@ -323,21 +314,35 @@ def _mirror_phase1_market_metrics(
     sold_quantity: int,
     unsold_quantity: int,
 ) -> None:
-    demand = calculate_domestic_demand(player_state.phase1_economy.capacity_by_mode)
+    balance = get_balance_config()
+    demand = calculate_domestic_demand(
+        player_state.phase1_economy.capacity_by_mode,
+        balance.production.demand_coefficients,
+    )
     supply = Decimal(int(player_state.phase1_economy.goods_inventory))
-    equilibrium_price = calculate_equilibrium_price(demand=demand)
+    domestic_soft_cap = Decimal(max(1, int(resolve_domestic_market_capacity(player_state))))
+    consumption_pool = Decimal(max(0, int(player_state.budget_pools.get("domesticMarket", 0))))
+    equilibrium_price = calculate_equilibrium_price(
+        consumption_pool=consumption_pool,
+        effective_capacity=domestic_soft_cap,
+    )
     final_price = calculate_domestic_price(
         equilibrium_price=equilibrium_price,
-        supply=supply,
-        demand=demand,
-        minimum_price=1,
+        allocation=supply,
+        effective_capacity=domestic_soft_cap,
+        price_bonus=Decimal(int(get_effect_bonus(player_state, "domesticPriceBonus"))),
     )
     player_state.phase1_economy.market_metrics = {
         "demand": float(demand),
         "supply": float(supply),
+        "domesticAllocation": 0.0,
+        "domesticSoftCap": float(domestic_soft_cap),
+        "consumptionPool": float(consumption_pool),
         "equilibriumPrice": float(equilibrium_price),
         "finalPrice": float(final_price),
         "soldQuantity": float(sold_quantity),
         "unsoldQuantity": float(unsold_quantity),
         "revenue": float(int(domestic_revenue) + int(overseas_revenue)),
+        "shortageRate": 0.0,
+        "surplusRate": 0.0,
     }

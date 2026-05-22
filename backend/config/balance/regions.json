@@ -10,12 +10,12 @@
       },
       "requiredNodes": [],
       "colonizable": false,
-      "priceMultiplier": 0.9,
+      "fixedOverseasPrice": 8,
       "minArmy": 1
     },
     {
       "regionId": "americas",
-      "accessLevel": "concession",
+      "accessLevel": "open",
       "resourceLimit": {
         "cotton": 4,
         "grain": 4,
@@ -26,12 +26,12 @@
         "north_atlantic"
       ],
       "colonizable": true,
-      "priceMultiplier": 1.0,
+      "fixedOverseasPrice": 7,
       "minArmy": 1
     },
     {
       "regionId": "africa",
-      "accessLevel": "concession",
+      "accessLevel": "open",
       "resourceLimit": {
         "rubber": 3,
         "cotton": 3,
@@ -41,12 +41,12 @@
         "mediterranean"
       ],
       "colonizable": true,
-      "priceMultiplier": 1.2,
+      "fixedOverseasPrice": 4,
       "minArmy": 1
     },
     {
       "regionId": "middle_east",
-      "accessLevel": "concession",
+      "accessLevel": "open",
       "resourceLimit": {
         "oil": 4,
         "grain": 2,
@@ -57,12 +57,12 @@
         "mediterranean"
       ],
       "colonizable": true,
-      "priceMultiplier": 1.2,
+      "fixedOverseasPrice": 5,
       "minArmy": 1
     },
     {
       "regionId": "asia_pacific",
-      "accessLevel": "concession",
+      "accessLevel": "open",
       "resourceLimit": {
         "tea": 4,
         "silk": 3,
@@ -72,7 +72,7 @@
         "indian_ocean"
       ],
       "colonizable": true,
-      "priceMultiplier": 1.1,
+      "fixedOverseasPrice": 6,
       "minArmy": 1
     }
   ],

@@ -76,7 +76,7 @@
         "branch": "industry",
         "techPointCost": 5,
         "description": "形成完整工业综合体，新厂建设更便宜，原料供给和工厂预算同步增强。",
-        "permanentEffects": { "handicraftCapacityDelta": 4, "factoryBudgetDelta": 8, "rawMaterialsPerTurnDelta": 5, "newFactoryCostReductionPercent": 15 }
+        "permanentEffects": { "handicraftCapacityDelta": 4, "factoryBudgetDelta": 8, "rawMaterialsPerTurnDelta": 5, "factoryExpansionCostReductionPercent": 15 }
       },
       "civ_market_research": {
         "label": "市场调研",
@@ -139,7 +139,7 @@
         "branch": "government",
         "techPointCost": 4,
         "description": "建立专业海外事务与商贸协调体系，扩大海外影响力。",
-        "permanentEffects": { "overseasMarketCapacityDelta": 2, "overseasPriceBonusDelta": 1 }
+        "permanentEffects": { "overseasMarketCapacityDelta": 2 }
       },
       "gov_imperial_treasury": {
         "label": "帝国财阀",
@@ -166,15 +166,15 @@
         "label": "军工结合",
         "branch": "military",
         "techPointCost": 3,
-        "description": "军民融合发展，军事能力与海外贸易价格同步提升。",
-        "permanentEffects": { "armyCapDelta": 1, "overseasPriceBonusDelta": 1 }
+        "description": "军民融合发展，提升军事能力。",
+        "permanentEffects": { "armyCapDelta": 1 }
       },
       "mil_naval_supremacy": {
         "label": "海权制霸",
         "branch": "military",
         "techPointCost": 4,
         "description": "确立海上霸权，大幅扩展海外贸易版图。",
-        "permanentEffects": { "overseasMarketCapacityDelta": 2, "overseasPriceBonusDelta": 2 }
+        "permanentEffects": { "overseasMarketCapacityDelta": 2 }
       },
       "mil_total_war": {
         "label": "全面战争",

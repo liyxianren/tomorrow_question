@@ -71,6 +71,11 @@
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.mnd__section--warning {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.28);
+}
+
 .mnd__section-label {
   font-size: 12px;
   font-weight: 600;
@@ -85,6 +90,12 @@
   justify-content: space-between;
   gap: 10px;
   font-size: 12.5px;
+}
+
+.mnd__row--stacked {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .mnd__row-label {
@@ -245,6 +256,25 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.mnd__deploy-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.mnd__deploy-label {
+  color: var(--game-text-primary, #fff5e7);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.mnd__deploy-limit {
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.62));
+  font-size: 11px;
 }
 
 .mnd__deploy-value {

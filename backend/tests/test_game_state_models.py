@@ -11,7 +11,9 @@ sys.path.insert(0, str(ROOT))
 
 from app.contracts.enums import CountryCode, GamePhase
 from app.modules.game_state.factory import create_initial_snapshot
+from app.modules.game_state.market_access import resolve_domestic_market_capacity
 from app.modules.game_state.models import Game, GameSnapshot, PlayerState
+from app.modules.rules.phase1_economy import calculate_equilibrium_price
 
 
 class GameStateModelTests(unittest.TestCase):
@@ -50,7 +52,6 @@ class GameStateModelTests(unittest.TestCase):
             income_allocation_ratio={"domesticMarket": 3.0, "factory": 3.0, "governmentFiscal": 4.0},
             budget_pools={"domesticMarket": 8, "factory": 9, "governmentFiscal": 12},
             tech_points=2,
-            military_points=3,
             production_capacity={"handicraft": 2},
             pending_production_capacity={"mechanized": 1},
             goods_stock={"steel": 4},
@@ -64,11 +65,9 @@ class GameStateModelTests(unittest.TestCase):
                 "domesticMarketCapacityBonus": 2,
                 "domesticPriceBonus": 1,
                 "overseasMarketCapacityBonus": 0,
-                "overseasPriceBonus": 0,
                 "productionOutputMultiplier": 2,
             },
         )
-
         payload = player_state.to_payload()
 
         self.assertEqual(payload["domesticSalesRevenue"], 7)
@@ -77,10 +76,39 @@ class GameStateModelTests(unittest.TestCase):
         self.assertEqual(payload["cumulativeNationalIncome"], 24)
         self.assertEqual(payload["budgetPools"]["governmentFiscal"], 12)
         self.assertEqual(payload["techPoints"], 2)
-        self.assertEqual(payload["militaryPoints"], 3)
         self.assertEqual(payload["establishedDiplomacy"], ["africa"])
         self.assertEqual(payload["usedAbilities"], ["workshop_of_the_world"])
         self.assertEqual(payload["temporaryEffects"]["productionOutputMultiplier"], 2)
+        self.assertNotIn("factoryExpansionUsedByMode", payload["phase1Economy"])
+
+    def test_initial_consumption_pool_covers_first_round_domestic_capacity(self) -> None:
+        game = Game(game_id="game-1", room_code="ROOM1")
+        snapshot = create_initial_snapshot(
+            game=game,
+            snapshot_id="snapshot-1",
+            player_assignments={
+                "player-britain": CountryCode.BRITAIN,
+                "player-france": CountryCode.FRANCE,
+                "player-prussia": CountryCode.PRUSSIA,
+                "player-austria": CountryCode.AUSTRIA,
+                "player-russia": CountryCode.RUSSIA,
+            },
+            phase_deadline_at=datetime(2026, 3, 29, 12, 0, tzinfo=UTC),
+        )
+
+        for player in snapshot.player_states:
+            domestic_capacity = resolve_domestic_market_capacity(player)
+            consumption_pool = int(player.budget_pools["domesticMarket"])
+            equilibrium_price = calculate_equilibrium_price(
+                consumption_pool=consumption_pool,
+                effective_capacity=domestic_capacity,
+            )
+            self.assertGreaterEqual(
+                consumption_pool,
+                domestic_capacity,
+                f"{player.country.value} first-round consumption pool should cover domestic capacity",
+            )
+            self.assertGreaterEqual(equilibrium_price, 1)
 
     @unittest.skip("Phase 3 migration: old tech tree behavior, to be rewritten in Task 3-4")
     def test_initial_snapshot_factory_builds_first_round_decision_state(self) -> None:
@@ -144,12 +172,8 @@ class GameStateModelTests(unittest.TestCase):
         )
         self.assertEqual(britain_workspace["domesticMarketActions"], [])
         self.assertEqual(
-            next(
-                action
-                for action in britain_workspace["governmentActions"]["strategies"]
-                if action["actionId"] == "consumer_subsidy"
-            )["lockedReason"],
-            "需要研究「市场经济」",
+            [action["actionId"] for action in britain_workspace["governmentActions"]["strategies"]],
+            ["trade_promotion", "expand_research"],
         )
         self.assertFalse(
             any(action["actionId"] == "industrial_policy" for action in britain_workspace["governmentActions"]["strategies"])
@@ -200,7 +224,6 @@ class GameStateModelTests(unittest.TestCase):
                     income_allocation_ratio={"domesticMarket": 3.0, "factory": 3.0, "governmentFiscal": 4.0},
                     budget_pools={"domesticMarket": 8, "factory": 8, "governmentFiscal": 9},
                     tech_points=1,
-                    military_points=2,
                     production_capacity={"handicraft": 2},
                     pending_production_capacity={"mechanized": 1},
                     goods_stock={"steel": 4},
@@ -214,7 +237,6 @@ class GameStateModelTests(unittest.TestCase):
                         "domesticMarketCapacityBonus": 2,
                         "domesticPriceBonus": 1,
                         "overseasMarketCapacityBonus": 0,
-                        "overseasPriceBonus": 0,
                         "productionOutputMultiplier": 2,
                     },
                 )
@@ -301,6 +323,68 @@ class GameStateModelTests(unittest.TestCase):
         self.assertIn("factoryActions", restored_workspace)
         self.assertTrue(isinstance(restored_workspace["productionOptions"], list))
         self.assertTrue(isinstance(restored_workspace["factoryActions"], list))
+
+    def test_snapshot_from_payload_rehydrates_stale_decision_action_ids(self) -> None:
+        game = Game(game_id="game-1", room_code="ROOM1")
+        snapshot = create_initial_snapshot(
+            game=game,
+            snapshot_id="snapshot-1",
+            player_assignments={
+                "player-britain": CountryCode.BRITAIN,
+                "player-france": CountryCode.FRANCE,
+                "player-prussia": CountryCode.PRUSSIA,
+                "player-austria": CountryCode.AUSTRIA,
+                "player-russia": CountryCode.RUSSIA,
+            },
+            phase_deadline_at=datetime(2026, 3, 29, 12, 0, tzinfo=UTC),
+        )
+
+        payload = snapshot.to_payload()
+        britain_workspace = payload["phaseWorkspace"]["players"]["player-britain"]
+        britain_workspace["domesticMarketActions"] = [
+            {
+                "actionId": "market_subsidy",
+                "label": "市场补贴",
+                "cost": 1,
+                "description": "旧国内市场政策",
+                "effects": {"domesticMarketCapacityDelta": 2},
+            }
+        ]
+        britain_workspace["governmentActions"]["strategies"].append(
+            {
+                "actionId": "price_control",
+                "label": "价格管制",
+                "cost": 1,
+                "description": "旧国内调价政策",
+                "effects": {"domesticPriceBonusDelta": 2},
+            }
+        )
+        britain_workspace["militaryWorkspace"]["availableMilitaryActions"].append(
+            {
+                "actionId": "naval_drill",
+                "label": "海军演练",
+                "cost": 4,
+                "maxPerRound": 2,
+                "description": "旧海外扩容军事动作",
+                "effects": {"overseasMarketCapacityDelta": 1},
+            }
+        )
+
+        restored = GameSnapshot.from_payload(payload)
+        restored_workspace = restored.to_payload()["phaseWorkspace"]["players"]["player-britain"]
+        military_action_ids = [
+            action["actionId"]
+            for action in restored_workspace["militaryWorkspace"]["availableMilitaryActions"]
+        ]
+        government_action_ids = [
+            action["actionId"]
+            for action in restored_workspace["governmentActions"]["strategies"]
+        ]
+
+        self.assertEqual(restored_workspace["domesticMarketActions"], [])
+        self.assertNotIn("price_control", government_action_ids)
+        self.assertNotIn("naval_drill", military_action_ids)
+        self.assertEqual(military_action_ids, ["recruit_army", "build_fleet"])
 
 
 if __name__ == "__main__":

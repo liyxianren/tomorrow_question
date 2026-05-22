@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 ROUTE_DISPLAY_ORDER: tuple[str, ...] = ("handicraft", "mechanized", "steam", "electrified")
 ROUTE_LABELS: dict[str, str] = {
+    "idle": "闲置",
     "handicraft": "手工业",
     "mechanized": "机械化",
     "steam": "蒸汽工业",
@@ -44,6 +45,58 @@ def current_route_capacity(player: PlayerState, route_id: str) -> int:
     return max(0, int(player.production_capacity.get(route_id, 0)))
 
 
+def factory_total_cap(player: PlayerState) -> int:
+    country_config = get_balance_config().countries.get(player.country.value)
+    if country_config is None or int(country_config.factory_total_cap) <= 0:
+        return sum(
+            max(0, int(player.phase1_economy.capacity_by_mode.get(mode, 0)))
+            for mode in player.phase1_economy.capacity_by_mode
+        )
+    return int(country_config.factory_total_cap)
+
+
+def factory_caps_by_mode(player: PlayerState) -> dict[str, int]:
+    balance = get_balance_config()
+    total_cap = factory_total_cap(player)
+    return {
+        mode: max(0, int(total_cap))
+        for mode in balance.production.levels
+        if mode != "idle"
+    }
+
+
+def enabled_factory_count(player: PlayerState) -> int:
+    return sum(
+        max(0, int(player.phase1_economy.capacity_by_mode.get(mode, 0)))
+        for mode in player.phase1_economy.capacity_by_mode
+        if mode != "idle"
+    )
+
+
+def idle_factory_capacity(player: PlayerState) -> int:
+    configured_idle = max(0, int(player.phase1_economy.capacity_by_mode.get("idle", 0)))
+    total_room = max(0, factory_total_cap(player) - enabled_factory_count(player))
+    return min(configured_idle, total_room) if factory_total_cap(player) > 0 else configured_idle
+
+
+def factory_mode_remaining_capacity(player: PlayerState, route_id: str) -> int:
+    if route_id == "idle":
+        return idle_factory_capacity(player)
+    cap = factory_total_cap(player)
+    if cap <= 0:
+        return 0
+    return max(0, cap - current_route_capacity(player, route_id))
+
+
+def new_factory_available_quantity(player: PlayerState, route_id: str) -> int:
+    if route_id == "idle":
+        return 0
+    return min(
+        idle_factory_capacity(player),
+        factory_mode_remaining_capacity(player, route_id),
+    )
+
+
 def pending_route_capacity(player: PlayerState, route_id: str) -> int:
     return int(player.pending_production_capacity.get(route_id, 0))
 
@@ -67,6 +120,12 @@ def goods_ids_for_route(route_id: str) -> list[str]:
 
 def route_locked_reason(player: PlayerState, route_id: str) -> str | None:
     if route_id == "handicraft" or current_route_capacity(player, route_id) > 0:
+        return None
+    return route_technology_locked_reason(player, route_id)
+
+
+def route_technology_locked_reason(player: PlayerState, route_id: str) -> str | None:
+    if route_id in ("idle", "handicraft"):
         return None
     required_techs = get_balance_config().technology.route_unlocks.get(route_id)
     if not required_techs:
@@ -177,9 +236,12 @@ def production_option_max_quantity(player: PlayerState, goods_id: str) -> int:
 
 def expansion_option_max_quantity(player: PlayerState, route_id: str) -> int:
     unit_cost = expansion_unit_budget_cost(player, route_id)
-    if unit_cost <= 0 or current_route_capacity(player, route_id) <= 0:
+    if unit_cost <= 0:
         return 0
-    return max(0, int(player.budget_pools.get("factory", 0)) // unit_cost)
+    return min(
+        new_factory_available_quantity(player, route_id),
+        max(0, int(player.budget_pools.get("factory", 0)) // unit_cost),
+    )
 
 
 def upgrade_option_max_quantity(player: PlayerState, target_route_id: str) -> int:
@@ -188,19 +250,26 @@ def upgrade_option_max_quantity(player: PlayerState, target_route_id: str) -> in
     unit_cost = upgrade_unit_budget_cost(player, target_route_id)
     if source_route_id is None or unit_cost <= 0:
         return 0
-    if route_locked_reason(player, target_route_id) is not None:
+    if route_technology_locked_reason(player, target_route_id) is not None:
         return 0
     source_capacity = current_route_capacity(player, source_route_id)
     if source_capacity <= 0:
         return 0
-    return min(source_capacity, max(0, int(player.budget_pools.get("factory", 0)) // unit_cost))
+    return min(
+        source_capacity,
+        factory_mode_remaining_capacity(player, target_route_id),
+        max(0, int(player.budget_pools.get("factory", 0)) // unit_cost),
+    )
 
 
 def new_factory_option_max_quantity(player: PlayerState, route_id: str) -> int:
     unit_cost = new_factory_unit_budget_cost(player, route_id)
     if unit_cost <= 0:
         return 0
-    return max(0, int(player.budget_pools.get("factory", 0)) // unit_cost)
+    return min(
+        new_factory_available_quantity(player, route_id),
+        max(0, int(player.budget_pools.get("factory", 0)) // unit_cost),
+    )
 
 
 def expansion_unit_budget_cost(player: PlayerState, route_id: str) -> int:
@@ -250,20 +319,16 @@ def overseas_reference_price(
     snapshot: "GameSnapshot" | None = None,
 ) -> int:
     balance = get_balance_config()
-    goods = goods_config_by_id(goods_id)
-    goods_premium = int(balance.market.region_goods_premiums.get(region_id, {}).get(goods_id, 0))
-    premium = goods_premium + _region_event_price_delta(snapshot, region_id)
-    adjustment = int(snapshot.market_price_adjustments.get(goods_id, 0)) if snapshot is not None else 0
-    event_delta = _goods_event_price_delta(snapshot, goods_id, "overseasDelta")
-    if goods is None:
-        return max(1, premium + get_effect_bonus(player, "overseasPriceBonus"))
-    resolved = int(goods.overseas_base_price) + adjustment + event_delta + premium + get_effect_bonus(player, "overseasPriceBonus")
-    return max(1, min(int(goods.overseas_price_ceiling), resolved))
+    del player, goods_id, snapshot
+    region = balance.regions.region_blueprints.get(region_id)
+    if region is None:
+        return 1
+    return max(1, int(region.fixed_overseas_price))
 
 
 def overseas_reference_price_range(player: PlayerState, goods_id: str, snapshot: "GameSnapshot" | None = None) -> tuple[int, int]:
     balance = get_balance_config()
-    region_ids = list(balance.market.region_goods_premiums.keys())
+    region_ids = list(balance.regions.region_blueprints.keys())
     if not region_ids:
         value = overseas_reference_price(player, goods_id, "", snapshot)
         return (value, value)

@@ -319,7 +319,7 @@ describe("SettlementPage", () => {
         roundNo: 12,
         phase: "decision",
         kind: "military.naval_blockade",
-        message: "英国部署舰队封锁北大西洋。",
+        message: "英国投入舰队封锁美洲地区。",
         details: { playerId: "player-1" },
         createdAt: "2026-03-30T13:20:00Z",
       },
@@ -350,8 +350,8 @@ describe("SettlementPage", () => {
     );
 
     const timelineText = screen.getByTestId("settlement-final-logs").textContent ?? "";
-    expect(timelineText.indexOf("英国部署舰队封锁北大西洋。")).toBeGreaterThanOrEqual(0);
-    expect(timelineText.indexOf("英国部署舰队封锁北大西洋。")).toBeLessThan(
+    expect(timelineText.indexOf("英国投入舰队封锁美洲地区。")).toBeGreaterThanOrEqual(0);
+    expect(timelineText.indexOf("英国投入舰队封锁美洲地区。")).toBeLessThan(
       timelineText.indexOf("法国完成财政结算。"),
     );
   });

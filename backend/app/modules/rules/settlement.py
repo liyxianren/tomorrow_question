@@ -161,25 +161,23 @@ def _is_phase1_economy_active(player_state) -> bool:
 
 
 def _allocate_income_phase1(*, national_income: int, ratio: dict[str, float] | None = None) -> dict[str, int]:
-    """Split income by the player's current three-pool weights.
-    
-    domesticMarket pool is frozen — its share is redistributed proportionally
-    between factory and governmentFiscal based on their original weights.
-    """
+    """Split income by the player's current three-pool weights, defaulting to 3:3:4."""
     if national_income <= 0:
         return {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
     legacy = ratio or {}
+    domestic_w = max(0.0, float(legacy.get("domesticMarket", 3.0)))
     factory_w = max(0.0, float(legacy.get("factory", 3.0)))
     gov_w = max(0.0, float(legacy.get("governmentFiscal", 4.0)))
-    total_remaining = factory_w + gov_w
-    if total_remaining <= 0:
-        factory = int(national_income * 0.5)
-        government = int(national_income) - factory
+    total_weight = domestic_w + factory_w + gov_w
+    if total_weight <= 0:
+        domestic = int(national_income * 0.3)
+        factory = int(national_income * 0.3)
     else:
-        factory = int(national_income * (factory_w / total_remaining))
-        government = int(national_income) - factory
+        domestic = int(national_income * (domestic_w / total_weight))
+        factory = int(national_income * (factory_w / total_weight))
+    government = int(national_income) - domestic - factory
     return {
-        "domesticMarket": 0,
+        "domesticMarket": domestic,
         "factory": factory,
         "governmentFiscal": government,
     }
@@ -234,6 +232,8 @@ def _build_market_price_adjustments(
 ) -> dict[str, int]:
     new_adjustments: dict[str, int] = {}
     for goods_id, goods_config in balance.production.goods.items():
+        if goods_id == "phase1_goods":
+            continue
         sold = int(total_sold_by_goods.get(goods_id, 0))
         previous = int(previous_adjustments.get(goods_id, 0))
         min_adjustment = int(goods_config.price_floor) - int(goods_config.domestic_reference_price)
@@ -287,7 +287,6 @@ def _apply_milestone_if_needed(player_state, ideology_key: str, level: int, bala
             "domesticMarketCapacityDelta",
             "domesticPriceBonusDelta",
             "overseasMarketCapacityDelta",
-            "overseasPriceBonusDelta",
         }
     }
     if non_passive_effects:

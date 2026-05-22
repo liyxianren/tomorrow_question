@@ -12,10 +12,10 @@
     {
       "eventId": "trade_winds",
       "label": "顺风航路",
-      "description": "大西洋航路畅通，海外贸易条件改善。",
+      "description": "海外贸易条件改善。",
       "roundRange": [1, 5],
       "conditions": {},
-      "globalEffects": { "overseasMarketCapacityDelta": 1, "overseasPriceBonusDelta": 1 },
+      "globalEffects": { "overseasMarketCapacityDelta": 1 },
       "weight": 2
     },
     {
@@ -37,8 +37,8 @@
     },
     {
       "eventId": "diplomatic_summit",
-      "label": "外交峰会",
-      "description": "列强外交会议达成贸易共识，海外市场门槛降低。",
+      "label": "港务协调会",
+      "description": "各国协调港务与航路标准，临时提升海外承接能力。",
       "roundRange": [1, 5],
       "conditions": {},
       "globalEffects": { "overseasMarketCapacityDelta": 2 }
@@ -89,7 +89,7 @@
       "description": "棉花供应中断，国内滞销但海外需求激增。",
       "roundRange": [3, 10],
       "conditions": {},
-      "globalEffects": { "domesticPriceBonusDelta": -1, "overseasPriceBonusDelta": 2 }
+      "globalEffects": { "domesticPriceBonusDelta": -1 }
     },
     {
       "eventId": "cholera_epidemic",
@@ -113,7 +113,7 @@
       "description": "海外发现金矿，出口商品价格飙升。",
       "roundRange": [4, 12],
       "conditions": {},
-      "globalEffects": { "overseasPriceBonusDelta": 2, "overseasMarketCapacityDelta": 1 },
+      "globalEffects": { "overseasMarketCapacityDelta": 1 },
       "weight": 2
     },
     {
@@ -170,7 +170,7 @@
       "description": "各国举办工业博览会，商品价格和需求双双上升。",
       "roundRange": [5, 10],
       "conditions": {},
-      "globalEffects": { "domesticPriceBonusDelta": 2, "overseasPriceBonusDelta": 1, "domesticMarketCapacityDelta": 2 },
+      "globalEffects": { "domesticPriceBonusDelta": 2, "domesticMarketCapacityDelta": 2 },
       "weight": 2
     },
     {
@@ -179,7 +179,7 @@
       "description": "苏伊士运河通航，全球贸易格局剧变。",
       "roundRange": [8, 15],
       "conditions": {},
-      "globalEffects": { "overseasMarketCapacityDelta": 3, "overseasPriceBonusDelta": 2 }
+      "globalEffects": { "overseasMarketCapacityDelta": 3 }
     },
     {
       "eventId": "revolution_1848",
@@ -203,7 +203,7 @@
       "description": "列强争相扩展海外贸易网络，军事投送与民族情绪并起。",
       "roundRange": [8, 15],
       "conditions": {},
-      "globalEffects": { "overseasMarketCapacityDelta": 2, "overseasPriceBonusDelta": 1, "ideologyLevelDelta": { "nationalism": 1 } }
+      "globalEffects": { "overseasMarketCapacityDelta": 2, "ideologyLevelDelta": { "nationalism": 1 } }
     },
     {
       "eventId": "economic_depression",
@@ -219,7 +219,7 @@
       "description": "跨洋电报网络建成，海外贸易信息畅通。",
       "roundRange": [8, 15],
       "conditions": {},
-      "globalEffects": { "overseasPriceBonusDelta": 3, "techPointsDelta": 1 }
+      "globalEffects": { "techPointsDelta": 1 }
     },
     {
       "eventId": "nationalism_surge",
@@ -235,7 +235,7 @@
       "description": "大规模油田被发现，工业和出口前景大好。",
       "roundRange": [10, 15],
       "conditions": { "anyPlayerProductionCapacityAtLeast": { "routeId": "steam", "value": 1 } },
-      "globalEffects": { "factoryBudgetDelta": 4, "overseasPriceBonusDelta": 2 }
+      "globalEffects": { "factoryBudgetDelta": 4 }
     },
     {
       "eventId": "world_fair",
@@ -243,7 +243,7 @@
       "description": "举世瞩目的博览会，国内外市场全面繁荣。",
       "roundRange": [10, 15],
       "conditions": {},
-      "globalEffects": { "domesticPriceBonusDelta": 3, "overseasPriceBonusDelta": 2, "domesticMarketCapacityDelta": 3 }
+      "globalEffects": { "domesticPriceBonusDelta": 3, "domesticMarketCapacityDelta": 3 }
     },
     {
       "eventId": "arms_race",

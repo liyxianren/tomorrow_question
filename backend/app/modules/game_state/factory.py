@@ -114,6 +114,15 @@ def _build_player_state(*, player_id: str, country: CountryCode) -> PlayerState:
     seeded_capacity_by_mode = dict(DEFAULT_PHASE1_CAPACITY_BY_MODE)
     for mode, value in baseline.production_capacity.items():
         seeded_capacity_by_mode[mode] = int(value)
+    active_factory_count = sum(
+        max(0, int(value))
+        for mode, value in seeded_capacity_by_mode.items()
+        if mode != "idle"
+    )
+    if int(baseline.factory_total_cap) > 0:
+        seeded_capacity_by_mode["idle"] = max(0, int(baseline.factory_total_cap) - active_factory_count)
+    else:
+        seeded_capacity_by_mode["idle"] = max(0, int(seeded_capacity_by_mode.get("idle", 0)))
 
     return PlayerState(
         player_id=player_id,
@@ -126,7 +135,7 @@ def _build_player_state(*, player_id: str, country: CountryCode) -> PlayerState:
         budget_pools={key: int(value) for key, value in baseline.budget_pools.items()},
         tech_points=int(baseline.tech_points),
         army_cap=int(baseline.army_cap),
-        production_capacity={key: int(value) for key, value in baseline.production_capacity.items()},
+        production_capacity={key: int(value) for key, value in seeded_capacity_by_mode.items()},
         pending_production_capacity={level: 0 for level in production_levels},
         goods_stock={key: int(baseline.goods_stock.get(key, 0)) for key in goods_stock_keys},
         raw_material_usage={},
@@ -148,7 +157,6 @@ def _build_player_state(*, player_id: str, country: CountryCode) -> PlayerState:
             "domesticMarketCapacity": 0,
             "overseasMarketCapacity": 0,
             "domesticPriceBonus": 0,
-            "overseasPriceBonus": 0,
         },
         established_diplomacy=list(baseline.initial_diplomacy),
         colonization_unlocked=False,

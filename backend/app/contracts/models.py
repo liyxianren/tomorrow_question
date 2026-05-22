@@ -69,11 +69,16 @@ class Phase1CapacityByModePayload(TypedDict):
 class Phase1MarketMetricsPayload(TypedDict):
     demand: float
     supply: float
+    domesticAllocation: NotRequired[float]
+    domesticSoftCap: NotRequired[float]
+    consumptionPool: NotRequired[float]
     equilibriumPrice: float
     finalPrice: float
     soldQuantity: float
     unsoldQuantity: float
     revenue: float
+    shortageRate: NotRequired[float]
+    surplusRate: NotRequired[float]
 
 
 class Phase1IncomeAllocationRatioPayload(TypedDict):
@@ -136,6 +141,9 @@ class RegionStatePayload(TypedDict):
     garrison: dict[str, int]
     independence: int
     resourceLimit: dict[str, int]
+    navyByCountry: NotRequired[dict[str, int]]
+    blockadeController: NotRequired[str | None]
+    isBlockaded: NotRequired[bool]
 
 
 class OceanNodeStatePayload(TypedDict):
@@ -184,6 +192,7 @@ class FactoryPlanPayload(TypedDict):
     expansionOrders: list[ExpansionOrderPayload]
     upgradeOrders: list[UpgradeOrderPayload]
     newFactoryOrders: list[NewFactoryOrderPayload]
+    rawMaterialPurchaseQuantity: NotRequired[int]
     factoryActions: NotRequired[list[FactoryActionSelectionPayload]]
 
 
@@ -239,6 +248,7 @@ class MilitaryPlanPayload(TypedDict, total=False):
     conquestActions: list[ConquestActionSelectionPayload]
     lootingActions: list[LootingActionSelectionPayload]
     navalDeployment: dict[str, int]
+    regionBlockades: dict[str, int]
 
 
 class AbilitySelectionPayload(TypedDict, total=False):

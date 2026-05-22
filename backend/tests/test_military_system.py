@@ -5,13 +5,12 @@ Military System API E2E Test — 明日之问
 Tests:
 1. recruit_infantry: costs militaryPointCost=1, gives armyDelta.infantry=1
 2. train_artillery: costs militaryPointCost=2, gives armyDelta.artillery=1
-3. naval_drill: costs militaryPointCost=1, gives overseasMarketCapacityDelta=1
-4. build_fleet: costs militaryPointCost=3, gives navyDelta.fleets=1
-5. unlockColonization: costs colonizationUnlockCost from governmentFiscal
-6. colonization after unlock + diplomacy
-7. Multiple recruit_infantry in one round (maxPerRound=3)
-8. Insufficient budget rejection
-9. Military + diplomacy combined
+3. build_fleet: costs militaryPointCost=3, gives navyDelta.fleets=1
+4. unlockColonization: costs colonizationUnlockCost from governmentFiscal
+5. colonization after unlock + diplomacy
+6. Multiple recruit_infantry in one round (maxPerRound=3)
+7. Insufficient budget rejection
+8. Military + diplomacy combined
 """
 
 import json
@@ -335,30 +334,6 @@ def test_train_artillery():
     print("  ✅ PASS: train_artillery spends 2 mp and gives +1 artillery")
 
 
-def test_naval_drill():
-    """naval_drill: costs 1 militaryPoint, expands overseas capacity."""
-    print("\n=== TEST: naval_drill ===")
-    ctx = setup_game()
-    state = get_my_state(ctx)
-    gov = state["budgetPools"]["governmentFiscal"]
-    mp_before = state["militaryPoints"]
-    print(f"  Before: govFiscal={gov}, mp={mp_before}")
-
-    if mp_before < 1:
-        print(f"  ⚠️ SKIP: militaryPoints={mp_before} < 1")
-        return
-
-    payload = build_decision_payload(military_actions=["naval_drill"])
-    ctx = full_cycle(ctx, payload)
-
-    state2 = get_my_state(ctx)
-    mp_after = state2["militaryPoints"]
-    print(f"  After:  mp={mp_after}")
-
-    assert mp_after == mp_before - 1, f"Expected mp={mp_before-1}, got {mp_after}"
-    print("  ✅ PASS: naval_drill spends 1 mp")
-
-
 def test_build_fleet():
     """build_fleet: costs 3 military points, gives +1 fleet."""
     print("\n=== TEST: build_fleet ===")
@@ -590,7 +565,6 @@ if __name__ == "__main__":
         test_multiple_recruit_infantry,
         test_recruit_budget_overflow,
         test_train_artillery,
-        test_naval_drill,
         test_build_fleet,
         test_unlock_colonization,
         test_military_diplomacy_combined,

@@ -10,7 +10,6 @@ TEMPORARY_EFFECT_SPECS: dict[str, tuple[str, str, int]] = {
     "domesticMarketCapacityDelta": ("domesticMarketCapacityBonus", "domesticMarketCapacity", 0),
     "domesticPriceBonusDelta": ("domesticPriceBonus", "domesticPriceBonus", 0),
     "overseasMarketCapacityDelta": ("overseasMarketCapacityBonus", "overseasMarketCapacity", 0),
-    "overseasPriceBonusDelta": ("overseasPriceBonus", "overseasPriceBonus", 0),
 }
 
 PERMANENT_MARKET_CAP_EFFECT_SPECS: dict[str, str] = {
@@ -128,12 +127,7 @@ def apply_effects(player_state, effects: dict[str, Any]) -> None:
 
 
     if "handicraftCapacityDelta" in effects:
-        delta = int(effects["handicraftCapacityDelta"])
-        current = int(player_state.production_capacity.get("handicraft", 0))
-        player_state.production_capacity["handicraft"] = max(0, current + delta)
-        # Sync to phase1 economy capacity_by_mode
-        current_mode = int(player_state.phase1_economy.capacity_by_mode.get("handicraft", 0))
-        player_state.phase1_economy.capacity_by_mode["handicraft"] = max(0, current_mode + delta)
+        _apply_production_capacity_delta(player_state, {"handicraft": int(effects["handicraftCapacityDelta"])})
 
     if "techPointsDelta" in effects:
         player_state.tech_points = max(0, int(player_state.tech_points) + int(effects["techPointsDelta"]))
@@ -219,14 +213,56 @@ def _apply_production_capacity_delta(player_state, capacity_delta: dict[str, Any
         else:
             target_keys = {str(raw_key)}
         for cap_key in target_keys:
-            phase_current = int(player_state.phase1_economy.capacity_by_mode.get(cap_key, 0))
-            production_current = int(player_state.production_capacity.get(cap_key, phase_current))
-            next_capacity = max(0, production_current + delta)
-            player_state.production_capacity[cap_key] = next_capacity
-            player_state.phase1_economy.capacity_by_mode[cap_key] = max(
-                0,
-                phase_current + delta,
+            _apply_single_production_capacity_delta(player_state, cap_key, delta)
+
+
+def _apply_single_production_capacity_delta(player_state, cap_key: str, delta: int) -> None:
+    current = int(
+        player_state.production_capacity.get(
+            cap_key,
+            player_state.phase1_economy.capacity_by_mode.get(cap_key, 0),
+        )
+    )
+    if cap_key == "idle":
+        next_capacity = max(0, current + delta)
+        _set_production_capacity(player_state, cap_key, next_capacity)
+        return
+
+    if delta > 0:
+        country_config = get_balance_config().countries.get(player_state.country.value)
+        total_cap = int(country_config.factory_total_cap) if country_config else 0
+        idle_current = int(
+            player_state.production_capacity.get(
+                "idle",
+                player_state.phase1_economy.capacity_by_mode.get("idle", 0),
             )
+        )
+        type_room = max(0, total_cap - current) if total_cap > 0 else delta
+        applied = min(delta, type_room, max(0, idle_current))
+        if applied <= 0:
+            return
+        _set_production_capacity(player_state, cap_key, current + applied)
+        _set_production_capacity(player_state, "idle", idle_current - applied)
+        return
+
+    if delta < 0:
+        applied = min(current, abs(delta))
+        if applied <= 0:
+            return
+        idle_current = int(
+            player_state.production_capacity.get(
+                "idle",
+                player_state.phase1_economy.capacity_by_mode.get("idle", 0),
+            )
+        )
+        _set_production_capacity(player_state, cap_key, current - applied)
+        _set_production_capacity(player_state, "idle", idle_current + applied)
+
+
+def _set_production_capacity(player_state, cap_key: str, value: int) -> None:
+    next_value = max(0, int(value))
+    player_state.production_capacity[cap_key] = next_value
+    player_state.phase1_economy.capacity_by_mode[cap_key] = next_value
 
 
 def _milestone_effect_bonus(player_state, temporary_key: str) -> int:
@@ -234,7 +270,6 @@ def _milestone_effect_bonus(player_state, temporary_key: str) -> int:
         "domesticMarketCapacityBonus": "domesticMarketCapacityDelta",
         "domesticPriceBonus": "domesticPriceBonusDelta",
         "overseasMarketCapacityBonus": "overseasMarketCapacityDelta",
-        "overseasPriceBonus": "overseasPriceBonusDelta",
     }.get(temporary_key)
     if effect_key is None:
         return 0
@@ -252,7 +287,6 @@ def _talent_effect_bonus(player_state, temporary_key: str) -> int:
         "domesticMarketCapacityBonus": "domesticMarketCapacityDelta",
         "domesticPriceBonus": "domesticPriceBonusDelta",
         "overseasMarketCapacityBonus": "overseasMarketCapacityDelta",
-        "overseasPriceBonus": "overseasPriceBonusDelta",
     }.get(temporary_key)
     if effect_key is None:
         return 0

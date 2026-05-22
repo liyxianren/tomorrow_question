@@ -43,26 +43,24 @@ class RegionLockReasonTests(unittest.TestCase):
             )
         )
 
-    def test_concession_without_diplomacy_returns_diplomacy_not_established(self) -> None:
-        self.assertEqual(
+    def test_concession_without_diplomacy_returns_none(self) -> None:
+        self.assertIsNone(
             region_lock_reason(
                 RegionAccessLevel.CONCESSION,
                 region_id="africa",
                 established_diplomacy=[],
                 route_blocked=False,
-            ),
-            "diplomacy_not_established",
+            )
         )
 
-    def test_colony_without_diplomacy_returns_diplomacy_not_established(self) -> None:
-        self.assertEqual(
+    def test_colony_without_diplomacy_returns_none(self) -> None:
+        self.assertIsNone(
             region_lock_reason(
                 RegionAccessLevel.COLONY,
                 region_id="americas",
                 established_diplomacy=[],
                 route_blocked=False,
-            ),
-            "diplomacy_not_established",
+            )
         )
 
     def test_concession_with_diplomacy_returns_none(self) -> None:
@@ -97,9 +95,7 @@ class RegionLockReasonTests(unittest.TestCase):
             "route_blocked",
         )
 
-    def test_diplomacy_takes_precedence_over_route_blocked(self) -> None:
-        # If you can't enter the region at all, blockade is moot — show the
-        # actionable reason (establish diplomacy first).
+    def test_route_blocked_is_only_region_lock_reason(self) -> None:
         self.assertEqual(
             region_lock_reason(
                 RegionAccessLevel.CONCESSION,
@@ -107,7 +103,7 @@ class RegionLockReasonTests(unittest.TestCase):
                 established_diplomacy=[],
                 route_blocked=True,
             ),
-            "diplomacy_not_established",
+            "route_blocked",
         )
 
     def test_is_region_accessible_remains_true_for_open(self) -> None:
@@ -120,8 +116,8 @@ class RegionLockReasonTests(unittest.TestCase):
             )
         )
 
-    def test_is_region_accessible_remains_false_for_concession_without_diplomacy(self) -> None:
-        self.assertFalse(
+    def test_is_region_accessible_remains_true_for_concession_without_diplomacy(self) -> None:
+        self.assertTrue(
             is_region_accessible(
                 RegionAccessLevel.CONCESSION,
                 military_points=0,
@@ -139,6 +135,8 @@ class MarketWorkspaceLockReasonTests(unittest.TestCase):
         workspace = build_market_player_workspace(snapshot, britain)
         for status in workspace["regionAccessStatus"]:
             self.assertIn("lockReason", status)
+            self.assertIn("requiredOceanNodes", status)
+            self.assertIn("blockedOceanNodes", status)
 
     def test_workspace_open_region_has_no_lock_reason(self) -> None:
         snapshot = _build_snapshot()
@@ -150,26 +148,23 @@ class MarketWorkspaceLockReasonTests(unittest.TestCase):
         self.assertTrue(europe["isAccessible"])
         self.assertIsNone(europe["lockReason"])
 
-    def test_workspace_concession_region_without_diplomacy_reports_diplomacy_lock(self) -> None:
+    def test_workspace_concession_region_without_diplomacy_is_accessible(self) -> None:
         snapshot = _build_snapshot()
         britain = next(p for p in snapshot.player_states if p.player_id == "player-1")
 
         workspace = build_market_player_workspace(snapshot, britain)
         africa = next(s for s in workspace["regionAccessStatus"] if s["regionId"] == "africa")
 
-        self.assertFalse(africa["isAccessible"])
-        self.assertEqual(africa["lockReason"], "diplomacy_not_established")
+        self.assertTrue(africa["isAccessible"])
+        self.assertIsNone(africa["lockReason"])
 
-    def test_workspace_route_blockade_reports_route_blocked(self) -> None:
+    def test_workspace_region_blockade_reports_route_blocked(self) -> None:
         snapshot = _build_snapshot()
         britain = next(p for p in snapshot.player_states if p.player_id == "player-1")
-        # Establish diplomacy with americas so the only remaining lock is the route.
-        britain.established_diplomacy = ["americas"]
-        # Blockade an ocean node required by americas with a non-British controller.
-        for node in snapshot.ocean_node_states:
-            if node.node_id == "north_atlantic":
-                node.is_blockaded = True
-                node.controller = CountryCode.FRANCE.value
+        for region in snapshot.region_states:
+            if region.region_id == "americas":
+                region.is_blockaded = True
+                region.blockade_controller = CountryCode.FRANCE.value
                 break
 
         workspace = build_market_player_workspace(snapshot, britain)
@@ -177,6 +172,11 @@ class MarketWorkspaceLockReasonTests(unittest.TestCase):
 
         self.assertFalse(americas["isAccessible"])
         self.assertEqual(americas["lockReason"], "route_blocked")
+        self.assertEqual(americas["requiredOceanNodes"], [])
+        self.assertEqual(
+            americas["blockedOceanNodes"],
+            [{"nodeId": "americas", "controller": CountryCode.FRANCE.value, "label": "美洲"}],
+        )
 
 
 if __name__ == "__main__":

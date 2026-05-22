@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 
 import i18n from "../../../../i18n";
 import { createDecisionPlayerWorkspace } from "../../../../test/gameSnapshotFixtures";
@@ -107,7 +107,7 @@ describe("FactoryPanel construction titles", () => {
               inputRatio: 1,
               outputRatio: 1,
               demandCoefficient: 2,
-              buildCost: 12,
+              buildCost: 13,
               upgradeCost: null,
               currentCapacity: 2,
               requiredTech: null,
@@ -137,13 +137,31 @@ describe("FactoryPanel construction titles", () => {
           {
             routeId: "handicraft",
             routeLabel: "手工业",
-            unitBudgetCost: 4,
+            unitBudgetCost: 13,
             capacityDelta: 1,
             maxQuantity: 2,
             lockedReason: null,
           },
+          {
+            routeId: "mechanized",
+            routeLabel: "机械化",
+            unitBudgetCost: 26,
+            capacityDelta: 1,
+            maxQuantity: 1,
+            lockedReason: null,
+          },
         ],
         upgradeOptions: [
+          {
+            routeId: "handicraft",
+            routeLabel: "手工业",
+            sourceRouteId: "idle",
+            sourceRouteLabel: "闲置",
+            unitBudgetCost: 6,
+            capacityDelta: 1,
+            maxQuantity: 1,
+            lockedReason: null,
+          },
           {
             routeId: "mechanized",
             routeLabel: "机械化",
@@ -160,7 +178,7 @@ describe("FactoryPanel construction titles", () => {
             routeId: "mechanized",
             routeLabel: "机械化",
             unitBudgetCost: 14,
-            capacityDelta: 2,
+            capacityDelta: 1,
             maxQuantity: 1,
             lockedReason: null,
           },
@@ -193,10 +211,103 @@ describe("FactoryPanel construction titles", () => {
       expect(screen.getByText("产业建设")).toBeInTheDocument();
       expect(screen.getAllByText("工厂增加")).toHaveLength(2);
       expect(screen.getAllByText("产业升级")).toHaveLength(2);
-      expect(screen.getByText("扩建已有 手工业 工厂：新增 1 点产能，下回合生效；不消耗已有产能。")).toBeInTheDocument();
-      expect(screen.getByText("新建首座 机械化 工厂：新增 2 点产能，下回合生效；用于从 0 打开该阶段，所以成本高于后续扩建。")).toBeInTheDocument();
-      expect(screen.getByText("手工业 → 机械化：每次消耗 1 点 手工业 产能，立即转为 1 点 机械化 产能；本回合可生产，不增加总产能。")).toBeInTheDocument();
+      expect(screen.getByText("扩建 手工业 工厂：新增 1 点产能，本回合生效；只受国家总工厂上限、闲置名额、预算和科技前置限制。")).toBeInTheDocument();
+      expect(screen.getByText("扩建 机械化 工厂：新增 1 点产能，本回合生效；只受国家总工厂上限、闲置名额、预算和科技前置限制。")).toBeInTheDocument();
+      expect(screen.getByText("闲置 → 手工业：每次消耗 1 点 闲置产能，立即转为 1 点 手工业产能；本回合可生产，不增加总工厂数。")).toBeInTheDocument();
+      expect(screen.getByText("手工业 → 机械化：每次消耗 1 点 手工业产能，立即转为 1 点 机械化产能；本回合可生产，不增加总工厂数。")).toBeInTheDocument();
       expect(screen.queryByText("提高生产上限，并扩大国内市场承接。")).not.toBeInTheDocument();
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
+  it("previews selected expansion capacity in the capacity overview", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("zh");
+
+    try {
+      const draft = createInitialPhaseDraft("decision");
+      draft.factoryPlan.expansionOrders = [{ routeId: "handicraft", quantity: 1 }];
+
+      const workspace = createDecisionPlayerWorkspace({
+        phase1Economy: {
+          capacityByMode: { idle: 2, handicraft: 1, mechanized: 0, steam: 0, electrified: 0 },
+          rawMaterials: 10,
+          goodsInventory: 5,
+          factoryTotalCap: 3,
+          factoryEnabledCount: 1,
+          idleCapacity: 2,
+          factoryCapsByMode: { handicraft: 3, mechanized: 3, steam: 3, electrified: 3 },
+          materialPurchaseCapPerTurn: 5,
+          rawMaterialPurchaseUnitCost: 1,
+          maxRawMaterialPurchase: 5,
+          productionModes: [
+            {
+              mode: "idle",
+              label: "闲置",
+              inputRatio: 0,
+              outputRatio: 0,
+              demandCoefficient: 1,
+              buildCost: 0,
+              upgradeCost: null,
+              currentCapacity: 2,
+              factoryCap: 0,
+              requiredTech: null,
+              isAvailable: true,
+            },
+            {
+              mode: "handicraft",
+              label: "手工业",
+              inputRatio: 1,
+              outputRatio: 1,
+              demandCoefficient: 2,
+              buildCost: 13,
+              upgradeCost: 6,
+              currentCapacity: 1,
+              factoryCap: 3,
+              requiredTech: null,
+              isAvailable: true,
+            },
+          ],
+          domesticDemand: 3,
+          equilibriumPrice: 4,
+          domesticPricePreview: 4,
+          investmentPool: 12,
+          incomeAllocationRatio: {},
+          marketMetrics: {},
+        },
+        expansionOptions: [
+          {
+            routeId: "handicraft",
+            routeLabel: "手工业",
+            unitBudgetCost: 13,
+            capacityDelta: 1,
+            maxQuantity: 2,
+            lockedReason: null,
+          },
+        ],
+        upgradeOptions: [],
+        newFactoryOptions: [],
+      });
+
+      render(
+        <FactoryPanel
+          workspace={workspace}
+          draft={draft}
+          remainingFactoryBudget={3}
+          onProductionQuantityChange={() => undefined}
+          onConstructionQuantityChange={() => undefined}
+          onFactoryActionToggle={() => undefined}
+          onTechnologyToggle={() => undefined}
+          onPhase1RawMaterialAssignmentChange={() => undefined}
+        />,
+      );
+
+      const overview = within(screen.getByRole("region", { name: "工厂容量总览" }));
+      expect(overview.getByText("已启用 / 总上限")).toBeInTheDocument();
+      expect(overview.getByText("2 / 3")).toBeInTheDocument();
+      expect(overview.getByText(/手工业/)).toHaveTextContent("2");
+      expect(overview.getByText(/闲置工厂/)).toHaveTextContent("1");
     } finally {
       await i18n.changeLanguage(previousLanguage);
     }
@@ -219,7 +330,7 @@ describe("FactoryPanel construction titles", () => {
               inputRatio: 1,
               outputRatio: 1,
               demandCoefficient: 2,
-              buildCost: 12,
+              buildCost: 13,
               upgradeCost: null,
               currentCapacity: 2,
               requiredTech: null,
@@ -264,8 +375,8 @@ describe("FactoryPanel construction titles", () => {
         />,
       );
 
-      expect(screen.getByText("工厂增加 = 新增 机械化 产能，下回合生效。前置：先解锁 机械化（珍妮纺纱机）。")).toBeInTheDocument();
-      expect(screen.getByText("产业升级 = 手工业 → 机械化。前置：解锁 机械化（珍妮纺纱机） + 至少 1 点 手工业 产能；执行后消耗 1 点 手工业 产能，立即转为 1 点 机械化 产能。")).toBeInTheDocument();
+      expect(screen.getByText("扩建 = 直接建设 机械化 工厂，本回合生效。前置：先解锁 机械化（珍妮纺纱机），且国家总工厂池还有闲置名额。")).toBeInTheDocument();
+      expect(screen.getByText("产业升级 = 手工业 → 机械化。前置：解锁 机械化（珍妮纺纱机） + 至少 1 点 手工业 产能；执行后消耗 1 点 手工业 工厂，立即转为 1 点 机械化 工厂。")).toBeInTheDocument();
       expect(screen.queryByText("当前无法为该阶段增加工厂")).not.toBeInTheDocument();
       expect(screen.queryByText("当前没有可用升级路径")).not.toBeInTheDocument();
     } finally {

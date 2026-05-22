@@ -364,7 +364,7 @@ def test_frontend_strategy_selection_payload():
     print("\n=== TEST: frontend market-regulation strategy selection ===")
     ctx = setup_game()
 
-    payload = frontend_decision_payload(strategy_selections=["market_fair"])
+    payload = frontend_decision_payload(strategy_selections=["trade_promotion"])
     resp, code = submit_decision(ctx["game_id"], ctx["session_id"], payload)
     assert code == 200, f"Expected 200, got {code}: {resp}"
     print("  ✅ PASS: Frontend market-regulation strategy selection payload accepted")

@@ -235,6 +235,18 @@ def _build_countries_config(payload: dict[str, Any]) -> dict[str, CountryBalance
                 country_value.get("rawMaterialsPerTurn", 20),
                 f"countries.{country_key}.rawMaterialsPerTurn",
             ),
+            factory_total_cap=_require_non_negative_int(
+                country_value.get("factoryTotalCap", 0),
+                f"countries.{country_key}.factoryTotalCap",
+            ),
+            factory_caps_by_mode=_require_non_negative_int_mapping(
+                country_value.get("factoryCapsByMode", {}),
+                f"countries.{country_key}.factoryCapsByMode",
+            ),
+            material_purchase_cap_per_turn=_require_non_negative_int(
+                country_value.get("materialPurchaseCapPerTurn", 0),
+                f"countries.{country_key}.materialPurchaseCapPerTurn",
+            ),
         )
     return countries
 
@@ -243,6 +255,11 @@ def _build_production_config(payload: dict[str, Any]) -> ProductionBalanceConfig
     return ProductionBalanceConfig(
         levels=_require_string_tuple(payload.get("levels"), "production.levels"),
         output_multipliers=_require_int_mapping(payload.get("outputMultipliers"), "production.outputMultipliers"),
+        demand_coefficients=_require_float_mapping(payload.get("demandCoefficients"), "production.demandCoefficients"),
+        raw_material_purchase_unit_cost=_require_non_negative_int(
+            payload.get("rawMaterialPurchaseUnitCost", 1),
+            "production.rawMaterialPurchaseUnitCost",
+        ),
         expansion_costs=_require_non_negative_int_mapping(payload.get("expansionCosts"), "production.expansionCosts"),
         upgrade_costs=_require_non_negative_int_mapping(payload.get("upgradeCosts"), "production.upgradeCosts"),
         new_factory_costs=_require_non_negative_int_mapping(payload.get("newFactoryCosts"), "production.newFactoryCosts"),
@@ -288,7 +305,6 @@ def _build_goods_config(value: Any) -> dict[str, ProductionGoodConfig]:
                 goods.get("priceCeiling"),
                 f"production.goods.{goods_id}.priceCeiling",
             ),
-            overseas_price_ceiling=_require_non_negative_int(goods.get("overseasPriceCeiling"), f"production.goods.{goods_id}.overseasPriceCeiling"),
             usage_hint=str(goods.get("usageHint") or ""),
         )
     return normalized
@@ -358,21 +374,11 @@ def _build_chains(value: Any) -> dict[str, ResearchChainConfig]:
 
 
 def _build_market_config(payload: dict[str, Any]) -> MarketBalanceConfig:
-    raw_premiums = _require_dict(payload.get("regionGoodsPremiums"), "market.regionGoodsPremiums")
-    region_goods_premiums = {}
-    for region_id, goods_premiums in raw_premiums.items():
-        region_goods_premiums[str(region_id)] = {
-            str(k): int(v) for k, v in _require_dict(goods_premiums, f"market.regionGoodsPremiums.{region_id}").items()
-        }
     raw_competition = _require_dict(payload.get("overseasCompetition", {}), "market.overseasCompetition")
     overseas_competition = OverseasCompetitionConfig(
         reward_capacity_bonus=_require_non_negative_int(
             raw_competition.get("rewardCapacityBonus", 8),
             "market.overseasCompetition.rewardCapacityBonus",
-        ),
-        reward_price_bonus=_require_non_negative_int(
-            raw_competition.get("rewardPriceBonus", 1),
-            "market.overseasCompetition.rewardPriceBonus",
         ),
         infantry_power=_require_non_negative_int(
             raw_competition.get("infantryPower", 1),
@@ -391,7 +397,6 @@ def _build_market_config(payload: dict[str, Any]) -> MarketBalanceConfig:
         ),
     )
     return MarketBalanceConfig(
-        region_goods_premiums=region_goods_premiums,
         overseas_competition=overseas_competition,
     )
 
@@ -413,8 +418,11 @@ def _build_regions_config(payload: dict[str, Any]) -> RegionsBalanceConfig:
             access_level=RegionAccessLevel(_require_non_empty_string(region.get("accessLevel"), f"regions.regions[{index}].accessLevel")),
             resource_limit=_require_int_mapping(region.get("resourceLimit"), f"regions.regions[{index}].resourceLimit"),
             required_nodes=_require_string_tuple(region.get("requiredNodes"), f"regions.regions[{index}].requiredNodes"),
+            fixed_overseas_price=_require_non_negative_int(
+                region.get("fixedOverseasPrice"),
+                f"regions.regions[{index}].fixedOverseasPrice",
+            ),
             colonizable=bool(region.get("colonizable", False)),
-            price_multiplier=float(region.get("priceMultiplier", 1.0)),
             min_army=max(
                 1,
                 _require_non_negative_int(region.get("minArmy", 1), f"regions.regions[{index}].minArmy"),
@@ -473,7 +481,7 @@ def _build_military_actions_config(
             "military_actions.militaryActions",
         ),
         diplomacy_actions=_build_diplomacy_action_mapping(
-            payload.get("diplomacyActions"),
+            payload.get("diplomacyActions", {}),
             "military_actions.diplomacyActions",
             regions=regions,
         ),
@@ -862,10 +870,32 @@ def _validate_countries(
     if production is None:
         return
     valid_goods_ids = set(production.goods)
+    valid_levels = set(production.levels)
     for country_key, country in countries.items():
         for goods_id in country.initial_goods:
             if goods_id not in valid_goods_ids:
                 raise BalanceConfigError(f"countries.{country_key}.initialGoods references unknown goods: {goods_id}")
+        for mode in country.production_capacity:
+            if mode not in valid_levels:
+                raise BalanceConfigError(f"countries.{country_key}.productionCapacity references unknown mode: {mode}")
+        for mode in country.factory_caps_by_mode:
+            if mode not in valid_levels or mode == "idle":
+                raise BalanceConfigError(f"countries.{country_key}.factoryCapsByMode references invalid mode: {mode}")
+        active_capacity = sum(
+            max(0, int(value))
+            for mode, value in country.production_capacity.items()
+            if mode != "idle"
+        )
+        if country.factory_total_cap and active_capacity > int(country.factory_total_cap):
+            raise BalanceConfigError(
+                f"countries.{country_key}.factoryTotalCap must be >= initial active production capacity."
+            )
+        for mode, cap in country.factory_caps_by_mode.items():
+            initial = max(0, int(country.production_capacity.get(mode, 0)))
+            if initial > int(cap):
+                raise BalanceConfigError(
+                    f"countries.{country_key}.factoryCapsByMode.{mode} must be >= initial capacity."
+                )
 
 
 def _validate_technology(
@@ -899,6 +929,9 @@ def _validate_production(production: ProductionBalanceConfig) -> None:
 
     if set(production.output_multipliers) != levels:
         raise BalanceConfigError("production.outputMultipliers must define every production level exactly once.")
+
+    if set(production.demand_coefficients) != levels:
+        raise BalanceConfigError("production.demandCoefficients must define every production level exactly once.")
 
     for route_id in production.expansion_costs:
         if route_id not in levels or route_id == "idle":
@@ -941,10 +974,7 @@ def _validate_regions(regions: RegionsBalanceConfig) -> None:
 
 
 def _validate_market(market: MarketBalanceConfig, *, regions: RegionsBalanceConfig) -> None:
-    expected_region_ids = set(regions.region_blueprints)
-    actual_region_ids = set(market.region_goods_premiums)
-    if actual_region_ids != expected_region_ids:
-        raise BalanceConfigError("market.regionGoodsPremiums must define every region exactly once.")
+    del market, regions
 
 
 def _require_dict(value: Any, field_name: str) -> dict[str, Any]:

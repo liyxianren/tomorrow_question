@@ -57,8 +57,6 @@ def create_app(settings: Settings | None = None) -> Flask:
 
 
 def _should_start_phase_timeout_runner(settings: Settings, phase_duration_seconds: int) -> bool:
-    if phase_duration_seconds <= 0:
-        return False
     if settings.app_env == "test":
         return False
     if os.getenv("PYTEST_CURRENT_TEST"):

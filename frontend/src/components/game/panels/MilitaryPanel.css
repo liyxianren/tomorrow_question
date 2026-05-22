@@ -24,6 +24,56 @@
   color: var(--game-text-value, #fceb9c);
 }
 
+.military-panel__overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.military-panel__overview-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    "icon label"
+    "icon value"
+    "icon hint";
+  column-gap: 10px;
+  row-gap: 2px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(20, 27, 36, 0.58);
+  border: 1px solid rgba(226, 232, 240, 0.08);
+}
+
+.military-panel__overview-icon {
+  grid-area: icon;
+  align-self: center;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.military-panel__overview-label {
+  grid-area: label;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
+  font-size: 11.5px;
+  line-height: 1.25;
+}
+
+.military-panel__overview-value {
+  grid-area: value;
+  color: var(--game-text-value, #e8c878);
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+.military-panel__overview-hint {
+  grid-area: hint;
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.58));
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 .military-panel__rule-note {
   margin: -6px 0 0;
   padding: 9px 11px;
@@ -33,6 +83,29 @@
   color: var(--game-text-secondary, rgba(255, 255, 255, 0.66));
   font-size: 12px;
   line-height: 1.5;
+}
+
+.military-panel__deployment-summary {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  align-items: baseline;
+  margin-top: -4px;
+  padding: 9px 11px;
+  border-radius: 8px;
+  border: 1px solid rgba(244, 204, 116, 0.16);
+  background: rgba(244, 204, 116, 0.055);
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.military-panel__deployment-summary strong {
+  color: var(--game-text-primary, #fff5e7);
+}
+
+.military-panel__deployment-summary span:last-child {
+  grid-column: 2;
 }
 
 /* ── Region Map Grid ── */
@@ -131,12 +204,16 @@
   gap: 10px;
 }
 
-.military-panel .dss {
-  grid-template-columns: repeat(4, minmax(120px, 1fr));
-}
-
 @media (max-width: 760px) {
-  .military-panel .dss {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .military-panel__overview {
+    grid-template-columns: 1fr;
+  }
+
+  .military-panel__deployment-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .military-panel__deployment-summary span:last-child {
+    grid-column: auto;
   }
 }

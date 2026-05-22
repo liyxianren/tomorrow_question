@@ -14,6 +14,10 @@ from app import create_app
 from app.config import Settings
 from app.contracts.enums import ConnectionStatus, CountryCode, ErrorCode, GamePhase, PlayerSubmissionStatus
 from app.modules.game_state.factory import create_game, create_initial_snapshot
+from app.modules.game_state.phase_deadline import (
+    register_phase_deadline_change_listener,
+    unregister_phase_deadline_change_listener,
+)
 from app.modules.persistence import (
     GameRepository,
     PlayerTurnInputRepository,
@@ -186,6 +190,19 @@ class PhaseSubmitApiTests(unittest.TestCase):
             )
         connection.close()
 
+    def update_player_phase1_economy(self, player_id: str, updates: dict[str, object]) -> None:
+        connection = connect_database(self.database_path)
+        initialize_database(connection)
+        repository = SnapshotRepository(connection)
+        snapshot = repository.get("snapshot-1")
+        self.assertIsNotNone(snapshot)
+        player_payload = snapshot["nationalStateByPlayer"][player_id]
+        phase1_economy = dict(player_payload.get("phase1Economy") or {})
+        phase1_economy.update(updates)
+        player_payload["phase1Economy"] = phase1_economy
+        repository.save(snapshot)
+        connection.close()
+
     def test_submit_decision_returns_confirmation_and_persists_turn_input(self) -> None:
         self.seed_active_game()
 
@@ -194,7 +211,6 @@ class PhaseSubmitApiTests(unittest.TestCase):
             json={
                 "payload": build_decision_payload(
                     production_orders=[{"goodsId": "phase1_goods", "quantity": 2}],
-                    domestic_action_ids=["market_fair"],
                     point_purchases=[{"pointType": "tech", "quantity": 1}],
                     tech_research=[{"techId": "textile_tech"}],
                     military_action_ids=["recruit_army"],
@@ -224,7 +240,7 @@ class PhaseSubmitApiTests(unittest.TestCase):
         )
         self.assertEqual(
             persisted["payload"]["domesticMarketPlan"]["domesticMarketActions"],
-            [{"actionId": "market_fair"}],
+            [],
         )
         self.assertEqual(
             persisted["payload"]["governmentPlan"]["techResearch"],
@@ -238,6 +254,25 @@ class PhaseSubmitApiTests(unittest.TestCase):
             persisted["payload"]["abilitySelection"],
             {"abilityId": "workshop_of_the_world"},
         )
+
+    def test_submit_decision_rejects_removed_domestic_market_action(self) -> None:
+        self.seed_active_game()
+
+        response = self.client.post(
+            "/api/v1/games/game-1/phases/decision/submit",
+            json={
+                "payload": build_decision_payload(
+                    domestic_action_ids=["market_fair"],
+                )
+            },
+            headers={"X-Session-Id": "session-1"},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.get_json()
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["error"]["code"], ErrorCode.INVALID_SUBMISSION.value)
+        self.assertIn("Unknown domesticMarket action", payload["error"]["message"])
 
     def test_submit_decision_accepts_fleet_build_from_government_policy_allowance(self) -> None:
         self.seed_active_game()
@@ -303,11 +338,20 @@ class PhaseSubmitApiTests(unittest.TestCase):
             payload=build_market_payload(),
         )
 
-        response = self.client.post(
-            "/api/v1/games/game-1/phases/market/submit",
-            json={"payload": build_market_payload()},
-            headers={"X-Session-Id": "session-1"},
-        )
+        deadline_notifications: list[None] = []
+
+        def record_deadline_notification() -> None:
+            deadline_notifications.append(None)
+
+        register_phase_deadline_change_listener(record_deadline_notification)
+        try:
+            response = self.client.post(
+                "/api/v1/games/game-1/phases/market/submit",
+                json={"payload": build_market_payload()},
+                headers={"X-Session-Id": "session-1"},
+            )
+        finally:
+            unregister_phase_deadline_change_listener(record_deadline_notification)
 
         self.assertEqual(response.status_code, 200)
         connection = connect_database(self.database_path)
@@ -318,6 +362,7 @@ class PhaseSubmitApiTests(unittest.TestCase):
 
         self.assertEqual(game_payload["currentPhase"], GamePhase.SETTLEMENT)
         self.assertEqual(snapshot_payload["phase"], GamePhase.SETTLEMENT)
+        self.assertEqual(len(deadline_notifications), 1)
 
     def test_submit_rejects_system_settlement(self) -> None:
         self.seed_active_game()
@@ -413,7 +458,7 @@ class PhaseSubmitApiTests(unittest.TestCase):
             "/api/v1/games/game-1/phases/decision/submit",
             json={
                 "payload": build_decision_payload(
-                    strategy_action_ids=["industrial_policy"],
+                    strategy_action_ids=["removed_government_strategy"],
                 )
             },
             headers={"X-Session-Id": "session-1"},
@@ -466,6 +511,48 @@ class PhaseSubmitApiTests(unittest.TestCase):
         self.assertFalse(payload["ok"])
         self.assertEqual(payload["error"]["code"], ErrorCode.INVALID_SUBMISSION.value)
         self.assertIn("requires route technology", payload["error"]["message"])
+
+    def test_submit_decision_ignores_legacy_expansion_counter_for_direct_expansion(self) -> None:
+        self.seed_active_game()
+        self.update_player_phase1_economy(
+            "player-1",
+            {"factoryExpansionUsedByMode": {"handicraft": 4}},
+        )
+
+        response = self.client.post(
+            "/api/v1/games/game-1/phases/decision/submit",
+            json={
+                "payload": build_decision_payload(
+                    expansion_orders=[{"routeId": "handicraft", "quantity": 1}]
+                )
+            },
+            headers={"X-Session-Id": "session-1"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertTrue(payload["ok"])
+
+    def test_submit_decision_ignores_legacy_expansion_counter_for_upgrade(self) -> None:
+        self.seed_active_game()
+        self.update_player_phase1_economy(
+            "player-1",
+            {"factoryExpansionUsedByMode": {"handicraft": 4}},
+        )
+
+        response = self.client.post(
+            "/api/v1/games/game-1/phases/decision/submit",
+            json={
+                "payload": build_decision_payload(
+                    upgrade_orders=[{"routeId": "handicraft", "quantity": 1}]
+                )
+            },
+            headers={"X-Session-Id": "session-1"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertTrue(payload["ok"])
 
 
 if __name__ == "__main__":

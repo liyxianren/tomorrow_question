@@ -73,7 +73,7 @@
       "title": "Production Costs",
       "eyebrow": "production",
       "routeColumn": "Production Method",
-      "newCostColumn": "New Factory Cost",
+      "newCostColumn": "Expansion Cost",
       "upgradeCostColumn": "Upgrade Cost"
     },
     "rawMaterials": {
@@ -88,7 +88,8 @@
       "eyebrow": "market",
       "baseIncomeLabel": "baseIncomePerRound (Guaranteed Income per Round)",
       "regionColumn": "Region",
-      "priceMultiplierColumn": "Price Multiplier"
+      "priceMultiplierColumn": "Fixed Regional Price",
+      "fixedOverseasPriceColumn": "Fixed Regional Price"
     },
     "government": {
       "title": "Government Parameters",
@@ -208,7 +209,7 @@
       "events": "Events and Incidents",
       "economy": "Economy and Fiscal",
       "military": "Military",
-      "diplomacy": "Diplomacy",
+      "overseas": "Overseas Routes",
       "decision": "Decision",
       "other": "Other"
     }

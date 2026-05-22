@@ -73,7 +73,7 @@
       "title": "生产成本",
       "eyebrow": "production",
       "routeColumn": "生产方式",
-      "newCostColumn": "新建成本",
+      "newCostColumn": "扩建成本",
       "upgradeCostColumn": "升级成本"
     },
     "rawMaterials": {
@@ -88,7 +88,8 @@
       "eyebrow": "market",
       "baseIncomeLabel": "baseIncomePerRound（每回合保底收入）",
       "regionColumn": "区域",
-      "priceMultiplierColumn": "价格倍率"
+      "priceMultiplierColumn": "区域固定价",
+      "fixedOverseasPriceColumn": "区域固定价"
     },
     "government": {
       "title": "政府参数",
@@ -208,7 +209,7 @@
       "events": "事件与异常",
       "economy": "经济与财政",
       "military": "军事",
-      "diplomacy": "外交",
+      "overseas": "海外通路",
       "decision": "决策",
       "other": "其他"
     }

@@ -80,8 +80,23 @@ class DecisionWorkspacePhase1EconomyTests(unittest.TestCase):
         # Legacy fields must remain — phase1Economy is additive, not a swap.
         self.assertIn("budgetPools", workspace)
         self.assertIn("incomeAllocationRatio", workspace)
+        self.assertEqual(workspace["baseIncomeAllocationRatio"], {"domesticMarket": 3.0, "factory": 3.0, "governmentFiscal": 4.0})
+        self.assertEqual(workspace["effectiveIncomeAllocationRatio"], {"domesticMarket": 3.0, "factory": 3.0, "governmentFiscal": 4.0})
+        self.assertEqual(workspace["incomeAllocationDelta"], {"domesticMarket": 0.0, "factory": 0.0, "governmentFiscal": 0.0})
         self.assertIn("productionOptions", workspace)
         self.assertIn("phase1Economy", workspace)
+
+    def test_market_workspace_exposes_effective_income_allocation_preview(self) -> None:
+        snapshot = _build_snapshot()
+        snapshot.phase = GamePhase.MARKET
+        britain = _get_player(snapshot, "player-1")
+        britain.national_income = 10
+
+        workspace = build_market_player_workspace(snapshot, britain)
+
+        self.assertEqual(workspace["baseIncomeAllocationRatio"], {"domesticMarket": 3.0, "factory": 3.0, "governmentFiscal": 4.0})
+        self.assertEqual(workspace["effectiveIncomeAllocationRatio"], {"domesticMarket": 3.0, "factory": 3.0, "governmentFiscal": 4.0})
+        self.assertEqual(workspace["estimatedBudgetAllocation"], {"domesticMarket": 3, "factory": 3, "governmentFiscal": 4})
 
     def test_decision_workspace_phase1_economy_is_read_only_mirror(self) -> None:
         snapshot = _build_snapshot()

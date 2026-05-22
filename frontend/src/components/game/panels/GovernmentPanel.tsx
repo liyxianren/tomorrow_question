@@ -12,6 +12,7 @@ import {
   buildEffectMetrics,
   calculateDecisionMarketReferencePrice,
   calculateGovernmentFiscalState,
+  calculateRatioPreview,
 } from "../../../features/game/decisionShared";
 import "./GovernmentPanel.css";
 
@@ -34,21 +35,11 @@ const IDEOLOGY_ICONS: Record<IdeologyKey, string> = {
 const IDEOLOGY_KEYS: IdeologyKey[] = ["liberalism", "egalitarianism", "nationalism"];
 
 const MARKET_STRATEGY_ICONS: Record<string, string> = {
-  expand_workshop: "⚙️",
-  market_fair: "🎪",
-  rural_development: "🌾",
-  consumer_subsidy: "💰",
-  import_substitution: "🧱",
-  public_works: "🏗️",
-  luxury_promotion: "💎",
-  infrastructure_investment: "🏭",
-  trade_hub: "⚓",
-  market_subsidy: "🏛️",
-  price_control: "⚖️",
   trade_promotion: "⚓",
+  expand_research: "🔬",
 };
 
-const MARKET_POLICY_ACTION_IDS = new Set(["market_subsidy", "price_control", "trade_promotion"]);
+const MARKET_POLICY_ACTION_IDS = new Set(["trade_promotion"]);
 const MARKET_POLICY_ADMIN_COST = 1;
 
 const MARKET_PREVIEW_EFFECT_KEYS = [
@@ -89,6 +80,35 @@ const POLICY_EFFECT_FALLBACKS: Record<string, Record<string, unknown>> = {
 
 function formatSigned(delta: number): string {
   return `${delta > 0 ? "+" : ""}${delta}`;
+}
+
+function formatRatioValue(value: number | undefined): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "0";
+  const rounded = Math.round(value * 100) / 100;
+  return Number.isInteger(rounded) ? `${rounded}` : `${rounded}`;
+}
+
+function formatIncomeRatio(ratio: { domesticMarket?: number; factory?: number; governmentFiscal?: number }): string {
+  return [
+    formatRatioValue(ratio.domesticMarket),
+    formatRatioValue(ratio.factory),
+    formatRatioValue(ratio.governmentFiscal),
+  ].join(" / ");
+}
+
+function buildRatioDeltaLabel(
+  baseRatio: { domesticMarket?: number; factory?: number; governmentFiscal?: number },
+  projectedRatio: { domesticMarket?: number; factory?: number; governmentFiscal?: number },
+): string {
+  const parts = [
+    ["domesticMarket", getAllocationLabel("domesticMarket")],
+    ["factory", getAllocationLabel("factory")],
+    ["governmentFiscal", getAllocationLabel("governmentFiscal")],
+  ].flatMap(([key, label]) => {
+    const delta = (projectedRatio[key as keyof typeof projectedRatio] ?? 0) - (baseRatio[key as keyof typeof baseRatio] ?? 0);
+    return Math.abs(delta) > 0.0001 ? [`${label} ${formatSigned(Math.round(delta * 100) / 100)}`] : [];
+  });
+  return parts.length > 0 ? joinLocalized(parts) : i18n.t("game:government.noIncomeAllocationChange", "无变化");
 }
 
 function joinLocalized(parts: string[]): string {
@@ -192,7 +212,7 @@ function getDefaultIdeologyMilestones(key: IdeologyKey): IdeologyMilestone[] {
     nationalism: [
       { level: 3, label: i18n.t("game:milestone.nationalDefense", "国防动员"), effects: { militaryPointsDelta: 1 } },
       { level: 5, label: i18n.t("game:milestone.customsUnion", "关税同盟"), effects: { overseasMarketCapacityDelta: 1 } },
-      { level: 7, label: i18n.t("game:milestone.globalCommerce", "全球通商"), effects: { overseasPriceBonusDelta: 1 } },
+      { level: 7, label: i18n.t("game:milestone.globalCommerce", "全球通商"), effects: {} },
       {
         level: 10,
         label: i18n.t("game:milestone.nationalRevival", "民族复兴"),
@@ -274,7 +294,7 @@ function formatReformEffects(
   if (ratioDelta) {
     for (const [key, delta] of Object.entries(ratioDelta)) {
       const label = getAllocationLabel(key);
-      tags.push(`${label} ${i18n.t("game:government.distributionSuffix")} ${formatSigned(delta)}`);
+      tags.push(`${i18n.t("game:government.permanentIncomeAllocation", "永久收入分配")} ${label} ${formatSigned(delta)}`);
     }
   }
 
@@ -321,7 +341,7 @@ function formatStrategyEffects(
   if (strategy.ratioDelta) {
     const parts = formatRatioDeltaParts(strategy.ratioDelta, getAllocationLabels());
     if (parts.length > 0) {
-      effects.push({ label: i18n.t("game:government.incomeAllocation", "收入分配"), value: joinLocalized(parts), temporary: true });
+      effects.push({ label: i18n.t("game:government.incomeAllocationPerTurn", "本轮收入分配"), value: joinLocalized(parts), temporary: true });
     }
   }
 
@@ -431,26 +451,6 @@ function buildMarketPolicyStrategies(
   }
 
   return [
-    {
-      actionId: "market_subsidy",
-      label: i18n.t("game:government.strategy.marketSubsidy", "市场补贴"),
-      cost: 0,
-      description: i18n.t("game:government.strategy.marketSubsidyDesc", "动用行政力组织内需补贴，永久提高国内市场承接上限。"),
-      techPointDelta: 0,
-      militaryPointDelta: 0,
-      lockedReason: null,
-      effects: { domesticMarketCapacityDelta: 2 },
-    },
-    {
-      actionId: "price_control",
-      label: i18n.t("game:government.strategy.priceControl", "价格管制"),
-      cost: 0,
-      description: i18n.t("game:government.strategy.priceControlDesc", "动用行政力调控本轮国内收购价格。"),
-      techPointDelta: 0,
-      militaryPointDelta: 0,
-      lockedReason: null,
-      effects: { domesticPriceBonusDelta: 2 },
-    },
     {
       actionId: "trade_promotion",
       label: i18n.t("game:government.strategy.tradePromotion", "贸易促进"),
@@ -565,7 +565,7 @@ export function GovernmentPanel({
     .map((key) => ({ key, value: sumMarketEffect(selectedMarketStrategies, key) }))
     .filter((item) => item.value !== 0);
   const phase1Economy = workspace.phase1Economy;
-  const baseDomesticCapacity = workspace.domesticMarketCapacity ?? phase1Economy?.domesticDemand;
+  const baseDomesticCapacity = phase1Economy?.domesticSoftCap ?? workspace.domesticMarketCapacity ?? phase1Economy?.domesticDemand;
   const projectedDomesticCapacity = baseDomesticCapacity != null
     ? Math.max(0, baseDomesticCapacity + selectedDomesticCapacityDelta)
     : undefined;
@@ -580,6 +580,9 @@ export function GovernmentPanel({
     ? draft.abilitySelection?.targetIdeology as IdeologyKey
     : "liberalism";
   const fiscalState = calculateGovernmentFiscalState(workspace, draft);
+  const baseIncomeRatio = workspace.baseIncomeAllocationRatio ?? workspace.incomeAllocationRatio;
+  const projectedIncomeRatio = calculateRatioPreview(workspace, draft);
+  const incomeRatioDeltaLabel = buildRatioDeltaLabel(baseIncomeRatio, projectedIncomeRatio);
 
   const queuedReformAdminCost = reforms.availableReforms
     .filter((reform) => queuedReformIds.has(reform.reformId))
@@ -631,13 +634,6 @@ export function GovernmentPanel({
 
   const activePolicies = reforms.availablePolicies.filter((policy) => policy.isActive);
   const inactivePolicies = reforms.availablePolicies.filter((policy) => !policy.isActive);
-  const policyBudgetSupplementItem = fiscalState.policyBudgetSupplement > 0
-    ? [{
-        icon: "🧾",
-        value: `${fiscalState.policyBudgetSupplementRemaining} / ${fiscalState.policyBudgetSupplement}`,
-        label: t("game:government.policyBudgetAllowance", "Policy allowance"),
-      }]
-    : [];
 
   const canAddMarketPolicy = () => projectedAdmin >= MARKET_POLICY_ADMIN_COST;
   const marketPolicySection = strategies.length > 0 ? (
@@ -653,8 +649,14 @@ export function GovernmentPanel({
             ? t("game:government.selectedMarketPolicies", "已选 {{count}} 项", { count: selectedMarketStrategies.length })
             : t("game:government.usingBaseSupply")}
         </span>
-        <span>{t("game:government.domesticCapacityRef")} {formatMarketNumber(baseDomesticCapacity)}→{formatMarketNumber(projectedDomesticCapacity)}</span>
-        <span>{referencePrice.isCapped ? t("game:government.priceCapped") : t("game:government.equilibriumPriceLabel")} {formatMarketNumber(referencePrice.price)}</span>
+        <span>{t("game:government.domesticCapacityRef", "定价软上限")} {formatMarketNumber(baseDomesticCapacity)}→{formatMarketNumber(projectedDomesticCapacity)}</span>
+        <span>{
+          referencePrice.isFloored
+            ? t("game:government.priceFloored", "最低价触发")
+            : referencePrice.isCapped
+              ? t("game:government.priceCapped", "最高价触发")
+              : t("game:government.equilibriumPriceLabel")
+        } {formatMarketNumber(referencePrice.price)}</span>
         <span>{t("game:government.overseasExport")} {formatMarketNumber(baseOverseasCapacity)}→{formatMarketNumber(projectedOverseasCapacity)}</span>
         {selectedMarketEffectSummary.length > 0
           ? selectedMarketEffectSummary.map((item) => (
@@ -718,7 +720,6 @@ export function GovernmentPanel({
             value: `${fiscalState.baseGovernmentRemaining} / ${fiscalState.baseGovernmentBudget}`,
             label: t("game:government.budget"),
           },
-          ...policyBudgetSupplementItem,
           {
             icon: "🏛️",
             value: `${projectedAdmin} / ${projectedAdminTotal}`,
@@ -730,6 +731,21 @@ export function GovernmentPanel({
             value: projectedPolicyAdminUse,
             label: t("game:government.policyAdminUpkeep", "政策占用"),
             tone: rawProjectedAdmin < 0 ? "critical" : undefined,
+          },
+          {
+            icon: "⚖️",
+            value: formatIncomeRatio(baseIncomeRatio),
+            label: t("game:government.baseIncomeRatio", "基础比例"),
+          },
+          {
+            icon: "↔",
+            value: formatIncomeRatio(projectedIncomeRatio),
+            label: t("game:government.effectiveIncomeRatio", "本轮比例"),
+          },
+          {
+            icon: "∆",
+            value: incomeRatioDeltaLabel,
+            label: t("game:government.incomeRatioChange", "已选变化"),
           },
         ]}
       />

@@ -110,7 +110,7 @@ class PlayerStatePhase1EconomyScaffoldingTests(unittest.TestCase):
 
     def test_legacy_active_income_allocation_ratio_is_unchanged(self) -> None:
         # M2 must NOT swap the active legacy ratio (3:3:4) for the phase-1
-        # target ratio (5:3:2). The new ratio lives only on phase1_economy.
+        # target ratio (3:3:4). The new ratio lives only on phase1_economy.
         state = PlayerState(player_id="player-a", country=CountryCode.BRITAIN)
         self.assertEqual(state.income_allocation_ratio["domesticMarket"], 3.0)
         self.assertEqual(state.income_allocation_ratio["factory"], 3.0)
@@ -147,9 +147,9 @@ class PlayerStatePhase1EconomyPayloadTests(unittest.TestCase):
         ):
             self.assertIn(key, phase1["marketMetrics"])
             self.assertEqual(phase1["marketMetrics"][key], 0)
-        self.assertEqual(phase1["incomeAllocationRatio"]["consumption"], 0.5)
+        self.assertEqual(phase1["incomeAllocationRatio"]["consumption"], 0.3)
         self.assertEqual(phase1["incomeAllocationRatio"]["investment"], 0.3)
-        self.assertEqual(phase1["incomeAllocationRatio"]["fiscal"], 0.2)
+        self.assertEqual(phase1["incomeAllocationRatio"]["fiscal"], 0.4)
 
     def test_payload_roundtrip_preserves_phase1_economy(self) -> None:
         original = PlayerState(player_id="player-a", country=CountryCode.BRITAIN)

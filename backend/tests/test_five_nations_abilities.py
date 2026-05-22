@@ -351,7 +351,7 @@ class ConsumptionPoolDrainTest(unittest.TestCase):
         britain.budget_pools["domesticMarket"] = 50
         britain.budget_pools["factory"] = 20
         britain.budget_pools["governmentFiscal"] = 10
-        britain.national_income = 100  # 5:3:2 split → 50:30:20
+        britain.national_income = 100  # 3:3:4 split → 30:30:40
 
         factory_before = int(britain.budget_pools["factory"])
 

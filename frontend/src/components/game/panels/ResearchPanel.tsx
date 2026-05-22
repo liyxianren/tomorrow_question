@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { translateBackend } from "../../../i18n";
-import { getTechnologyLabel as fallbackTechLabel } from "../../../features/game/panelGlossary";
+import {
+  getProductionRouteLabel,
+  getTechnologyLabel as fallbackTechLabel,
+} from "../../../features/game/panelGlossary";
 import type { ParameterInspector } from "../../../features/game/parameterInspector";
 import type { TechTreeData, TechTreeChainTech } from "../../../types";
 import "./ResearchPanel.css";
@@ -120,26 +123,16 @@ export function ResearchPanel({
 
           <div className="research-status-card">
             <h4 className="research-status-card__heading">{t("game:research.breakthroughRules")}</h4>
-            <div className="research-status-card__metrics">
-              <div className="research-status-card__metric">
-                <span className="research-status-card__metric-label">{t("game:research.advanceMethod")}</span>
-                <span className="research-status-card__metric-value">
-                  {t("game:research.advanceMethodValue", { progress: progressPerFacility })}
-                </span>
-              </div>
-              <div className="research-status-card__metric">
-                <span className="research-status-card__metric-label">{t("game:research.breakthroughDie")}</span>
-                <span className="research-status-card__metric-value">
-                  1D{breakthroughDieSides}
-                </span>
-              </div>
+            <div className="research-rule-summary">
+              <span>{t("game:research.advanceMethodValueReadable", { progress: progressPerFacility })}</span>
+              <span>{t("game:research.breakthroughDieValue", { die: breakthroughDieSides })}</span>
             </div>
-            <div className="research-build-summary">
-              <span>{t("game:research.breakthroughSummary1")}</span>
-              <span>{t("game:research.breakthroughSummary2")}</span>
-              <span>{t("game:research.breakthroughSummary3")}</span>
-              <span>{t("game:research.breakthroughSummary4")}</span>
-            </div>
+            <ol className="research-rule-list">
+              <li>{t("game:research.breakthroughStepProgress", { progress: progressPerFacility })}</li>
+              <li>{t("game:research.breakthroughStepFirstDiscovery", { die: breakthroughDieSides })}</li>
+              <li>{t("game:research.breakthroughStepFailure")}</li>
+              <li>{t("game:research.breakthroughStepCatchUp")}</li>
+            </ol>
           </div>
 
           {/* Research Facilities Card */}
@@ -153,13 +146,13 @@ export function ResearchPanel({
               <div className="research-status-card__metric">
                 <span className="research-status-card__metric-label">{t("game:research.perFacilityOutput")}</span>
                 <span className="research-status-card__metric-value">
-                  {t("game:research.advanceMethodValue", { progress: progressPerFacility })}
+                  {t("game:research.researchProgressPerTurn", { progress: progressPerFacility })}
                 </span>
               </div>
               <div className="research-status-card__metric">
                 <span className="research-status-card__metric-label">{t("game:research.perRoundProgress")}</span>
                 <span className="research-status-card__metric-value">
-                  {perTurnProgress}
+                  {t("game:research.researchProgressPerTurn", { progress: perTurnProgress })}
                 </span>
               </div>
               <div className="research-status-card__metric">
@@ -235,6 +228,7 @@ export function ResearchPanel({
               selectedTechIds={selectedTechIds}
               onToggleTech={onToggleTech}
               activeResearch={activeResearch}
+              perTurnProgress={perTurnProgress}
               parameterInspector={parameterInspector}
             />
           ) : (
@@ -288,12 +282,14 @@ function ChainDetail({
   selectedTechIds,
   onToggleTech,
   activeResearch,
+  perTurnProgress,
   parameterInspector,
 }: {
   chain: { chainId: string; label: string; techs: TechTreeChainTech[] };
   selectedTechIds: Set<string>;
   onToggleTech: (techId: string, checked: boolean) => void;
   activeResearch: string | null;
+  perTurnProgress: number;
   parameterInspector?: ParameterInspector;
 }) {
   const { t } = useTranslation();
@@ -325,10 +321,8 @@ function ChainDetail({
 
         const isExpanded = expandedTechId === tech.techId;
         const researchTarget = getResearchTarget(tech);
-        const progressPercent = researchTarget > 0
-          ? Math.min(100, Math.round((Math.min(tech.progress, researchTarget) / researchTarget) * 100))
-          : 0;
         const progressDisplay = Math.min(tech.progress, researchTarget);
+        const canReceiveProgressThisRound = tech.canResearch || isActive || isSelected;
 
         const lockReason = tech.isUnlocked
           ? null
@@ -364,8 +358,13 @@ function ChainDetail({
               {!tech.isUnlocked && (
                 <div className="talent-node__effects">
                   <span className="talent-node__effect-tag">
-                    {t("game:research.advanceMethod")} {progressPercent}%
+                    {t("game:research.currentProgressValue", { current: progressDisplay, target: researchTarget })}
                   </span>
+                  {canReceiveProgressThisRound ? (
+                    <span className="talent-node__effect-tag">
+                      {t("game:research.thisRoundResearchOutput", { progress: perTurnProgress })}
+                    </span>
+                  ) : null}
                   {getTechUnlockHint(tech.techId, t) ? (
                     <span className="talent-node__effect-tag">
                       {getTechUnlockHint(tech.techId, t)}
@@ -393,7 +392,7 @@ function ChainDetail({
                   )}
                   {tech.unlocksRoutes && tech.unlocksRoutes.length > 0 && (
                     <p className="talent-tree__hint">
-                      {t("game:research.unlocksRoutes", { routes: tech.unlocksRoutes.map(getRouteLabel).join("、") })}
+                      {t("game:research.unlocksRoutes", { routes: tech.unlocksRoutes.map(getProductionRouteLabel).join("、") })}
                     </p>
                   )}
                   {isActive && (
@@ -450,15 +449,4 @@ function ChainDetail({
       </div>
     </div>
   );
-}
-
-function getRouteLabel(routeId: string): string {
-  const { t } = useTranslation();
-  const map: Record<string, string> = {
-    handicraft: t("game:productionRoute.handicraft", "Handicraft"),
-    mechanized: t("game:productionRoute.mechanized", "Mechanized Industry"),
-    steam: t("game:productionRoute.steam", "Steam Industry"),
-    electrified: t("game:productionRoute.electrified", "Electrified Industry"),
-  };
-  return map[routeId] ?? routeId;
 }

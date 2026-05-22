@@ -14,6 +14,7 @@ from app.contracts.enums import ErrorCode, GamePhase, PlayerSubmissionStatus
 from app.contracts.models import GameLogPayload
 from app.modules.balance_config import get_balance_config
 from app.modules.bot import auto_submit_bot_turns
+from app.modules.game_state.phase_deadline import assign_phase_deadline
 from app.modules.game_state.models import Game, GameSnapshot
 from app.modules.game_state.phase_state import PhaseSubmissionState
 from app.modules.game_state.turn_input import PlayerTurnInput
@@ -340,7 +341,8 @@ def run_phase_settlement(
         if not is_game_finished:
             updated_snapshot.phase = next_phase
             updated_snapshot.round_no = next_round
-            updated_snapshot.phase_deadline_at = _resolve_next_phase_deadline_at(
+            _assign_next_phase_deadline(
+                updated_snapshot,
                 settled_at=settled_at,
                 phase_duration_seconds=phase_duration_seconds,
                 next_phase=next_phase,
@@ -505,17 +507,21 @@ def _build_pending_submission_status(snapshot: GameSnapshot) -> dict[str, str]:
     }
 
 
-def _resolve_next_phase_deadline_at(
+def _assign_next_phase_deadline(
+    snapshot: GameSnapshot,
     *,
     settled_at: datetime,
     phase_duration_seconds: int,
     next_phase: GamePhase,
-) -> datetime | None:
+) -> None:
     if next_phase == GamePhase.SETTLEMENT:
-        # 结算阶段：展示结果 15 秒后自动推进到下一回合
-        return settled_at + timedelta(seconds=max(1, int(phase_duration_seconds)))
-    # 决策/出售阶段：无 deadline，等玩家手动提交
-    return None
+        assign_phase_deadline(
+            snapshot,
+            started_at=settled_at,
+            duration=timedelta(seconds=max(1, int(phase_duration_seconds))),
+        )
+        return
+    snapshot.phase_deadline_at = None
 
 
 def _build_persisted_logs(

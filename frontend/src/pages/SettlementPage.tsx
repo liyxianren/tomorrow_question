@@ -12,7 +12,7 @@ import { fetchFinalResult } from "../services/game";
 import i18n from "../i18n";
 import type { GameLog } from "../types/domain";
 
-const LOG_CATEGORY_ORDER = ["final", "military", "diplomacy", "decision", "events", "economy", "other"] as const;
+const LOG_CATEGORY_ORDER = ["final", "military", "overseas", "decision", "events", "economy", "other"] as const;
 type LogCategory = (typeof LOG_CATEGORY_ORDER)[number];
 
 const LOG_CATEGORY_META: Record<LogCategory, { label: string; emoji: string }> = {
@@ -20,7 +20,7 @@ const LOG_CATEGORY_META: Record<LogCategory, { label: string; emoji: string }> =
   events: { label: i18n.t("pages:settlement.logCategory.events"), emoji: "⚠️" },
   economy: { label: i18n.t("pages:settlement.logCategory.economy"), emoji: "💰" },
   military: { label: i18n.t("pages:settlement.logCategory.military"), emoji: "⚔️" },
-  diplomacy: { label: i18n.t("pages:settlement.logCategory.diplomacy"), emoji: "🤝" },
+  overseas: { label: i18n.t("pages:settlement.logCategory.overseas"), emoji: "⛵" },
   decision: { label: i18n.t("pages:settlement.logCategory.decision"), emoji: "🏛" },
   other: { label: i18n.t("pages:settlement.logCategory.other"), emoji: "📋" },
 };
@@ -32,7 +32,7 @@ function categorizeLogKind(kind: string): LogCategory {
   if (k.includes("revolt") || k.includes("rebel") || k.includes("crisis")) return "events";
   if (k.includes("final")) return "final";
   if (k.includes("military") || k.includes("conquest") || k.includes("war") || k.includes("colon") || k.includes("naval") || k.includes("loot")) return "military";
-  if (k.includes("diplomacy") || k.includes("peace") || k.includes("treaty")) return "diplomacy";
+  if (k.includes("overseas") || k.includes("route") || k.includes("peace") || k.includes("treaty")) return "overseas";
   if (k.startsWith("market") || k.startsWith("settlement") || k.includes("budget") || k.includes("income")) return "economy";
   if (k.startsWith("decision") || k.includes("reform") || k.includes("policy")) return "decision";
   return "other";
@@ -366,7 +366,7 @@ function getFinalLogPriority(log: GameLog, leaderPlayerId: string | null): numbe
     case "military":
       score += 70;
       break;
-    case "diplomacy":
+    case "overseas":
       score += 60;
       break;
     case "decision":

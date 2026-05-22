@@ -37,8 +37,29 @@ i18n
 export default i18n;
 
 /** Translate backend-provided Chinese labels/descriptions to current language */
-export function translateBackend(text: string | undefined | null): string {
-  if (!text) return "";
+export function translateBackend(text: unknown): string {
+  if (text === null || text === undefined || text === "") return "";
+  if (typeof text !== "string") {
+    if (typeof text === "number" || typeof text === "boolean" || typeof text === "bigint") {
+      return String(text);
+    }
+    if (Array.isArray(text)) {
+      return text.map((item) => translateBackend(item)).filter(Boolean).join("、");
+    }
+    if (typeof text === "object") {
+      const record = text as Record<string, unknown>;
+      const language = i18n.language?.startsWith("en") ? "en" : "zh";
+      const localized = record[language] ?? record.zh ?? record.en ?? record.label ?? record.name ?? record.value;
+      if (localized !== undefined && localized !== text) {
+        return translateBackend(localized);
+      }
+      const firstPrimitive = Object.values(record).find(
+        (value) => value !== null && ["string", "number", "boolean", "bigint"].includes(typeof value),
+      );
+      return firstPrimitive !== undefined ? translateBackend(firstPrimitive) : "";
+    }
+    return String(text);
+  }
   const hasChinese = /[\u4e00-\u9fff]/.test(text);
   if (!hasChinese) return text;
   // Direct resource bundle lookup (bypasses key separator issues)

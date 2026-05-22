@@ -32,10 +32,10 @@ import {
   removeMilitaryActionSelection,
   setAbilitySelectionTarget,
   setAdminPurchases,
-  setNavalDeployment,
+  setRegionBlockade,
   setProductionOrderQuantity,
+  setRawMaterialPurchaseQuantity,
   setRouteDecisionOrderQuantity,
-  toggleDiplomacyActionSelection,
   toggleFactoryActionSelection,
   toggleGovernmentStrategySelection,
   toggleNationalAbilitySelection,
@@ -52,17 +52,16 @@ import {
   getRegionAccessLevelLabel,
 } from "../../../features/game/decisionShared";
 import {
-  MIN_SURPLUS_PRICE_RATIO,
-  SHORTAGE_PRICE_DAMPING,
-  SURPLUS_PRICE_DAMPING,
-} from "../../../constants/priceCurves";
+  calculatePhase1MarketRevenue,
+  DOMESTIC_PRICE_CEILING_RATIO,
+  DOMESTIC_PRICE_FLOOR_RATIO,
+} from "../../../features/game/marketMath";
 import type {
   DecisionPlayerPhaseWorkspace,
   GamePhase,
   MarketPlayerPhaseWorkspace,
   PlayerPhaseWorkspace,
   PlayerState,
-  RegionAccessStatus,
   SettlementPlayerPhaseWorkspace,
 } from "../../../types";
 import type { PhaseDraftByPhase } from "../../../features/game/forms";
@@ -279,6 +278,15 @@ export function DecisionWorkbench({
               ),
             );
           }}
+          onRawMaterialPurchaseQuantityChange={(quantity) => {
+            handleDraftChange(
+              "factory",
+              clampDecisionPhase1ProductionDraft(
+                workspace,
+                setRawMaterialPurchaseQuantity(draft, quantity),
+              ),
+            );
+          }}
           parameterInspector={parameterInspector}
         />
       ) : activeStep === "domestic" ? (
@@ -322,8 +330,7 @@ export function DecisionWorkbench({
           remainingGovernmentBudget={fiscalState.effectiveGovernmentRemaining}
           onAddMilitary={(actionId) => handleDraftChange("military", addMilitaryActionSelection(draft, actionId))}
           onRemoveMilitary={(actionId) => handleDraftChange("military", removeMilitaryActionSelection(draft, actionId))}
-          onToggleDiplomacy={(actionId, checked) => handleDraftChange("military", toggleDiplomacyActionSelection(draft, actionId, checked))}
-          onNavalDeploymentChange={(nodeId, count) => handleDraftChange("military", setNavalDeployment(draft, nodeId, count))}
+          onRegionBlockadeChange={(regionId, count) => handleDraftChange("military", setRegionBlockade(draft, regionId, count))}
           parameterInspector={parameterInspector}
         />
       ) : activeStep === "research" ? (
@@ -368,12 +375,11 @@ export function MilitaryDecisionStep({
   const fiscalState = calculateGovernmentFiscalState(workspace, draft);
   const remainingBudget = fiscalState.baseGovernmentRemaining;
   const remainingDecisionBudget = Math.max(0, fiscalState.effectiveGovernmentRemaining);
-  const navalActions = militaryWorkspace.availableMilitaryActions.filter((action) => action.actionId === "naval_drill");
   const armyActions = militaryWorkspace.availableMilitaryActions.filter((action) => (
     action.actionId === "recruit_army"
   ));
   const supportActions = militaryWorkspace.availableMilitaryActions.filter((action) => (
-    action.actionId !== "naval_drill" && action.actionId !== "recruit_army"
+    action.actionId !== "recruit_army"
   ));
 
   function getMilitarySelectionCount(actionId: string): number {
@@ -399,12 +405,9 @@ export function MilitaryDecisionStep({
           </div>
           <div className="gp-step-header__pills">
             <span className="gp-step-pill">{t("game:military.fiscalRemaining")} <strong>{remainingBudget}</strong></span>
-            {fiscalState.policyBudgetSupplement > 0 ? (
-              <span className="gp-step-pill">{t("game:government.policyBudgetAllowance", "Policy allowance")} <strong>{fiscalState.policyBudgetSupplementRemaining} / {fiscalState.policyBudgetSupplement}</strong></span>
-            ) : null}
             <span className="gp-step-pill">{t("game:military.decisionBudgetRemainingPill", "Decision budget remaining")} <strong>{remainingDecisionBudget}</strong></span>
             <span className="gp-step-pill">{t("game:military.overseasCapacityPill")} <strong>{militaryWorkspace.overseasCapacity}</strong></span>
-            <span className="gp-step-pill">{t("game:military.establishedDiplomacyPill", { count: militaryWorkspace.establishedDiplomacy.length })}</span>
+            <span className="gp-step-pill">{t("game:military.overseasRegionsOpenPill")}</span>
           </div>
         </div>
       </article>
@@ -428,32 +431,6 @@ export function MilitaryDecisionStep({
           </div>
         </div>
       </article>
-      {navalActions.length > 0 ? (
-        <article className="gp-card">
-          <div className="gp-inner-group" style={{ gap: 14 }}>
-            <div>
-              <p className="gp-step-eyebrow">{t("game:military.navalBuilding")}</p>
-              <h3 style={{ margin: "4px 0 0" }}>{t("game:military.navalBuildingTitle")}</h3>
-              <p className="gp-step-desc" style={{ marginTop: 6 }}>{t("game:military.navalBuildingDesc")}</p>
-            </div>
-            <div className="gp-grid">
-              {navalActions.map((action) => (
-                <ConfirmActionCard
-                  key={action.actionId}
-                  confirmLabel={t("game:military.confirmAction", { label: action.label })}
-                  count={getMilitarySelectionCount(action.actionId)}
-                  description={buildMilitaryActionDescription(action)}
-                  feedback={t("game:military.actionScheduledCount", { current: getMilitarySelectionCount(action.actionId), max: action.maxPerRound })}
-                  isConfirmDisabled={!canAddMilitaryAction(action.actionId, action.cost, action.maxPerRound)}
-                  isRevokeDisabled={getMilitarySelectionCount(action.actionId) === 0}
-                  onConfirm={() => onChange(addMilitaryActionSelection(draft, action.actionId))}
-                  onRevoke={() => onChange(removeMilitaryActionSelection(draft, action.actionId))}
-                />
-              ))}
-            </div>
-          </div>
-        </article>
-      ) : null}
       {armyActions.length > 0 ? (
         <article className="gp-card">
           <div className="gp-inner-group" style={{ gap: 14 }}>
@@ -483,9 +460,9 @@ export function MilitaryDecisionStep({
       <article className="gp-card">
         <div className="gp-inner-group" style={{ gap: 14 }}>
           <div>
-            <p className="gp-step-eyebrow">{t("game:military.diplomacyAction")}</p>
-            <h3 style={{ margin: "4px 0 0" }}>{t("game:military.diplomacyActionTitle")}</h3>
-            <p className="gp-step-desc" style={{ marginTop: 6 }}>{t("game:military.diplomacyActionDesc")}</p>
+            <p className="gp-step-eyebrow">{t("game:military.supportAction")}</p>
+            <h3 style={{ margin: "4px 0 0" }}>{t("game:military.supportActionTitle")}</h3>
+            <p className="gp-step-desc" style={{ marginTop: 6 }}>{t("game:military.supportActionDesc")}</p>
           </div>
           {supportActions.length > 0 ? (
             <div className="gp-grid">
@@ -504,26 +481,6 @@ export function MilitaryDecisionStep({
               ))}
             </div>
           ) : null}
-          <div className="gp-grid">
-            {militaryWorkspace.availableDiplomacyActions.map((action) => {
-              const checked = draft.militaryPlan.diplomacyActions.some((item) => item.actionId === action.actionId);
-              const confirmDisabled = action.isEstablished || (!checked && remainingDecisionBudget < action.cost);
-              return (
-                <ConfirmActionCard
-                  key={action.actionId}
-                  confirmLabel={t("game:military.confirmAction", { label: action.label })}
-                  title={t("game:military.establishDiplomacy", "建立外交关系")}
-                  count={checked ? 1 : 0}
-                  description={t("game:military.permanentTradeRouteCost", { cost: action.cost, defaultValue: `永久开放贸易通道。消耗政府财政 ${action.cost}。` })}
-                  feedback={action.isEstablished ? t("game:military.diplomacyAlreadyEstablished", "该区域已经完成建交，本轮不能重复提交。") : checked ? t("game:military.diplomacyPlanned", "已纳入本轮建交计划。") : undefined}
-                  isConfirmDisabled={confirmDisabled}
-                  isRevokeDisabled={!checked}
-                  onConfirm={() => onChange(toggleDiplomacyActionSelection(draft, action.actionId, true))}
-                  onRevoke={() => onChange(toggleDiplomacyActionSelection(draft, action.actionId, false))}
-                />
-              );
-            })}
-          </div>
         </div>
       </article>
     </>
@@ -677,11 +634,7 @@ export function MarketWorkbench({
     0,
   );
   const domesticLimit = phase1Economy
-    ? Math.floor(Math.max(0, Math.min(
-        phase1GoodsInventory - externalTotal,
-        phase1Economy.domesticDemand ?? phase1GoodsInventory,
-        workspace.domesticMarketCapacity,
-      )))
+    ? Math.floor(Math.max(0, phase1GoodsInventory - externalTotal))
     : phase1GoodsInventory;
   const displayDomesticAllocation = clampMarketQuantity(
     phase1Draft.domesticAllocation,
@@ -689,20 +642,24 @@ export function MarketWorkbench({
     domesticLimit,
   );
   const estimatedRevenue = phase1Economy
-    ? calculatePhase1Revenue(
-        displayDomesticAllocation,
-        phase1Draft.externalAllocations,
-        phase1Draft.externalCompetitionDeployments ?? [],
-        workspace.regionAccessStatus ?? [],
-        workspace.overseasCompetition,
-        workspace.overseasMarketCapacity,
-        phase1Economy.domesticDemand ?? 0,
-        phase1Economy.equilibriumPrice ?? 0,
-        phase1Economy.domesticPriceBonus ?? 0,
-        phase1Economy.overseasPriceBonus ?? 0,
-        phase1Economy.domesticPriceCeiling ?? 8,
-        phase1Economy.overseasPriceCeiling ?? 24,
-      )
+    ? calculatePhase1MarketRevenue({
+        domesticAllocation: displayDomesticAllocation,
+        externalAllocations: phase1Draft.externalAllocations,
+        externalCompetitionDeployments: phase1Draft.externalCompetitionDeployments ?? [],
+        regionAccessStatus: workspace.regionAccessStatus ?? [],
+        overseasCompetition: workspace.overseasCompetition,
+        overseasMarketCapacity: workspace.overseasMarketCapacity,
+        domesticSoftCap: phase1Economy.domesticSoftCap
+          ?? workspace.domesticMarketCapacity
+          ?? phase1Economy.domesticDemand
+          ?? 1,
+        equilibriumPrice: phase1Economy.equilibriumPrice ?? 0,
+        minimumDomesticPrice: phase1Economy.minimumDomesticPrice
+          ?? Math.max(0, (phase1Economy.equilibriumPrice ?? 0) * DOMESTIC_PRICE_FLOOR_RATIO),
+        maximumDomesticPrice: phase1Economy.domesticPriceCeiling
+          ?? Math.max(0, (phase1Economy.equilibriumPrice ?? 0) * DOMESTIC_PRICE_CEILING_RATIO),
+        domesticPriceBonus: phase1Economy.domesticPriceBonus ?? 0,
+      })
     : 0;
 
   const { t } = useTranslation();
@@ -736,6 +693,7 @@ export function MarketWorkbench({
           draftAllocation={phase1Draft.domesticAllocation}
           externalAllocations={phase1Draft.externalAllocations}
           competitionDeployments={phase1Draft.externalCompetitionDeployments ?? []}
+          incomeAllocationRatio={workspace.effectiveIncomeAllocationRatio ?? workspace.incomeAllocationRatio}
           onAllocationChange={handlePhase1AllocationChange}
           onExternalAllocationChange={handlePhase1ExternalChange}
           onCompetitionDeploymentChange={handlePhase1CompetitionDeploymentChange}
@@ -762,10 +720,12 @@ export function SettlementWorkbench({
   const colonyIncome = workspace.colonyIncome ?? Math.max(0, workspace.nationalIncome - marketIncome);
   const projectedCumulativeIncome =
     (playerState?.cumulativeNationalIncome ?? 0) + Math.max(0, workspace.nationalIncome);
-  const consumptionPoolBalance = workspace.phase1Economy?.consumptionPool ?? 0;
-  const frozenConsumptionAllocation = workspace.phase1Economy?.poolDeltaPreview
+  const consumptionPoolBalance = workspace.phase1Economy?.consumptionPool ?? workspace.budgetAllocation.domesticMarket;
+  const consumptionAllocation = workspace.phase1Economy?.poolDeltaPreview
     ? Math.round(workspace.phase1Economy.poolDeltaPreview.consumption)
     : 0;
+  const nextConsumptionPool = consumptionPoolBalance + consumptionAllocation;
+  const effectiveRatioText = formatSettlementAllocationRatio(workspace.nextRatio);
   const unsoldGoodsInventory = Math.max(0, workspace.phase1Economy?.goodsInventory ?? 0);
 
   return (
@@ -789,9 +749,9 @@ export function SettlementWorkbench({
             value={`${workspace.nationalIncome} ${t("game:settlement.fiscalUnit")}`}
           />
           <MetricCard
-            hint={t("game:settlement.effectiveRatioHint", "民间购买力池本轮不吃售卖收入回流；售卖收入只按有效比例回到工厂与政府财政。")}
+            hint={t("game:settlement.effectiveRatioHint", "售卖收入按有效比例回流到民间购买力、工厂预算和政府财政。")}
             label={t("game:settlement.effectiveRatio", "本轮有效回流比例")}
-            value={formatSettlementAllocationRatio(workspace.nextRatio)}
+            value={effectiveRatioText}
           />
           <MetricCard hint={isFinalRound ? t("game:settlement.cumulativeIncomeHintFinal") : t("game:settlement.cumulativeIncomeHintNext")} label={t("game:settlement.cumulativeIncome")} value={`${projectedCumulativeIncome} ${t("game:settlement.fiscalUnit")}`} />
           <MetricCard
@@ -804,7 +764,7 @@ export function SettlementWorkbench({
       <article className="gp-card">
         <h3 style={{ margin: 0 }}>{t("game:settlement.redistributionTitle")}</h3>
         <div className="gp-grid">
-          <MetricCard hint={t("game:settlement.consumerPurchasingPowerFrozenHint", "民间购买力不再作为政策额度来源，本轮售卖收入不会直接分配到这里。")} label={t("game:settlement.consumerPurchasingPower")} value={`${workspace.budgetAllocation.domesticMarket} ${t("game:settlement.fiscalUnit")}`} />
+          <MetricCard hint={t("game:settlement.consumerPurchasingPowerHint", "本轮分配到民间购买力的份额，结算后并入下回合国内消费池。")} label={t("game:settlement.consumerPurchasingPower")} value={`${workspace.budgetAllocation.domesticMarket} ${t("game:settlement.fiscalUnit")}`} />
           <MetricCard hint={t("game:settlement.factoryBudgetHint")} label={t("game:settlement.factoryBudget")} value={`${workspace.budgetAllocation.factory} ${t("game:settlement.fiscalUnit")}`} />
           <MetricCard hint={t("game:settlement.governmentFiscalHint")} label={t("game:settlement.governmentFiscal")} value={`${workspace.budgetAllocation.governmentFiscal} ${t("game:settlement.fiscalUnit")}`} />
           {unsoldGoodsInventory > 0 ? (
@@ -818,14 +778,19 @@ export function SettlementWorkbench({
       </article>
       {workspace.phase1Economy?.consumptionPool != null && workspace.phase1Economy?.poolDeltaPreview && (
         <article className="gp-card">
-          <h3 style={{ margin: 0 }}>💰 {t("game:settlement.consumptionPoolTitle")}</h3>
+          <h3 style={{ margin: 0 }}>💰 {t("game:settlement.consumptionPoolTitle", "民间购买力回流")}</h3>
           <p className="gp-step-desc" style={{ marginTop: 4 }}>
-            {t("game:settlement.consumptionPoolFormula", { prev: consumptionPoolBalance, add: frozenConsumptionAllocation, remainder: consumptionPoolBalance })}
+            {t("game:settlement.consumptionPoolFormula", {
+              prev: consumptionPoolBalance,
+              add: consumptionAllocation,
+              remainder: nextConsumptionPool,
+              defaultValue: "上回合余额 {{prev}} + 本轮回流 {{add}} = 下回合民间购买力 {{remainder}}。",
+            })}
           </p>
           <div className="gp-grid">
             <MetricCard hint={t("game:settlement.previousBalanceHint")} label={t("game:settlement.previousBalance")} value={`${workspace.phase1Economy.consumptionPool} ${t("game:settlement.fiscalUnit")}`} />
-            <MetricCard hint={t("game:settlement.newAllocationFrozenHint", "民间购买力池本轮保持冻结，收入回流由工厂和政府财政承接。")} label={t("game:settlement.newAllocation")} value={`0 ${t("game:settlement.fiscalUnit")}`} />
-            <MetricCard hint={t("game:settlement.remainderHint")} label={t("game:settlement.remainder")} value={`${consumptionPoolBalance} ${t("game:settlement.fiscalUnit")}`} />
+            <MetricCard hint={t("game:settlement.newAllocationHint", { ratio: effectiveRatioText, defaultValue: "国家收入按当前 {{ratio}} 分配到民间购买力的部分。" })} label={t("game:settlement.newAllocation")} value={`${consumptionAllocation} ${t("game:settlement.fiscalUnit")}`} />
+            <MetricCard hint={t("game:settlement.remainderHint")} label={t("game:settlement.remainder")} value={`${nextConsumptionPool} ${t("game:settlement.fiscalUnit")}`} />
           </div>
         </article>
       )}
@@ -866,7 +831,7 @@ function SettlementCountdownBanner({
 }
 
 function formatSettlementAllocationRatio(ratio: SettlementPlayerPhaseWorkspace["nextRatio"]): string {
-  return `${formatRatioNumber(ratio.factory)} / ${formatRatioNumber(ratio.governmentFiscal)}`;
+  return `${formatRatioNumber(ratio.domesticMarket)} / ${formatRatioNumber(ratio.factory)} / ${formatRatioNumber(ratio.governmentFiscal)}`;
 }
 
 function formatRatioNumber(value: number): string {
@@ -1265,121 +1230,6 @@ function GovernmentReformPanel({
   );
 }
 
-
-function calculatePhase1Revenue(
-  domesticAllocation: number,
-  externalAllocations: Array<{ marketId: string; quantity: number }>,
-  externalCompetitionDeployments: Array<{ marketId: string; infantry: number; artillery: number }>,
-  regionAccessStatus: RegionAccessStatus[],
-  overseasCompetition: MarketPlayerPhaseWorkspace["overseasCompetition"] | undefined,
-  overseasMarketCapacity: number,
-  demand: number,
-  equilibriumPrice: number,
-  domesticPriceBonus: number,
-  overseasPriceBonus: number,
-  domesticPriceCeiling: number,
-  overseasPriceCeiling: number,
-): number {
-  const domesticSold = Math.min(domesticAllocation, demand);
-  const domesticPrice = calculateDomesticMarketPrice(
-    domesticAllocation,
-    demand,
-    equilibriumPrice,
-    domesticPriceBonus,
-    domesticPriceCeiling,
-  );
-  const domesticRevenue = Math.floor(domesticSold * domesticPrice);
-  const competitionConfig = overseasCompetition ?? {
-    availableArmy: {},
-    rewardCapacityBonus: 0,
-    rewardPriceBonus: 0,
-    infantryPower: 1,
-    artilleryPower: 2,
-    minimumPower: 1,
-  };
-  const deploymentByRegion = new Map<string, { marketId: string; infantry: number; artillery: number }>(
-    externalCompetitionDeployments.map((deployment) => [deployment.marketId, deployment]),
-  );
-  const rewardCapacityByRegion = new Map<string, number>();
-  const competitionPriceBonusByRegion = new Map<string, number>();
-  for (const region of regionAccessStatus) {
-    const deployment = deploymentByRegion.get(region.regionId);
-    const power = deployment
-      ? Math.max(0, deployment.infantry) * Math.max(0, competitionConfig.infantryPower)
-        + Math.max(0, deployment.artillery) * Math.max(0, competitionConfig.artilleryPower)
-      : 0;
-    if (region.canCompete && power >= competitionConfig.minimumPower) {
-      rewardCapacityByRegion.set(
-        region.regionId,
-        Math.max(0, region.competitionRewardCapacityBonus ?? competitionConfig.rewardCapacityBonus),
-      );
-      competitionPriceBonusByRegion.set(
-        region.regionId,
-        Math.max(0, region.competitionRewardPriceBonus ?? competitionConfig.rewardPriceBonus),
-      );
-    }
-  }
-  let remainingInventory = Number.POSITIVE_INFINITY;
-  let remainingOverseasCapacity = Math.max(0, overseasMarketCapacity);
-  const rewardCapacityRemaining = new Map(rewardCapacityByRegion);
-  const externalRevenue = externalAllocations.reduce((sum, allocation) => {
-    if (remainingInventory <= 0) {
-      return sum;
-    }
-    const region = regionAccessStatus.find((item) => item.regionId === allocation.marketId);
-    const multiplier = region?.priceMultiplier ?? 1;
-    const rewardCapacity = Math.max(0, rewardCapacityRemaining.get(allocation.marketId) ?? 0);
-    const rewardSold = Math.min(Math.max(0, allocation.quantity), remainingInventory, rewardCapacity);
-    const sharedSold = Math.min(
-      Math.max(0, allocation.quantity - rewardSold),
-      Math.max(0, remainingInventory - rewardSold),
-      remainingOverseasCapacity,
-    );
-    const sold = rewardSold + sharedSold;
-    if (sold <= 0) {
-      return sum;
-    }
-    rewardCapacityRemaining.set(allocation.marketId, Math.max(0, rewardCapacity - rewardSold));
-    remainingOverseasCapacity -= sharedSold;
-    remainingInventory -= sold;
-    return sum + sold * calculateOverseasMarketPrice(
-      equilibriumPrice,
-      multiplier,
-      overseasPriceBonus + (competitionPriceBonusByRegion.get(allocation.marketId) ?? 0),
-      overseasPriceCeiling,
-    );
-  }, 0);
-  return domesticRevenue + externalRevenue;
-}
-
-function calculateDomesticMarketPrice(
-  allocation: number,
-  demand: number,
-  equilibriumPrice: number,
-  domesticPriceBonus: number,
-  domesticPriceCeiling: number,
-): number {
-  if (allocation <= 0 || demand <= 0) {
-    return 0;
-  }
-  const ratio = allocation / demand;
-  let price = equilibriumPrice;
-  if (ratio < 1) {
-    price = equilibriumPrice * (1 + (1 - ratio) * SHORTAGE_PRICE_DAMPING);
-  } else if (ratio > 1) {
-    price = equilibriumPrice * Math.max(MIN_SURPLUS_PRICE_RATIO, 1 - (ratio - 1) * SURPLUS_PRICE_DAMPING);
-  }
-  return Math.max(1, Math.min(domesticPriceCeiling, price + domesticPriceBonus));
-}
-
-function calculateOverseasMarketPrice(
-  equilibriumPrice: number,
-  multiplier: number,
-  overseasPriceBonus: number,
-  overseasPriceCeiling: number,
-): number {
-  return Math.max(1, Math.min(overseasPriceCeiling, Math.floor(equilibriumPrice * multiplier) + overseasPriceBonus));
-}
 
 function clampMarketQuantity(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) {

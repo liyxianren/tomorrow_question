@@ -4,12 +4,15 @@ import sys
 import unittest
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from app.contracts.enums import GamePhase, SocketEventName
+from app import _should_start_phase_timeout_runner
+from app.config import Settings
 from app.modules.game_state.factory import create_game, create_initial_snapshot
 from app.modules.game_state.phase_deadline import (
     assign_phase_deadline,
@@ -24,6 +27,22 @@ from app.modules.realtime.phase_timer import (
 
 
 class PhaseTimerTests(unittest.TestCase):
+    def test_zero_phase_duration_still_starts_runner_outside_tests(self) -> None:
+        settings = Settings(
+            app_env="development",
+            secret_key="test",
+            host="127.0.0.1",
+            port=5001,
+            database_path=":memory:",
+            frontend_dist="../frontend/dist",
+            socketio_async_mode="threading",
+            cors_allowed_origins=["http://127.0.0.1:5173"],
+            debug=True,
+        )
+
+        with patch.dict("os.environ", {"PYTEST_CURRENT_TEST": ""}):
+            self.assertTrue(_should_start_phase_timeout_runner(settings, 0))
+
     def test_build_phase_timer_payload_exposes_phase_deadline_and_remaining_seconds(self) -> None:
         game = create_game(room_code="ROOM01", game_id="game-1")
         snapshot = create_initial_snapshot(

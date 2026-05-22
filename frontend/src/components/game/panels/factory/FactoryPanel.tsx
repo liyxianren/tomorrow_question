@@ -13,6 +13,7 @@ import {
   calculatePhase1ProductionSpend,
   calculateTechResearchPreview,
   flattenTechTree,
+  getSelectedRawMaterialPurchaseQuantity,
   getSelectedProductionCapacityDeltaByMode,
   sumSelectedFactoryActionEffect,
 } from "../../../../features/game/decisionShared";
@@ -33,6 +34,7 @@ export function FactoryPanel({
   onFactoryActionToggle,
   onTechnologyToggle,
   onPhase1RawMaterialAssignmentChange,
+  onRawMaterialPurchaseQuantityChange,
   parameterInspector,
 }: {
   workspace: DecisionPlayerPhaseWorkspace;
@@ -47,16 +49,21 @@ export function FactoryPanel({
   onFactoryActionToggle: (actionId: string, checked: boolean) => void;
   onTechnologyToggle: (techId: string, checked: boolean) => void;
   onPhase1RawMaterialAssignmentChange?: (mode: string, quantity: number) => void;
+  onRawMaterialPurchaseQuantityChange?: (quantity: number) => void;
   parameterInspector?: ParameterInspector;
 }) {
   const { t } = useTranslation();
   const techPreview = calculateTechResearchPreview(workspace, draft);
   const phase1Economy = workspace.phase1Economy;
   const factoryActions = (workspace.factoryActions ?? []).filter(
-    (action) => action.actionId !== "industrial_upgrade" && Number(action.effects?.techPointsDelta ?? 0) === 0,
+    (action) => action.actionId !== "industrial_upgrade"
+      && action.actionId !== "factory_raw_procurement"
+      && Number(action.effects?.techPointsDelta ?? 0) === 0,
   );
   const selectedFactoryActionIds = new Set((draft.factoryPlan.factoryActions ?? []).map((item) => item.actionId));
-  const rawMaterialsDelta = sumSelectedFactoryActionEffect(workspace, draft, "rawMaterialsDelta");
+  const selectedRawMaterialPurchase = getSelectedRawMaterialPurchaseQuantity(workspace, draft);
+  const rawMaterialsDelta = sumSelectedFactoryActionEffect(workspace, draft, "rawMaterialsDelta")
+    + selectedRawMaterialPurchase;
   const productionCapacityDelta = sumSelectedFactoryActionEffect(
     workspace,
     draft,
@@ -78,10 +85,15 @@ export function FactoryPanel({
   }, 1);
   const phase1Assignments = draft.phase1Production?.rawMaterialAssignments ?? {};
   const phase1ProductionSpend = calculatePhase1ProductionSpend(workspace, draft);
+  const rawMaterialPurchaseUnitCost = Math.max(0, phase1Economy?.rawMaterialPurchaseUnitCost ?? 1);
+  const rawMaterialPurchaseCap = Math.max(0, phase1Economy?.materialPurchaseCapPerTurn ?? 0);
+  const rawMaterialPurchaseMaxByBudget = rawMaterialPurchaseUnitCost > 0
+    ? selectedRawMaterialPurchase + Math.floor(Math.max(0, remainingFactoryBudget) / rawMaterialPurchaseUnitCost)
+    : rawMaterialPurchaseCap;
+  const maxRawMaterialPurchase = Math.min(rawMaterialPurchaseCap, rawMaterialPurchaseMaxByBudget);
 
   const expansionOptionsByRoute = new Map(workspace.expansionOptions.map((option) => [option.routeId, option]));
   const upgradeOptionsByRoute = new Map(workspace.upgradeOptions.map((option) => [option.routeId, option]));
-  const newFactoryOptionsByRoute = new Map(workspace.newFactoryOptions.map((option) => [option.routeId, option]));
   const constructionStages = [...(phase1Economy?.productionModes ?? [])]
     .filter((mode) => mode.mode !== "idle")
     .sort((a, b) => getStageOrder(a.mode) - getStageOrder(b.mode));
@@ -177,6 +189,21 @@ export function FactoryPanel({
       <div className="factory-panel--v2">
         <div className="factory-panel--v2__left">
           {phase1Economy && phase1Economy.productionModes && phase1Economy.productionModes.length > 0 ? (
+            <>
+              <FactoryCapacityOverview
+                enabledCount={Math.max(0, (phase1Economy.factoryEnabledCount ?? 0) - Math.min(0, capacityDeltaByMode.idle ?? 0))}
+                totalCap={phase1Economy.factoryTotalCap ?? 0}
+                idleCapacity={Math.max(0, (phase1Economy.idleCapacity ?? 0) + (capacityDeltaByMode.idle ?? 0))}
+                modes={productionModes}
+              />
+              <RawMaterialPurchaseControl
+                currentRawMaterials={phase1Economy.rawMaterials}
+                maxQuantity={maxRawMaterialPurchase}
+                quantity={selectedRawMaterialPurchase}
+                unitCost={rawMaterialPurchaseUnitCost}
+                onChange={onRawMaterialPurchaseQuantityChange}
+                parameterInspector={parameterInspector}
+              />
               <Phase1ProductionPanel
                 modes={productionModes}
                 rawMaterials={Math.max(0, phase1Economy.rawMaterials + rawMaterialsDelta)}
@@ -189,9 +216,10 @@ export function FactoryPanel({
               goodsInventory={phase1Economy.goodsInventory}
               assignments={phase1Assignments}
               productionCapacityDelta={productionCapacityDelta}
-              outputMultiplier={outputMultiplier}
-              onAssignmentChange={onPhase1RawMaterialAssignmentChange}
-            />
+                outputMultiplier={outputMultiplier}
+                onAssignmentChange={onPhase1RawMaterialAssignmentChange}
+              />
+            </>
           ) : null}
         </div>
 
@@ -205,15 +233,11 @@ export function FactoryPanel({
               <div className="factory-stage-grid">
                 {constructionStages.map((mode) => {
                   const expansionOption = expansionOptionsByRoute.get(mode.mode) ?? null;
-                  const newFactoryOption = newFactoryOptionsByRoute.get(mode.mode) ?? null;
-                  const increaseOption = expansionOption ?? newFactoryOption;
-                  const increaseKind: ConstructionKind = expansionOption ? "expansion" : "newFactory";
+                  const increaseOption = expansionOption;
+                  const increaseKind: ConstructionKind = "expansion";
                   const upgradeOption = upgradeOptionsByRoute.get(mode.mode) ?? null;
                   const immediateDelta = capacityDeltaByMode[mode.mode] ?? 0;
-                  const expansionQuantity = expansionOption ? getConstructionQuantity(draft, mode.mode, "expansion") : 0;
-                  const newFactoryQuantity = newFactoryOption ? getConstructionQuantity(draft, mode.mode, "newFactory") : 0;
-                  const nextRoundDelta = expansionQuantity * (expansionOption?.capacityDelta ?? 0)
-                    + newFactoryQuantity * (newFactoryOption?.capacityDelta ?? 0);
+                  const sameRoundDelta = immediateDelta;
                   const increaseDescription = increaseOption
                     ? buildFactoryIncreaseDescription(increaseOption, increaseKind, t)
                     : buildUnavailableFactoryIncreaseDescription(mode, t);
@@ -246,8 +270,8 @@ export function FactoryPanel({
                           <strong>x{mode.outputRatio}</strong>
                         </span>
                         <span>
-                          {t("game:factory.nextRoundCapacityDelta", "下回合产能")}
-                          <strong>{formatSignedNumber(nextRoundDelta)}</strong>
+                          {t("game:factory.sameRoundCapacityDelta", "本回合产能")}
+                          <strong>{formatSignedNumber(sameRoundDelta)}</strong>
                         </span>
                       </div>
                       <div className="factory-stage-card__actions">
@@ -349,6 +373,98 @@ function applyCapacityDeltasToProductionModes(
   });
 }
 
+function FactoryCapacityOverview({
+  enabledCount,
+  totalCap,
+  idleCapacity,
+  modes,
+}: {
+  enabledCount: number;
+  totalCap: number;
+  idleCapacity: number;
+  modes: Phase1ProductionMode[];
+}) {
+  const { t } = useTranslation();
+  const productiveModes = modes.filter((mode) => mode.mode !== "idle");
+  return (
+    <section className="factory-overview" aria-label={t("game:factory.capacityOverview", "工厂容量总览")}>
+      <div className="factory-overview__headline">
+        <span>{t("game:factory.factoryTotalCap", "已启用 / 总上限")}</span>
+        <strong>{enabledCount} / {totalCap}</strong>
+      </div>
+      <div className="factory-overview__chips">
+        <span>{t("game:factory.idleCapacity", "闲置工厂")} <strong>{idleCapacity}</strong></span>
+        {productiveModes.map((mode) => (
+          <span key={mode.mode}>
+            {translateBackend(mode.label)} <strong>{mode.currentCapacity}</strong>
+          </span>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function RawMaterialPurchaseControl({
+  currentRawMaterials,
+  maxQuantity,
+  quantity,
+  unitCost,
+  onChange,
+  parameterInspector,
+}: {
+  currentRawMaterials: number;
+  maxQuantity: number;
+  quantity: number;
+  unitCost: number;
+  onChange?: (quantity: number) => void;
+  parameterInspector?: ParameterInspector;
+}) {
+  const { t } = useTranslation();
+  const disabled = !onChange;
+  const nextRawMaterials = currentRawMaterials + quantity;
+  return (
+    <section className="factory-material-purchase">
+      <div className="factory-material-purchase__main">
+        <div>
+          <h4>{t("game:factory.materialPurchase", "材料购买")}</h4>
+          <p>
+            {t("game:factory.materialPurchaseDesc", "使用工厂预算购买本回合可用原材料，不改变每回合自然增长。")}
+          </p>
+        </div>
+        <div className="factory-material-purchase__metrics">
+          <span>{t("game:factory.rawMaterials", "原材料")} <strong>{currentRawMaterials} → {nextRawMaterials}</strong></span>
+          <span>{t("game:factory.purchaseCap", "本回合上限")} <strong>{maxQuantity}</strong></span>
+          <span>{t("game:factory.unitCost", "单位成本")} <strong>{unitCost}</strong></span>
+        </div>
+      </div>
+      <div className="factory-command-row__stepper factory-material-purchase__stepper">
+        <span>{quantity > 0 ? t("game:factory.plannedPurchase", "已购买 {{count}}", { count: quantity }) : t("game:factory.available", "可用")}</span>
+        <button
+          type="button"
+          disabled={disabled || quantity <= 0}
+          onClick={() => onChange?.(quantity - 1)}
+          aria-label={t("game:factory.decreaseMaterialPurchase", "减少材料购买")}
+        >
+          -
+        </button>
+        <strong>{quantity}</strong>
+        <button
+          type="button"
+          disabled={disabled || quantity >= maxQuantity}
+          onClick={() => onChange?.(quantity + 1)}
+          aria-label={t("game:factory.increaseMaterialPurchase", "增加材料购买")}
+        >
+          +
+        </button>
+      </div>
+      {parameterInspector?.render("factory.rawMaterialPurchase", {
+        title: t("game:factory.materialPurchase", "材料购买"),
+        currentEffect: t("game:factory.materialPurchaseEffect", "每购买 1 原材料，立即增加本回合可投料数量，并消耗工厂预算。"),
+      })}
+    </section>
+  );
+}
+
 function calculateDomesticDemandDelta(
   modes: Phase1ProductionMode[],
   capacityDeltaByMode: Record<string, number>,
@@ -379,8 +495,8 @@ function buildFactoryIncreaseDescription(
 ): string {
   const key = kind === "newFactory" ? "game:factory.newFactoryIncreaseDescription" : "game:factory.factoryIncreaseDescription";
   const defaultValue = kind === "newFactory"
-    ? "新建首座 {{target}} 工厂：新增 {{delta}} 点产能，下回合生效；用于从 0 打开该阶段，所以成本高于后续扩建。"
-    : "扩建已有 {{target}} 工厂：新增 {{delta}} 点产能，下回合生效；不消耗已有产能。";
+    ? "直接建设 {{target}} 工厂：新增 {{delta}} 点产能，本回合生效；只受国家总工厂上限、闲置名额、预算和科技前置限制。"
+    : "扩建 {{target}} 工厂：新增 {{delta}} 点产能，本回合生效；只受国家总工厂上限、闲置名额、预算和科技前置限制。";
   return t(key, {
     defaultValue,
     delta: option.capacityDelta,
@@ -396,13 +512,13 @@ function buildUnavailableFactoryIncreaseDescription(
   const tech = formatRequiredTechLabel(mode.requiredTech);
   if (!mode.isAvailable && tech) {
     return t("game:factory.factoryIncreaseLockedDescription", {
-      defaultValue: "工厂增加 = 新增 {{target}} 产能，下回合生效。前置：先解锁 {{target}}（{{tech}}）。",
+      defaultValue: "工厂增加 = 直接建设 {{target}} 工厂，本回合生效。前置：先解锁 {{target}}（{{tech}}），且国家总工厂池还有闲置名额。",
       target,
       tech,
     });
   }
   return t("game:factory.factoryIncreaseUnavailableDescription", {
-    defaultValue: "工厂增加 = 新增 {{target}} 产能，下回合生效。当前不能增加：该阶段暂未开放新建或扩建工厂。",
+    defaultValue: "工厂增加 = 直接建设 {{target}} 工厂，本回合生效。当前不能增加：总上限、闲置名额、预算或科技前置不满足。",
     target,
   });
 }
@@ -412,11 +528,13 @@ function buildIndustryUpgradeDescription(
   t: TFunction,
 ): string {
   const delta = Math.max(1, option.capacityDelta ?? 1);
+  const source = translateRouteLabel(option.sourceRouteLabel || option.sourceRouteId);
+  const target = translateRouteLabel(option.routeLabel || option.routeId);
   return t("game:factory.industryUpgradeDescription", {
-    defaultValue: "{{source}} → {{target}}：每次消耗 {{delta}} 点 {{source}} 产能，立即转为 {{delta}} 点 {{target}} 产能；本回合可生产，不增加总产能。",
+    defaultValue: "{{source}} → {{target}}：每次消耗 {{delta}} 点 {{source}}产能，立即转为 {{delta}} 点 {{target}}产能；本回合可生产，不增加总工厂数。",
     delta,
-    source: translateBackend(option.sourceRouteLabel),
-    target: translateBackend(option.routeLabel),
+    source,
+    target,
   });
 }
 
@@ -429,12 +547,12 @@ function buildUnavailableIndustryUpgradeDescription(
   const sourceModeId = getUpgradeSourceMode(mode.mode);
   if (!sourceModeId) {
     return t("game:factory.baseStageNoUpgradeDescription", {
-      defaultValue: "产业升级 = 把上一级产能转成本阶段产能。手工业是基础阶段，没有更低级产能可升级。",
+      defaultValue: "产业升级 = 把上一级工厂转成本阶段工厂。手工业需要先有闲置工厂，才能从闲置启用为手工业。",
     });
   }
 
   const sourceMode = modes.find((candidate) => candidate.mode === sourceModeId);
-  const source = sourceMode ? translateBackend(sourceMode.label) : sourceModeId;
+  const source = sourceMode ? translateRouteLabel(sourceMode.label || sourceMode.mode) : translateRouteLabel(sourceModeId);
   const tech = formatRequiredTechLabel(mode.requiredTech);
   const prerequisite = tech
     ? t("game:factory.industryUpgradePrerequisiteWithTech", {
@@ -449,7 +567,7 @@ function buildUnavailableIndustryUpgradeDescription(
     });
 
   return t("game:factory.industryUpgradeUnavailableDescription", {
-    defaultValue: "产业升级 = {{source}} → {{target}}。前置：{{prerequisite}}；执行后消耗 1 点 {{source}} 产能，立即转为 1 点 {{target}} 产能。",
+    defaultValue: "产业升级 = {{source}} → {{target}}。前置：{{prerequisite}}；执行后消耗 1 点 {{source}} 工厂，立即转为 1 点 {{target}} 工厂。",
     source,
     target,
     prerequisite,
@@ -457,11 +575,22 @@ function buildUnavailableIndustryUpgradeDescription(
 }
 
 function getUpgradeSourceMode(targetMode: string): string | null {
-  const targetIndex = PRODUCTION_STAGE_ORDER.indexOf(targetMode);
+  const order = ["idle", ...PRODUCTION_STAGE_ORDER];
+  const targetIndex = order.indexOf(targetMode);
   if (targetIndex <= 0) {
     return null;
   }
-  return PRODUCTION_STAGE_ORDER[targetIndex - 1] ?? null;
+  return order[targetIndex - 1] ?? null;
+}
+
+function translateRouteLabel(labelOrId: string | undefined | null): string {
+  if (!labelOrId) {
+    return "";
+  }
+  if (/^[a-z_]+$/.test(labelOrId)) {
+    return i18n.t(`game:productionRoute.${labelOrId}`, labelOrId);
+  }
+  return translateBackend(labelOrId);
 }
 
 function formatRequiredTechLabel(requiredTech: Phase1ProductionMode["requiredTech"]): string | null {

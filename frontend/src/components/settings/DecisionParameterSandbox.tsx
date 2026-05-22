@@ -229,6 +229,9 @@ function describeSourceImpact(source: ParameterBindingSource): string {
   if (last === "administrationCost") {
     return `${label}：控制永久购买 1 点行政力上限要花多少政府财政；调高会限制改革和政策连点，调低会让政府行动更宽松。`;
   }
+  if (last === "rawMaterialPurchaseUnitCost") {
+    return `${label}：控制每购买 1 原材料需要消耗多少工厂预算；调高会限制本回合补料，调低会让缺料时更容易继续生产。`;
+  }
   if (last === "budgetPoolCost" || last === "budgetCost" || last === "cost" || last === "unitBudgetCost") {
     return `${label}：控制玩家点击这个按钮要花多少预算；调高会更难选择，调低会更容易连续使用。`;
   }
@@ -248,7 +251,7 @@ function describeSourceImpact(source: ParameterBindingSource): string {
     return `${label}：控制解锁或研究门槛；调高会让玩家更晚拿到这个效果，调低会更快解锁。`;
   }
   if (last === "breakthroughDieSides") {
-    return `${label}：控制科技突破骰子的面数；会影响达到研究门槛后的突破概率。`;
+    return `${label}：控制科技突破判定的随机数字范围；会影响达到研究门槛后的突破概率。`;
   }
   if (last.includes("Price") || pathText.includes("Price") || last === "priceMultiplier") {
     return `${label}：控制出售价格或价格倍率；调高通常会提高卖货收入。`;

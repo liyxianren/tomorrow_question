@@ -64,13 +64,12 @@ class BotTurnOrchestratorTests(unittest.TestCase):
                             "label": "中东",
                             "isAccessible": True,
                             "canCompete": True,
-                            "competitionRewardCapacityBonus": 8,
+                            "competitionRewardCapacityBonus": 2,
                         }
                     ],
                     "overseasCompetition": {
                         "availableArmy": {"infantry": 1, "artillery": 0},
-                        "rewardCapacityBonus": 8,
-                        "rewardPriceBonus": 1,
+                        "rewardCapacityBonus": 2,
                         "infantryPower": 1,
                         "artilleryPower": 2,
                         "minimumPower": 1,
@@ -90,7 +89,7 @@ class BotTurnOrchestratorTests(unittest.TestCase):
         )
         self.assertEqual(
             payload["phase1Market"]["externalAllocations"],
-            [{"marketId": "middle_east", "quantity": 13}],
+            [{"marketId": "middle_east", "quantity": 7}],
         )
 
     def test_market_bot_payload_never_over_allocates_single_goods_stock(self) -> None:
@@ -189,10 +188,10 @@ class BotTurnOrchestratorTests(unittest.TestCase):
             self.assertEqual(turn_input.payload["domesticMarketPlan"]["domesticMarketActions"], [])
             self.assertTrue(
                 any(
-                    selection.get("actionId") in {"expand_workshop", "market_fair", "rural_development"}
+                    selection.get("actionId") == "trade_promotion"
                     for selection in turn_input.payload["governmentPlan"]["strategySelections"]
                 ),
-                "bot should select market regulation through government strategySelections",
+                "bot should select the active overseas-capacity market policy through government strategySelections",
             )
 
     def test_decision_bot_does_not_overrun_factory_budget_after_construction(self) -> None:

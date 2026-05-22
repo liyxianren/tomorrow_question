@@ -13,24 +13,34 @@
     "steam": 4,
     "electrified": 8
   },
+  "demandCoefficients": {
+    "idle": 1,
+    "handicraft": 2,
+    "mechanized": 3,
+    "steam": 4,
+    "electrified": 5
+  },
+  "rawMaterialPurchaseUnitCost": 1,
   "expansionCosts": {
-    "handicraft": 3,
-    "mechanized": 6,
-    "steam": 12,
-    "electrified": 20
+    "handicraft": 13,
+    "mechanized": 26,
+    "steam": 40,
+    "electrified": 56
   },
   "upgradeCosts": {
-    "mechanized": 12,
-    "steam": 20,
-    "electrified": 30
+    "handicraft": 6,
+    "mechanized": 10,
+    "steam": 16,
+    "electrified": 24
   },
   "newFactoryCosts": {
-    "handicraft": 12,
-    "mechanized": 25,
+    "handicraft": 13,
+    "mechanized": 26,
     "steam": 40,
-    "electrified": 55
+    "electrified": 56
   },
   "upgradeSourceLevels": {
+    "handicraft": "idle",
     "mechanized": "handicraft",
     "steam": "mechanized",
     "electrified": "steam"
@@ -44,9 +54,8 @@
       "domesticReferencePrice": 5,
       "overseasBasePrice": 6,
       "demandThreshold": 40,
-      "priceFloor": 2,
+      "priceFloor": 1,
       "priceCeiling": 12,
-      "overseasPriceCeiling": 24,
       "usageHint": "Phase 1 统一商品价格调节。"
     }
   }

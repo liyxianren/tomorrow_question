@@ -78,23 +78,27 @@ describe("GamePhasePanelContent", () => {
     expect(screen.getByTestId("decision-step-tab-government")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("government-resource-strip")).toHaveTextContent("行政力");
     expect(screen.getByTestId("government-resource-strip")).toHaveTextContent("3 / 3");
+    expect(screen.getByTestId("government-resource-strip")).toHaveTextContent("基础比例");
+    expect(screen.getByTestId("government-resource-strip")).toHaveTextContent("本轮比例");
     expect(screen.queryByTestId("government-market-preview")).not.toBeInTheDocument();
     expect(screen.getByTestId("government-market-policy-summary")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "选择：市场补贴" }));
-    expect(screen.getAllByText("市场补贴").length).toBeGreaterThan(1);
-    await user.click(screen.getByRole("button", { name: "激活政策：贸易协定" }));
+    expect(screen.queryByText("市场补贴")).not.toBeInTheDocument();
+    expect(screen.queryByText("价格管制")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "选择：贸易促进" }));
+    expect(screen.getAllByText("贸易促进").length).toBeGreaterThan(1);
+    await user.click(screen.getByRole("button", { name: "激活政策：扩充军队" }));
 
     await user.click(screen.getByRole("button", { name: "下一步：市场预览" }));
     expect(screen.getByTestId("domestic-panel")).toBeInTheDocument();
     expect(screen.getByTestId("decision-step-tab-domestic")).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByTestId("domestic-panel")).toHaveTextContent("国内容量变化 +2");
+    expect(screen.getByTestId("domestic-panel")).toHaveTextContent("海外容量变化 +2");
     expect(screen.getByTestId("domestic-panel")).not.toHaveTextContent("暂无市场调节");
 
     await user.click(screen.getByRole("button", { name: "下一步：军事要塞" }));
     expect(screen.getByTestId("military-panel")).toBeInTheDocument();
     expect(screen.getByTestId("decision-step-tab-military")).toHaveAttribute("aria-pressed", "true");
-    await user.click(screen.getByLabelText("确认动作：海军演练"));
-    await user.click(screen.getByRole("button", { name: "与非洲建交" }));
+    expect(screen.queryByText("海军演练")).not.toBeInTheDocument();
+    await user.click(screen.getByLabelText("确认动作：征募陆军"));
 
     expect(readDraftJson()).toEqual({
       factoryPlan: {
@@ -102,6 +106,7 @@ describe("GamePhasePanelContent", () => {
         expansionOrders: [],
         upgradeOrders: [],
         newFactoryOrders: [],
+        rawMaterialPurchaseQuantity: 0,
         factoryActions: [],
       },
       domesticMarketPlan: {
@@ -109,16 +114,16 @@ describe("GamePhasePanelContent", () => {
       },
       governmentPlan: {
         pointPurchases: [],
-        strategySelections: [{ actionId: "market_subsidy" }],
+        strategySelections: [{ actionId: "trade_promotion" }],
         techResearch: [],
         adminPurchases: 0,
       },
       militaryPlan: {
         unlockColonization: false,
-        militaryActions: [{ actionId: "naval_drill" }],
-        diplomacyActions: [{ actionId: "establish_africa" }],
+        militaryActions: [{ actionId: "recruit_army" }],
         colonizationActions: [],
         navalDeployment: {},
+        regionBlockades: {},
         conquestActions: [],
         lootingActions: [],
       },
@@ -126,7 +131,7 @@ describe("GamePhasePanelContent", () => {
         talentUnlocks: [],
       },
       reforms: [],
-      activatePolicies: ["trade_agreement"],
+      activatePolicies: ["expand_army"],
       deactivatePolicies: [],
     });
   });
@@ -216,11 +221,11 @@ describe("GamePhasePanelContent", () => {
 
     await user.click(screen.getByRole("button", { name: "下一步：政府政策" }));
 
-    expect(screen.getByRole("button", { name: "激活政策：贸易协定" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "激活政策：扩充军队" })).toBeDisabled();
     expect(screen.getAllByText("财政不足").length).toBeGreaterThan(0);
   });
 
-  it("keeps the government fiscal display separate from the policy allowance", async () => {
+  it("shows a single government fiscal pool without policy allowance", async () => {
     renderPanel("decision", {
       decisionWorkspace: createDecisionPlayerWorkspace({
         budgetPools: {
@@ -239,14 +244,56 @@ describe("GamePhasePanelContent", () => {
 
     expect(screen.getByTestId("decision-resource-bar")).toHaveTextContent("政府财政");
     expect(screen.getByTestId("decision-resource-bar")).toHaveTextContent("10 / 10");
-    expect(screen.getByTestId("decision-resource-bar")).toHaveTextContent("政策专项额度 8 / 8");
+    expect(screen.getByTestId("decision-resource-bar")).not.toHaveTextContent("政策专项额度");
     expect(screen.getByTestId("decision-resource-bar")).not.toHaveTextContent("18 / 18");
 
     await user.click(screen.getByRole("button", { name: "下一步：政府政策" }));
 
     expect(screen.getByText("政府财政 10 / 10")).toBeInTheDocument();
-    expect(screen.getByTestId("government-resource-strip")).toHaveTextContent("政策专项额度");
-    expect(screen.getByTestId("government-resource-strip")).toHaveTextContent("8 / 8");
+    expect(screen.getByTestId("government-resource-strip")).not.toHaveTextContent("政策专项额度");
+  });
+
+  it("shows army strength and fleet blockade capacity in the decision resource bar", async () => {
+    const workspace = createDecisionPlayerWorkspace();
+    renderPanel("decision", {
+      decisionWorkspace: {
+        ...workspace,
+        militaryWorkspace: {
+          ...workspace.militaryWorkspace,
+          army: { infantry: 2, artillery: 1 },
+          navy: { fleets: 3 },
+        },
+      },
+    });
+
+    const resourceBar = screen.getByTestId("decision-resource-bar");
+    expect(resourceBar).toHaveTextContent("陆军");
+    expect(resourceBar).toHaveTextContent("3");
+    expect(resourceBar).toHaveTextContent("市场争夺 / 军事力量");
+    expect(resourceBar).toHaveTextContent("舰队封锁");
+    expect(resourceBar).toHaveTextContent("3 / 3");
+    expect(resourceBar).toHaveTextContent("可部署 / 总舰队");
+  });
+
+  it("explains research breakthrough rules in player-facing steps", async () => {
+    renderPanel("decision");
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "下一步：政府政策" }));
+    await user.click(screen.getByRole("button", { name: "下一步：市场预览" }));
+    await user.click(screen.getByRole("button", { name: "下一步：军事要塞" }));
+    await user.click(screen.getByRole("button", { name: "下一步：研究院" }));
+
+    expect(screen.getByText(/每所研究设施.*每回合.*研究进度/)).toBeInTheDocument();
+    expect(screen.getByText(/首个发现者.*1-10/)).toBeInTheDocument();
+    expect(screen.getByText(/如果你是第一个研究到的国家/)).toBeInTheDocument();
+    expect(screen.getByText(/不会清空进度/)).toBeInTheDocument();
+    expect(screen.getByText(/别的国家已经先发现这项科技/)).toBeInTheDocument();
+    const workbench = screen.getByTestId("decision-workbench");
+    expect(workbench).toHaveTextContent(/\+\d+\s*研究进度\/回合/);
+    expect(workbench).toHaveTextContent("当前进度 0/3");
+    expect(workbench).toHaveTextContent(/本轮研究产出 \+\d+ 进度\/回合/);
+    expect(workbench).not.toHaveTextContent(/推进方式\s+0\s*%/);
   });
 
   it("labels one-round fiscal policies with government fiscal and this-round allocation", async () => {
@@ -324,10 +371,10 @@ describe("GamePhasePanelContent", () => {
       },
       militaryPlan: {
         militaryActions: [],
-        diplomacyActions: [],
         unlockColonization: false,
         colonizationActions: [],
         navalDeployment: {},
+        regionBlockades: {},
         conquestActions: [],
         lootingActions: [],
       },
@@ -380,6 +427,7 @@ describe("GamePhasePanelContent", () => {
         expansionOrders: [],
         upgradeOrders: [],
         newFactoryOrders: [],
+        rawMaterialPurchaseQuantity: 0,
         factoryActions: [],
       },
       domesticMarketPlan: {
@@ -393,10 +441,10 @@ describe("GamePhasePanelContent", () => {
       },
       militaryPlan: {
         militaryActions: [],
-        diplomacyActions: [],
         unlockColonization: false,
         colonizationActions: [],
         navalDeployment: {},
+        regionBlockades: {},
         conquestActions: [],
         lootingActions: [],
       },
@@ -413,7 +461,7 @@ describe("GamePhasePanelContent", () => {
     });
   });
 
-  it("renders military region status and hides established diplomacy actions", async () => {
+  it("renders military region status without diplomacy actions", async () => {
     renderPanel("decision");
     const user = userEvent.setup();
 
@@ -423,8 +471,8 @@ describe("GamePhasePanelContent", () => {
 
     expect(screen.getByRole("heading", { name: /世界地图/ })).toBeInTheDocument();
     expect(screen.getAllByText("橡胶·棉花·矿产").length).toBeGreaterThan(0);
-    expect(screen.queryByRole("button", { name: "与中东建交" })).not.toBeInTheDocument();
-    expect(screen.getByText("中东 已建交")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /建交/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/已建交/)).not.toBeInTheDocument();
   });
 
   it("builds the 2.0 market payload with phase1Market allocations", async () => {
@@ -434,25 +482,23 @@ describe("GamePhasePanelContent", () => {
           {
             regionId: "asia_pacific",
             label: "亚太",
-            accessLevel: "concession",
+            accessLevel: "open",
             isAccessible: true,
             lockReason: null,
-            isDiplomacyEstablished: true,
             canCompete: true,
             competitionLockedReason: null,
-            competitionRewardCapacityBonus: 8,
-            competitionRewardPriceBonus: 1,
+            competitionRewardCapacityBonus: 2,
             competitionMinimumPower: 1,
             isColonized: false,
             controller: null,
             acceptedGoods: ["grain"],
+            fixedOverseasPrice: 6,
             priceMultiplier: 1.1,
           },
         ],
         overseasCompetition: {
           availableArmy: { infantry: 1, artillery: 0 },
-          rewardCapacityBonus: 8,
-          rewardPriceBonus: 1,
+          rewardCapacityBonus: 2,
           infantryPower: 1,
           artilleryPower: 2,
           minimumPower: 1,
@@ -482,7 +528,7 @@ describe("GamePhasePanelContent", () => {
     renderPanel("market");
     const user = userEvent.setup();
 
-    await user.click(screen.getByLabelText("增加步兵投放"));
+    await user.click(screen.getByLabelText("增加中东步兵投放"));
 
     const draft = readDraftJson();
     expect(draft.phase1Market?.externalCompetitionDeployments).toEqual([
@@ -491,7 +537,7 @@ describe("GamePhasePanelContent", () => {
     expect(draft.militaryPlan).toBeUndefined();
   });
 
-  it("clamps domestic MAX to domestic demand instead of total inventory", async () => {
+  it("lets domestic MAX use remaining inventory instead of domestic demand", async () => {
     renderPanel("market", {
       marketWorkspace: createMarketPlayerWorkspace({
         phase1GoodsAvailable: 8,
@@ -515,10 +561,10 @@ describe("GamePhasePanelContent", () => {
     await user.click(screen.getByLabelText("国内市场投放最大"));
 
     const draft = readDraftJson();
-    expect(draft.phase1Market?.domesticAllocation).toBe(7);
+    expect(draft.phase1Market?.domesticAllocation).toBe(8);
   });
 
-  it("clamps domestic MAX to domestic market capacity when capacity is lower than demand", async () => {
+  it("does not hard-clamp domestic MAX to the domestic soft cap", async () => {
     renderPanel("market", {
       marketWorkspace: createMarketPlayerWorkspace({
         phase1GoodsAvailable: 8,
@@ -542,7 +588,7 @@ describe("GamePhasePanelContent", () => {
     await user.click(screen.getByLabelText("国内市场投放最大"));
 
     const draft = readDraftJson();
-    expect(draft.phase1Market?.domesticAllocation).toBe(4);
+    expect(draft.phase1Market?.domesticAllocation).toBe(8);
   });
 
   it("renders the Phase1MarketPanel with summary stats", () => {
@@ -550,12 +596,67 @@ describe("GamePhasePanelContent", () => {
 
     const panel = screen.getByTestId("phase1-market-panel");
     expect(panel).toBeInTheDocument();
-    expect(within(panel).getByText("商品库存")).toBeInTheDocument();
+    expect(within(panel).getAllByText("商品库存").length).toBeGreaterThan(0);
     expect(within(panel).getByText("市场需求")).toBeInTheDocument();
     expect(within(panel).getByText("定价池")).toBeInTheDocument();
-    expect(within(panel).getByText("投放上限")).toBeInTheDocument();
-    expect(within(panel).getByText(/实际成交会按投放量重新计算/)).toBeInTheDocument();
-    expect(within(panel).getAllByText(/海外加成/).length).toBeGreaterThan(0);
+    expect(within(panel).getByText("定价软上限")).toBeInTheDocument();
+    expect(within(panel).getByText("国内价格怎么算")).toBeInTheDocument();
+    const domesticCalculation = within(panel).getByTestId("phase1-market-domestic-calculation");
+    expect(domesticCalculation).toHaveTextContent("民间购买力");
+    expect(domesticCalculation).toHaveTextContent("国内承接量");
+    expect(domesticCalculation).toHaveTextContent("正常单价");
+    expect(domesticCalculation).toHaveTextContent("本轮收入分配");
+    expect(domesticCalculation).toHaveTextContent("3 / 3 / 4");
+    expect(within(panel).getAllByText("区域固定价").length).toBeGreaterThan(0);
+    expect(within(panel).getByText("市场计算核对")).toBeInTheDocument();
+    expect(within(panel).getByText(/当前预估：国内/)).toBeInTheDocument();
+    expect(within(panel).getByTestId("phase1-market-audit-backend-price")).toBeInTheDocument();
+    expect(within(panel).getByTestId("phase1-market-audit-domestic-price")).toBeInTheDocument();
+  });
+
+  it("labels overseas exclusive and blocked regions on the market panel", () => {
+    const baseWorkspace = createMarketPlayerWorkspace();
+    renderPanel("market", {
+      marketWorkspace: createMarketPlayerWorkspace({
+        regionAccessStatus: [
+          {
+            ...baseWorkspace.regionAccessStatus[0],
+            regionId: "africa",
+            label: "非洲",
+            isAccessible: true,
+            lockReason: null,
+            isBlockaded: true,
+            blockadeController: "britain",
+            myBlockadeFleet: 4,
+          },
+          {
+            ...baseWorkspace.regionAccessStatus[1],
+            regionId: "middle_east",
+            label: "中东",
+            isAccessible: false,
+            lockReason: "route_blocked",
+            blockedOceanNodes: [
+              {
+                nodeId: "middle_east",
+                label: "中东",
+                controller: "france",
+                controllerLabel: "法国",
+              },
+            ],
+            isBlockaded: true,
+            blockadeController: "france",
+            canCompete: false,
+            competitionLockedReason: "route_blocked",
+          },
+        ],
+      }),
+    });
+
+    const panel = screen.getByTestId("phase1-market-panel");
+    expect(within(panel).getAllByText("本国独占").length).toBeGreaterThan(0);
+    expect(within(panel).getByText(/你已封锁该地区/)).toBeInTheDocument();
+    expect(within(panel).getAllByText("被封锁").length).toBeGreaterThan(0);
+    expect(within(panel).getByText(/法国 正在封锁该地区/)).toBeInTheDocument();
   });
 
   it("shows government market policy effects in the market phase", () => {
@@ -585,7 +686,7 @@ describe("GamePhasePanelContent", () => {
     });
 
     const banner = screen.getByTestId("phase1-market-government-adjustments");
-    expect(banner).toHaveTextContent("政府市场政策");
+    expect(banner).toHaveTextContent("市场容量调整");
     expect(banner).toHaveTextContent("国内容量 +2");
     expect(banner).toHaveTextContent("国内价格 +2");
     expect(banner).toHaveTextContent("海外容量 +2");
@@ -593,7 +694,7 @@ describe("GamePhasePanelContent", () => {
     expect(banner).toHaveTextContent("国内价格 +1");
   });
 
-  it("shows only the effective factory/government fiscal return ratio during settlement", () => {
+  it("shows the full domestic/factory/government return ratio during settlement", () => {
     renderPanel("settlement", {
       settlementWorkspace: createSettlementPlayerWorkspace({
         nextRatio: {
@@ -602,7 +703,7 @@ describe("GamePhasePanelContent", () => {
           governmentFiscal: 4,
         },
         budgetAllocation: {
-          domesticMarket: 0,
+          domesticMarket: 10,
           factory: 12,
           governmentFiscal: 18,
         },
@@ -610,9 +711,39 @@ describe("GamePhasePanelContent", () => {
     });
 
     expect(screen.getByText("本轮有效回流比例")).toBeInTheDocument();
-    expect(screen.getByText("3 / 4")).toBeInTheDocument();
-    expect(screen.getByText("民间购买力不再作为政策额度来源，本轮售卖收入不会直接分配到这里。")).toBeInTheDocument();
+    expect(screen.getByText("4 / 3 / 4")).toBeInTheDocument();
+    expect(screen.getByText("本轮分配到民间购买力的份额，结算后并入下回合国内消费池。")).toBeInTheDocument();
     expect(screen.queryByText(/40% 自然消费/)).not.toBeInTheDocument();
-    expect(screen.queryByText("4 / 3 / 4")).not.toBeInTheDocument();
+  });
+
+  it("previews next consumer purchasing power as previous pool plus this-round return", () => {
+    const phase1Economy = createMarketPlayerWorkspace().phase1Economy!;
+
+    renderPanel("settlement", {
+      settlementWorkspace: createSettlementPlayerWorkspace({
+        nextRatio: {
+          domesticMarket: 3,
+          factory: 3,
+          governmentFiscal: 4,
+        },
+        budgetAllocation: {
+          domesticMarket: 19,
+          factory: 19,
+          governmentFiscal: 26,
+        },
+        phase1Economy: {
+          ...phase1Economy,
+          consumptionPool: 24,
+          poolDeltaPreview: {
+            consumption: 19,
+            investment: 19,
+            fiscal: 26,
+          },
+        },
+      }),
+    });
+
+    expect(screen.getByText("上期余额 24 财政 + 本轮回流 19 财政 = 下回合民间购买力 43 财政。")).toBeInTheDocument();
+    expect(screen.getByText("本回合收入按当前 3 / 3 / 4 分配到民间购买力的部分。")).toBeInTheDocument();
   });
 });

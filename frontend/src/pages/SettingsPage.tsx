@@ -7,6 +7,10 @@ import { PrimaryButton } from "../components/ui/PrimaryButton";
 import { SectionCard } from "../components/ui/SectionCard";
 import { DecisionParameterSandbox, type DecisionSandboxPayload } from "../components/settings/DecisionParameterSandbox";
 import type { ParameterBindingSource } from "../features/game/parameterInspector";
+import {
+  DOMESTIC_PRICE_CEILING_RATIO,
+  DOMESTIC_PRICE_FLOOR_RATIO,
+} from "../features/game/marketMath";
 import i18n from "../i18n";
 import { apiRequest } from "../services/http";
 import "./SettingsPage.css";
@@ -27,10 +31,18 @@ type NumericConfigEntry = {
 
 type SettingsPayload = {
   production: {
+    expansionCosts: Record<string, number>;
     newFactoryCosts: Record<string, number>;
     upgradeCosts: Record<string, number>;
+    rawMaterialPurchaseUnitCost: number;
   };
-  countries: Record<string, { initialRawMaterials: number; rawMaterialsPerTurn: number }>;
+  countries: Record<string, {
+    initialRawMaterials: number;
+    rawMaterialsPerTurn: number;
+    factoryTotalCap: number;
+    factoryCapsByMode: Record<string, number>;
+    materialPurchaseCapPerTurn: number;
+  }>;
   global: { baseIncomePerRound: number };
   regions: Record<string, number>;
   government: {
@@ -57,11 +69,9 @@ type BudgetFormulaContext = {
   overseasCapacity: number | null;
   domesticDemand: number | null;
   equilibriumPrice: number | null;
-  domesticPriceCeiling: number | null;
-  overseasPriceCeiling: number | null;
+  minimumDomesticPrice: number | null;
+  maximumDomesticPrice: number | null;
   marketPriceDrift: number | null;
-  policyBudgetSupplement: number;
-  displayedGovernmentBudget: number;
   adminCapacity: number;
   adminPurchaseCost: number | null;
   productionModes: Array<{
@@ -69,9 +79,10 @@ type BudgetFormulaContext = {
     label: string;
     outputRatio: number;
     demandCoefficient: number;
-    buildCost: number | null;
+    expansionCost: number | null;
     upgradeCost: number | null;
     currentCapacity: number;
+    factoryCap: number | null;
     requiredTech: string | string[] | null;
     isAvailable: boolean;
   }>;
@@ -90,7 +101,7 @@ const PRODUCTION_LEVELS: Array<{ key: string; label: string }> = [
   { key: "electrified", label: `${i18n.t("game:productionRoute.electrified")} (electrified)` },
 ];
 
-const UPGRADABLE_LEVELS = new Set(["mechanized", "steam", "electrified"]);
+const UPGRADABLE_LEVELS = new Set(["handicraft", "mechanized", "steam", "electrified"]);
 
 const COUNTRY_LABELS: Array<{ key: string; label: string }> = [
   { key: "britain", label: i18n.t("game:country.britain") },
@@ -140,14 +151,19 @@ const CONFIG_FILE_LABELS: Record<string, string> = {
 };
 
 const COVERED_NUMERIC_PATHS = new Set<string>([
+  ...PRODUCTION_LEVELS.map(({ key }) => numericPathKey("production.json", ["expansionCosts", key])),
   ...PRODUCTION_LEVELS.map(({ key }) => numericPathKey("production.json", ["newFactoryCosts", key])),
   ...Array.from(UPGRADABLE_LEVELS).map((key) => numericPathKey("production.json", ["upgradeCosts", key])),
+  numericPathKey("production.json", ["rawMaterialPurchaseUnitCost"]),
   ...COUNTRY_LABELS.flatMap(({ key }) => [
     numericPathKey("countries.json", ["countries", key, "initialRawMaterials"]),
     numericPathKey("countries.json", ["countries", key, "rawMaterialsPerTurn"]),
+    numericPathKey("countries.json", ["countries", key, "factoryTotalCap"]),
+    numericPathKey("countries.json", ["countries", key, "materialPurchaseCapPerTurn"]),
+    ...PRODUCTION_LEVELS.map((level) => numericPathKey("countries.json", ["countries", key, "factoryCapsByMode", level.key])),
   ]),
   numericPathKey("global.json", ["baseIncomePerRound"]),
-  ...Object.keys(REGION_LABELS).map((key, index) => numericPathKey("regions.json", ["regions", index, "priceMultiplier"])),
+  ...Object.keys(REGION_LABELS).map((key, index) => numericPathKey("regions.json", ["regions", index, "fixedOverseasPrice"])),
   numericPathKey("politics.json", ["administrationCost"]),
   numericPathKey("politics.json", ["ideologyMin"]),
   numericPathKey("politics.json", ["ideologyMax"]),
@@ -174,19 +190,30 @@ function getCoveredNumericValue(
   fileName: string,
   path: NumericPathSegment[],
 ): number | null {
+  if (fileName === "production.json" && path[0] === "expansionCosts" && typeof path[1] === "string") {
+    return data.production.expansionCosts[path[1]] ?? 0;
+  }
   if (fileName === "production.json" && path[0] === "newFactoryCosts" && typeof path[1] === "string") {
     return data.production.newFactoryCosts[path[1]] ?? 0;
   }
   if (fileName === "production.json" && path[0] === "upgradeCosts" && typeof path[1] === "string") {
     return data.production.upgradeCosts[path[1]] ?? 0;
   }
-  if (fileName === "countries.json" && path[0] === "countries" && typeof path[1] === "string" && (path[2] === "initialRawMaterials" || path[2] === "rawMaterialsPerTurn")) {
-    return data.countries[path[1]]?.[path[2]] ?? 0;
+  if (fileName === "production.json" && pathsEqual(path, ["rawMaterialPurchaseUnitCost"])) {
+    return data.production.rawMaterialPurchaseUnitCost;
+  }
+  if (fileName === "countries.json" && path[0] === "countries" && typeof path[1] === "string") {
+    if (path[2] === "initialRawMaterials" || path[2] === "rawMaterialsPerTurn" || path[2] === "factoryTotalCap" || path[2] === "materialPurchaseCapPerTurn") {
+      return data.countries[path[1]]?.[path[2]] ?? 0;
+    }
+    if (path[2] === "factoryCapsByMode" && typeof path[3] === "string") {
+      return data.countries[path[1]]?.factoryCapsByMode?.[path[3]] ?? 0;
+    }
   }
   if (fileName === "global.json" && pathsEqual(path, ["baseIncomePerRound"])) {
     return data.global.baseIncomePerRound;
   }
-  if (fileName === "regions.json" && path[0] === "regions" && typeof path[1] === "number" && path[2] === "priceMultiplier") {
+  if (fileName === "regions.json" && path[0] === "regions" && typeof path[1] === "number" && path[2] === "fixedOverseasPrice") {
     const regionKey = Object.keys(REGION_LABELS)[path[1]];
     return regionKey ? data.regions[regionKey] ?? 0 : 0;
   }
@@ -234,8 +261,6 @@ function getBudgetFormulaContext(data: SettingsPayload): BudgetFormulaContext {
     factory: 0,
     governmentFiscal: 0,
   };
-  const displayedGovernmentBudget = toNumberOrZero(workspace?.budgetPools?.governmentFiscal);
-  const baseGovernmentBudget = toNumberOrZero(currentPools.governmentFiscal);
   const domesticWeight = toNumberOrZero(workspace?.incomeAllocationRatio?.domesticMarket);
   const factoryWeight = toNumberOrZero(workspace?.incomeAllocationRatio?.factory);
   const governmentWeight = toNumberOrZero(workspace?.incomeAllocationRatio?.governmentFiscal);
@@ -249,16 +274,24 @@ function getBudgetFormulaContext(data: SettingsPayload): BudgetFormulaContext {
     domesticWeight,
     factoryWeight,
     governmentWeight,
-    effectiveWeight: factoryWeight + governmentWeight,
-    domesticCapacity: toNumberOrNull(workspace?.domesticMarketCapacity),
+    effectiveWeight: domesticWeight + factoryWeight + governmentWeight,
+    domesticCapacity: toNumberOrNull(phase1Economy?.domesticSoftCap ?? workspace?.domesticMarketCapacity),
     overseasCapacity: toNumberOrNull(workspace?.overseasMarketCapacity),
     domesticDemand: toNumberOrNull(phase1Economy?.domesticDemand),
     equilibriumPrice: toNumberOrNull(phase1Economy?.equilibriumPrice),
-    domesticPriceCeiling: toNumberOrNull(phase1Economy?.domesticPriceCeiling),
-    overseasPriceCeiling: toNumberOrNull(phase1Economy?.overseasPriceCeiling),
+    minimumDomesticPrice: toNumberOrNull(
+      phase1Economy?.minimumDomesticPrice
+        ?? (phase1Economy?.equilibriumPrice == null
+          ? null
+          : phase1Economy.equilibriumPrice * DOMESTIC_PRICE_FLOOR_RATIO),
+    ),
+    maximumDomesticPrice: toNumberOrNull(
+      phase1Economy?.domesticPriceCeiling
+        ?? (phase1Economy?.equilibriumPrice == null
+          ? null
+          : phase1Economy.equilibriumPrice * DOMESTIC_PRICE_CEILING_RATIO),
+    ),
     marketPriceDrift: toNumberOrNull(phase1Economy?.marketPriceDrift),
-    policyBudgetSupplement: Math.max(0, displayedGovernmentBudget - baseGovernmentBudget),
-    displayedGovernmentBudget,
     adminCapacity: toNumberOrZero(data.decisionSandbox?.playerState.administrationCapacity),
     adminPurchaseCost: toNumberOrNull(workspace?.governmentReforms?.adminPurchaseCost),
     productionModes: (phase1Economy?.productionModes ?? []).map((mode) => ({
@@ -266,9 +299,10 @@ function getBudgetFormulaContext(data: SettingsPayload): BudgetFormulaContext {
       label: String(mode.label),
       outputRatio: toNumberOrZero(mode.outputRatio),
       demandCoefficient: toNumberOrZero(mode.demandCoefficient),
-      buildCost: toNumberOrNull(mode.buildCost),
+      expansionCost: toNumberOrNull(mode.buildCost),
       upgradeCost: toNumberOrNull(mode.upgradeCost),
       currentCapacity: toNumberOrZero(mode.currentCapacity),
+      factoryCap: toNumberOrNull(mode.factoryCap),
       requiredTech: mode.requiredTech ?? null,
       isAvailable: Boolean(mode.isAvailable),
     })),
@@ -365,11 +399,12 @@ export function SettingsPage() {
     );
   }
 
-  const updateNewFactoryCost = (key: string, value: number) => {
+  const updateExpansionCost = (key: string, value: number) => {
     setData({
       ...data,
       production: {
         ...data.production,
+        expansionCosts: { ...data.production.expansionCosts, [key]: value },
         newFactoryCosts: { ...data.production.newFactoryCosts, [key]: value },
       },
     });
@@ -385,9 +420,19 @@ export function SettingsPage() {
     });
   };
 
+  const updateRawMaterialPurchaseUnitCost = (value: number) => {
+    setData({
+      ...data,
+      production: {
+        ...data.production,
+        rawMaterialPurchaseUnitCost: value,
+      },
+    });
+  };
+
   const updateCountry = (
     key: string,
-    field: "initialRawMaterials" | "rawMaterialsPerTurn",
+    field: "initialRawMaterials" | "rawMaterialsPerTurn" | "factoryTotalCap" | "materialPurchaseCapPerTurn",
     value: number,
   ) => {
     setData({
@@ -395,6 +440,24 @@ export function SettingsPage() {
       countries: {
         ...data.countries,
         [key]: { ...data.countries[key], [field]: value },
+      },
+    });
+  };
+
+  const updateCountryFactoryModeCap = (countryKey: string, modeKey: string, value: number) => {
+    const country = data.countries[countryKey];
+    if (!country) return;
+    setData({
+      ...data,
+      countries: {
+        ...data.countries,
+        [countryKey]: {
+          ...country,
+          factoryCapsByMode: {
+            ...country.factoryCapsByMode,
+            [modeKey]: value,
+          },
+        },
       },
     });
   };
@@ -470,6 +533,10 @@ export function SettingsPage() {
     const { decisionSandbox: _decisionSandbox, ...settingsData } = data;
     return {
       ...settingsData,
+      production: {
+        ...settingsData.production,
+        newFactoryCosts: { ...settingsData.production.expansionCosts },
+      },
       numericConfig: Object.fromEntries(
         Object.entries(data.numericConfig).map(([fileName, entries]) => [
           fileName,
@@ -480,23 +547,37 @@ export function SettingsPage() {
   };
 
   function updateCoveredNumericValue(fileName: string, path: NumericPathSegment[], value: number): boolean {
+    if (fileName === "production.json" && path[0] === "expansionCosts" && typeof path[1] === "string") {
+      updateExpansionCost(path[1], value);
+      return true;
+    }
     if (fileName === "production.json" && path[0] === "newFactoryCosts" && typeof path[1] === "string") {
-      updateNewFactoryCost(path[1], value);
+      updateExpansionCost(path[1], value);
       return true;
     }
     if (fileName === "production.json" && path[0] === "upgradeCosts" && typeof path[1] === "string") {
       updateUpgradeCost(path[1], value);
       return true;
     }
-    if (fileName === "countries.json" && path[0] === "countries" && typeof path[1] === "string" && (path[2] === "initialRawMaterials" || path[2] === "rawMaterialsPerTurn")) {
-      updateCountry(path[1], path[2], value);
+    if (fileName === "production.json" && pathsEqual(path, ["rawMaterialPurchaseUnitCost"])) {
+      updateRawMaterialPurchaseUnitCost(value);
       return true;
+    }
+    if (fileName === "countries.json" && path[0] === "countries" && typeof path[1] === "string") {
+      if (path[2] === "initialRawMaterials" || path[2] === "rawMaterialsPerTurn" || path[2] === "factoryTotalCap" || path[2] === "materialPurchaseCapPerTurn") {
+        updateCountry(path[1], path[2], value);
+        return true;
+      }
+      if (path[2] === "factoryCapsByMode" && typeof path[3] === "string") {
+        updateCountryFactoryModeCap(path[1], path[3], value);
+        return true;
+      }
     }
     if (fileName === "global.json" && pathsEqual(path, ["baseIncomePerRound"])) {
       updateGlobalIncome(value);
       return true;
     }
-    if (fileName === "regions.json" && path[0] === "regions" && typeof path[1] === "number" && path[2] === "priceMultiplier") {
+    if (fileName === "regions.json" && path[0] === "regions" && typeof path[1] === "number" && path[2] === "fixedOverseasPrice") {
       const regionKey = Object.keys(REGION_LABELS)[path[1]];
       if (regionKey) {
         updateRegion(regionKey, value);
@@ -612,14 +693,14 @@ export function SettingsPage() {
               <h3>这块不是玩家提示，而是开发交付给策划的真实规则说明。</h3>
               <p>
                 用户点击按钮时看到的是“花费”和“效果”；这里解释按钮背后的预算池、市场、生产、政策、军事、研究如何互相影响。
-                如果后续调参出现“为什么下回合多了这么多钱”“为什么国内市场没有涨”“为什么政府财政显示值和真实扣款不同”，优先看这一块。
+                如果后续调参出现“为什么下回合多了这么多钱”“为什么国内市场没有涨”“为什么政府财政不够用”，优先看这一块。
               </p>
             </div>
             <div className="settings-rule-book__notes">
               <strong>当前实现最重要的三个口径</strong>
               <span>国内市场池当前不是收入回流池，市场卖货收入不会按比例进入国内市场池。</span>
-              <span>政府财政有“真实财政池”和“决策显示池”两层；每回合 8 点政策专项额度不结转、不存入真实国库。</span>
-              <span>工厂升级当轮可用；新建/扩建先进产能会先排队，结算后才转成下回合真实产能。</span>
+              <span>政府财政只有一个池子；政策、军事、研究和行政力购买都从同一政府财政中扣除。</span>
+              <span>扩建会直接建设目标类型工厂并本回合生效；升级是逐级转换，不增加总工厂数。</span>
             </div>
           </div>
 
@@ -634,7 +715,7 @@ export function SettingsPage() {
                     <th>当前产能</th>
                     <th>原材料转商品</th>
                     <th>需求系数</th>
-                    <th>新建成本</th>
+                    <th>扩建成本</th>
                     <th>升级成本</th>
                     <th>科技前置</th>
                   </tr>
@@ -646,7 +727,7 @@ export function SettingsPage() {
                       <td>{mode.currentCapacity}</td>
                       <td>{mode.outputRatio}x</td>
                       <td>{formatFormulaNumber(mode.demandCoefficient)}</td>
-                      <td>{mode.buildCost === null ? "无" : mode.buildCost}</td>
+                      <td>{mode.expansionCost === null ? "无" : mode.expansionCost}</td>
                       <td>{mode.upgradeCost === null ? "无" : mode.upgradeCost}</td>
                       <td>
                         {formatTechRequirement(mode.requiredTech)}
@@ -680,126 +761,129 @@ export function SettingsPage() {
             <FormulaCard
               title="2. 国内市场 / 民间购买力池"
               formula={[
-                "新增国内市场预算 = 0",
-                "下回合国内市场预算 = 当前国内市场预算",
+                "新增国内市场预算 = 向下取整(国家收入 × 国内市场权重 / 总权重)",
+                "下回合国内市场预算 = 当前国内市场预算 + 新增国内市场预算",
               ]}
-              explanation="当前 Phase 1 规则里，民间购买力池是国内市场承接力，不是卖货收入回流池；它主要通过政策、事件、改革和容量效果变化。"
+              explanation="民间购买力池既是国内均衡价的资金来源，也是国家收入按 3:3:4 回流后的消费侧预算。"
               details={[
-                "国内市场池仍然存在，可以作为旧版国内市场动作或部分效果的资源字段，但财政结算不会把国家收入分到这里。",
-                "国内市场成交量看的是国内容量、需求、库存和玩家投放，不是直接花掉国内市场池。",
-                "如果策划希望国内市场池参与回流，需要改结算函数，而不是只改前端文案。",
+                "国内市场池不会在市场阶段被直接扣花掉；它作为消费池资金参与 P0 = C / K 的定价。",
+                "财政结算会把国家收入按当前三池权重分回民间购买力、工厂预算和政府财政。",
+                "默认权重为 3:3:4；政策如果改变分配比例，仍走同一套权重字段。",
               ]}
               examples={[
-                `当前基线国内市场池 = ${budgetFormula.currentPools.domesticMarket}；即使国家收入为 70，结算新增仍是 0。`,
+                `当前基线国内市场池 = ${budgetFormula.currentPools.domesticMarket}；国家收入 70 且权重 3:3:4 时，国内市场新增 21。`,
               ]}
               source="财政结算分账"
-              tone="warning"
             />
             <FormulaCard
               title="3. 工厂预算池"
               formula={[
-                "有效权重 = 工厂权重 + 政府财政权重",
-                "新增工厂预算 = 向下取整(国家收入 × 工厂权重 / 有效权重)",
+                "总权重 = 国内市场权重 + 工厂权重 + 政府财政权重",
+                "新增工厂预算 = 向下取整(国家收入 × 工厂权重 / 总权重)",
                 "下回合工厂预算 = 当前工厂预算 + 新增工厂预算",
               ]}
               explanation="工厂预算用于下回合生产、工厂增加和产业升级。这里使用向下取整，所以小数部分不会进入工厂预算。"
               details={[
-                "结算时会忽略国内市场权重，只拿工厂和政府两个权重计算有效权重。",
+                "结算时三个预算池都参与分账，国内市场权重不再被冻结或忽略。",
                 "工厂预算新增使用向下取整，余数不会丢失，而是由政府财政承接。",
-                "工厂预算会被生产投料、工厂增加、新建工厂、产业升级、工厂行动共同消耗。",
+                "工厂预算会被生产投料、扩建、产业升级、工厂行动共同消耗。",
               ]}
               examples={[
-                `当前有效权重 = ${formatFormulaNumber(budgetFormula.factoryWeight)} + ${formatFormulaNumber(budgetFormula.governmentWeight)} = ${formatFormulaNumber(budgetFormula.effectiveWeight)}。`,
-                "例：国家收入 51，工厂权重 3，政府权重 3，则工厂新增向下取整(51×3/6)=25，政府新增 26。",
+                `当前总权重 = ${formatFormulaNumber(budgetFormula.domesticWeight)} + ${formatFormulaNumber(budgetFormula.factoryWeight)} + ${formatFormulaNumber(budgetFormula.governmentWeight)} = ${formatFormulaNumber(budgetFormula.effectiveWeight)}。`,
+                "例：国家收入 51，权重 3:3:4，则国内新增 15，工厂新增 15，政府新增 21。",
               ]}
               source="财政结算分账"
             />
             <FormulaCard
               title="4. 政府财政池"
               formula={[
-                "新增政府财政 = 国家收入 - 新增工厂预算",
+                "新增政府财政 = 国家收入 - 新增国内市场预算 - 新增工厂预算",
                 "下回合政府财政 = 当前政府财政 + 新增政府财政",
               ]}
-              explanation="政府财政用于购买行政力、政策、军事和研究。政府财政吃掉取整后的余数，因此工厂预算 + 政府财政一定等于国家收入。政策专项额度只影响政策可用上限，不并入政府财政池。"
+              explanation="政府财政用于购买行政力、政策、军事和研究。政府财政吃掉取整后的余数，因此三池新增之和一定等于国家收入。"
               details={[
-                "政府财政新增 = 国家收入 - 工厂新增，所以分账余数一定落到政府财政。",
-                "政府财政真实池跨回合保留；政策专项额度是决策阶段临时显示和抵扣额度，不会进入这个真实池。",
-                "行政力购买、政府策略、政策激活、军事行动、外交、研究设施都可能消耗政府财政。",
+                "政府财政新增 = 国家收入 - 国内市场新增 - 工厂新增，所以分账余数一定落到政府财政。",
+                "政府财政跨回合保留；本回合政府相关支出直接从这个池子扣除。",
+                "行政力购买、政府策略、政策激活、军事行动、研究设施都可能消耗政府财政。",
               ]}
               examples={[
-                "例：国家收入 51，工厂新增 25，则政府财政新增 26；不是 25.5，也不是四舍五入。",
+                "例：国家收入 51，国内新增 15，工厂新增 15，则政府财政新增 21。",
               ]}
               source="财政结算分账"
             />
             <FormulaCard
               title="5. 国内成交与价格"
               formula={[
-                "国内成交 = min(投放量, 库存, 国内需求, 国内容量)",
+                "国内成交 = min(投放量, 库存)",
                 "国内需求 = Σ(各路线产能 × 需求系数)",
-                "国内最终价格 = 限制在 1 到价格上限之间(供需浮动价 + 国内价格加成)",
+                "K = max(1, 国内需求 + 国内容量修正)",
+                "P0 = 民间购买力池 / K",
+                "价格下限 = 0.1 × P0，价格上限 = 2 × P0",
+                "国内最终价格 = clamp(P0 × (2 - 投放量 / K) + 国内价格加成, 0.1 × P0, 2 × P0)",
               ]}
-              explanation={`当前基线：国内容量 ${formatFormulaNumber(budgetFormula.domesticCapacity)}，国内需求 ${formatFormulaNumber(budgetFormula.domesticDemand)}，国内价格上限 ${formatFormulaNumber(budgetFormula.domesticPriceCeiling)}。`}
+              explanation={`当前基线：定价软上限 ${formatFormulaNumber(budgetFormula.domesticCapacity)}，国内需求 ${formatFormulaNumber(budgetFormula.domesticDemand)}，均衡价 ${formatFormulaNumber(budgetFormula.equilibriumPrice)}，最低价 ${formatFormulaNumber(budgetFormula.minimumDomesticPrice)}，最高价 ${formatFormulaNumber(budgetFormula.maximumDomesticPrice)}。`}
               details={[
-                "均衡价当前为 3；如果有价格漂移，则先执行 max(1, 3 + priceDrift)。",
-                "供给少于需求时，价格按短缺率上浮；供给多于需求时，价格按过剩率下调，但下调倍率最低 0.5。",
-                "提交校验会把国内需求转成整数口径，因此小数需求可能被截断。",
+                "国内软上限只影响价格，不再作为出售硬上限。",
+                "供给少于 K 时，价格按短缺率上浮；供给超过 K 时，价格按过剩率线性下调。",
+                "下回合价格不再使用额外漂移字段；收入回流到民间购买力后，会自然改变下一轮 P0。",
+                "旧 priceFloor / priceCeiling 字段只作为兼容配置保留，不参与当前 Phase 1 国内结算。",
               ]}
               examples={[
-                "例：库存 20、投放 12、需求 8.5、国内容量 10，则国内成交最多是 8.5，提交侧通常按 8 检查。",
+                "例：民间购买力 40、K=10、投放 15，则 P0=4，单价=clamp(4×(2-1.5), 0.4, 8)=2，国内收入=30。",
               ]}
               source="国内市场出售"
             />
             <FormulaCard
               title="6. 海外成交与价格"
               formula={[
-                "海外成交受库存、海外容量、区域准入、路线可达性和竞争奖励限制",
-                "海外单价 = 限制在 1 到海外价格上限之间(向下取整(均衡价 × 区域倍率) + 加成)",
+                "海外成交受库存、共享海外容量、路线可达性和竞争奖励限制",
+                "海外收入 = 成交量 × 区域固定价",
+                "区域固定价：欧洲 8，美洲 7，亚太 6，中东 5，非洲 4",
               ]}
-              explanation={`当前基线：海外容量 ${formatFormulaNumber(budgetFormula.overseasCapacity)}，海外价格上限 ${formatFormulaNumber(budgetFormula.overseasPriceCeiling)}。区域倍率在下方市场参数表可编辑。`}
+              explanation={`当前基线：海外容量 ${formatFormulaNumber(budgetFormula.overseasCapacity)}。海外价格不再跟随均衡价、倍率或竞争奖励浮动。`}
               details={[
                 "海外容量是共享池，不是每个区域各有一套容量；普通海外销售会扣共享海外容量。",
-                "特许区域需要外交建交；被其他国家海军封锁的航线不能销售、建交或参与市场竞争。",
-                "市场竞争胜者可拿额外容量和额外价格奖励；奖励容量优先成交，不消耗普通海外容量。",
+                "海外区域默认开放；被其他国家舰队封锁的地区不能销售或参与市场竞争。",
+                "市场竞争胜者只增加 2 点额外可售容量；奖励容量优先成交，不消耗普通海外容量，不提高价格。",
               ]}
               examples={[
-                "区域倍率例：均衡价 3，非洲倍率 1.2，则基础海外单价 int(3×1.2)=3。",
+                "例：向非洲成交 3 件，固定价 4，则海外收入 = 3 × 4 = 12。",
               ]}
               source="海外市场出售"
             />
             <FormulaCard
-              title="7. 下回合价格漂移"
+              title="7. 跨回合价格反馈"
               formula={[
-                "总销量 > 需求阈值：下回合价格漂移下降",
-                "总销量 < 需求阈值：下回合价格漂移上升",
-                "总销量 = 需求阈值：价格漂移不变",
+                "下回合均衡价 = 下回合民间购买力池 / 下回合 K",
+                "本轮不再写入额外价格漂移字段",
+                "过剩或短缺通过本轮收入和下回合消费池自然反馈",
               ]}
-              explanation="价格漂移会改变下回合的均衡价。销量太少代表供给没有被市场吃掉，系统会提高价格漂移；销量太多代表市场吃紧，系统会压低价格漂移。"
+              explanation="市场重构后，Phase 1 国内价格不再使用 demandThreshold/priceDrift 的旧记忆逻辑。价格跨回合变化来自预算分配和产能结构变化。"
               details={[
-                "价格漂移在财政结算阶段更新，下一轮市场阶段才生效。",
-                "当前统一商品 demandThreshold = 40，domesticReferencePrice = 5，priceFloor = 2，priceCeiling = 12。",
-                "当前手工业路线 adjustmentStep = 1；机械化、蒸汽、电气路线的 step 为 2。",
+                "民间购买力越高，下一回合 P0 越高；软上限 K 越高，P0 会被摊薄。",
+                "扩大内需容量会提高可承接量，但也可能降低均衡单价，需要靠销量和收入抵消。",
+                "旧 priceCeiling 字段只作为兼容配置保留，不参与当前 Phase 1 国内结算。",
               ]}
               examples={[
-                "当前统一商品漂移边界：min = 2 - 5 = -3，max = 12 - 5 = 7。",
+                "例：下回合民间购买力 55、K=11，则均衡价 P0=5。",
               ]}
-              source="下回合价格趋势"
+              source="跨回合价格反馈"
             />
             <FormulaCard
-              title="8. 政策专项额度与行政力"
+              title="8. 政府财政与行政力"
               formula={[
-                "政策专项额度 = 决策阶段显示政府财政 - 真实政府财政池",
-                "真实政府财政超支检查 = 总决策财政支出 - 可用政策专项额度 <= 真实政府财政池",
+                "政府财政超支检查 = 总决策财政支出 <= 当前政府财政",
                 "行政力本回合可用 = 行政力上限 + 本回合购买 - 改革消耗 - 政策占用",
               ]}
-              explanation={`当前基线：显示政府财政 ${budgetFormula.displayedGovernmentBudget}，真实政府财政池 ${budgetFormula.currentPools.governmentFiscal}，政策专项额度 ${budgetFormula.policyBudgetSupplement}；行政力上限 ${budgetFormula.adminCapacity}，购买 1 点行政力成本 ${formatFormulaNumber(budgetFormula.adminPurchaseCost)}。政策专项额度和行政力是决策阶段资源，不参与卖货收入分账。`}
+              explanation={`当前基线：政府财政 ${budgetFormula.currentPools.governmentFiscal}；行政力上限 ${budgetFormula.adminCapacity}，购买 1 点行政力成本 ${formatFormulaNumber(budgetFormula.adminPurchaseCost)}。行政力是决策阶段约束，不参与卖货收入分账。`}
               details={[
-                "当前 8 点专项额度会优先抵扣本轮政府、市场政策、行政力购买、政策激活、军事和外交支出；它不是只给某一类政策用。",
+                "政府、市场政策、行政力购买、政策激活和军事支出都共用政府财政。",
                 "购买行政力会永久增加行政力上限，并且本回合立刻可用。",
                 "改革消耗行政力上限，是永久消耗；激活政策只是占用本回合行政力，本轮结算后返还。",
                 "政策效果里，容量和上限类通常会永久留下；收入分配类和多数临时加成只影响本轮。",
               ]}
               examples={[
-                "例：真实财政 10，专项 8，本轮花 10，则真实财政只扣 2；花 18 才扣完真实财政 10；花 19 会被拒绝。",
+                "例：政府财政 10，本轮政府、军事、研究合计花 10，则财政扣到 0；花 11 会被拒绝。",
               ]}
               source="政府决策资源"
               tone="warning"
@@ -807,34 +891,37 @@ export function SettingsPage() {
             <FormulaCard
               title="9. 工厂增加与产业升级"
               formula={[
-                "新建工厂：目标工业路线产能 +2，下回合生效",
-                "扩建工厂：当前工业路线产能 +1，下回合生效",
-                "产业升级：上一阶段产能减少，下一阶段产能增加，当轮生效",
+                "扩建：目标工业路线产能 +1，本回合生效",
+                "可建数量受 总工厂上限、闲置名额、预算、科技前置 共同限制",
+                "产业升级：上一阶段产能减少，下一阶段产能增加，本回合生效",
               ]}
-              explanation="工厂增加是扩大某一工业阶段的总产能；产业升级是把上一阶段产能转化为下一阶段产能。两者都花工厂预算，但生效时点不同。"
+              explanation="扩建是把闲置名额直接建成目标类型工厂；产业升级是把已有工厂逐级转换。两者都花工厂预算，并且都在生产投料前生效。"
               details={[
-                "当前升级链是 handicraft -> mechanized -> steam -> electrified，不支持跨级跳转。",
+                "初始闲置 = 国家总工厂上限 - 已启用工厂数；扩建会消耗闲置名额，不会突破国家总上限。",
+                "当前升级链是 闲置 -> 手工业 -> 机械化 -> 蒸汽工业 -> 电气工业，不支持跨级跳转。",
                 "机械化需要 spinning_jenny；蒸汽需要 watt_engine + lathe；电气需要 power_generation + combustion_engine。",
-                "升级在生产投料前执行，所以升级后的高级产能本回合可以参与生产；新建/扩建要等结算后转正。",
+                "扩建和升级都在生产投料前执行，所以本回合新增或转换后的产能可以立即参与生产。",
                 "政策或改革也可能直接给产能，这类容量效果通常永久生效。",
               ]}
               examples={[
-                "例：把 2 点手工业升级到机械化，本回合手工业 -2、机械化 +2，并且这 2 点机械化本回合可生产。",
+                "例：把 1 点闲置升级为手工业，本回合闲置 -1、手工业 +1，并且这 1 点手工业本回合可生产。",
               ]}
               source="工厂建设与产业升级"
             />
             <FormulaCard
               title="10. 生产投料与商品产出"
               formula={[
-                "可投料 <= min(原材料, 单路线产能, 总投料产能, 工厂预算)",
+                "可用原材料 = 当前原材料 + 本回合购买原材料",
+                "可投料 <= min(可用原材料, 单路线产能, 总投料产能, 工厂预算)",
                 "商品产出 = Σ(各路线投料 × 路线产出倍率) × 临时产出倍率 × 天赋百分比",
                 "投料成本 = 投料原材料数量 × 统一商品单位预算成本",
               ]}
               explanation="生产不是自动把所有原材料变成商品；玩家的投料同时受原材料、路线产能、总产能和工厂预算四个瓶颈限制。"
               details={[
                 "当前统一商品单位预算成本为 1，即每投 1 原材料消耗 1 工厂预算。",
+                "材料购买按数量购买，受国家每回合材料购买上限和材料购买单位成本限制，不改变永久 rawMaterialsPerTurn。",
                 "手工业产出 1x，机械化 2x，蒸汽 4x，电气 8x；高级路线会显著放大同样原材料的商品产出。",
-                "部分工厂政策可以临时提高产出倍率；原材料采购类行动可以花工厂预算立刻补原材料。",
+                "部分工厂政策可以临时提高产出倍率；旧固定原料按钮不再作为玩家主要入口。",
               ]}
               examples={[
                 "例：蒸汽路线投 3 原材料，基础商品产出 = 3 × 4 = 12。",
@@ -842,21 +929,21 @@ export function SettingsPage() {
               source="工厂生产"
             />
             <FormulaCard
-              title="11. 军事、外交与海外市场"
+              title="11. 军事、航路与海外市场"
               formula={[
-                "军事/外交支出走政府财政决策额度",
+                "军事支出走政府财政决策额度",
                 "海外容量 = baseOverseasCapacity + overseasMarketCapacityBonus",
                 "海军封锁：最高舰队数 >= 阈值 且严格高于第二名",
               ]}
-              explanation="军事当前主要服务海外市场：增加海外容量、建立外交准入、控制航路封锁、争夺市场竞争奖励。"
+              explanation="军事当前主要服务海外市场：增加海外容量、控制航路封锁、争夺市场竞争奖励。"
               details={[
                 "征募陆军增加 army，但受 armyCap 限制；扩充军队等政策可永久提高 armyCap。",
-                "海军演练会永久提高海外市场承接上限；建造舰队增加可部署舰队。",
-                "外交建交每个区域只需一次，常用于解锁 concession 区域销售。",
+                "海外容量通过贸易促进等政府侧入口提高；建造舰队增加可部署舰队并用于地区封锁。",
+                "建交逻辑已删除；海外区域默认可卖，出售只受库存、容量和地区封锁影响。",
                 "当前殖民/征服链基本已被移除或置空，不应再按殖民收入理解军事收益。",
               ]}
               examples={[
-                "例：被其他国家封锁到目标区域的 requiredNodes 后，该区域海外销售、外交建交、市场竞争都会被阻断。",
+                "例：被其他国家封锁到目标区域的 requiredNodes 后，该区域海外销售和市场竞争都会被阻断。",
               ]}
               source="军事与航路"
             />
@@ -867,12 +954,12 @@ export function SettingsPage() {
                 "达到阈值后首发现者掷十面骰：骰点 >= 当前突破难度则成功",
                 "失败后下次突破难度 -1，进度保留",
               ]}
-              explanation="研究是把政府财政转化为工业路线解锁的长期系统；科技不会直接给钱，但会打开更高级的工厂新建和产业升级路径。"
+              explanation="研究是把政府财政转化为工业路线解锁的长期系统；科技不会直接给钱，但会打开更高级的工厂扩建和产业升级路径。"
               details={[
                 "建研究院花政府财政；设置研究目标本身免费，只是指定当前研究方向。",
                 "主线科技顺序是 spinning_jenny -> lathe -> watt_engine -> power_generation -> combustion_engine。",
                 "如果其他国家已经首发现，后续国家达到原始阈值即可解锁，不再掷骰。",
-                "科技解锁会被工厂模块检查；缺科技时高级路线不可新建或升级。",
+                "科技解锁会被工厂模块检查；缺科技时高级路线不可扩建或升级。",
               ]}
               examples={[
                 "例：2 个研究设施、每设施进度 1，则当前研究方向每轮 +2 进度。",
@@ -884,11 +971,23 @@ export function SettingsPage() {
       </SectionCard>
 
       <SectionCard title={t("settings.productionCost.title")} eyebrow={t("settings.productionCost.eyebrow")}>
+        <div style={{ marginBottom: "16px" }}>
+          <label style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
+            <span>材料购买单位成本</span>
+            <input
+              type="number"
+              min={0}
+              value={data.production.rawMaterialPurchaseUnitCost}
+              onChange={(event) => updateRawMaterialPurchaseUnitCost(Number(event.target.value))}
+            />
+            <small>默认 1 工厂预算 = 1 原材料；只影响本回合购买材料，不改变国家固定原料产出。</small>
+          </label>
+        </div>
         <table className="settings-table">
           <thead>
             <tr>
               <th>{t("settings.productionCost.routeColumn")}</th>
-              <th>{t("settings.productionCost.newCostColumn")}</th>
+              <th>扩建成本</th>
               <th>{t("settings.productionCost.upgradeCostColumn")}</th>
             </tr>
           </thead>
@@ -900,25 +999,21 @@ export function SettingsPage() {
                   <input
                     type="number"
                     min={0}
-                    value={data.production.newFactoryCosts[key] ?? 0}
+                    value={data.production.expansionCosts[key] ?? 0}
                     onChange={(event) =>
-                      updateNewFactoryCost(key, Number(event.target.value))
+                      updateExpansionCost(key, Number(event.target.value))
                     }
                   />
                 </td>
                 <td>
-                  {UPGRADABLE_LEVELS.has(key) ? (
-                    <input
-                      type="number"
-                      min={0}
-                      value={data.production.upgradeCosts[key] ?? 0}
-                      onChange={(event) =>
-                        updateUpgradeCost(key, Number(event.target.value))
-                      }
-                    />
-                  ) : (
-                    <span style={{ color: "#888" }}>—</span>
-                  )}
+                  <input
+                    type="number"
+                    min={0}
+                    value={data.production.upgradeCosts[key] ?? 0}
+                    onChange={(event) =>
+                      updateUpgradeCost(key, Number(event.target.value))
+                    }
+                  />
                 </td>
               </tr>
             ))}
@@ -933,6 +1028,8 @@ export function SettingsPage() {
               <th>{t("settings.rawMaterials.countryColumn")}</th>
               <th>{t("settings.rawMaterials.initialColumn")}</th>
               <th>{t("settings.rawMaterials.perTurnColumn")}</th>
+              <th>材料购买上限</th>
+              <th>工厂总上限</th>
             </tr>
           </thead>
           <tbody>
@@ -962,6 +1059,26 @@ export function SettingsPage() {
                       }
                     />
                   </td>
+                  <td>
+                    <input
+                      type="number"
+                      min={0}
+                      value={country.materialPurchaseCapPerTurn}
+                      onChange={(event) =>
+                        updateCountry(key, "materialPurchaseCapPerTurn", Number(event.target.value))
+                      }
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      min={0}
+                      value={country.factoryTotalCap}
+                      onChange={(event) =>
+                        updateCountry(key, "factoryTotalCap", Number(event.target.value))
+                      }
+                    />
+                  </td>
                 </tr>
               );
             })}
@@ -985,19 +1102,19 @@ export function SettingsPage() {
           <thead>
             <tr>
               <th>{t("settings.market.regionColumn")}</th>
-              <th>{t("settings.market.priceMultiplierColumn")}</th>
+              <th>{t("settings.market.fixedOverseasPriceColumn")}</th>
             </tr>
           </thead>
           <tbody>
-            {Object.entries(data.regions).map(([key, multiplier]) => (
+            {Object.entries(data.regions).map(([key, fixedPrice]) => (
               <tr key={key}>
                 <td>{REGION_LABELS[key] ?? key}</td>
                 <td>
                   <input
                     type="number"
                     min={0}
-                    step={0.1}
-                    value={multiplier}
+                    step={1}
+                    value={fixedPrice}
                     onChange={(event) => updateRegion(key, Number(event.target.value))}
                   />
                 </td>

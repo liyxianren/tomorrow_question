@@ -64,6 +64,7 @@ export function hasDecisionStepContent(
       draft.factoryPlan.expansionOrders.some((order) => order.quantity > 0) ||
       draft.factoryPlan.upgradeOrders.some((order) => order.quantity > 0) ||
       draft.factoryPlan.newFactoryOrders.some((order) => order.quantity > 0) ||
+      Math.max(0, draft.factoryPlan.rawMaterialPurchaseQuantity ?? 0) > 0 ||
       (draft.factoryPlan.factoryActions ?? []).length > 0
     );
   }
@@ -73,8 +74,8 @@ export function hasDecisionStepContent(
   if (step === "military") {
     return (
       draft.militaryPlan.militaryActions.length > 0 ||
-      draft.militaryPlan.diplomacyActions.length > 0 ||
-      Object.keys(draft.militaryPlan.navalDeployment ?? {}).length > 0
+      Object.keys(draft.militaryPlan.navalDeployment ?? {}).length > 0 ||
+      Object.keys(draft.militaryPlan.regionBlockades ?? {}).length > 0
     );
   }
   if (step === "research") {
@@ -163,6 +164,7 @@ export function clearDecisionStepDraft(
         expansionOrders: [],
         upgradeOrders: [],
         newFactoryOrders: [],
+        rawMaterialPurchaseQuantity: 0,
         factoryActions: [],
       },
     };
@@ -183,9 +185,9 @@ export function clearDecisionStepDraft(
       militaryPlan: {
         unlockColonization: false,
         militaryActions: [],
-        diplomacyActions: [],
         colonizationActions: [],
         navalDeployment: {},
+        regionBlockades: {},
         conquestActions: [],
         lootingActions: [],
       },
@@ -232,7 +234,8 @@ export function getDecisionStepCompletionSummary(
       draft.factoryPlan.upgradeOrders.reduce((sum, item) => sum + item.quantity, 0) +
       draft.factoryPlan.newFactoryOrders.reduce((sum, item) => sum + item.quantity, 0);
     const factoryActions = draft.factoryPlan.factoryActions?.length ?? 0;
-    const industrialActions = factoryActions + construction;
+    const rawPurchase = Math.max(0, draft.factoryPlan.rawMaterialPurchaseQuantity ?? 0);
+    const industrialActions = factoryActions + construction + (rawPurchase > 0 ? 1 : 0);
     const arrangementLabel = i18n.t("game:factory.industrialArrangements", "产业安排");
     if (phase1RawMaterials > 0) {
       return `${i18n.t("game:factory.input", "Input")} ${phase1RawMaterials} ${i18n.t("game:factory.rawMaterials", "Raw Materials")} / ${arrangementLabel} ${industrialActions} ${i18n.t("game:flow.itemUnit", "items")}`;
@@ -245,7 +248,7 @@ export function getDecisionStepCompletionSummary(
   }
 
   if (step === "military") {
-    return `${i18n.t("game:military.militaryActions", "Military Actions")} ${draft.militaryPlan.militaryActions.length} ${i18n.t("game:flow.times", "times")} / ${i18n.t("game:military.establishedDiplomacy", "Established Diplomacy")} ${draft.militaryPlan.diplomacyActions.length} ${i18n.t("game:flow.items", "items")}`;
+    return `${i18n.t("game:military.militaryActions", "Military Actions")} ${draft.militaryPlan.militaryActions.length} ${i18n.t("game:flow.times", "times")}`;
   }
 
   if (step === "research") {

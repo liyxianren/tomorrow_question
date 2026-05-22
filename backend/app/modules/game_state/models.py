@@ -27,11 +27,9 @@ DEFAULT_TEMPORARY_EFFECTS = {
     "domesticMarketCapacityBonus": 0,
     "domesticPriceBonus": 0,
     "overseasMarketCapacityBonus": 0,
-    "overseasPriceBonus": 0,
     "governmentDomesticMarketCapacityBonus": 0,
     "governmentDomesticPriceBonus": 0,
     "governmentOverseasMarketCapacityBonus": 0,
-    "governmentOverseasPriceBonus": 0,
     "productionOutputMultiplier": 1,
 }
 
@@ -47,17 +45,22 @@ DEFAULT_PHASE1_CAPACITY_BY_MODE: dict[str, int] = {
 DEFAULT_PHASE1_MARKET_METRICS: dict[str, float] = {
     "demand": 0,
     "supply": 0,
+    "domesticAllocation": 0,
+    "domesticSoftCap": 0,
+    "consumptionPool": 0,
     "equilibriumPrice": 0,
     "finalPrice": 0,
     "soldQuantity": 0,
     "unsoldQuantity": 0,
     "revenue": 0,
+    "shortageRate": 0,
+    "surplusRate": 0,
 }
-# M1 normalized 5:3:2 split; sits alongside legacy income_allocation_ratio.
+# M1 normalized 3:3:4 split; sits alongside legacy income_allocation_ratio.
 DEFAULT_PHASE1_INCOME_ALLOCATION_RATIO: dict[str, float] = {
-    "consumption": 0.5,
+    "consumption": 0.3,
     "investment": 0.3,
-    "fiscal": 0.2,
+    "fiscal": 0.4,
 }
 
 
@@ -275,6 +278,9 @@ class RegionState:
     garrison: dict[str, int] = field(default_factory=dict)
     independence: int = 0
     resource_limit: dict[str, int] = field(default_factory=dict)
+    navy_by_country: dict[str, int] = field(default_factory=dict)
+    blockade_controller: str | None = None
+    is_blockaded: bool = False
 
     def to_payload(self) -> RegionStatePayload:
         return {
@@ -286,6 +292,9 @@ class RegionState:
             "garrison": _copy_int_mapping(self.garrison),
             "independence": self.independence,
             "resourceLimit": _copy_int_mapping(self.resource_limit),
+            "navyByCountry": _copy_int_mapping(self.navy_by_country),
+            "blockadeController": self.blockade_controller,
+            "isBlockaded": self.is_blockaded,
         }
 
     @classmethod
@@ -299,6 +308,9 @@ class RegionState:
             garrison=_copy_int_mapping(payload["garrison"]),
             independence=int(payload["independence"]),
             resource_limit=_copy_int_mapping(payload["resourceLimit"]),
+            navy_by_country=_copy_int_mapping(payload.get("navyByCountry", {})),
+            blockade_controller=payload.get("blockadeController"),
+            is_blockaded=bool(payload.get("isBlockaded", False)),
         )
 
 
@@ -507,12 +519,64 @@ def _phase_workspace_is_complete(snapshot: GameSnapshot) -> bool:
                 return False
             if not isinstance(player_workspace.get("governmentActions"), Mapping):
                 return False
+            if not _decision_workspace_uses_active_actions(player_workspace):
+                return False
         if snapshot.phase == GamePhase.MARKET:
             if not isinstance(player_workspace.get("sellableInventory"), list):
                 return False
         if snapshot.phase == GamePhase.SETTLEMENT:
             if not isinstance(player_workspace.get("budgetAllocation"), Mapping):
                 return False
+    return True
+
+
+def _decision_workspace_uses_active_actions(player_workspace: Mapping[str, Any]) -> bool:
+    from app.modules.balance_config import get_balance_config
+
+    balance = get_balance_config()
+    active_domestic_ids = set(balance.decision_actions.domestic_market_actions)
+    active_government_ids = {
+        action_id
+        for action_id in ("trade_promotion", "expand_research")
+        if action_id in balance.decision_actions.government_actions
+    }
+    active_military_ids = set(balance.military_actions.military_actions)
+
+    if not _workspace_action_ids_are_subset(
+        player_workspace.get("domesticMarketActions"),
+        active_domestic_ids,
+    ):
+        return False
+
+    government_actions = player_workspace.get("governmentActions")
+    if not isinstance(government_actions, Mapping):
+        return False
+    if not _workspace_action_ids_are_subset(
+        government_actions.get("strategies"),
+        active_government_ids,
+    ):
+        return False
+
+    military_workspace = player_workspace.get("militaryWorkspace")
+    if not isinstance(military_workspace, Mapping):
+        return False
+    return _workspace_action_ids_are_subset(
+        military_workspace.get("availableMilitaryActions"),
+        active_military_ids,
+    )
+
+
+def _workspace_action_ids_are_subset(actions: Any, active_ids: set[str]) -> bool:
+    if not isinstance(actions, list):
+        return False
+    for action in actions:
+        if not isinstance(action, Mapping):
+            return False
+        action_id = action.get("actionId")
+        if not isinstance(action_id, str):
+            return False
+        if action_id not in active_ids:
+            return False
     return True
 
 

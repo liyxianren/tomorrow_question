@@ -120,9 +120,7 @@
       },
       "7": {
         "label": "全球通商",
-        "effects": {
-          "overseasPriceBonusDelta": 1
-        }
+        "effects": {}
       },
       "10": {
         "label": "民族复兴",

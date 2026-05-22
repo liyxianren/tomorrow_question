@@ -18,7 +18,7 @@ settings_bp = Blueprint("settings", __name__, url_prefix="/api/v1")
 
 
 _PRODUCTION_NEW_FACTORY_KEYS = ("handicraft", "mechanized", "steam", "electrified")
-_PRODUCTION_UPGRADE_KEYS = ("mechanized", "steam", "electrified")
+_PRODUCTION_UPGRADE_KEYS = ("handicraft", "mechanized", "steam", "electrified")
 _COUNTRY_KEYS = ("britain", "france", "prussia", "austria", "russia")
 _IDEOLOGY_KEYS = ("liberalism", "egalitarianism", "nationalism")
 _JSON_SUFFIX = ".json"
@@ -31,7 +31,6 @@ _CONTEXT_LABELS: dict[str, str] = {
     "productionCapacity": "生产能力",
     "goodsStock": "商品库存",
     "ideologyLevels": "思潮水平",
-    "initialDiplomacy": "初始外交影响力",
     "domesticMarketActions": "国内市场行动",
     "factoryActions": "工厂行动",
     "governmentActions": "政府行动",
@@ -39,9 +38,7 @@ _CONTEXT_LABELS: dict[str, str] = {
     "effects": "效果",
     "conditions": "触发条件",
     "globalEffects": "全局效果",
-    "regionGoodsPremiums": "区域商品溢价",
     "militaryActions": "军事行动",
-    "diplomacyActions": "外交行动",
     "naturalShiftRules": "思潮自然变化规则",
     "policyTradeOpen": "贸易开放政策",
     "reformAdminSupport": "改革行政支持",
@@ -49,14 +46,16 @@ _CONTEXT_LABELS: dict[str, str] = {
     "milestones": "里程碑",
     "levels": "生产等级",
     "outputMultipliers": "产出倍率",
+    "demandCoefficients": "需求系数",
+    "factoryCapsByMode": "工厂兼容容量字段",
     "expansionCosts": "扩建成本",
     "upgradeCosts": "升级成本",
-    "newFactoryCosts": "新建工厂成本",
+    "newFactoryCosts": "兼容新建工厂成本",
     "goods": "商品参数",
     "reforms": "改革",
     "regions": "区域",
     "resourceLimit": "资源上限",
-    "oceanNodes": "海洋节点",
+    "oceanNodes": "旧连通配置",
     "talentTree": "天赋树",
     "branches": "天赋分支",
     "nodes": "天赋节点",
@@ -77,10 +76,10 @@ _SEGMENT_LABELS: dict[str, str] = {
     "africa": "非洲",
     "middle_east": "中东",
     "asia_pacific": "亚太",
-    "north_atlantic": "北大西洋",
-    "mediterranean": "地中海",
-    "indian_ocean": "印度洋",
-    "pacific": "太平洋",
+    "north_atlantic": "旧连通点 A",
+    "mediterranean": "旧连通点 B",
+    "indian_ocean": "旧连通点 C",
+    "pacific": "旧连通点 D",
     "domesticMarket": "国内市场",
     "factory": "工厂",
     "governmentFiscal": "政府财政",
@@ -132,9 +131,12 @@ _FIELD_LABELS: dict[str, str] = {
     "baseIncomePerRound": "每回合保底收入",
     "baseOverseasCapacity": "基础海外市场容量",
     "rawMaterialsPerTurn": "每回合原材料增量",
+    "factoryTotalCap": "工厂总量上限",
+    "materialPurchaseCapPerTurn": "每回合材料购买上限",
+    "rawMaterialPurchaseUnitCost": "材料购买单位成本",
     "armyUnitCost": "陆军单位成本",
     "navyUnitCost": "海军单位成本",
-    "oceanControlThreshold": "海域控制阈值",
+    "oceanControlThreshold": "地区封锁阈值",
     "independenceThreshold": "独立度叛乱阈值",
     "administrationCost": "购买行政能力价格",
     "ideologyMin": "思潮最小值",
@@ -164,7 +166,6 @@ _FIELD_LABELS: dict[str, str] = {
     "domesticMarketCapacityDelta": "国内市场容量变化",
     "overseasMarketCapacityDelta": "海外市场容量变化",
     "domesticPriceBonusDelta": "国内价格加成变化",
-    "overseasPriceBonusDelta": "海外价格加成变化",
     "phase1ProductionRawCapacityDelta": "原材料加工产能变化",
     "phase1ProductionOutputBonusPercent": "统一商品产出加成百分比",
     "productionOutputMultiplier": "生产产出倍率",
@@ -172,7 +173,7 @@ _FIELD_LABELS: dict[str, str] = {
     "rawMaterialsPerTurnDelta": "每回合原材料变化",
     "administrationCapacity": "行政能力",
     "factoryUpgradeCostReductionPercent": "工厂升级成本降低百分比",
-    "newFactoryCostReductionPercent": "新建工厂成本降低百分比",
+    "newFactoryCostReductionPercent": "兼容新建工厂成本降低百分比",
     "fiscalRefund": "财政返还",
     "targetIdeologyDelta": "目标思潮变化",
     "resetIdeologiesTo": "思潮重置值",
@@ -185,8 +186,7 @@ _FIELD_LABELS: dict[str, str] = {
     "demandThreshold": "需求阈值",
     "priceFloor": "价格下限",
     "priceCeiling": "价格上限",
-    "overseasPriceCeiling": "海外价格上限",
-    "priceMultiplier": "价格倍率",
+    "fixedOverseasPrice": "海外固定售价",
     "minArmy": "最低陆军要求",
     "upgradeCostMultiplier": "升级成本倍率",
 }
@@ -209,6 +209,10 @@ def get_settings():
     numeric_config = _build_numeric_config_payload(config_dir)
     payload = {
         "production": {
+            "expansionCosts": {
+                key: int(production.get("expansionCosts", {}).get(key, 0))
+                for key in _PRODUCTION_NEW_FACTORY_KEYS
+            },
             "newFactoryCosts": {
                 key: int(production.get("newFactoryCosts", {}).get(key, 0))
                 for key in _PRODUCTION_NEW_FACTORY_KEYS
@@ -217,6 +221,7 @@ def get_settings():
                 key: int(production.get("upgradeCosts", {}).get(key, 0))
                 for key in _PRODUCTION_UPGRADE_KEYS
             },
+            "rawMaterialPurchaseUnitCost": int(production.get("rawMaterialPurchaseUnitCost", 1)),
         },
         "countries": {
             country: {
@@ -226,6 +231,16 @@ def get_settings():
                 "rawMaterialsPerTurn": int(
                     countries.get("countries", {}).get(country, {}).get("rawMaterialsPerTurn", 0)
                 ),
+                "factoryTotalCap": int(
+                    countries.get("countries", {}).get(country, {}).get("factoryTotalCap", 0)
+                ),
+                "factoryCapsByMode": {
+                    key: int(countries.get("countries", {}).get(country, {}).get("factoryTotalCap", 0))
+                    for key in _PRODUCTION_NEW_FACTORY_KEYS
+                },
+                "materialPurchaseCapPerTurn": int(
+                    countries.get("countries", {}).get(country, {}).get("materialPurchaseCapPerTurn", 0)
+                ),
             }
             for country in _COUNTRY_KEYS
         },
@@ -233,7 +248,7 @@ def get_settings():
             "baseIncomePerRound": int(global_cfg.get("baseIncomePerRound", 0)),
         },
         "regions": {
-            str(region["regionId"]): float(region.get("priceMultiplier", 1.0))
+            str(region["regionId"]): int(region.get("fixedOverseasPrice", 0))
             for region in regions.get("regions", [])
             if isinstance(region, dict) and "regionId" in region
         },
@@ -273,17 +288,25 @@ def update_settings():
         government_in = _validate_dict(body.get("government", {}), "government")
         numeric_config_in = _validate_dict(body.get("numericConfig", {}), "numericConfig")
 
-        new_factory = _validate_int_map(
-            production_in.get("newFactoryCosts", {}),
+        expansion = _validate_int_map(
+            production_in.get("expansionCosts", {}),
             _PRODUCTION_NEW_FACTORY_KEYS,
-            "production.newFactoryCosts",
+            "production.expansionCosts",
         )
+        # newFactoryCosts is kept only for old payload compatibility. Keep it
+        # synchronized with the active direct-expansion costs instead of exposing
+        # a second gameplay knob.
+        new_factory = dict(expansion)
         upgrade = _validate_int_map(
             production_in.get("upgradeCosts", {}),
             _PRODUCTION_UPGRADE_KEYS,
             "production.upgradeCosts",
         )
-        country_values: dict[str, dict[str, int]] = {}
+        raw_material_purchase_unit_cost = _validate_non_negative_int(
+            production_in.get("rawMaterialPurchaseUnitCost", 1),
+            "production.rawMaterialPurchaseUnitCost",
+        )
+        country_values: dict[str, dict[str, Any]] = {}
         for country, raw in countries_in.items():
             if country not in _COUNTRY_KEYS:
                 raise _ValidationError(f"countries.{country} is not a recognized country.")
@@ -297,15 +320,27 @@ def update_settings():
                     country_dict.get("rawMaterialsPerTurn"),
                     f"countries.{country}.rawMaterialsPerTurn",
                 ),
+                "factoryTotalCap": _validate_non_negative_int(
+                    country_dict.get("factoryTotalCap"),
+                    f"countries.{country}.factoryTotalCap",
+                ),
+                "materialPurchaseCapPerTurn": _validate_non_negative_int(
+                    country_dict.get("materialPurchaseCapPerTurn"),
+                    f"countries.{country}.materialPurchaseCapPerTurn",
+                ),
+            }
+            country_values[country]["factoryCapsByMode"] = {
+                key: country_values[country]["factoryTotalCap"]
+                for key in _PRODUCTION_NEW_FACTORY_KEYS
             }
         base_income = _validate_non_negative_int(
             global_in.get("baseIncomePerRound"), "global.baseIncomePerRound"
         )
-        region_values: dict[str, float] = {}
-        for region_id, raw_multiplier in regions_in.items():
-            region_values[str(region_id)] = _validate_non_negative_float(
-                raw_multiplier, f"regions.{region_id}"
-            )
+        region_values: dict[str, int] = {}
+        for region_id, raw_price in regions_in.items():
+            region_values[str(region_id)] = int(_validate_non_negative_float(
+                raw_price, f"regions.{region_id}"
+            ))
 
         admin_cost = _validate_non_negative_int(
             government_in.get("administrationCost"), "government.administrationCost"
@@ -351,8 +386,10 @@ def update_settings():
 
     production_path = config_dir / "production.json"
     production_data = _read_json(production_path)
+    production_data.setdefault("expansionCosts", {}).update(expansion)
     production_data.setdefault("newFactoryCosts", {}).update(new_factory)
     production_data.setdefault("upgradeCosts", {}).update(upgrade)
+    production_data["rawMaterialPurchaseUnitCost"] = raw_material_purchase_unit_cost
     _write_json(production_path, production_data)
 
     countries_path = config_dir / "countries.json"
@@ -361,6 +398,9 @@ def update_settings():
         country_block = countries_data.setdefault("countries", {}).setdefault(country, {})
         country_block["initialRawMaterials"] = values["initialRawMaterials"]
         country_block["rawMaterialsPerTurn"] = values["rawMaterialsPerTurn"]
+        country_block["factoryTotalCap"] = values["factoryTotalCap"]
+        country_block["materialPurchaseCapPerTurn"] = values["materialPurchaseCapPerTurn"]
+        country_block["factoryCapsByMode"] = dict(values["factoryCapsByMode"])
     _write_json(countries_path, countries_data)
 
     global_path = config_dir / "global.json"
@@ -375,7 +415,7 @@ def update_settings():
             continue
         region_id = str(region.get("regionId", ""))
         if region_id in region_values:
-            region["priceMultiplier"] = region_values[region_id]
+            region["fixedOverseasPrice"] = region_values[region_id]
     _write_json(regions_path, regions_data)
 
     politics_path = config_dir / "politics.json"
@@ -485,30 +525,32 @@ def _build_parameter_bindings(
         add_binding(
             f"factory.construction.expansion.{route_id}",
             f"工厂增加：{_SEGMENT_LABELS.get(route_id, route_id)}",
-            "玩家按 + 后会安排 1 次扩建：立刻占用工厂预算；本回合不增加产量，下回合该阶段产能 +1。",
+            "玩家按 + 后会安排 1 次直接建厂：占用工厂预算和闲置工厂名额；本回合立刻让该阶段产能 +1。",
             [
                 ("production.json", ["expansionCosts", route_id], False),
-                ("production.json", ["outputMultipliers", route_id], False),
-            ],
-        )
-        add_binding(
-            f"factory.construction.newFactory.{route_id}",
-            f"新建工厂：{_SEGMENT_LABELS.get(route_id, route_id)}",
-            "玩家按 + 后会安排新建首座工厂：立刻占用工厂预算；本回合不增加产量，下回合该阶段产能 +2。",
-            [
-                ("production.json", ["newFactoryCosts", route_id], False),
+                ("countries.json", ["countries", "britain", "factoryTotalCap"], False),
                 ("production.json", ["outputMultipliers", route_id], False),
             ],
         )
         add_binding(
             f"factory.construction.upgrade.{route_id}",
             f"产业升级：{_SEGMENT_LABELS.get(route_id, route_id)}",
-            "玩家按 + 后会安排 1 次产业升级：立刻占用工厂预算，并把上一级 1 点产能转换为本阶段 1 点产能；这不是新增总产能。",
+            "玩家按 + 后会安排 1 次逐级升级：占用工厂预算，并把上一级 1 点产能转换为本阶段 1 点产能；这不是新增总工厂数。",
             [
                 ("production.json", ["upgradeCosts", route_id], False),
                 ("production.json", ["outputMultipliers", route_id], False),
             ],
         )
+
+    add_binding(
+        "factory.rawMaterialPurchase",
+        "材料购买",
+        "玩家按数量购买原材料：本回合立刻增加可投料材料；不改变国家永久每回合原料产出。",
+        [
+            ("production.json", ["rawMaterialPurchaseUnitCost"], False),
+            ("countries.json", ["countries", "britain", "materialPurchaseCapPerTurn"], False),
+        ],
+    )
 
     for goods_id, goods in production.get("goods", {}).items():
         if isinstance(goods, dict):
@@ -539,17 +581,6 @@ def _build_parameter_bindings(
             f"政府/市场政策：{action.get('label') or action_id}",
             f"玩家选择后会把这项政府行动加入本回合计划：{action.get('description') or '改变财政、市场、研究或收入结构。'}",
             specs,
-        )
-
-    for action_id in ("market_subsidy", "price_control", "trade_promotion"):
-        action = (decision_actions.get("governmentActions") or {}).get(action_id)
-        if not isinstance(action, dict):
-            continue
-        add_binding(
-            f"government.strategy.{action_id}",
-            f"市场政策：{action.get('label') or action_id}",
-            f"玩家选择后会消耗 1 点行政力，并只影响本回合市场预览和出售结果：{action.get('description') or '改变本轮市场参数。'}",
-            [("decision_actions.json", ["governmentActions", action_id], True)],
         )
 
     reforms_cfg = raw_config.get("reforms.json", {})
@@ -616,15 +647,6 @@ def _build_parameter_bindings(
                 ("military_actions.json", ["militaryActions", action_id], True),
                 ("military.json", [], True),
             ],
-        )
-
-    for action in workspace.get("militaryWorkspace", {}).get("availableDiplomacyActions", []) or []:
-        action_id = str(action.get("actionId"))
-        add_binding(
-            f"military.diplomacy.{action_id}",
-            f"外交行动：{action.get('label') or action_id}",
-            f"玩家选择后会消耗政府财政建立外交关系；成功后目标区域贸易通道会长期开放：{action.get('description') or '外交行动。'}",
-            [("military_actions.json", ["diplomacyActions", action_id], True)],
         )
 
     add_binding(

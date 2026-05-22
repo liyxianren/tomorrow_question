@@ -2,12 +2,13 @@ import { useTranslation } from "react-i18next";
 import { translateBackend } from "../../../../i18n";
 import type {
   CountryCode,
-  DiplomacyActionOption,
-  OceanNodeOption,
   RegionAccessStatus,
 } from "../../../../types";
-import type { ParameterInspector } from "../../../../features/game/parameterInspector";
-import { getOceanNodeLabel, getGoodsLabel } from "../../../../features/game/panelGlossary";
+import {
+  buildRegionAccessDescription,
+  buildRegionRouteBlockadeDetail,
+} from "../../../../features/game/decisionShared";
+import { getCountryLabel, getGoodsLabel } from "../../../../features/game/panelGlossary";
 import "./MilitaryNodeDrawer.css";
 
 const REGION_ICONS: Record<string, string> = {
@@ -18,128 +19,32 @@ const REGION_ICONS: Record<string, string> = {
   asia_pacific: "🏯",
 };
 
-type OceanDrawerProps = {
-  nodeType: "ocean";
-  nodeId: string;
-  open: boolean;
-  onClose: () => void;
-  oceanNode: OceanNodeOption;
-  myFleet: number;
-  remainingFleets: number;
-  myCountry: CountryCode;
-  onNavalDeploymentChange: (nodeId: string, count: number) => void;
-};
-
-type RegionDrawerProps = {
+export type MilitaryNodeDrawerProps = {
   nodeType: "region";
   nodeId: string;
   open: boolean;
   onClose: () => void;
   region: RegionAccessStatus;
-  diplomacyAction: DiplomacyActionOption | null;
-  diplomacySelected: boolean;
-  remainingGovernmentBudget: number;
-  onToggleDiplomacy: (actionId: string, checked: boolean) => void;
-  parameterInspector?: ParameterInspector;
+  myFleet: number;
+  remainingFleets: number;
+  blockadeThreshold: number;
+  myCountry: CountryCode;
+  onRegionBlockadeChange: (regionId: string, count: number) => void;
 };
 
-export type MilitaryNodeDrawerProps = OceanDrawerProps | RegionDrawerProps;
-
 export function MilitaryNodeDrawer(props: MilitaryNodeDrawerProps) {
-  if (props.nodeType === "ocean") {
-    return <OceanDrawer {...props} />;
-  }
   return <RegionDrawer {...props} />;
 }
 
-function OceanDrawer({
-  nodeId,
-  open,
-  onClose,
-  oceanNode,
-  myFleet,
-  remainingFleets,
-  myCountry,
-  onNavalDeploymentChange,
-}: OceanDrawerProps) {
-  const { t } = useTranslation();
-  const label = getOceanNodeLabel(nodeId);
-  const breakdown = Object.entries(oceanNode.navyByCountry ?? {})
-    .filter(([, n]) => n > 0)
-    .sort(([, a], [, b]) => b - a);
-  const controllerText = oceanNode.controller
-    ? oceanNode.controller === myCountry
-      ? t("game:military.oceanControlledByYou", { controller: oceanNode.controller })
-      : t("game:military.oceanControl", { controller: oceanNode.controller })
-    : t("game:military.oceanNone");
-
-  return (
-    <aside
-      className={`mnd mnd--ocean${open ? " mnd--open" : ""}`}
-      aria-label={`${label} ${t("game:military.regionDetail")}`}
-    >
-      <header className="mnd__head">
-        <span className="mnd__title">
-          🌊 {label}
-          {oceanNode.isBlockaded ? ` 🚫 ${t("game:military.regionDetail")}` : ""}
-        </span>
-        <button
-          type="button"
-          className="mnd__close"
-          aria-label={t("game:military.closeDetail")}
-          onClick={onClose}
-        >×</button>
-      </header>
-
-      <div className="mnd__body">
-        <div className="mnd__row">
-          <span className="mnd__row-label">{t("game:military.myFleet")}</span>
-          <span className="mnd__row-value">{myFleet}</span>
-        </div>
-        <div className="mnd__row">
-          <span className="mnd__row-label">{controllerText}</span>
-        </div>
-
-        {breakdown.length > 0 && (
-          <div className="mnd__breakdown">
-            <div className="mnd__breakdown-label">{t("game:military.nationsDeployed")}</div>
-            <ul className="mnd__breakdown-list">
-              {breakdown.map(([country, count]) => (
-                <li key={country}>
-                  <span>{country}{country === myCountry ? t("game:military.oceanControlledByYou", { controller: "" }).replace(/Control: \(You\)/, " (You)") : ""}</span>
-                  <strong>{count}</strong>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        <div className="mnd__deploy">
-          <span className="mnd__deploy-label">{t("game:military.adjustDeployment")}</span>
-          <div className="mnd__deploy-controls">
-            <button
-              aria-label={t("game:military.navalDeployReduce", { label })}
-              type="button"
-              className="mnd__btn"
-              disabled={myFleet <= 0}
-              onClick={() => onNavalDeploymentChange(nodeId, myFleet - 1)}
-            >−</button>
-            <span className="mnd__deploy-value">{myFleet}</span>
-            <button
-              aria-label={t("game:military.navalDeployIncrease", { label })}
-              type="button"
-              className="mnd__btn"
-              disabled={remainingFleets <= 0}
-              onClick={() => onNavalDeploymentChange(nodeId, myFleet + 1)}
-            >+</button>
-          </div>
-          <span className="mnd__hint">
-            {t("game:military.availableFleets")} {remainingFleets}
-          </span>
-        </div>
-      </div>
-    </aside>
-  );
+function formatCountryWithPlayerMark(
+  country: string,
+  myCountry: CountryCode,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
+  const label = getCountryLabel(country);
+  return country === myCountry
+    ? `${label}${t("game:military.youSuffix", { defaultValue: "（你）" })}`
+    : label;
 }
 
 function RegionDrawer({
@@ -147,19 +52,36 @@ function RegionDrawer({
   open,
   onClose,
   region,
-  diplomacyAction,
-  diplomacySelected,
-  remainingGovernmentBudget,
-  onToggleDiplomacy,
-  parameterInspector,
-}: RegionDrawerProps) {
+  myFleet,
+  remainingFleets,
+  blockadeThreshold,
+  myCountry,
+  onRegionBlockadeChange,
+}: MilitaryNodeDrawerProps) {
   const { t } = useTranslation();
   const icon = REGION_ICONS[nodeId] ?? "🌐";
   const accessBadge = region.isAccessible ? "✅" : "🔒";
   const goodsLine = region.acceptedGoods.map((g) => getGoodsLabel(g)).join("·");
-
-  const diploEstablished = !!diplomacyAction?.isEstablished;
-  const diploCanAfford = diplomacyAction ? remainingGovernmentBudget >= diplomacyAction.cost : false;
+  const routeBlockadeDetail = buildRegionRouteBlockadeDetail(region);
+  const regionDescription = buildRegionAccessDescription(region, { includeRouteBlockadeDetail: false });
+  const controllerLabel = region.blockadeController
+    ? formatCountryWithPlayerMark(region.blockadeController, myCountry, t)
+    : null;
+  const maxFleetForThisRegion = myFleet + remainingFleets;
+  const blockadeLine = region.blockadeController
+    ? region.blockadeController === myCountry
+      ? t("game:military.regionBlockadeByYou", "你正在封锁这个地区；你仍可向该地区出售，其他国家不能向该地区出售。")
+      : t("game:military.regionBlockadeByOther", {
+          country: controllerLabel,
+          defaultValue: "{{country}} 正在封锁这个地区；除 {{country}} 外其他国家不能向该地区出售。",
+        })
+    : myFleet > 0
+      ? t("game:military.regionBlockadeQueued", {
+          count: myFleet,
+          threshold: blockadeThreshold,
+          defaultValue: "已向这个地区分配 {{count}} 支舰队；投入 {{threshold}} 支及以上并且唯一领先时，其他国家不能向该地区出售。",
+        })
+    : t("game:military.regionBlockadeNone", "当前没有国家封锁这个地区。");
 
   return (
     <aside
@@ -179,56 +101,62 @@ function RegionDrawer({
       </header>
 
       <div className="mnd__body">
+        <div className="mnd__row mnd__row--stacked">
+          <span className="mnd__row-label">{t("game:military.regionAccess", "区域状态")}</span>
+          <span className="mnd__hint">{regionDescription}</span>
+        </div>
+        {routeBlockadeDetail ? (
+          <div className="mnd__section mnd__section--warning">
+            <span className="mnd__section-label">{t("game:military.routeBlockade", "地区封锁")}</span>
+            <span className="mnd__hint">{routeBlockadeDetail}</span>
+          </div>
+        ) : null}
+        <div className={`mnd__section${region.isBlockaded ? " mnd__section--warning" : ""}`}>
+          <span className="mnd__section-label">{t("game:military.regionBlockadeAction", "地区封锁")}</span>
+          <span className="mnd__hint">{blockadeLine}</span>
+          <span className="mnd__hint">
+            {t(
+              "game:military.regionBlockadeRule",
+              {
+                threshold: blockadeThreshold,
+                defaultValue: "封锁判定：对同一地区投入舰队，投入 {{threshold}} 支及以上且舰队数唯一领先的国家独享该地区；多人同时封锁时比舰队数，平手不形成封锁。",
+              },
+            )}
+          </span>
+          <div className="mnd__deploy-title-row">
+            <span className="mnd__deploy-label">{t("game:military.thisRegionFleet", "本地区舰队")}</span>
+            <span className="mnd__deploy-limit">
+              {t("game:military.thisRegionFleetLimit", {
+                max: maxFleetForThisRegion,
+                defaultValue: `可调 0-${maxFleetForThisRegion}`,
+              })}
+            </span>
+          </div>
+          <div className="mnd__deploy-controls">
+            <button
+              aria-label={t("game:military.regionBlockadeReduce", { label: translateBackend(region.label), defaultValue: `${translateBackend(region.label)}封锁-1` })}
+              type="button"
+              className="mnd__btn"
+              disabled={myFleet <= 0}
+              onClick={() => onRegionBlockadeChange(nodeId, myFleet - 1)}
+            >−</button>
+            <span className="mnd__deploy-value">{myFleet}</span>
+            <button
+              aria-label={t("game:military.regionBlockadeIncrease", { label: translateBackend(region.label), defaultValue: `${translateBackend(region.label)}封锁+1` })}
+              type="button"
+              className="mnd__btn"
+              disabled={remainingFleets <= 0}
+              onClick={() => onRegionBlockadeChange(nodeId, myFleet + 1)}
+            >+</button>
+          </div>
+          <span className="mnd__hint">
+            {t("game:military.availableFleets")} {remainingFleets}；{t("game:military.regionBlockadeSaleEffect", "形成封锁后，本国可出售，其他国家不能向该地区出售。")}
+          </span>
+        </div>
         {goodsLine && (
           <div className="mnd__row">
             <span className="mnd__row-label">{t("game:military.specialty")}</span>
             <span className="mnd__row-value">{goodsLine}</span>
-          </div>
-        )}
-
-        {diplomacyAction && (
-          <div className="mnd__section">
-            <div className="mnd__section-label">🤝 {t("game:military.diplomacy")}</div>
-            {diploEstablished ? (
-              <div className="mnd__inline-status mnd__inline-status--done">
-                {t("game:military.diplomacyEstablished", { region: diplomacyAction.targetRegionLabel })}
-              </div>
-            ) : (
-              <div className="mnd__diplo">
-                <span className="mnd__hint">
-                  {diplomacyAction.description ?? `${t("game:military.diplomacy")}${translateBackend(diplomacyAction.targetRegionLabel)}`} · {t("game:government.budget")} {diplomacyAction.cost}
-                </span>
-                <span className="mnd__hint mnd__hint--benefit">
-                  {t("game:military.diplomacyBenefit")}
-                </span>
-                {parameterInspector?.render(`military.diplomacy.${diplomacyAction.actionId}`, {
-                  title: translateBackend(diplomacyAction.label),
-                  currentEffect: translateBackend(diplomacyAction.description),
-                })}
-                <div className="mnd__diplo-controls">
-                  {diplomacySelected ? (
-                    <>
-                      <span className="mnd__inline-status mnd__inline-status--done">
-                        {t("game:military.plannedThisRound", "已纳入本轮建交计划。")}
-                      </span>
-                      <button
-                        type="button"
-                        className="mnd__btn mnd__btn--cancel"
-                        onClick={() => onToggleDiplomacy(diplomacyAction.actionId, false)}
-                      >{t("common:cancel")}</button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      className="mnd__btn mnd__btn--primary"
-                      disabled={!diploCanAfford}
-                      aria-label={translateBackend(diplomacyAction.label)}
-                      onClick={() => onToggleDiplomacy(diplomacyAction.actionId, true)}
-                    >{t("game:military.establishDiplomacy")}</button>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>

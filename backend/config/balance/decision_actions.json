@@ -1,81 +1,5 @@
 {
-  "domesticMarketActions": {
-    "expand_workshop": {
-      "label": "扩建作坊",
-      "budgetPoolCost": 4,
-      "description": "扩建民间手工作坊，增加后续手工业产能。",
-      "effects": {
-        "handicraftCapacityDelta": 1
-      }
-    },
-    "market_fair": {
-      "label": "博览会",
-      "budgetPoolCost": 5,
-      "description": "举办商品博览会，永久提高国内市场承接上限。",
-      "effects": {
-        "domesticMarketCapacityDelta": 2
-      }
-    },
-    "rural_development": {
-      "label": "乡村开发",
-      "budgetPoolCost": 6,
-      "description": "投资乡村基建，永久提高国内市场承接上限。",
-      "effects": {
-        "domesticMarketCapacityDelta": 3
-      }
-    },
-    "consumer_subsidy": {
-      "label": "消费补贴",
-      "budgetPoolCost": 8,
-      "description": "追加消费补贴，永久提高国内市场承接上限，并在本轮提高收购价格。",
-      "effects": {
-        "domesticMarketCapacityDelta": 2,
-        "domesticPriceBonusDelta": 1
-      }
-    },
-    "import_substitution": {
-      "label": "进口替代",
-      "budgetPoolCost": 7,
-      "description": "限制进口替代品，永久提高国内市场承接上限，并在本轮提高收购价格。",
-      "effects": {
-        "domesticMarketCapacityDelta": 1,
-        "domesticPriceBonusDelta": 2
-      }
-    },
-    "public_works": {
-      "label": "公共工程",
-      "budgetPoolCost": 8,
-      "description": "投入公共工程，永久提高国内市场承接上限，并在本轮抬高收购价格。",
-      "effects": {
-        "domesticMarketCapacityDelta": 2,
-        "domesticPriceBonusDelta": 2
-      }
-    },
-    "luxury_promotion": {
-      "label": "奢侈品推广",
-      "budgetPoolCost": 9,
-      "description": "培育高端消费市场，提高国内商品收购价格，但收益不再压过完整军事路线。",
-      "effects": {
-        "domesticPriceBonusDelta": 2
-      }
-    },
-    "infrastructure_investment": {
-      "label": "基础设施投资",
-      "budgetPoolCost": 10,
-      "description": "投资基础设施，增加后续手工业产能。",
-      "effects": {
-        "handicraftCapacityDelta": 2
-      }
-    },
-    "trade_hub": {
-      "label": "商贸枢纽",
-      "budgetPoolCost": 15,
-      "description": "建设商贸枢纽，永久扩展海外市场承接上限。",
-      "effects": {
-        "overseasMarketCapacityDelta": 1
-      }
-    }
-  },
+  "domesticMarketActions": {},
   "factoryActions": {
     "factory_raw_procurement": {
       "label": "原料开采",
@@ -107,54 +31,6 @@
     }
   },
   "governmentActions": {
-    "trade_agreement": {
-      "label": "贸易协定",
-      "budgetPoolCost": 6,
-      "description": "签订双边贸易协定，永久提高海外市场承接上限，并在本轮改善海外出售价格。",
-      "effects": {
-        "overseasMarketCapacityDelta": 1,
-        "overseasPriceBonusDelta": 2
-      }
-    },
-    "expand_shipping_lines": {
-      "label": "扩展航线",
-      "budgetPoolCost": 10,
-      "description": "开辟新航线，永久提升海外市场承接上限，并在本轮改善海外出售价格。",
-      "ratioDelta": {
-        "domesticMarket": -0.2,
-        "governmentFiscal": 0.2
-      },
-      "effects": {
-        "overseasMarketCapacityDelta": 1,
-        "overseasPriceBonusDelta": 1
-      }
-    },
-    "domestic_stimulus": {
-      "label": "内需刺激",
-      "budgetPoolCost": 10,
-      "description": "推行内需扶持政策，永久提高国内市场承接上限，并在本轮改善国内收购价格。",
-      "ratioDelta": {
-        "domesticMarket": 0.15,
-        "governmentFiscal": -0.15
-      },
-      "effects": {
-        "domesticMarketCapacityDelta": 3,
-        "domesticPriceBonusDelta": 1
-      }
-    },
-    "industrial_policy": {
-      "label": "产业政策",
-      "budgetPoolCost": 12,
-      "description": "推动产业升级，提升国内外商品附加值。",
-      "ratioDelta": {
-        "factory": 0.2,
-        "governmentFiscal": -0.2
-      },
-      "effects": {
-        "domesticPriceBonusDelta": 1,
-        "overseasPriceBonusDelta": 1
-      }
-    },
     "expand_research": {
       "label": "建立研究院",
       "budgetPoolCost": 6,
@@ -165,37 +41,6 @@
         }
       }
     },
-    "global_trade_dominance": {
-      "label": "全球贸易霸权",
-      "budgetPoolCost": 16,
-      "description": "以全球霸权地位垄断国际贸易，永久提高海外市场承接上限，并在本轮提高海外商品溢价。",
-      "effects": {
-        "overseasMarketCapacityDelta": 3,
-        "overseasPriceBonusDelta": 3
-      }
-    },
-    "naval_modernization": {
-      "label": "海军现代化",
-      "budgetPoolCost": 14,
-      "description": "推动海军升级，永久提高海外市场承接上限，并在本轮改善海外出售价格。",
-      "ratioDelta": {
-        "domesticMarket": -0.1,
-        "governmentFiscal": 0.1
-      },
-      "effects": {
-        "overseasMarketCapacityDelta": 2,
-        "overseasPriceBonusDelta": 1
-      }
-    },
-    "market_subsidy": {
-      "label": "市场补贴",
-      "budgetPoolCost": 0,
-      "description": "动用行政力组织内需补贴，永久提高国内市场承接上限。",
-      "effects": {
-        "domesticMarketCapacityDelta": 2
-      },
-      "maxPerRound": 1
-    },
     "trade_promotion": {
       "label": "贸易促进",
       "budgetPoolCost": 0,
@@ -204,41 +49,6 @@
         "overseasMarketCapacityDelta": 2
       },
       "maxPerRound": 1
-    },
-    "price_control": {
-      "label": "价格管制",
-      "budgetPoolCost": 0,
-      "description": "动用行政力调控本轮国内收购价格。",
-      "effects": {
-        "domesticPriceBonusDelta": 2
-      },
-      "maxPerRound": 1
-    },
-    "market_fair": {
-      "label": "博览会",
-      "budgetPoolCost": 5,
-      "description": "举办商品博览会，永久提高国内市场承接上限。",
-      "effects": {
-        "domesticMarketCapacityDelta": 2
-      }
-    },
-    "consumer_subsidy": {
-      "label": "消费补贴",
-      "budgetPoolCost": 8,
-      "description": "追加消费补贴，永久提高国内市场承接上限，并在本轮提高收购价格。",
-      "effects": {
-        "domesticMarketCapacityDelta": 2,
-        "domesticPriceBonusDelta": 1
-      }
-    },
-    "import_substitution": {
-      "label": "进口替代",
-      "budgetPoolCost": 7,
-      "description": "限制进口替代品，永久提高国内市场承接上限，并在本轮提高收购价格。",
-      "effects": {
-        "domesticMarketCapacityDelta": 1,
-        "domesticPriceBonusDelta": 2
-      }
     }
   },
   "regularPolicies": {

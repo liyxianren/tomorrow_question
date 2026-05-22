@@ -33,12 +33,17 @@ class CountryBalanceConfig:
     initial_diplomacy: tuple[str, ...] = ()
     initial_raw_materials: int = 0
     raw_materials_per_turn: int = 20
+    factory_total_cap: int = 0
+    factory_caps_by_mode: dict[str, int] = field(default_factory=dict)
+    material_purchase_cap_per_turn: int = 0
 
 
 @dataclass(frozen=True, slots=True)
 class ProductionBalanceConfig:
     levels: tuple[str, ...]
     output_multipliers: dict[str, int]
+    demand_coefficients: dict[str, float]
+    raw_material_purchase_unit_cost: int
     expansion_costs: dict[str, int]
     upgrade_costs: dict[str, int]
     new_factory_costs: dict[str, int]
@@ -58,7 +63,6 @@ class ProductionGoodConfig:
     demand_threshold: int
     price_floor: int
     price_ceiling: int
-    overseas_price_ceiling: int
     usage_hint: str
 
 
@@ -88,7 +92,6 @@ class ResearchChainConfig:
 @dataclass(frozen=True, slots=True)
 class OverseasCompetitionConfig:
     reward_capacity_bonus: int
-    reward_price_bonus: int
     infantry_power: int
     artillery_power: int
     minimum_power: int
@@ -96,7 +99,6 @@ class OverseasCompetitionConfig:
 
 @dataclass(frozen=True, slots=True)
 class MarketBalanceConfig:
-    region_goods_premiums: dict[str, dict[str, int]]
     overseas_competition: OverseasCompetitionConfig
 
 
@@ -106,8 +108,8 @@ class RegionBlueprintConfig:
     access_level: RegionAccessLevel
     resource_limit: dict[str, int]
     required_nodes: tuple[str, ...]
+    fixed_overseas_price: int
     colonizable: bool = False
-    price_multiplier: float = 1.0
     min_army: int = 1
 
 

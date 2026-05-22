@@ -57,8 +57,8 @@ describe("DecisionCardDemoPage", () => {
 
     await user.click(screen.getByRole("button", { name: "工业区" }));
     expect(screen.getByText("本轮生产")).toBeInTheDocument();
+    expect(screen.getByText("购买原材料")).toBeInTheDocument();
     expect(screen.getByText("产业建设")).toBeInTheDocument();
-    expect(screen.getByText("临时调度")).toBeInTheDocument();
     expect(screen.getByText("未解锁商品")).toBeInTheDocument();
 
     const grainCard = screen.getByText("粮食").closest("article");
@@ -83,33 +83,33 @@ describe("DecisionCardDemoPage", () => {
 
     await user.click(screen.getByRole("button", { name: "议会厅" }));
     expect(screen.getByText("市场调节")).toBeInTheDocument();
-    expect(screen.getByText("博览会")).toBeInTheDocument();
+    expect(screen.getByText("贸易促进")).toBeInTheDocument();
     expect(screen.getByText("国家能力卡")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "军事要塞" }));
     expect(screen.getByText("海外区域状态")).toBeInTheDocument();
-    expect(screen.getByText("海军建设")).toBeInTheDocument();
+    expect(screen.getByText("陆军征募")).toBeInTheDocument();
   });
 
-  it("allows factory dispatch and market regulation toggles to update the shared draft", async () => {
+  it("allows material purchase and market regulation toggles to update the shared draft", async () => {
     renderDecisionCardDemoPage();
     const user = userEvent.setup();
 
     await screen.findByRole("heading", { name: "决策卡片 DEMO" });
     await user.click(screen.getByRole("button", { name: "工业区" }));
 
-    await user.click(screen.getByLabelText("原料统购"));
-    expect(screen.getByText("已加入本轮临时调度，工厂预算 -3。")).toBeInTheDocument();
-    expect(screen.getByText("工厂预算 7")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "增加购买原材料" }));
+    expect(screen.getByText("已安排购买 1 原材料，工厂预算 -1。")).toBeInTheDocument();
+    expect(screen.getByText("工厂预算 9")).toBeInTheDocument();
 
-    await user.click(screen.getByLabelText("原料统购"));
+    await user.click(screen.getByRole("button", { name: "减少购买原材料" }));
     await user.click(screen.getByTestId("decision-command-deck-tab-government"));
-    await user.click(screen.getByLabelText("博览会"));
-    expect(screen.getByText("已纳入本轮政府政策，财政 -5。")).toBeInTheDocument();
+    await user.click(screen.getByLabelText("贸易促进"));
+    expect(screen.getByText("已纳入本轮政府政策，行政力 -1。")).toBeInTheDocument();
 
     await user.click(screen.getByTestId("decision-command-deck-tab-domestic"));
     expect(screen.getByText("本轮政府调节")).toBeInTheDocument();
-    expect(screen.getByText("博览会")).toBeInTheDocument();
-    expect(screen.queryByLabelText("选择 博览会")).not.toBeInTheDocument();
+    expect(screen.getByText("海外容量 +2")).toBeInTheDocument();
+    expect(screen.queryByLabelText("选择 贸易促进")).not.toBeInTheDocument();
   });
 });

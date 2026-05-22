@@ -64,7 +64,6 @@ def _empty_decision_payload() -> dict:
         "militaryPlan": {
             "unlockColonization": False,
             "militaryActions": [],
-            "diplomacyActions": [],
             "colonizationActions": [],
             "navalDeployment": {},
             "conquestActions": [],
@@ -210,47 +209,40 @@ class StrategySelectionsE2E(unittest.TestCase):
         conn.close()
         return updated
 
-    def test_trade_agreement_applies_effects(self):
-        """trade_agreement should increase overseas market capacity and price bonus."""
+    def test_trade_promotion_applies_overseas_capacity_only(self):
+        """trade_promotion should increase overseas market capacity without price bonus."""
         self.seed_active_game()
         snapshot = self._load_snapshot()
         britain = self._player(snapshot, "player-1")
         britain.budget_pools["governmentFiscal"] = 100
+        britain.administration_capacity = 3
         self._save_snapshot(snapshot)
 
         snap = self._submit_decisions_for_all(
-            {"session-1": _decision_payload(strategy_selections=["trade_agreement"])}
+            {"session-1": _decision_payload(strategy_selections=["trade_promotion"])}
         )
         britain = self._player(snap, "player-1")
-        overseas_capacity = britain.temporary_effects.get("overseasMarketCapacityBonus", 0)
-        overseas_price = britain.temporary_effects.get("overseasPriceBonus", 0)
-        self.assertGreaterEqual(overseas_capacity, 1,
-                                "trade_agreement should increase overseas market capacity")
-        self.assertGreaterEqual(overseas_price, 2,
-                                "trade_agreement should increase overseas price bonus by 2")
+        overseas_capacity = britain.permanent_effects.get("overseasMarketCapacityBonus", 0)
+        government_overseas_capacity = britain.temporary_effects.get("governmentOverseasMarketCapacityBonus", 0)
+        self.assertGreaterEqual(overseas_capacity, 2,
+                                "trade_promotion should increase overseas market capacity")
+        self.assertGreaterEqual(government_overseas_capacity, 2,
+                                "trade_promotion should be visible in the current market preview")
+        self.assertEqual(int(britain.temporary_effects.get("governmentDomesticPriceBonus", 0)), 0)
+        self.assertEqual(int(britain.temporary_effects.get("governmentDomesticMarketCapacityBonus", 0)), 0)
 
-    def test_domestic_stimulus_applies_ratio_delta(self):
-        """domestic_stimulus should shift ratio toward domestic market."""
+    def test_removed_domestic_stimulus_strategy_is_rejected(self):
+        """Old domestic market strategy ids should not remain submit-able."""
         self.seed_active_game()
-        snapshot = self._load_snapshot()
-        britain = self._player(snapshot, "player-1")
-        britain.budget_pools["governmentFiscal"] = 100
-        original_ratio = dict(britain.income_allocation_ratio)
-        self._save_snapshot(snapshot)
 
-        snap = self._submit_decisions_for_all(
-            {"session-1": _decision_payload(strategy_selections=["domestic_stimulus"])}
-        )
-        britain = self._player(snap, "player-1")
-        # domestic_stimulus: domesticMarket +0.15, governmentFiscal -0.15
-        self.assertGreater(
-            britain.income_allocation_ratio.get("domesticMarket", 0),
-            original_ratio.get("domesticMarket", 0),
-            "domestic_stimulus should increase domesticMarket ratio"
+        self._submit_api(
+            "session-1",
+            _decision_payload(strategy_selections=["domestic_stimulus"]),
+            expected_status=400,
         )
 
     def test_strategy_selection_deducts_budget(self):
-        """Government actions should deduct from governmentFiscal budget."""
+        """Fiscal government strategies should deduct from governmentFiscal budget."""
         self.seed_active_game()
         snapshot = self._load_snapshot()
         britain = self._player(snapshot, "player-1")
@@ -258,14 +250,13 @@ class StrategySelectionsE2E(unittest.TestCase):
         self._save_snapshot(snapshot)
 
         snap = self._submit_decisions_for_all(
-            {"session-1": _decision_payload(strategy_selections=["trade_agreement"])}
+            {"session-1": _decision_payload(strategy_selections=["expand_research"])}
         )
         britain = self._player(snap, "player-1")
-        # The +8 decision supplement is virtual allowance, not persisted fiscal income.
-        self.assertEqual(britain.budget_pools["governmentFiscal"], 100)
+        self.assertEqual(britain.budget_pools["governmentFiscal"], 94)
 
     def test_market_policy_strategy_spends_administration_not_government_fiscal(self):
-        """Condensed market policies submitted as strategySelections should spend administration only."""
+        """trade_promotion should spend administration only."""
         self.seed_active_game()
         snapshot = self._load_snapshot()
         britain = self._player(snapshot, "player-1")
@@ -274,7 +265,7 @@ class StrategySelectionsE2E(unittest.TestCase):
         self._save_snapshot(snapshot)
 
         snap = self._submit_decisions_for_all(
-            {"session-1": _decision_payload(strategy_selections=["market_subsidy"])}
+            {"session-1": _decision_payload(strategy_selections=["trade_promotion"])}
         )
         britain = self._player(snap, "player-1")
 
@@ -282,52 +273,41 @@ class StrategySelectionsE2E(unittest.TestCase):
         self.assertEqual(britain.budget_pools["domesticMarket"], 50)
         self.assertEqual(britain.administration_capacity, 2)
         self.assertGreaterEqual(
-            int(britain.temporary_effects.get("domesticMarketCapacityBonus", 0)),
+            int(britain.permanent_effects.get("overseasMarketCapacityBonus", 0)),
             2,
         )
         self.assertEqual(
-            int(britain.temporary_effects.get("governmentDomesticMarketCapacityBonus", 0)),
+            int(britain.temporary_effects.get("governmentOverseasMarketCapacityBonus", 0)),
             2,
         )
 
     def test_market_policies_respect_administration_capacity(self):
-        """Market policy selections are limited by administrative power, not government fiscal."""
+        """Government strategy selections are limited by administrative power."""
         self.seed_active_game()
         snapshot = self._load_snapshot()
         britain = self._player(snapshot, "player-1")
-        britain.administration_capacity = 1
-        britain.budget_pools["governmentFiscal"] = 0
+        britain.administration_capacity = 0
+        britain.budget_pools["governmentFiscal"] = 100
         britain.budget_pools["domesticMarket"] = 5
         self._save_snapshot(snapshot)
 
         self._submit_api(
             "session-1",
-            _decision_payload(strategy_selections=["market_subsidy", "price_control"]),
+            _decision_payload(strategy_selections=["trade_promotion"]),
             expected_status=400,
         )
 
-    def test_market_regulation_strategy_keeps_price_bonus_effect(self):
-        """Price-oriented market policy should keep the same temporary price effect."""
+    def test_removed_domestic_market_policies_are_rejected(self):
+        """Old domestic market policy ids should no longer be accepted."""
         self.seed_active_game()
-        snapshot = self._load_snapshot()
-        britain = self._player(snapshot, "player-1")
-        britain.budget_pools["governmentFiscal"] = 100
-        self._save_snapshot(snapshot)
 
-        snap = self._submit_decisions_for_all(
-            {"session-1": _decision_payload(strategy_selections=["price_control"])}
-        )
-        britain = self._player(snap, "player-1")
-
-        self.assertEqual(britain.budget_pools["governmentFiscal"], 100)
-        self.assertGreaterEqual(
-            int(britain.temporary_effects.get("domesticPriceBonus", 0)),
-            2,
-        )
-        self.assertEqual(
-            int(britain.temporary_effects.get("governmentDomesticPriceBonus", 0)),
-            2,
-        )
+        for action_id in ["market_fair", "consumer_subsidy", "import_substitution", "industrial_policy"]:
+            with self.subTest(action_id=action_id):
+                self._submit_api(
+                    "session-1",
+                    _decision_payload(strategy_selections=[action_id]),
+                    expected_status=400,
+                )
 
     def test_expand_research_builds_research_facility(self):
         """expand_research should spend fiscal budget and add one academy."""
@@ -353,19 +333,19 @@ class StrategySelectionsE2E(unittest.TestCase):
             original_admin,
             "expand_research is a fiscal research construction item, not an administrative policy slot",
         )
-        self.assertEqual(britain.budget_pools["governmentFiscal"], 100)
+        self.assertEqual(britain.budget_pools["governmentFiscal"], 94)
 
     def test_strategy_over_budget_rejected(self):
         """Strategy selection exceeding government budget should be rejected."""
         self.seed_active_game()
         snapshot = self._load_snapshot()
         britain = self._player(snapshot, "player-1")
-        britain.budget_pools["governmentFiscal"] = 0  # Not enough for infrastructure_investment (cost=10) even after +8.
+        britain.budget_pools["governmentFiscal"] = 0
         self._save_snapshot(snapshot)
 
         self._submit_api(
             "session-1",
-            _decision_payload(strategy_selections=["infrastructure_investment"]),
+            _decision_payload(strategy_selections=["expand_research"]),
             expected_status=400,
         )
 

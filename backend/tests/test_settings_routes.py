@@ -91,7 +91,7 @@ class SettingsRoutesTests(unittest.TestCase):
         for key in (
             "factory.construction.expansion.handicraft",
             "government.adminPurchase",
-            "government.strategy.market_subsidy",
+            "government.strategy.trade_promotion",
             "government.policy.raise_commercial_tax",
             "domestic.preview",
             "military.action.recruit_army",

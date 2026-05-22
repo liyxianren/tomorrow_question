@@ -16,6 +16,7 @@ describe("createInitialPhaseDraft", () => {
         expansionOrders: [],
         upgradeOrders: [],
         newFactoryOrders: [],
+        rawMaterialPurchaseQuantity: 0,
         factoryActions: [],
       },
       domesticMarketPlan: {
@@ -30,9 +31,9 @@ describe("createInitialPhaseDraft", () => {
       militaryPlan: {
         unlockColonization: false,
         militaryActions: [],
-        diplomacyActions: [],
         colonizationActions: [],
         navalDeployment: {},
+        regionBlockades: {},
         conquestActions: [],
         lootingActions: [],
       },

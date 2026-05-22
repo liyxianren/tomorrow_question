@@ -42,7 +42,10 @@ class Settings:
         # In production the frontend is served from the same origin as the backend,
         # so the Origin check is effectively a no-op. Default to "*" so single-container
         # deploys (e.g. Zeabur) work without requiring an extra env var.
-        default_cors = "*" if app_env == "production" else "http://127.0.0.1:5173,http://localhost:5173"
+        default_cors = "*" if app_env == "production" else (
+            "http://127.0.0.1:5173,http://localhost:5173,"
+            "http://127.0.0.1:5175,http://localhost:5175"
+        )
         cors_origins = os.getenv("CORS_ALLOWED_ORIGINS", default_cors)
 
         return cls(

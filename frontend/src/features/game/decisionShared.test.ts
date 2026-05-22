@@ -84,7 +84,7 @@ describe("calculateDecisionSpendSummary", () => {
             inputRatio: 1,
             outputRatio: 1,
             demandCoefficient: 2,
-            buildCost: 12,
+            buildCost: 13,
             upgradeCost: null,
             currentCapacity: 2,
             requiredTech: null,
@@ -125,11 +125,11 @@ describe("calculateDecisionSpendSummary", () => {
     const draft = createInitialPhaseDraft("decision");
 
     draft.governmentPlan.adminPurchases = 2;
-    draft.activatePolicies = ["trade_agreement"];
+    draft.activatePolicies = ["expand_army"];
 
     const summary = calculateDecisionSpendSummary(workspace, draft);
 
-    expect(summary.governmentSpend).toBe(22);
+    expect(summary.governmentSpend).toBe(24);
   });
 
   it("moves phase-1 assignments from an upgraded source route to the target route", () => {
@@ -191,11 +191,11 @@ describe("calculateDecisionSpendSummary", () => {
     expect(clamped.phase1Production?.rawMaterialAssignments).toEqual({ handicraft: 1, mechanized: 1 });
   });
 
-  it("keeps admin-based market policies out of fiscal spend", () => {
+  it("keeps trade promotion out of fiscal spend", () => {
     const workspace = createDecisionPlayerWorkspace();
     const draft = createInitialPhaseDraft("decision");
 
-    draft.governmentPlan.strategySelections = [{ actionId: "market_subsidy" }];
+    draft.governmentPlan.strategySelections = [{ actionId: "trade_promotion" }];
 
     const summary = calculateDecisionSpendSummary(workspace, draft);
 
@@ -248,60 +248,54 @@ describe("calculateGovernmentFiscalState", () => {
         ...baseWorkspace.governmentActions,
         strategies: baseWorkspace.governmentActions.strategies.map((strategy) => ({
           ...strategy,
-          isMarketRegulation: strategy.actionId === "market_subsidy" || strategy.actionId === "price_control",
+          isMarketRegulation: strategy.actionId === "trade_promotion",
           lockedReason: null,
         })),
       },
     });
   }
 
-  it("uses government fiscal directly without adding a separate market budget line", () => {
+  it("uses one government fiscal pool without a separate policy allowance", () => {
     const state = calculateGovernmentFiscalState(
       createMarketRegulationWorkspace(),
       createInitialPhaseDraft("decision"),
     );
 
     expect(state.baseGovernmentBudget).toBe(10);
-    expect(state.policyBudgetSupplement).toBe(8);
     expect(state.marketRegulationAllowance).toBe(0);
-    expect(state.effectiveGovernmentBudget).toBe(18);
+    expect(state.effectiveGovernmentBudget).toBe(10);
   });
 
-  it("does not charge admin-based market policies to government fiscal", () => {
+  it("does not charge trade promotion to government fiscal", () => {
     const workspace = createMarketRegulationWorkspace();
     const draft = createInitialPhaseDraft("decision");
 
-    draft.governmentPlan.strategySelections = [{ actionId: "market_subsidy" }];
+    draft.governmentPlan.strategySelections = [{ actionId: "trade_promotion" }];
     const stateWithinGovernmentFiscal = calculateGovernmentFiscalState(workspace, draft);
 
     expect(stateWithinGovernmentFiscal.marketRegulationSpend).toBe(0);
-    expect(stateWithinGovernmentFiscal.marketRegulationOverflow).toBe(0);
     expect(stateWithinGovernmentFiscal.baseGovernmentRemaining).toBe(10);
-    expect(stateWithinGovernmentFiscal.effectiveGovernmentRemaining).toBe(18);
+    expect(stateWithinGovernmentFiscal.effectiveGovernmentRemaining).toBe(10);
 
-    draft.governmentPlan.strategySelections = [
-      { actionId: "market_subsidy" },
-      { actionId: "price_control" },
-    ];
+    draft.governmentPlan.strategySelections = [{ actionId: "trade_promotion" }];
     const stateWithOverflow = calculateGovernmentFiscalState(workspace, draft);
 
     expect(stateWithOverflow.marketRegulationSpend).toBe(0);
-    expect(stateWithOverflow.marketRegulationOverflow).toBe(0);
     expect(stateWithOverflow.baseGovernmentRemaining).toBe(10);
-    expect(stateWithOverflow.effectiveGovernmentRemaining).toBe(18);
+    expect(stateWithOverflow.effectiveGovernmentRemaining).toBe(10);
   });
 
   it("counts selected military actions in government fiscal previews", () => {
     const workspace = createDecisionPlayerWorkspace();
     const draft = createInitialPhaseDraft("decision");
 
-    draft.militaryPlan.militaryActions = [{ actionId: "naval_drill" }];
+    draft.militaryPlan.militaryActions = [{ actionId: "recruit_army" }];
 
     const summary = calculateDecisionSpendSummary(workspace, draft);
     const state = calculateGovernmentFiscalState(workspace, draft);
 
-    expect(summary.governmentSpend).toBe(1);
-    expect(state.militaryFiscalSpend).toBe(1);
-    expect(state.baseGovernmentRemaining).toBe(workspace.budgetPools.governmentFiscal - 1);
+    expect(summary.governmentSpend).toBe(5);
+    expect(state.militaryFiscalSpend).toBe(5);
+    expect(state.baseGovernmentRemaining).toBe(workspace.budgetPools.governmentFiscal - 5);
   });
 });

@@ -11,7 +11,7 @@ import {
 describe("createGameWorkbenchViewModel", () => {
   it("marks government as decided when a policy activation is queued", () => {
     const draft = createInitialPhaseDraft("decision");
-    draft.activatePolicies = ["trade_agreement"];
+    draft.activatePolicies = ["expand_army"];
 
     const viewModel = createGameWorkbenchViewModel({
       currentPhase: "decision",
@@ -173,6 +173,61 @@ describe("createGameWorkbenchViewModel", () => {
               buildCost: 12,
               upgradeCost: null,
               currentCapacity: 5,
+              requiredTech: null,
+              isAvailable: true,
+            },
+          ],
+          domesticDemand: 4,
+          equilibriumPrice: 5,
+          domesticPricePreview: 5,
+          investmentPool: 20,
+          incomeAllocationRatio: {},
+          marketMetrics: {},
+        },
+      }),
+      draftPayload: draft,
+      decisionFlowState: {
+        ...decisionFlowState,
+        stepReviewStateByStep: {
+          factory: "checked",
+          government: "no_op",
+          domestic: "checked",
+          military: "no_op",
+          research: "no_op",
+        },
+      },
+    });
+
+    expect(reasons).toEqual([]);
+  });
+
+  it("counts raw material purchases before blocking production submission", () => {
+    const decisionFlowState = createInitialDecisionFlowState();
+    const draft = createInitialPhaseDraft("decision");
+    draft.factoryPlan.rawMaterialPurchaseQuantity = 1;
+    draft.phase1Production = { rawMaterialAssignments: { handicraft: 3 } };
+
+    const reasons = getPhaseSubmitBlockingReasons({
+      currentPhase: "decision",
+      currentPlayerState: createNationalState(),
+      currentPlayerWorkspace: createDecisionPlayerWorkspace({
+        budgetPools: { domesticMarket: 10, factory: 20, governmentFiscal: 20 },
+        phase1Economy: {
+          capacityByMode: { idle: 0, handicraft: 3, mechanized: 0, steam: 0, electrified: 0 },
+          rawMaterials: 2,
+          materialPurchaseCapPerTurn: 15,
+          rawMaterialPurchaseUnitCost: 1,
+          goodsInventory: 0,
+          productionModes: [
+            {
+              mode: "handicraft",
+              label: "手工业",
+              inputRatio: 1,
+              outputRatio: 1,
+              demandCoefficient: 2,
+              buildCost: 12,
+              upgradeCost: null,
+              currentCapacity: 3,
               requiredTech: null,
               isAvailable: true,
             },

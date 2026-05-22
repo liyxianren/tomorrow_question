@@ -424,7 +424,7 @@ class SettlementRealtimeOrchestrationTests(unittest.TestCase):
         self.assertEqual(updated_player.cumulative_national_income, 30)
         # The round's active policy still affected this settlement's split, but
         # it is cleared before the next decision phase is hydrated.
-        self.assertEqual(updated_player.budget_pools, {"domesticMarket": 5, "factory": 9, "governmentFiscal": 11})
+        self.assertEqual(updated_player.budget_pools, {"domesticMarket": 10, "factory": 7, "governmentFiscal": 8})
         self.assertEqual(updated_player.active_policies, [])
         self.assertEqual(updated_player.administration_capacity, 3)
         self.assertEqual(updated_player.income_allocation_ratio["factory"], 3.0)

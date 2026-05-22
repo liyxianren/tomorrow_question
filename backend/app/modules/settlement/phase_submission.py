@@ -7,20 +7,17 @@ from typing import Any
 
 from app.contracts.enums import ErrorCode, GamePhase, PlayerSubmissionStatus
 from app.modules.balance_config import get_balance_config
-from app.modules.game_state.budgeting import (
-    GOVERNMENT_POLICY_BUDGET_SUPPLEMENT,
-    decision_phase_government_fiscal_budget,
-)
+from app.modules.game_state.budgeting import decision_phase_government_fiscal_budget
 from app.modules.game_state.effects import apply_effects
 from app.modules.game_state.factory_economy import (
     action_locked_reason,
     current_route_capacity,
     expansion_unit_budget_cost,
     new_factory_unit_budget_cost,
-    route_locked_reason,
+    route_technology_locked_reason,
     upgrade_unit_budget_cost,
 )
-from app.modules.game_state.market_access import is_region_accessible, resolve_domestic_market_capacity
+from app.modules.game_state.market_access import is_region_accessible
 from app.modules.game_state.models import Game, GameSnapshot
 from app.modules.game_state.phase_deadline import deadline_has_passed
 from app.modules.game_state.phase_state import PhaseSubmissionState
@@ -279,29 +276,47 @@ def _validate_market_payload(*, snapshot: GameSnapshot, player_state, payload: d
         phase1_market=phase1_market,
         balance=balance,
     )
+    external_total = 0
+    regions_by_id = {region.region_id: region for region in snapshot.region_states}
+    for allocation in phase1_market.get("externalAllocations", []) or []:
+        if isinstance(allocation, dict):
+            region_id = str(allocation.get("marketId") or "").strip()
+            quantity = max(0, int(allocation.get("quantity", 0) or 0))
+            if quantity <= 0:
+                continue
+            region_state = regions_by_id.get(region_id)
+            if region_state is None:
+                raise PhaseSubmissionError(
+                    ErrorCode.INVALID_SUBMISSION,
+                    f"Overseas market region {region_id} is invalid.",
+                )
+            if not is_region_accessible(
+                region_state.access_level,
+                region_id=region_id,
+                established_diplomacy=player_state.established_diplomacy,
+            ):
+                raise PhaseSubmissionError(
+                    ErrorCode.INVALID_SUBMISSION,
+                    f"Overseas market region {region_id} is not accessible.",
+                )
+            if not check_route_accessible(player_state.country.value, region_id, snapshot, balance):
+                raise PhaseSubmissionError(
+                    ErrorCode.INVALID_SUBMISSION,
+                    f"Overseas market region {region_id} route is blocked.",
+                )
+            external_total += quantity
     domestic_allocation_raw = phase1_market.get("domesticAllocation")
     if isinstance(domestic_allocation_raw, (int, float)) and not isinstance(domestic_allocation_raw, bool):
         domestic_allocation = max(0, int(domestic_allocation_raw))
-        if domestic_allocation > 0:
-            total_goods = max(0, int(player_state.phase1_economy.goods_inventory))
-            if domestic_allocation > total_goods:
-                raise PhaseSubmissionError(
-                    ErrorCode.INVALID_SUBMISSION,
-                    f"Domestic market allocation ({domestic_allocation}) exceeds available goods inventory ({total_goods}).",
-                )
-            from app.modules.rules.phase1_economy import calculate_domestic_demand
-            domestic_demand = int(calculate_domestic_demand(player_state.phase1_economy.capacity_by_mode))
-            if domestic_allocation > domestic_demand:
-                raise PhaseSubmissionError(
-                    ErrorCode.INVALID_SUBMISSION,
-                    f"Domestic market allocation ({domestic_allocation}) exceeds domestic demand ({domestic_demand}).",
-                )
-            domestic_capacity = max(0, int(resolve_domestic_market_capacity(player_state)))
-            if domestic_allocation > domestic_capacity:
-                raise PhaseSubmissionError(
-                    ErrorCode.INVALID_SUBMISSION,
-                    f"Domestic market allocation ({domestic_allocation}) exceeds domestic market capacity ({domestic_capacity}).",
-                )
+    else:
+        domestic_allocation = 0
+    total_goods = max(0, int(player_state.phase1_economy.goods_inventory))
+    total_requested = domestic_allocation + external_total
+    if total_requested > total_goods:
+        raise PhaseSubmissionError(
+            ErrorCode.INVALID_SUBMISSION,
+            f"Market allocation ({total_requested}) exceeds available goods inventory ({total_goods}).",
+        )
 
 
 def _validate_external_competition_deployments(
@@ -353,11 +368,6 @@ def _validate_external_competition_deployments(
                 ErrorCode.INVALID_SUBMISSION,
                 f"Overseas competition region {region_id} is invalid.",
             )
-        if region_id not in player_state.established_diplomacy:
-            raise PhaseSubmissionError(
-                ErrorCode.INVALID_SUBMISSION,
-                f"Overseas competition region {region_id} requires established diplomacy.",
-            )
         if not check_route_accessible(player_state.country.value, region_id, snapshot, balance):
             raise PhaseSubmissionError(
                 ErrorCode.INVALID_SUBMISSION,
@@ -406,6 +416,13 @@ def _normalize_decision_submission(payload: dict[str, object]) -> dict[str, Any]
     normalized["factoryPlan"]["expansionOrders"] = _normalize_order_list(factory_plan.get("expansionOrders"), "routeId")
     normalized["factoryPlan"]["upgradeOrders"] = _normalize_upgrade_orders(factory_plan.get("upgradeOrders"))
     normalized["factoryPlan"]["newFactoryOrders"] = _normalize_order_list(factory_plan.get("newFactoryOrders"), "routeId")
+    normalized["factoryPlan"]["rawMaterialPurchaseQuantity"] = max(
+        0,
+        _normalize_non_negative_int(
+            factory_plan.get("rawMaterialPurchaseQuantity", 0),
+            "factoryPlan.rawMaterialPurchaseQuantity",
+        ),
+    )
     normalized["factoryPlan"]["factoryActions"] = _normalize_action_list(factory_plan.get("factoryActions") or [])
 
     domestic_plan = payload.get("domesticMarketPlan")
@@ -468,13 +485,14 @@ def _normalize_decision_submission(payload: dict[str, object]) -> dict[str, Any]
     normalized["militaryPlan"]["militaryActions"] = _normalize_action_list(
         military_plan.get("militaryActions", [])
     )
-    normalized["militaryPlan"]["diplomacyActions"] = _normalize_action_list(
-        military_plan.get("diplomacyActions", [])
-    )
+    # Legacy region-relation gameplay has been removed. Keep the payload
+    # shape stable for older clients, but strip any submitted legacy actions.
+    normalized["militaryPlan"]["diplomacyActions"] = []
     normalized["militaryPlan"]["unlockColonization"] = False
     normalized["militaryPlan"]["colonizationActions"] = []
     normalized["militaryPlan"]["lootingActions"] = []
     normalized["militaryPlan"]["navalDeployment"] = military_plan.get("navalDeployment", {})
+    normalized["militaryPlan"]["regionBlockades"] = military_plan.get("regionBlockades", {})
     normalized["militaryPlan"]["conquestActions"] = []
 
     talent_plan = payload.get("talentPlan")
@@ -834,6 +852,10 @@ def _phase1_production_unit_budget_cost(balance) -> int:
     return max(0, int(goods.unit_budget_cost))
 
 
+def _raw_material_purchase_unit_cost(balance) -> int:
+    return max(0, int(getattr(balance.production, "raw_material_purchase_unit_cost", 1)))
+
+
 def _player_state_with_active_event_effects(snapshot: GameSnapshot, player_state):
     if not snapshot.active_events:
         return player_state
@@ -856,13 +878,33 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
     upgradeable_source_capacity = {
         route_id: current_route_capacity(player_state, route_id)
         for route_id in balance.production.levels
-        if route_id != "idle"
     }
 
     factory_spend = 0
     factory_capacity_delta = 0
     factory_capacity_delta_by_mode: dict[str, int] = {}
     raw_materials_delta = 0
+
+    def capacity_with_delta(mode: str) -> int:
+        return max(
+            0,
+            int(player_state.phase1_economy.capacity_by_mode.get(mode, 0))
+            + int(factory_capacity_delta_by_mode.get(mode, 0)),
+        )
+
+    def remaining_type_room(route_id: str) -> int:
+        if route_id == "idle":
+            return 0
+        country_config = balance.countries.get(player_state.country.value)
+        cap = int(country_config.factory_total_cap) if country_config is not None else 0
+        return max(0, cap - capacity_with_delta(route_id))
+
+    def remaining_build_room(route_id: str) -> int:
+        return min(capacity_with_delta("idle"), remaining_type_room(route_id))
+
+    def remaining_direct_build_room(route_id: str) -> int:
+        return remaining_build_room(route_id)
+
     selected_factory_actions: set[str] = set()
     for selection in payload.get("factoryPlan", {}).get("factoryActions", []):
         action_id = str(selection.get("actionId") or "")
@@ -884,6 +926,14 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
         factory_capacity_delta += int(action.effects.get("phase1ProductionRawCapacityDelta", 0))
         handicraft_capacity_delta = int(action.effects.get("handicraftCapacityDelta", 0))
         if handicraft_capacity_delta:
+            if handicraft_capacity_delta > remaining_build_room("handicraft"):
+                raise PhaseSubmissionError(
+                    ErrorCode.INVALID_SUBMISSION,
+                    f"Factory action {action_id} exceeds factory cap.",
+                )
+            factory_capacity_delta_by_mode["idle"] = (
+                int(factory_capacity_delta_by_mode.get("idle", 0)) - max(0, handicraft_capacity_delta)
+            )
             factory_capacity_delta_by_mode["handicraft"] = (
                 int(factory_capacity_delta_by_mode.get("handicraft", 0)) + handicraft_capacity_delta
             )
@@ -905,12 +955,29 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
 
     for order in payload.get("factoryPlan", {}).get("expansionOrders", []):
         route_id = str(order.get("routeId") or "")
-        if current_route_capacity(player_state, route_id) <= 0:
+        if route_id not in balance.production.expansion_costs:
             raise PhaseSubmissionError(
                 ErrorCode.INVALID_SUBMISSION,
-                f"Expansion route {route_id} is not unlocked.",
+                f"Expansion route {route_id} is invalid.",
             )
         quantity = max(0, int(order.get("quantity", 0)))
+        if route_technology_locked_reason(player_state, route_id) is not None:
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Expansion route {route_id} requires route technology.",
+            )
+        if quantity > remaining_direct_build_room(route_id):
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Expansion route {route_id} exceeds factory cap.",
+            )
+        if quantity > 0:
+            factory_capacity_delta_by_mode["idle"] = (
+                int(factory_capacity_delta_by_mode.get("idle", 0)) - quantity
+            )
+            factory_capacity_delta_by_mode[route_id] = (
+                int(factory_capacity_delta_by_mode.get(route_id, 0)) + quantity
+            )
         factory_spend += quantity * expansion_unit_budget_cost(player_state, route_id)
 
     for order in payload.get("factoryPlan", {}).get("upgradeOrders", []):
@@ -921,16 +988,25 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
                 ErrorCode.INVALID_SUBMISSION,
                 f"Upgrade route {route_id} is invalid.",
             )
-        if route_locked_reason(player_state, route_id) is not None:
+        if route_technology_locked_reason(player_state, route_id) is not None:
             raise PhaseSubmissionError(
                 ErrorCode.INVALID_SUBMISSION,
                 f"Upgrade route {route_id} requires route technology.",
             )
         quantity = max(0, int(order.get("quantity", 0)))
-        if quantity > max(0, int(upgradeable_source_capacity.get(source_route, 0))):
+        source_available = min(
+            max(0, int(upgradeable_source_capacity.get(source_route, 0))),
+            capacity_with_delta(source_route),
+        )
+        if quantity > source_available:
             raise PhaseSubmissionError(
                 ErrorCode.INVALID_SUBMISSION,
                 f"Upgrade route {route_id} has no available source route capacity.",
+            )
+        if quantity > remaining_type_room(route_id):
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Upgrade route {route_id} exceeds factory cap.",
             )
         upgradeable_source_capacity[source_route] = max(
             0,
@@ -952,13 +1028,39 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
                 ErrorCode.INVALID_SUBMISSION,
                 f"New factory route {route_id} is invalid.",
             )
-        if route_locked_reason(player_state, route_id) is not None:
+        if route_technology_locked_reason(player_state, route_id) is not None:
             raise PhaseSubmissionError(
                 ErrorCode.INVALID_SUBMISSION,
                 f"New factory route {route_id} requires route technology.",
             )
         quantity = max(0, int(order.get("quantity", 0)))
+        if quantity > remaining_direct_build_room(route_id):
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"New factory route {route_id} exceeds factory cap.",
+            )
+        if quantity > 0:
+            factory_capacity_delta_by_mode["idle"] = (
+                int(factory_capacity_delta_by_mode.get("idle", 0)) - quantity
+            )
+            factory_capacity_delta_by_mode[route_id] = (
+                int(factory_capacity_delta_by_mode.get(route_id, 0)) + quantity
+            )
         factory_spend += quantity * new_factory_unit_budget_cost(player_state, route_id)
+
+    raw_purchase_quantity = max(0, int(payload.get("factoryPlan", {}).get("rawMaterialPurchaseQuantity", 0) or 0))
+    if raw_purchase_quantity > 0:
+        country_config = balance.countries.get(player_state.country.value)
+        purchase_cap = int(country_config.material_purchase_cap_per_turn) if country_config is not None else 0
+        if raw_purchase_quantity > purchase_cap:
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                "Raw material purchase exceeds country cap.",
+                details={"reason": f"原材料购买超出本回合国家上限：计划 {raw_purchase_quantity} > 上限 {purchase_cap}"},
+            )
+        purchase_unit_cost = _raw_material_purchase_unit_cost(balance)
+        factory_spend += raw_purchase_quantity * purchase_unit_cost
+        raw_materials_delta += raw_purchase_quantity
 
     phase1_production = payload.get("phase1Production")
     if isinstance(phase1_production, dict):
@@ -1046,16 +1148,12 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
     # costs, but the action slot itself is paid with administrative power.
     for selection in payload.get("governmentPlan", {}).get("strategySelections", []):
         action_id = str(selection.get("actionId") or "")
-        market_action = balance.decision_actions.domestic_market_actions.get(action_id)
-        if market_action is not None:
-            administration_spend += 1
-            market_regulation_spend += int(market_action.budget_pool_cost)
-            continue
         action = balance.decision_actions.government_actions.get(action_id)
-        if action is not None:
-            if action_id != RESEARCH_FACILITY_ACTION_ID:
-                administration_spend += 1
-            core_government_spend += int(action.budget_pool_cost)
+        if action is None:
+            raise PhaseSubmissionError(ErrorCode.INVALID_SUBMISSION, f"Unknown government strategy action: {action_id}")
+        if action_id != RESEARCH_FACILITY_ACTION_ID:
+            administration_spend += 1
+        core_government_spend += int(action.budget_pool_cost)
 
     # Validate activatePolicies budget cost
     for raw_id in payload.get("activatePolicies") or []:
@@ -1127,30 +1225,6 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
             )
         military_plan_spend += int(action.budget_pool_cost)
 
-    selected_diplomacy_regions: set[str] = set()
-    for selection in payload.get("militaryPlan", {}).get("diplomacyActions", []):
-        action_id = str(selection.get("actionId") or "")
-        action = balance.military_actions.diplomacy_actions.get(action_id)
-        if action is None:
-            raise PhaseSubmissionError(ErrorCode.INVALID_SUBMISSION, f"Unknown diplomacy action: {action_id}")
-        if action_locked_reason(player_state, action_id) is not None:
-            raise PhaseSubmissionError(
-                ErrorCode.INVALID_SUBMISSION,
-                f"Diplomacy action {action_id} requires required technology.",
-            )
-        if action.target_region in player_state.established_diplomacy:
-            raise PhaseSubmissionError(
-                ErrorCode.INVALID_SUBMISSION,
-                f"Diplomacy target {action.target_region} has already been established.",
-            )
-        if action.target_region in selected_diplomacy_regions:
-            raise PhaseSubmissionError(
-                ErrorCode.INVALID_SUBMISSION,
-                f"Diplomacy target {action.target_region} is duplicated in this submission.",
-            )
-        selected_diplomacy_regions.add(action.target_region)
-        military_plan_spend += int(action.budget_pool_cost)
-
     # Validate total military spend against the same decision-phase fiscal pool
     # used by government policies. Military actions no longer use a separate
     # military-point cost field; old clients that send these actions should get
@@ -1176,8 +1250,7 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
             details={
                 "reason": (
                     f"政府决策额度超支：计划 {fiscal_spend} > "
-                    f"可用 {government_budget}（政府财政 {base_government_budget}，"
-                    f"政策专项 {GOVERNMENT_POLICY_BUDGET_SUPPLEMENT}）"
+                    f"可用 {government_budget}（政府财政 {base_government_budget}）"
                 ),
             },
         )

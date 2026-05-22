@@ -4,12 +4,12 @@
       "budgetPools": {
         "domesticMarket": 24,
         "factory": 14,
-        "governmentFiscal": 10
+        "governmentFiscal": 16
       },
       "incomeAllocationRatio": {
-        "domesticMarket": 4.0,
-        "factory": 3.0,
-        "governmentFiscal": 3.0
+        "domesticMarket": 3,
+        "factory": 3,
+        "governmentFiscal": 4
       },
       "techPoints": 1,
       "armyCap": 4,
@@ -20,6 +20,14 @@
         "steam": 0,
         "electrified": 0
       },
+      "factoryTotalCap": 16,
+      "factoryCapsByMode": {
+        "handicraft": 16,
+        "mechanized": 16,
+        "steam": 16,
+        "electrified": 16
+      },
+      "materialPurchaseCapPerTurn": 15,
       "goodsStock": {
         "phase1_goods": 0
       },
@@ -41,9 +49,6 @@
       "initialGoods": [
         "phase1_goods"
       ],
-      "initialDiplomacy": [
-        "asia_pacific"
-      ],
       "initialRawMaterials": 25,
       "rawMaterialsPerTurn": 2
     },
@@ -51,12 +56,12 @@
       "budgetPools": {
         "domesticMarket": 22,
         "factory": 13,
-        "governmentFiscal": 9
+        "governmentFiscal": 15
       },
       "incomeAllocationRatio": {
-        "domesticMarket": 4.0,
-        "factory": 3.0,
-        "governmentFiscal": 3.0
+        "domesticMarket": 3,
+        "factory": 3,
+        "governmentFiscal": 4
       },
       "techPoints": 1,
       "armyCap": 3,
@@ -67,6 +72,14 @@
         "steam": 0,
         "electrified": 0
       },
+      "factoryTotalCap": 15,
+      "factoryCapsByMode": {
+        "handicraft": 15,
+        "mechanized": 15,
+        "steam": 15,
+        "electrified": 15
+      },
+      "materialPurchaseCapPerTurn": 16,
       "goodsStock": {
         "phase1_goods": 0
       },
@@ -88,22 +101,19 @@
       "initialGoods": [
         "phase1_goods"
       ],
-      "initialDiplomacy": [
-        "africa"
-      ],
       "initialRawMaterials": 25,
       "rawMaterialsPerTurn": 2
     },
     "prussia": {
       "budgetPools": {
-        "domesticMarket": 21,
+        "domesticMarket": 24,
         "factory": 12,
-        "governmentFiscal": 9
+        "governmentFiscal": 15
       },
       "incomeAllocationRatio": {
-        "domesticMarket": 4.0,
-        "factory": 3.0,
-        "governmentFiscal": 3.0
+        "domesticMarket": 3,
+        "factory": 3,
+        "governmentFiscal": 4
       },
       "techPoints": 1,
       "armyCap": 4,
@@ -114,6 +124,14 @@
         "steam": 0,
         "electrified": 0
       },
+      "factoryTotalCap": 16,
+      "factoryCapsByMode": {
+        "handicraft": 16,
+        "mechanized": 16,
+        "steam": 16,
+        "electrified": 16
+      },
+      "materialPurchaseCapPerTurn": 17,
       "goodsStock": {
         "phase1_goods": 0
       },
@@ -135,9 +153,6 @@
       "initialGoods": [
         "phase1_goods"
       ],
-      "initialDiplomacy": [
-        "americas"
-      ],
       "initialRawMaterials": 25,
       "rawMaterialsPerTurn": 2
     },
@@ -145,12 +160,12 @@
       "budgetPools": {
         "domesticMarket": 22,
         "factory": 13,
-        "governmentFiscal": 9
+        "governmentFiscal": 15
       },
       "incomeAllocationRatio": {
-        "domesticMarket": 4.0,
-        "factory": 3.0,
-        "governmentFiscal": 3.0
+        "domesticMarket": 3,
+        "factory": 3,
+        "governmentFiscal": 4
       },
       "techPoints": 1,
       "armyCap": 3,
@@ -161,6 +176,14 @@
         "steam": 0,
         "electrified": 0
       },
+      "factoryTotalCap": 14,
+      "factoryCapsByMode": {
+        "handicraft": 14,
+        "mechanized": 14,
+        "steam": 14,
+        "electrified": 14
+      },
+      "materialPurchaseCapPerTurn": 15,
       "goodsStock": {
         "phase1_goods": 0
       },
@@ -182,22 +205,19 @@
       "initialGoods": [
         "phase1_goods"
       ],
-      "initialDiplomacy": [
-        "middle_east"
-      ],
       "initialRawMaterials": 25,
       "rawMaterialsPerTurn": 2
     },
     "russia": {
       "budgetPools": {
-        "domesticMarket": 24,
+        "domesticMarket": 28,
         "factory": 14,
-        "governmentFiscal": 10
+        "governmentFiscal": 16
       },
       "incomeAllocationRatio": {
-        "domesticMarket": 4.0,
-        "factory": 3.0,
-        "governmentFiscal": 3.0
+        "domesticMarket": 3,
+        "factory": 3,
+        "governmentFiscal": 4
       },
       "techPoints": 1,
       "armyCap": 4,
@@ -208,6 +228,14 @@
         "steam": 0,
         "electrified": 0
       },
+      "factoryTotalCap": 20,
+      "factoryCapsByMode": {
+        "handicraft": 20,
+        "mechanized": 20,
+        "steam": 20,
+        "electrified": 20
+      },
+      "materialPurchaseCapPerTurn": 20,
       "goodsStock": {
         "phase1_goods": 0
       },
@@ -228,9 +256,6 @@
       },
       "initialGoods": [
         "phase1_goods"
-      ],
-      "initialDiplomacy": [
-        "middle_east"
       ],
       "initialRawMaterials": 25,
       "rawMaterialsPerTurn": 2

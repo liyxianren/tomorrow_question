@@ -3,7 +3,7 @@
 Implements the macro economic loop:
   capacity structure -> raw materials to goods
   -> domestic / external market allocation
-  -> supply / demand price -> revenue -> 5:3:2 pool delta.
+  -> supply / demand price -> revenue -> 3:3:4 pool delta.
 
 This module is intentionally free of Flask, repository, or session dependencies
 so the formulas stay testable in isolation. See:
@@ -14,7 +14,7 @@ so the formulas stay testable in isolation. See:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Mapping, Union
 
 
@@ -32,35 +32,22 @@ PRODUCTION_MODE_OUTPUT_RATIOS: Mapping[str, Decimal] = {
 
 # 各生产方式的需求系数：每单位产能创造的本国需求。
 PRODUCTION_MODE_DEMAND_COEFFICIENTS: Mapping[str, Decimal] = {
-    "idle": Decimal("0"),
-    "handicraft": Decimal("1"),
-    "mechanized": Decimal("1.5"),
-    "steam": Decimal("2.5"),
-    "electrified": Decimal("3.5"),
+    "idle": Decimal("1"),
+    "handicraft": Decimal("2"),
+    "mechanized": Decimal("3"),
+    "steam": Decimal("4"),
+    "electrified": Decimal("5"),
 }
 
-# 固定均衡基准价：替代原「消费池余额 / 需求」公式。
-# 供需浮动由 calculate_domestic_price 处理。
-DEFAULT_EQUILIBRIUM_BASE_PRICE: Decimal = Decimal("3")
+# 国内成交价边界：用户需求为价格下限 0.1×基础价格，上限 2×基础价格。
+DOMESTIC_PRICE_FLOOR_RATIO: Decimal = Decimal("0.1")
+DOMESTIC_PRICE_CEILING_RATIO: Decimal = Decimal("2")
 
-# 价格下限：避免极端过剩时本国价格归零或为负。
-DEFAULT_MINIMUM_DOMESTIC_PRICE: Decimal = Decimal("1")
-
-# 价格上限。
-DEFAULT_MAXIMUM_DOMESTIC_PRICE: Decimal = Decimal("8")
-
-# 供需价格阻尼系数（与前端 priceCurves.ts 一致）。
-# 短缺时：price = equilibrium × (1 + shortage_rate × damping)
-# 过剩时：price = equilibrium × max(surplus_floor, 1 - surplus_rate × damping)
-SHORTAGE_PRICE_DAMPING: Decimal = Decimal("0.5")
-SURPLUS_PRICE_DAMPING: Decimal = Decimal("0.3")
-MIN_SURPLUS_PRICE_RATIO: Decimal = Decimal("0.5")
-
-# 销售收入分配比例 5:3:2。
+# 销售收入分配比例 3:3:4。
 DEFAULT_INCOME_ALLOCATION_RATIO: Mapping[str, Decimal] = {
-    "consumption": Decimal("0.5"),
+    "consumption": Decimal("0.3"),
     "investment": Decimal("0.3"),
-    "fiscal": Decimal("0.2"),
+    "fiscal": Decimal("0.4"),
 }
 
 
@@ -86,56 +73,92 @@ def calculate_production_output(
     return total
 
 
-def calculate_domestic_demand(capacities: Mapping[str, Number]) -> Decimal:
+def calculate_domestic_demand(
+    capacities: Mapping[str, Number],
+    demand_coefficients: Mapping[str, Number] | None = None,
+) -> Decimal:
     """Sum of capacity × demand coefficient across all production modes."""
+    coefficients = demand_coefficients or PRODUCTION_MODE_DEMAND_COEFFICIENTS
     total = Decimal("0")
     for mode, capacity in capacities.items():
-        coefficient = PRODUCTION_MODE_DEMAND_COEFFICIENTS[mode]
+        coefficient = _to_decimal(coefficients.get(mode, PRODUCTION_MODE_DEMAND_COEFFICIENTS[mode]))
         total += _to_decimal(capacity) * coefficient
     return total
 
 
-def calculate_equilibrium_price(*, demand: Number) -> Decimal:
-    """均衡价格 = 固定基准价。高需求本身不抬价，供需浮动由 calculate_domestic_price 处理。"""
-    demand_d = _to_decimal(demand)
-    if demand_d == 0:
+def calculate_effective_domestic_capacity(
+    capacities: Mapping[str, Number],
+    demand_coefficients: Mapping[str, Number] | None = None,
+    *,
+    capacity_bonus: Number = 0,
+) -> Decimal:
+    """Domestic soft cap K = demand from factory structure + policy/event capacity bonus."""
+    demand = calculate_domestic_demand(capacities, demand_coefficients)
+    return max(Decimal("1"), demand + _to_decimal(capacity_bonus))
+
+
+def calculate_equilibrium_price(
+    *,
+    consumption_pool: Number | None = None,
+    effective_capacity: Number | None = None,
+    demand: Number | None = None,
+) -> Decimal:
+    """Equilibrium price = current consumption pool / domestic soft cap."""
+    capacity_value = effective_capacity if effective_capacity is not None else demand
+    if capacity_value is None:
         return Decimal("0")
-    return DEFAULT_EQUILIBRIUM_BASE_PRICE
+    capacity_d = _to_decimal(capacity_value)
+    if capacity_d <= 0:
+        return Decimal("0")
+    return _to_decimal(consumption_pool or 0) / capacity_d
+
+
+def calculate_minimum_domestic_price(equilibrium_price: Number) -> Decimal:
+    return max(Decimal("0"), _to_decimal(equilibrium_price) * DOMESTIC_PRICE_FLOOR_RATIO)
+
+
+def calculate_maximum_domestic_price(equilibrium_price: Number) -> Decimal:
+    return max(Decimal("0"), _to_decimal(equilibrium_price) * DOMESTIC_PRICE_CEILING_RATIO)
 
 
 def calculate_domestic_price(
     *,
     equilibrium_price: Number,
-    supply: Number,
-    demand: Number,
-    minimum_price: Number = DEFAULT_MINIMUM_DOMESTIC_PRICE,
-    maximum_price: Number = DEFAULT_MAXIMUM_DOMESTIC_PRICE,
+    allocation: Number | None = None,
+    effective_capacity: Number | None = None,
+    supply: Number | None = None,
+    demand: Number | None = None,
+    minimum_price: Number | None = None,
+    maximum_price: Number | None = None,
+    price_bonus: Number = 0,
 ) -> Decimal:
-    """Apply shortage / surplus adjustment to equilibrium price with floor and ceiling."""
+    """Apply user domestic price formula and clamp to 0.1×P0..2×P0."""
     equilibrium_d = _to_decimal(equilibrium_price)
-    supply_d = _to_decimal(supply)
-    demand_d = _to_decimal(demand)
-    minimum_d = _to_decimal(minimum_price)
-    maximum_d = _to_decimal(maximum_price)
+    allocation_d = _to_decimal(allocation if allocation is not None else (supply or 0))
+    capacity_d = _to_decimal(effective_capacity if effective_capacity is not None else (demand or 0))
+    minimum_d = (
+        calculate_minimum_domestic_price(equilibrium_d)
+        if minimum_price is None
+        else _to_decimal(minimum_price)
+    )
+    maximum_d = (
+        calculate_maximum_domestic_price(equilibrium_d)
+        if maximum_price is None
+        else _to_decimal(maximum_price)
+    )
+    maximum_d = max(minimum_d, maximum_d)
+    bonus_d = _to_decimal(price_bonus)
 
-    if demand_d == 0:
+    if capacity_d <= 0:
         return minimum_d
 
-    if supply_d == demand_d:
-        raw_price = equilibrium_d
-    elif supply_d < demand_d:
-        shortage_rate = (demand_d - supply_d) / demand_d
-        raw_price = equilibrium_d * (Decimal("1") + shortage_rate * SHORTAGE_PRICE_DAMPING)
-    else:
-        surplus_rate = (supply_d - demand_d) / demand_d
-        scale = max(MIN_SURPLUS_PRICE_RATIO, Decimal("1") - surplus_rate * SURPLUS_PRICE_DAMPING)
-        raw_price = equilibrium_d * scale
+    raw_price = equilibrium_d * (Decimal("2") - (allocation_d / capacity_d))
+    return min(maximum_d, max(minimum_d, raw_price + bonus_d))
 
-    if raw_price < minimum_d:
-        return minimum_d
-    if raw_price > maximum_d:
-        return maximum_d
-    return raw_price
+
+def round_market_revenue(value: Number) -> int:
+    """Round market revenue to whole fiscal units using ordinary half-up rounding."""
+    return int(_to_decimal(value).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
 
 @dataclass(frozen=True)
@@ -157,32 +180,42 @@ def resolve_domestic_market(
     *,
     supply: Number,
     demand: Number,
-    minimum_price: Number = DEFAULT_MINIMUM_DOMESTIC_PRICE,
+    consumption_pool: Number = 0,
+    capacity_bonus: Number = 0,
+    minimum_price: Number | None = None,
+    maximum_price: Number | None = None,
+    price_bonus: Number = 0,
 ) -> DomesticMarketOutcome:
     """Compute price, sold quantity, revenue, and unsold quantity."""
     supply_d = _to_decimal(supply)
     demand_d = _to_decimal(demand)
+    effective_capacity = max(Decimal("1"), demand_d + _to_decimal(capacity_bonus))
 
-    equilibrium = calculate_equilibrium_price(demand=demand_d)
+    equilibrium = calculate_equilibrium_price(
+        consumption_pool=consumption_pool,
+        effective_capacity=effective_capacity,
+    )
     final_price = calculate_domestic_price(
         equilibrium_price=equilibrium,
-        supply=supply_d,
-        demand=demand_d,
+        allocation=supply_d,
+        effective_capacity=effective_capacity,
         minimum_price=minimum_price,
+        maximum_price=maximum_price,
+        price_bonus=price_bonus,
     )
 
-    if supply_d < demand_d and demand_d > 0:
-        shortage_rate = (demand_d - supply_d) / demand_d
+    if supply_d < effective_capacity and effective_capacity > 0:
+        shortage_rate = (effective_capacity - supply_d) / effective_capacity
     else:
         shortage_rate = Decimal("0")
 
-    if supply_d > demand_d and demand_d > 0:
-        surplus_rate = (supply_d - demand_d) / demand_d
+    if supply_d > effective_capacity and effective_capacity > 0:
+        surplus_rate = (supply_d - effective_capacity) / effective_capacity
     else:
         surplus_rate = Decimal("0")
 
-    sold = supply_d if supply_d < demand_d else demand_d
-    unsold = supply_d - sold
+    sold = supply_d
+    unsold = Decimal("0")
     revenue = sold * final_price
 
     return DomesticMarketOutcome(
@@ -212,7 +245,7 @@ def allocate_revenue_to_pools(
     *,
     ratio: Mapping[str, Number] = DEFAULT_INCOME_ALLOCATION_RATIO,
 ) -> IncomePoolDelta:
-    """Split revenue into 消费 / 投资 / 财政 by ratio (default 5:3:2)."""
+    """Split revenue into 消费 / 投资 / 财政 by ratio (default 3:3:4)."""
     revenue_d = _to_decimal(total_revenue)
     return IncomePoolDelta(
         consumption=revenue_d * _to_decimal(ratio["consumption"]),

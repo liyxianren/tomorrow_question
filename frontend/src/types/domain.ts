@@ -108,7 +108,6 @@ export interface NationalState {
   reforms: string[];
   policies: string[];
   incomeSummary: Record<string, unknown>;
-  establishedDiplomacy: string[];
   colonizationUnlocked: boolean;
   usedAbilities: string[];
   temporaryEffects: Record<string, unknown>;
@@ -181,6 +180,7 @@ export interface FactoryPlan {
   expansionOrders: ExpansionOrder[];
   upgradeOrders: UpgradeOrder[];
   newFactoryOrders: NewFactoryOrder[];
+  rawMaterialPurchaseQuantity?: number;
   factoryActions?: FactoryActionSelection[];
 }
 
@@ -213,10 +213,6 @@ export interface GovernmentPlan {
 }
 
 export interface MilitaryActionSelection {
-  actionId: string;
-}
-
-export interface DiplomacyActionSelection {
   actionId: string;
 }
 
@@ -266,9 +262,9 @@ export interface ColonizationCapability {
 export interface MilitaryPlan {
   unlockColonization: boolean;
   militaryActions: MilitaryActionSelection[];
-  diplomacyActions: DiplomacyActionSelection[];
   colonizationActions: ColonizationActionSelection[];
   navalDeployment: Record<string, number>;
+  regionBlockades?: Record<string, number>;
   conquestActions: ConquestActionSelection[];
   lootingActions: LootingActionSelection[];
 }
@@ -419,18 +415,7 @@ export interface MilitaryActionOption {
   effects?: Record<string, number | Record<string, number>>;
 }
 
-export interface DiplomacyActionOption {
-  actionId: string;
-  label: string;
-  cost: number;
-  targetRegion: string;
-  targetRegionLabel: string;
-  description?: string;
-  isEstablished: boolean;
-}
-
 export type RegionLockReason =
-  | "diplomacy_not_established"
   | "route_blocked";
 
 export type OverseasCompetitionLockReason =
@@ -443,17 +428,28 @@ export interface RegionAccessStatus {
   accessLevel: RegionAccessLevel;
   isAccessible: boolean;
   lockReason: RegionLockReason | null;
-  isDiplomacyEstablished: boolean;
+  fixedOverseasPrice?: number;
+  requiredOceanNodes?: string[];
+  blockedOceanNodes?: Array<{
+    nodeId: string;
+    label?: string;
+    controller: string;
+    controllerLabel?: string;
+  }>;
+  navyByCountry?: Record<string, number>;
+  blockadeController?: string | null;
+  isBlockaded?: boolean;
+  myBlockadeFleet?: number;
   canCompete?: boolean;
   competitionLockedReason?: OverseasCompetitionLockReason | null;
   competitionRewardCapacityBonus?: number;
-  competitionRewardPriceBonus?: number;
   competitionMinimumPower?: number;
   isColonized: boolean;
   controller: string | null;
   garrison?: Record<string, number>;
   acceptedGoods: string[];
-  priceMultiplier: number;
+  /** @deprecated Kept for older backend snapshots; UI should prefer fixedOverseasPrice. */
+  priceMultiplier?: number;
 }
 
 export interface TechTreeChainTech {
@@ -510,6 +506,7 @@ export interface Phase1ProductionMode {
   buildCost: number | null;
   upgradeCost: number | null;
   currentCapacity: number;
+  factoryCap?: number | null;
   requiredTech: string | string[] | null;
   isAvailable: boolean;
 }
@@ -522,22 +519,31 @@ export interface Phase1EconomyWorkspace {
   domesticDemand: number;
   equilibriumPrice: number;
   domesticBasePricePreview?: number;
+  domesticPriceBeforeFloor?: number;
   domesticPriceBeforeCap?: number;
   domesticPricePreview: number;
   domesticPriceCapReached?: boolean;
   marketPriceDrift?: number;
+  domesticSoftCap?: number;
+  minimumDomesticPrice?: number;
+  shortageRate?: number;
+  surplusRate?: number;
   domesticPriceBonus?: number;
-  overseasPriceBonus?: number;
   domesticMarketCapacityBonus?: number;
   overseasMarketCapacityBonus?: number;
   governmentDomesticMarketCapacityBonus?: number;
   governmentDomesticPriceBonus?: number;
   governmentOverseasMarketCapacityBonus?: number;
-  governmentOverseasPriceBonus?: number;
-  domesticPriceCeiling?: number;
-  overseasPriceCeiling?: number;
+  domesticPriceCeiling?: number | null;
   investmentPool: number;
   rawMaterialsPerTurn?: number;
+  factoryTotalCap?: number;
+  factoryEnabledCount?: number;
+  idleCapacity?: number;
+  factoryCapsByMode?: Record<string, number>;
+  materialPurchaseCapPerTurn?: number;
+  rawMaterialPurchaseUnitCost?: number;
+  maxRawMaterialPurchase?: number;
   incomeAllocationRatio: Record<string, number>;
   marketMetrics: Record<string, number>;
   poolDeltaPreview?: {
@@ -557,6 +563,9 @@ export interface DecisionPlayerPhaseWorkspace {
   domesticMarketCapacity?: number;
   overseasMarketCapacity?: number;
   incomeAllocationRatio: IncomeAllocationRatio;
+  baseIncomeAllocationRatio?: IncomeAllocationRatio;
+  effectiveIncomeAllocationRatio?: IncomeAllocationRatio;
+  incomeAllocationDelta?: Partial<IncomeAllocationRatio>;
   techPoints: number;
   armyCap: number;
   routeSummaries: FactoryRouteSummary[];
@@ -581,12 +590,10 @@ export interface DecisionPlayerPhaseWorkspace {
     army: Record<string, number>;
     navy: Record<string, number>;
     controlledRegions: number;
-    establishedDiplomacy: string[];
     overseasCapacity: number;
     oceanControlThreshold?: number;
     regionAccessStatus: RegionAccessStatus[];
     availableMilitaryActions: MilitaryActionOption[];
-    availableDiplomacyActions: DiplomacyActionOption[];
     colonizationCapability: ColonizationCapability;
     colonizationOptions: ColonizationOption[];
     oceanNodes: OceanNodeOption[];
@@ -672,11 +679,15 @@ export interface MarketPlayerPhaseWorkspace {
   >;
   domesticMarketCapacity: number;
   overseasMarketCapacity: number;
+  incomeAllocationRatio?: IncomeAllocationRatio;
+  baseIncomeAllocationRatio?: IncomeAllocationRatio;
+  effectiveIncomeAllocationRatio?: IncomeAllocationRatio;
+  incomeAllocationDelta?: Partial<IncomeAllocationRatio>;
+  estimatedBudgetAllocation?: BudgetPools;
   regionAccessStatus: RegionAccessStatus[];
   overseasCompetition?: {
     availableArmy: Record<string, number>;
     rewardCapacityBonus: number;
-    rewardPriceBonus: number;
     infantryPower: number;
     artilleryPower: number;
     minimumPower: number;

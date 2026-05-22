@@ -205,10 +205,11 @@ class SettlementEffectsTests(unittest.TestCase):
         resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
         updated = _get_player(resolution.updated_snapshot, "player-1")
 
-        # ratioDelta affected this settlement's allocation: 2:5 of 70 -> 20 / 50.
+        # ratioDelta affected this settlement's allocation: 3:2:5 of 70 -> 21 / 14 / 35.
         allocation = resolution.generated_logs[0]["details"]["budgetAllocation"]
-        self.assertEqual(allocation["factory"], 20)
-        self.assertEqual(allocation["governmentFiscal"], 50)
+        self.assertEqual(allocation["domesticMarket"], 21)
+        self.assertEqual(allocation["factory"], 14)
+        self.assertEqual(allocation["governmentFiscal"], 35)
         # After settlement, the policy expires before the next decision workspace is built.
         self.assertEqual(updated.active_policies, [])
         self.assertEqual(updated.administration_capacity, 5)
@@ -340,26 +341,28 @@ class SettlementEffectsTests(unittest.TestCase):
         self.assertEqual(updated.active_policies, [])
         self.assertEqual(updated.administration_capacity, 2)
 
-    def test_military_market_capacity_delta_is_permanent_cap_growth(self) -> None:
+    def test_build_fleet_no_longer_grants_market_capacity(self) -> None:
         balance = get_balance_config()
         snapshot = _build_snapshot()
         player = _get_player(snapshot, "player-1")
         player.budget_pools["governmentFiscal"] = 100
         initial_bonus = get_effect_bonus(player, "overseasMarketCapacityBonus")
+        initial_fleets = int(player.navy.get("fleets", 0))
 
         spent = _apply_military_plan(
             player,
-            {"militaryActions": [{"actionId": "naval_drill"}], "diplomacyActions": []},
+            {"militaryActions": [{"actionId": "build_fleet"}], "diplomacyActions": []},
             balance,
             snapshot,
         )
 
-        self.assertEqual(spent, 4)
-        self.assertEqual(get_effect_bonus(player, "overseasMarketCapacityBonus"), initial_bonus + 1)
+        self.assertEqual(spent, 8)
+        self.assertEqual(int(player.navy.get("fleets", 0)), initial_fleets + 1)
+        self.assertEqual(get_effect_bonus(player, "overseasMarketCapacityBonus"), initial_bonus)
         reset_temporary_effects(player)
-        self.assertEqual(get_effect_bonus(player, "overseasMarketCapacityBonus"), initial_bonus + 1)
+        self.assertEqual(get_effect_bonus(player, "overseasMarketCapacityBonus"), initial_bonus)
 
-    def test_government_strategy_ratio_is_one_round_but_capacity_is_permanent(self) -> None:
+    def test_trade_promotion_capacity_is_permanent_without_domestic_ratio_change(self) -> None:
         balance = get_balance_config()
         snapshot = _build_snapshot()
         player = _get_player(snapshot, "player-1")
@@ -373,21 +376,23 @@ class SettlementEffectsTests(unittest.TestCase):
             "governmentFiscal": 4.0,
         }
 
-        spent, _ = _apply_government_plan(
+        spent = _apply_government_plan(
             player,
-            {"strategySelections": [{"actionId": "domestic_stimulus"}]},
+            {"strategySelections": [{"actionId": "trade_promotion"}]},
             balance,
         )
 
-        self.assertEqual(spent, 10)
-        self.assertAlmostEqual(player.income_allocation_ratio["domesticMarket"], 3.15)
-        self.assertEqual(get_effect_bonus(player, "domesticMarketCapacityBonus"), 3)
+        self.assertEqual(spent, 0)
+        self.assertAlmostEqual(player.income_allocation_ratio["domesticMarket"], 3.0)
+        self.assertEqual(get_effect_bonus(player, "domesticMarketCapacityBonus"), 0)
+        self.assertEqual(get_effect_bonus(player, "overseasMarketCapacityBonus"), 2)
         resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
         updated = _get_player(resolution.updated_snapshot, "player-1")
 
         self.assertEqual(updated.income_allocation_ratio["domesticMarket"], 3.0)
         self.assertEqual(updated.income_allocation_ratio["governmentFiscal"], 4.0)
-        self.assertEqual(get_effect_bonus(updated, "domesticMarketCapacityBonus"), 3)
+        self.assertEqual(get_effect_bonus(updated, "domesticMarketCapacityBonus"), 0)
+        self.assertEqual(get_effect_bonus(updated, "overseasMarketCapacityBonus"), 2)
 
 
 if __name__ == "__main__":

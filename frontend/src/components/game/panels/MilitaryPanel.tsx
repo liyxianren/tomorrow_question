@@ -5,7 +5,7 @@ import type { DecisionPlayerPhaseWorkspace } from "../../../types";
 import type { PhaseDraftByPhase } from "../../../features/game/forms";
 import type { ParameterInspector } from "../../../features/game/parameterInspector";
 import { buildEffectMetrics } from "../../../features/game/decisionShared";
-import { DecisionStatStrip } from "./shared/DecisionStatStrip";
+import { visibleMilitaryActions } from "../../../features/game/militaryActions";
 import { DecisionActionCard } from "./shared/DecisionActionCard";
 import { MilitaryWorldMap, type MapSelection } from "./military/MilitaryWorldMap";
 import { MilitaryNodeDrawer } from "./military/MilitaryNodeDrawer";
@@ -15,12 +15,7 @@ const ACTION_ICONS: Record<string, string> = {
   recruit_infantry: "🛡️",
   recruit_army: "🛡️",
   train_artillery: "💣",
-  naval_drill: "⛵",
   build_fleet: "⚓",
-  establish_americas: "🤝",
-  establish_africa: "🤝",
-  establish_middle_east: "🤝",
-  establish_asia_pacific: "🤝",
 };
 
 function getVisibleArmyTotal(army: Record<string, number | undefined>): number {
@@ -39,11 +34,10 @@ export interface MilitaryPanelProps {
   remainingGovernmentBudget: number;
   onAddMilitary: (actionId: string) => void;
   onRemoveMilitary: (actionId: string) => void;
-  onToggleDiplomacy: (actionId: string, checked: boolean) => void;
   onToggleColonizationUnlock?: (checked: boolean) => void;
   onColonize?: (regionId: string) => void;
   onCancelColonize?: (regionId: string) => void;
-  onNavalDeploymentChange: (nodeId: string, count: number) => void;
+  onRegionBlockadeChange: (regionId: string, count: number) => void;
   onConquestChange?: (regionId: string, army: number) => void;
   onLootingToggle?: (regionId: string, resourceType: string) => void;
   parameterInspector?: ParameterInspector;
@@ -55,29 +49,25 @@ export function MilitaryPanel({
   remainingGovernmentBudget,
   onAddMilitary,
   onRemoveMilitary,
-  onToggleDiplomacy,
-  onNavalDeploymentChange,
+  onRegionBlockadeChange,
   parameterInspector,
 }: MilitaryPanelProps) {
   const mil = workspace.militaryWorkspace;
+  const availableMilitaryActions = visibleMilitaryActions(mil.availableMilitaryActions);
   const getCount = (actionId: string) =>
     draft.militaryPlan.militaryActions.filter((a) => a.actionId === actionId).length;
 
   const totalFleets = mil.navy.fleets ?? 0;
   const armyTotal = getVisibleArmyTotal(mil.army);
-  const oceanNodes = mil.oceanNodes ?? [];
-  const navalDeployment = draft.militaryPlan.navalDeployment ?? {};
-  const selectedFleetDelta = sumSelectedFleetDelta(mil.availableMilitaryActions, draft);
+  const regionBlockades = draft.militaryPlan.regionBlockades ?? {};
+  const selectedFleetDelta = sumSelectedFleetDelta(availableMilitaryActions, draft);
   const effectiveTotalFleets = Math.max(0, totalFleets + selectedFleetDelta);
-  const totalDeployed = oceanNodes.reduce((sum, node) => {
-    const draftCount = navalDeployment[node.nodeId];
-    return sum + (typeof draftCount === "number" ? draftCount : node.myFleet);
+  const blockadeThreshold = mil.oceanControlThreshold ?? 4;
+  const totalDeployed = mil.regionAccessStatus.reduce((sum, region) => {
+    const draftCount = regionBlockades[region.regionId];
+    return sum + (typeof draftCount === "number" ? draftCount : (region.myBlockadeFleet ?? 0));
   }, 0);
   const remainingFleets = Math.max(0, effectiveTotalFleets - totalDeployed);
-
-  const diplomacyByRegion = new Map(
-    mil.availableDiplomacyActions.map((a) => [a.targetRegion, a]),
-  );
 
   const { t } = useTranslation();
   const [selectedNode, setSelectedNode] = useState<MapSelection>(null);
@@ -91,38 +81,58 @@ export function MilitaryPanel({
         </span>
       </div>
 
-      <DecisionStatStrip
-        items={[
-          { icon: "🛡️", value: `${armyTotal}/${mil.armyCap ?? 3}`, label: t("game:military.army") },
-          { icon: "⛵", value: `${remainingFleets}/${effectiveTotalFleets}`, label: t("game:military.availableFleets", "可用舰队") },
-          { icon: "🌍", value: mil.overseasCapacity, label: t("game:military.overseasCapacity") },
-          { icon: "🏳️", value: mil.establishedDiplomacy.length, label: t("game:military.establishedDiplomacy") },
-        ]}
-      />
+      <div className="military-panel__overview" data-testid="military-overview">
+        <MilitaryOverviewItem
+          icon="🛡️"
+          label={t("game:military.armyTotalLabel", "陆军总数 / 上限")}
+          value={`${armyTotal} / ${mil.armyCap ?? 3}`}
+          hint={t("game:military.armyTotalHint", "用于市场竞争和后续军事对抗。")}
+        />
+        <MilitaryOverviewItem
+          icon="⛵"
+          label={t("game:military.fleetRemainingLabel", "可部署舰队 / 本轮总舰队")}
+          value={`${remainingFleets} / ${effectiveTotalFleets}`}
+          hint={t("game:military.fleetRemainingHint", "剩余舰队可继续投入地区封锁。")}
+        />
+        <MilitaryOverviewItem
+          icon="🌍"
+          label={t("game:military.overseasCapacityClearLabel", "海外市场承接容量")}
+          value={mil.overseasCapacity}
+          hint={t("game:military.overseasCapacityHint", "出售阶段共享海外可售数量。")}
+        />
+      </div>
       <p className="military-panel__rule-note">
         {t("game:military.fleetRuleNote")}
       </p>
 
       <h4 className="military-section-label">🌐 {t("game:military.worldMap")}</h4>
+      <div className="military-panel__deployment-summary">
+        <strong>{t("game:military.regionBlockadeDeployment", "地区封锁部署")}</strong>
+        <span>
+          {t("game:military.regionBlockadeDeploymentCount", {
+            deployed: totalDeployed,
+            total: effectiveTotalFleets,
+            remaining: remainingFleets,
+            defaultValue: `已投入 ${totalDeployed} / ${effectiveTotalFleets} 支舰队，剩余 ${remainingFleets} 支。`,
+          })}
+        </span>
+        <span>
+          {t("game:military.regionBlockadeDeploymentRule", {
+            threshold: blockadeThreshold,
+            defaultValue: `点击地图地区后用 + / - 调整；同一地区投入 ${blockadeThreshold} 支及以上并且唯一领先，才会形成封锁。`,
+          })}
+        </span>
+      </div>
       <div className="mwm-stage">
         <MilitaryWorldMap
-          oceanNodes={oceanNodes}
           regionAccessStatus={mil.regionAccessStatus}
-          navalDeployment={navalDeployment}
-          myCountry={workspace.countryCode}
           selectedNode={selectedNode}
           totalFleets={effectiveTotalFleets}
           remainingFleets={remainingFleets}
-          oceanControlThreshold={mil.oceanControlThreshold ?? 2}
           onPinSelect={setSelectedNode}
-          onNavalDeploymentChange={onNavalDeploymentChange}
         />
         <div className="mnd-overlay" aria-label={t("game:military.regionDetail")}>
           {mil.regionAccessStatus.map((region) => {
-            const diplomacyAction = diplomacyByRegion.get(region.regionId) ?? null;
-            const diplomacySelected = diplomacyAction
-              ? draft.militaryPlan.diplomacyActions.some((a) => a.actionId === diplomacyAction.actionId)
-              : false;
             const isOpen = selectedNode?.type === "region" && selectedNode?.id === region.regionId;
             return (
               <MilitaryNodeDrawer
@@ -132,36 +142,11 @@ export function MilitaryPanel({
                 open={isOpen}
                 onClose={() => setSelectedNode(null)}
                 region={region}
-                diplomacyAction={diplomacyAction}
-                diplomacySelected={diplomacySelected}
-                remainingGovernmentBudget={remainingGovernmentBudget}
-                onToggleDiplomacy={onToggleDiplomacy}
-                parameterInspector={parameterInspector}
-              />
-            );
-          })}
-          {oceanNodes.map((node) => {
-            const draftCount = navalDeployment[node.nodeId];
-            const myFleet = typeof draftCount === "number" ? draftCount : node.myFleet;
-            const previewNode = createOceanNodeDeploymentPreview(
-              node,
-              workspace.countryCode,
-              myFleet,
-              mil.oceanControlThreshold ?? 2,
-            );
-            const isOpen = selectedNode?.type === "ocean" && selectedNode?.id === node.nodeId;
-            return (
-              <MilitaryNodeDrawer
-                key={`ocean-${node.nodeId}`}
-                nodeType="ocean"
-                nodeId={node.nodeId}
-                open={isOpen}
-                onClose={() => setSelectedNode(null)}
-                oceanNode={previewNode}
-                myFleet={myFleet}
+                myFleet={typeof regionBlockades[region.regionId] === "number" ? regionBlockades[region.regionId] : (region.myBlockadeFleet ?? 0)}
                 remainingFleets={remainingFleets}
+                blockadeThreshold={blockadeThreshold}
                 myCountry={workspace.countryCode}
-                onNavalDeploymentChange={onNavalDeploymentChange}
+                onRegionBlockadeChange={onRegionBlockadeChange}
               />
             );
           })}
@@ -170,7 +155,7 @@ export function MilitaryPanel({
 
       <h4 className="military-section-label">🛡️ {t("game:military.militaryActions")}</h4>
       <div className="military-actions">
-        {mil.availableMilitaryActions.map((action) => {
+        {availableMilitaryActions.map((action) => {
           const count = getCount(action.actionId);
           const canAdd = count < action.maxPerRound && remainingGovernmentBudget >= action.cost;
           const effectMetrics = buildEffectMetrics(action.effects);
@@ -215,6 +200,27 @@ export function MilitaryPanel({
   );
 }
 
+function MilitaryOverviewItem({
+  icon,
+  label,
+  value,
+  hint,
+}: {
+  icon: string;
+  label: string;
+  value: string | number;
+  hint: string;
+}) {
+  return (
+    <div className="military-panel__overview-item">
+      <span className="military-panel__overview-icon" aria-hidden="true">{icon}</span>
+      <span className="military-panel__overview-label">{label}</span>
+      <strong className="military-panel__overview-value">{value}</strong>
+      <small className="military-panel__overview-hint">{hint}</small>
+    </div>
+  );
+}
+
 function sumSelectedFleetDelta(
   actions: DecisionPlayerPhaseWorkspace["militaryWorkspace"]["availableMilitaryActions"],
   draft: PhaseDraftByPhase["decision"],
@@ -228,35 +234,4 @@ function sumSelectedFleetDelta(
     const fleets = (navyDelta as Record<string, unknown>).fleets;
     return sum + (typeof fleets === "number" ? fleets : 0);
   }, 0);
-}
-
-function createOceanNodeDeploymentPreview(
-  node: NonNullable<DecisionPlayerPhaseWorkspace["militaryWorkspace"]["oceanNodes"]>[number],
-  myCountry: DecisionPlayerPhaseWorkspace["countryCode"],
-  myFleet: number,
-  controlThreshold: number,
-) {
-  const navyByCountry = { ...(node.navyByCountry ?? {}) };
-  if (myFleet > 0) {
-    navyByCountry[myCountry] = myFleet;
-  } else {
-    delete navyByCountry[myCountry];
-  }
-
-  const ranked = Object.entries(navyByCountry)
-    .filter(([, count]) => count > 0)
-    .sort(([, a], [, b]) => b - a);
-  const [topCountry, topCount] = ranked[0] ?? [null, 0];
-  const runnerUpCount = ranked[1]?.[1] ?? 0;
-  const controller = topCountry && topCount >= controlThreshold && topCount > runnerUpCount
-    ? topCountry
-    : null;
-
-  return {
-    ...node,
-    myFleet,
-    navyByCountry,
-    controller,
-    isBlockaded: controller !== null,
-  };
 }

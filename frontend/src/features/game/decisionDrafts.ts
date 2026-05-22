@@ -67,6 +67,19 @@ export function setRouteDecisionOrderQuantity(
   };
 }
 
+export function setRawMaterialPurchaseQuantity(
+  draft: PhaseDraftByPhase["decision"],
+  quantity: number,
+): PhaseDraftByPhase["decision"] {
+  return {
+    ...draft,
+    factoryPlan: {
+      ...draft.factoryPlan,
+      rawMaterialPurchaseQuantity: normalizeQuantity(quantity),
+    },
+  };
+}
+
 export function toggleFactoryActionSelection(
   draft: PhaseDraftByPhase["decision"],
   actionId: string,
@@ -233,19 +246,20 @@ export function setNavalDeployment(
   };
 }
 
-export function toggleDiplomacyActionSelection(
+export function setRegionBlockade(
   draft: PhaseDraftByPhase["decision"],
-  actionId: string,
-  checked: boolean,
+  regionId: string,
+  count: number,
 ): PhaseDraftByPhase["decision"] {
-  const remainingActions = draft.militaryPlan.diplomacyActions.filter((item) => item.actionId !== actionId);
-  const nextActions = checked ? [...remainingActions, { actionId }] : remainingActions;
-
+  const next = normalizeQuantity(count);
+  const current = draft.militaryPlan.regionBlockades ?? {};
+  const nextBlockades: Record<string, number> = { ...current };
+  nextBlockades[regionId] = next;
   return {
     ...draft,
     militaryPlan: {
       ...draft.militaryPlan,
-      diplomacyActions: nextActions,
+      regionBlockades: nextBlockades,
     },
   };
 }

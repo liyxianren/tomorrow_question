@@ -14,7 +14,7 @@ from app.modules.game_state.factory import create_game, create_initial_snapshot
 from app.modules.game_state.models import GameSnapshot, OceanNodeState, PlayerState
 from app.modules.game_state.turn_input import PlayerTurnInput
 from app.modules.rules.decision import resolve_decision_phase
-from app.modules.rules.route_utils import check_route_accessible
+from app.modules.rules.route_utils import check_route_accessible, explain_route_access
 from app.modules.rules.settlement import _resolve_naval_blockade
 
 
@@ -56,7 +56,11 @@ def build_turn_input(player_id: str, payload: dict[str, object]) -> PlayerTurnIn
     )
 
 
-def empty_payload(naval_deployment: dict[str, int] | None = None, diplomacy_actions: list[dict[str, str]] | None = None) -> dict[str, object]:
+def empty_payload(
+    naval_deployment: dict[str, int] | None = None,
+    region_blockades: dict[str, int] | None = None,
+    diplomacy_actions: list[dict[str, str]] | None = None,
+) -> dict[str, object]:
     return {
         "factoryPlan": {
             "productionOrders": [],
@@ -72,6 +76,7 @@ def empty_payload(naval_deployment: dict[str, int] | None = None, diplomacy_acti
             "diplomacyActions": diplomacy_actions or [],
             "colonizationActions": [],
             "navalDeployment": naval_deployment or {},
+            "regionBlockades": region_blockades or {},
         },
     }
 
@@ -148,20 +153,21 @@ class NavalDeploymentTests(unittest.TestCase):
         node_north = get_node(resolution.updated_snapshot, "north_atlantic")
         self.assertEqual(node_north.navy_by_country.get("britain", 0), 0)
 
-    def test_decision_deployment_resolves_blockade_before_market_phase(self) -> None:
+    def test_decision_region_blockade_resolves_before_market_phase(self) -> None:
         snapshot = build_snapshot()
         britain = get_player(snapshot, "player-1")
-        britain.navy = {"fleets": 2}
+        britain.navy = {"fleets": 4}
 
         resolution = resolve_decision_phase(
             snapshot=snapshot,
-            turn_inputs=[build_turn_input("player-1", empty_payload(naval_deployment={"north_atlantic": 2}))],
+            turn_inputs=[build_turn_input("player-1", empty_payload(region_blockades={"americas": 4}))],
         )
 
-        node_north = get_node(resolution.updated_snapshot, "north_atlantic")
-        self.assertEqual(node_north.controller, "britain")
-        self.assertTrue(node_north.is_blockaded)
+        americas = next(region for region in resolution.updated_snapshot.region_states if region.region_id == "americas")
+        self.assertEqual(americas.blockade_controller, "britain")
+        self.assertTrue(americas.is_blockaded)
         self.assertFalse(check_route_accessible("france", "americas", resolution.updated_snapshot, get_balance_config()))
+        self.assertTrue(check_route_accessible("france", "africa", resolution.updated_snapshot, get_balance_config()))
 
 
 class NavalBlockadeResolutionTests(unittest.TestCase):
@@ -169,7 +175,7 @@ class NavalBlockadeResolutionTests(unittest.TestCase):
         snapshot = build_snapshot()
         balance = get_balance_config()
         node = get_node(snapshot, "north_atlantic")
-        node.navy_by_country = {"britain": 3, "france": 1}
+        node.navy_by_country = {"britain": 4, "france": 1}
 
         _resolve_naval_blockade(snapshot, balance)
 
@@ -193,7 +199,7 @@ class NavalBlockadeResolutionTests(unittest.TestCase):
         snapshot = build_snapshot()
         balance = get_balance_config()
         node = get_node(snapshot, "north_atlantic")
-        node.navy_by_country = {"britain": 3, "france": 3}
+        node.navy_by_country = {"britain": 4, "france": 4}
 
         _resolve_naval_blockade(snapshot, balance)
 
@@ -209,15 +215,33 @@ class RouteAccessibilityTests(unittest.TestCase):
 
         self.assertTrue(check_route_accessible("britain", "americas", snapshot, balance))
 
-    def test_route_blocked_when_required_node_blockaded_by_other(self) -> None:
+    def test_ocean_node_blockade_no_longer_blocks_region_sales(self) -> None:
         snapshot = build_snapshot()
         balance = get_balance_config()
         node = get_node(snapshot, "north_atlantic")
         node.controller = "france"
         node.is_blockaded = True
 
+        self.assertTrue(check_route_accessible("britain", "americas", snapshot, balance))
+        self.assertTrue(check_route_accessible("france", "americas", snapshot, balance))
+
+    def test_route_blocked_when_region_blockaded_by_other(self) -> None:
+        snapshot = build_snapshot()
+        balance = get_balance_config()
+        americas = next(region for region in snapshot.region_states if region.region_id == "americas")
+        americas.blockade_controller = "france"
+        americas.is_blockaded = True
+
         self.assertFalse(check_route_accessible("britain", "americas", snapshot, balance))
         self.assertTrue(check_route_accessible("france", "americas", snapshot, balance))
+        explanation = explain_route_access("britain", "americas", snapshot, balance)
+        self.assertEqual(explanation["requiredOceanNodes"], [])
+        self.assertEqual(
+            explanation["blockedOceanNodes"],
+            [{"nodeId": "americas", "controller": "france"}],
+        )
+        self.assertFalse(explanation["isAccessible"])
+        self.assertEqual(explanation["lockReason"], "route_blocked")
 
     def test_europe_always_accessible(self) -> None:
         snapshot = build_snapshot()
@@ -229,8 +253,8 @@ class RouteAccessibilityTests(unittest.TestCase):
         self.assertTrue(check_route_accessible("britain", "europe", snapshot, balance))
 
 
-class DiplomacyRouteGatingTests(unittest.TestCase):
-    def test_diplomacy_blocked_when_route_inaccessible(self) -> None:
+class DiplomacyRemovalTests(unittest.TestCase):
+    def test_legacy_diplomacy_payload_is_ignored_even_when_route_inaccessible(self) -> None:
         snapshot = build_snapshot()
         britain = get_player(snapshot, "player-1")
         britain.budget_pools = {"domesticMarket": 12, "factory": 14, "governmentFiscal": 30}
@@ -248,7 +272,6 @@ class DiplomacyRouteGatingTests(unittest.TestCase):
 
         updated_britain = get_player(resolution.updated_snapshot, "player-1")
         self.assertNotIn("americas", updated_britain.established_diplomacy)
-        # No budget consumed for the rejected diplomacy action.
         self.assertEqual(updated_britain.budget_pools["governmentFiscal"], 30)
 
 

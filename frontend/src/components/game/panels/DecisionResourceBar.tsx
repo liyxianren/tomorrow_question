@@ -8,7 +8,7 @@ import {
 } from "../../../features/game/decisionShared";
 import "./DecisionResourceBar.css";
 
-type ChipKey = "factory" | "government" | "army";
+type ChipKey = "factory" | "government" | "military";
 
 type DecisionResourceBarProps = {
   workspace: DecisionPlayerPhaseWorkspace;
@@ -31,6 +31,11 @@ export function DecisionResourceBar({ workspace, draft, activeStep }: DecisionRe
   const spendSummary = calculateDecisionSpendSummary(workspace, draft);
   const governmentBreakdown = calculateGovernmentSpendBreakdown(workspace, draft);
   const armyCount = getVisibleArmyTotal(workspace.militaryWorkspace.army);
+  const baseFleetCount = Math.max(0, Math.floor(workspace.militaryWorkspace.navy.fleets ?? 0));
+  const selectedFleetDelta = sumSelectedFleetDelta(workspace, draft);
+  const totalFleetCount = Math.max(0, baseFleetCount + selectedFleetDelta);
+  const deployedFleetCount = getDraftDeployedFleetCount(workspace, draft);
+  const availableFleetCount = Math.max(0, totalFleetCount - deployedFleetCount);
 
   const activeChip = mapStepToChip(activeStep);
 
@@ -47,27 +52,53 @@ export function DecisionResourceBar({ workspace, draft, activeStep }: DecisionRe
         total={governmentBreakdown.baseGovernmentBudget}
         spent={governmentBreakdown.baseGovernmentBudget - governmentBreakdown.baseGovernmentRemaining}
         active={activeChip === "government"}
-        breakdown={governmentBreakdown.policyBudgetSupplement > 0
-          ? t(
-            "game:government.policyBudgetBreakdown",
-            "Policy allowance {{remaining}} / {{total}}; not counted as fiscal",
-            {
-              remaining: governmentBreakdown.policyBudgetSupplementRemaining,
-              total: governmentBreakdown.policyBudgetSupplement,
-            },
-          )
-          : undefined}
       />
       <ResourceChip
-        label={t("game:military.army", "Army")}
+        label={t("game:unit.army", "陆军")}
         total={armyCount}
         spent={0}
-        active={activeChip === "army"}
+        active={activeChip === "military"}
         hideProgress
         valueOverride={String(armyCount)}
+        breakdown={t("game:military.armyResourceHint", "市场争夺 / 军事力量")}
+      />
+      <ResourceChip
+        label={t("game:military.fleetBlockadeResource", "舰队封锁")}
+        total={totalFleetCount}
+        spent={deployedFleetCount}
+        active={activeChip === "military"}
+        hideProgress
+        valueOverride={`${availableFleetCount} / ${totalFleetCount}`}
+        breakdown={t("game:military.fleetBlockadeResourceHint", "可部署 / 总舰队")}
       />
     </div>
   );
+}
+
+function sumSelectedFleetDelta(
+  workspace: DecisionPlayerPhaseWorkspace,
+  draft: PhaseDraftByPhase["decision"],
+): number {
+  return draft.militaryPlan.militaryActions.reduce((sum, selection) => {
+    const action = workspace.militaryWorkspace.availableMilitaryActions.find((item) => item.actionId === selection.actionId);
+    const navyDelta = action?.effects?.navyDelta;
+    if (!navyDelta || typeof navyDelta !== "object" || !("fleets" in navyDelta)) {
+      return sum;
+    }
+    const fleets = (navyDelta as Record<string, unknown>).fleets;
+    return sum + (typeof fleets === "number" ? fleets : 0);
+  }, 0);
+}
+
+function getDraftDeployedFleetCount(
+  workspace: DecisionPlayerPhaseWorkspace,
+  draft: PhaseDraftByPhase["decision"],
+): number {
+  const regionBlockades = draft.militaryPlan.regionBlockades ?? {};
+  return workspace.militaryWorkspace.regionAccessStatus.reduce((sum, region) => {
+    const draftCount = regionBlockades[region.regionId];
+    return sum + Math.max(0, Math.floor(typeof draftCount === "number" ? draftCount : (region.myBlockadeFleet ?? 0)));
+  }, 0);
 }
 
 function ResourceChip({
@@ -120,7 +151,7 @@ function mapStepToChip(step: DecisionStepId): ChipKey | null {
     case "government":
       return "government";
     case "military":
-      return "army";
+      return "military";
     case "research":
       return "government";
     default:

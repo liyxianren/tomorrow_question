@@ -9,15 +9,6 @@
       },
       "description": "消耗政府财政征募陆军部队。"
     },
-    "naval_drill": {
-      "label": "海军演练",
-      "budgetPoolCost": 4,
-      "maxPerRound": 2,
-      "effects": {
-        "overseasMarketCapacityDelta": 1
-      },
-    "description": "消耗政府财政开展海军演练，永久提高海外市场承接上限。"
-    },
     "build_fleet": {
       "label": "建造舰队",
       "budgetPoolCost": 8,
@@ -26,32 +17,6 @@
         "navyDelta": {"fleets": 1}
       },
       "description": "消耗政府财政建造新舰队，增强海军封锁能力。"
-    }
-  },
-  "diplomacyActions": {
-    "establish_americas": {
-      "label": "与美洲建交",
-      "budgetPoolCost": 3,
-      "targetRegion": "americas",
-      "description": "与美洲建立外交关系，永久开放贸易通道。"
-    },
-    "establish_africa": {
-      "label": "与非洲建交",
-      "budgetPoolCost": 3,
-      "targetRegion": "africa",
-      "description": "与非洲建立外交关系，永久开放贸易通道。"
-    },
-    "establish_middle_east": {
-      "label": "与中东建交",
-      "budgetPoolCost": 3,
-      "targetRegion": "middle_east",
-      "description": "与中东建立外交关系，永久开放贸易通道。"
-    },
-    "establish_asia_pacific": {
-      "label": "与亚太建交",
-      "budgetPoolCost": 3,
-      "targetRegion": "asia_pacific",
-      "description": "与亚太建立外交关系，永久开放贸易通道。"
     }
   }
 }

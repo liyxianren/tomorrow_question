@@ -259,7 +259,7 @@ def _attempt_start_game_from_storage(*, connection, room_code: str) -> None:
 
 def _resolve_phase_deadline_at(phase_duration_seconds: int) -> datetime | None:
     # 开局第一阶段是 decision，不需要 deadline（玩家手动提交）
-    # 只有 settlement 阶段需要 deadline，由 _resolve_next_phase_deadline_at 在阶段转换时设置
+    # 只有 settlement 阶段需要 deadline，由阶段转换时设置
     return None
 
 
