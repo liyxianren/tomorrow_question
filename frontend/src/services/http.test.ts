@@ -129,7 +129,7 @@ describe("http service", () => {
       sessionId: null,
     });
 
-    await vi.advanceTimersByTimeAsync(10_000);
+    await vi.advanceTimersByTimeAsync(30_000);
 
     expect(await first).toMatchObject({
       code: "BACKEND_UNAVAILABLE",

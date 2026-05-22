@@ -23,6 +23,7 @@ type SessionRestoreResponse = Partial<SessionContextResponse> & Pick<SessionCont
 type RestoreSessionOptions = {
   includeGameDetails?: boolean;
 };
+const RESTORE_RETRY_DELAY_MS = 3_200;
 
 function logSessionRecovery(stage: string, details: Record<string, unknown> = {}): void {
   console.info("[session-recovery]", stage, {
@@ -120,64 +121,78 @@ export async function restoreSessionContext(
     sessionIdPresent: true,
   });
 
-  try {
-    const restoredResponse = await apiRequest<SessionRestoreResponse>(
-      `/api/v1/sessions/restore?includeDetails=${includeGameDetails ? "1" : "0"}`,
-      {
-        method: "POST",
-        sessionId,
-      },
-    );
-    if (!restoredResponse.room) {
-      logSessionRecovery("restore.no_room", {
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      const restoredResponse = await apiRequest<SessionRestoreResponse>(
+        `/api/v1/sessions/restore?includeDetails=${includeGameDetails ? "1" : "0"}`,
+        {
+          method: "POST",
+          sessionId,
+        },
+      );
+      if (!restoredResponse.room) {
+        logSessionRecovery("restore.no_room", {
+          includeGameDetails,
+          elapsedMs: elapsedSince(startedAt),
+        });
+        clearSessionId();
+        clearStoredProfileSession();
+        setLastActiveGameId(null);
+        return null;
+      }
+
+      const restored = await hydrateActiveGameContext(
+        restoredResponse as SessionContextResponse,
+        { includeGameDetails },
+      );
+      setSessionId(restored.session.sessionId);
+      bindStoredProfileSession(restored.session.sessionId);
+      rememberRecentRoomCode(restored.room.roomCode);
+      setLastActiveGameId(restored.activeGame?.gameId ?? null);
+      logSessionRecovery("restore.done", {
         includeGameDetails,
         elapsedMs: elapsedSince(startedAt),
+        roomCode: restored.room.roomCode,
+        roomStatus: restored.room.status,
+        gameId: restored.activeGame?.gameId ?? null,
+        hasSnapshot: Boolean(restored.activeSnapshot),
       });
-      clearSessionId();
-      clearStoredProfileSession();
-      setLastActiveGameId(null);
-      return null;
-    }
+      return restored;
+    } catch (error) {
+      if (attempt === 1 && isTemporaryRestoreError(error)) {
+        logSessionRecovery("restore.retry", {
+          includeGameDetails,
+          elapsedMs: elapsedSince(startedAt),
+          code: error instanceof ApiRequestError ? error.code ?? null : null,
+        });
+        await delay(RESTORE_RETRY_DELAY_MS);
+        continue;
+      }
 
-    const restored = await hydrateActiveGameContext(
-      restoredResponse as SessionContextResponse,
-      { includeGameDetails },
-    );
-    setSessionId(restored.session.sessionId);
-    bindStoredProfileSession(restored.session.sessionId);
-    rememberRecentRoomCode(restored.room.roomCode);
-    setLastActiveGameId(restored.activeGame?.gameId ?? null);
-    logSessionRecovery("restore.done", {
-      includeGameDetails,
-      elapsedMs: elapsedSince(startedAt),
-      roomCode: restored.room.roomCode,
-      roomStatus: restored.room.status,
-      gameId: restored.activeGame?.gameId ?? null,
-      hasSnapshot: Boolean(restored.activeSnapshot),
-    });
-    return restored;
-  } catch (error) {
-    if (
-      error instanceof ApiRequestError &&
-      (error.code === "INVALID_SESSION" || error.code === "RECOVERY_NOT_AVAILABLE")
-    ) {
-      logSessionRecovery("restore.invalid", {
+      if (
+        error instanceof ApiRequestError &&
+        (error.code === "INVALID_SESSION" || error.code === "RECOVERY_NOT_AVAILABLE")
+      ) {
+        logSessionRecovery("restore.invalid", {
+          includeGameDetails,
+          elapsedMs: elapsedSince(startedAt),
+          code: error.code,
+        });
+        clearSessionId();
+        clearStoredProfileSession();
+        return null;
+      }
+
+      logSessionRecovery("restore.error", {
         includeGameDetails,
         elapsedMs: elapsedSince(startedAt),
-        code: error.code,
+        error: error instanceof Error ? error.message : String(error),
       });
-      clearSessionId();
-      clearStoredProfileSession();
-      return null;
+      throw error;
     }
-
-    logSessionRecovery("restore.error", {
-      includeGameDetails,
-      elapsedMs: elapsedSince(startedAt),
-      error: error instanceof Error ? error.message : String(error),
-    });
-    throw error;
   }
+
+  return null;
 }
 
 export function resolveSessionRoute(response: SessionContextResponse): {
@@ -202,4 +217,20 @@ export function resolveSessionRoute(response: SessionContextResponse): {
 
 export function isRecoveredRouteSatisfied(currentPath: string, targetPath: string): boolean {
   return currentPath === targetPath;
+}
+
+function isTemporaryRestoreError(error: unknown): boolean {
+  return error instanceof ApiRequestError && (
+    error.code === "BACKEND_UNAVAILABLE" ||
+    error.status === 0 ||
+    error.status === 502 ||
+    error.status === 503 ||
+    error.status === 504
+  );
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
 }

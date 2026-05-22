@@ -4,7 +4,7 @@ import i18n from "../i18n";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? "http://127.0.0.1:5000" : "");
 const BACKEND_UNAVAILABLE_COOLDOWN_MS = 3_000;
-const REQUEST_TIMEOUT_MS = 10_000;
+const REQUEST_TIMEOUT_MS = 30_000;
 
 export const SESSION_STORAGE_KEY = "tomorrow-question.session-id";
 
@@ -102,6 +102,7 @@ async function runApiRequest<T>(
   }
 
   let response: Response;
+  let payload: ApiResponse<T>;
   const abortController = new AbortController();
   const timeoutId = setTimeout(() => {
     abortController.abort();
@@ -114,6 +115,7 @@ async function runApiRequest<T>(
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: abortController.signal,
     });
+    payload = (await response.json()) as ApiResponse<T>;
   } catch (error) {
     backendUnavailableUntil = Date.now() + BACKEND_UNAVAILABLE_COOLDOWN_MS;
     const backendError = createBackendUnavailableError(error);
@@ -122,7 +124,6 @@ async function runApiRequest<T>(
     clearTimeout(timeoutId);
   }
 
-  const payload = (await response.json()) as ApiResponse<T>;
   backendUnavailableUntil = 0;
 
   if (!response.ok) {
