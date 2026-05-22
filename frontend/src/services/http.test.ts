@@ -75,90 +75,67 @@ describe("http service", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("reuses the first in-flight backend availability check across different endpoints", async () => {
-    const fetchMock = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+  it("does not block different endpoints behind a slow in-flight request", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn((url: string) => {
+      if (url.endsWith("/api/v1/sessions/restore")) {
+        return new Promise(() => {});
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ ok: true, data: { roomCode: "ROOM01" } }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     const { apiRequest } = await loadHttpModule();
-    const requests = await Promise.allSettled([
-      apiRequest("/api/v1/sessions/restore", {
-        method: "POST",
-        sessionId: null,
-      }),
-      apiRequest("/api/v1/lobby/waiting-rooms", {
-        sessionId: null,
-      }),
-      apiRequest("/api/v1/rooms", {
-        method: "POST",
-        body: { nickname: "tester" },
-        sessionId: null,
-      }),
-    ]);
+    void apiRequest("/api/v1/sessions/restore", {
+      method: "POST",
+      sessionId: null,
+    }).catch(() => {});
+    const waitingRooms = await apiRequest("/api/v1/lobby/waiting-rooms", {
+      sessionId: null,
+    });
 
-    expect(requests).toEqual([
-      expect.objectContaining({
-        status: "rejected",
-        reason: expect.objectContaining({
-          code: "BACKEND_UNAVAILABLE",
-          status: 0,
-        }),
-      }),
-      expect.objectContaining({
-        status: "rejected",
-        reason: expect.objectContaining({
-          code: "BACKEND_UNAVAILABLE",
-          status: 0,
-        }),
-      }),
-      expect.objectContaining({
-        status: "rejected",
-        reason: expect.objectContaining({
-          code: "BACKEND_UNAVAILABLE",
-          status: 0,
-        }),
-      }),
-    ]);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(waitingRooms).toEqual({ roomCode: "ROOM01" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("times out a hung availability leader and releases queued requests", async () => {
+  it("times out a hung request without rejecting unrelated successful requests", async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn((_url: string, init?: RequestInit) => (
-      new Promise((_resolve, reject) => {
-        init?.signal?.addEventListener("abort", () => {
-          reject(new DOMException("Aborted", "AbortError"));
-        });
-      })
+      _url.endsWith("/api/v1/lobby/waiting-rooms")
+        ? new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => {
+              reject(new DOMException("Aborted", "AbortError"));
+            });
+          })
+        : Promise.resolve(
+            new Response(JSON.stringify({ ok: true, data: { roomCode: "ROOM01" } }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+          )
     ));
     vi.stubGlobal("fetch", fetchMock);
 
     const { apiRequest } = await loadHttpModule();
-    const first = apiRequest("/api/v1/lobby/waiting-rooms", { sessionId: null });
-    const second = apiRequest("/api/v1/rooms", {
+    const first = apiRequest("/api/v1/lobby/waiting-rooms", { sessionId: null }).catch((error) => error);
+    const second = await apiRequest("/api/v1/rooms", {
       method: "POST",
       body: { nickname: "tester" },
       sessionId: null,
     });
-    const settledRequests = Promise.allSettled([first, second]);
 
     await vi.advanceTimersByTimeAsync(10_000);
 
-    expect(await settledRequests).toEqual([
-      expect.objectContaining({
-        status: "rejected",
-        reason: expect.objectContaining({
-          code: "BACKEND_UNAVAILABLE",
-          status: 0,
-        }),
-      }),
-      expect.objectContaining({
-        status: "rejected",
-        reason: expect.objectContaining({
-          code: "BACKEND_UNAVAILABLE",
-          status: 0,
-        }),
-      }),
-    ]);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(await first).toMatchObject({
+      code: "BACKEND_UNAVAILABLE",
+      status: 0,
+    });
+    expect(second).toEqual({ roomCode: "ROOM01" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

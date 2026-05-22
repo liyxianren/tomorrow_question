@@ -274,7 +274,7 @@ describe("LobbyPage", () => {
         return [];
       }
 
-      if (path === "/api/v1/sessions/restore") {
+      if (path === "/api/v1/sessions/restore?includeDetails=0") {
         return {
           session: {
             sessionId: "session-room01",

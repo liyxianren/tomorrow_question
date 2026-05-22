@@ -58,7 +58,7 @@ export function DecisionCardDemoPage() {
   useEffect(() => {
     let cancelled = false;
 
-    void restoreSessionContext()
+    void restoreSessionContext({ includeGameDetails: true })
       .then((session) => {
         if (cancelled) {
           return;

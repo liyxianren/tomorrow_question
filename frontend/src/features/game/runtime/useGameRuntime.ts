@@ -111,7 +111,7 @@ export function useGameRuntime({
       setLoadError(null);
 
       try {
-        const restored = await restoreSessionContext();
+        const restored = await restoreSessionContext({ includeGameDetails: true });
         if (disposed) {
           return;
         }
@@ -261,7 +261,7 @@ export function useGameRuntime({
       const activeSnapshot = runtimeState.snapshot;
 
       try {
-        const restored = await restoreSessionContext();
+        const restored = await restoreSessionContext({ includeGameDetails: true });
         if (!restored?.activeGame || !restored.activeSnapshot) {
           return;
         }
@@ -345,7 +345,7 @@ export function useGameRuntime({
 
     async function recoverSubmissionState(): Promise<void> {
       try {
-        const restored = await restoreSessionContext();
+        const restored = await restoreSessionContext({ includeGameDetails: true });
         if (disposed || !restored?.activeGame || !restored.activeSnapshot) {
           return;
         }
@@ -395,7 +395,7 @@ export function useGameRuntime({
 
     async function recoverAfterDeadline(): Promise<void> {
       try {
-        const restored = await restoreSessionContext();
+        const restored = await restoreSessionContext({ includeGameDetails: true });
         if (disposed || !restored?.activeGame || !restored.activeSnapshot) {
           return;
         }
@@ -517,7 +517,7 @@ export function useGameRuntime({
       setRuntimeState((previous) => applySubmissionStatusUpdate(previous, submissionStatusByPlayerId, scope));
     },
     forceReconcile() {
-      restoreSessionContext()
+      restoreSessionContext({ includeGameDetails: true })
         .then((restored) => {
           if (!restored?.activeGame || !restored.activeSnapshot) return;
           if (restored.activeGame.gameId !== routeGameId) return;

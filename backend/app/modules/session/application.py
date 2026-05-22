@@ -28,7 +28,7 @@ class SessionApplicationService:
         self.rooms = RoomRepository(self.connection)
         self.recovery = RecoveryRepository(self.connection)
 
-    def restore_session_context(self, session_id: str | None) -> dict[str, object]:
+    def restore_session_context(self, session_id: str | None, *, include_details: bool = True) -> dict[str, object]:
         session = self.require_session(session_id)
         self._prune_inactive_waiting_rooms()
 
@@ -47,6 +47,17 @@ class SessionApplicationService:
         if room.status in {RoomStatus.WAITING, RoomStatus.READYING}:
             touch_room(room)
         self.rooms.save(room.to_payload())
+
+        if not include_details:
+            context: dict[str, object] = {"session": session.to_payload(), "room": room.to_payload()}
+            if room.current_game_id:
+                try:
+                    active_game = self.recovery.games.get(room.current_game_id)
+                except ValueError:
+                    active_game = None
+                if active_game is not None:
+                    context["activeGame"] = active_game
+            return context
 
         restored = self.recovery.get_room_context(session.room_code)
         if restored is None:

@@ -3,12 +3,11 @@ import { useNavigate } from "react-router-dom";
 
 import {
   ApiRequestError,
-  apiRequest,
   clearSessionId,
   setSessionId,
 } from "../../../services/http";
 import type { SessionContextResponse } from "../../../types";
-import { resolveSessionRoute } from "../../../app/sessionRecovery";
+import { resolveSessionRoute, restoreSessionContext } from "../../../app/sessionRecovery";
 import i18n from "../../../i18n";
 
 import {
@@ -103,10 +102,10 @@ export function useIdentityGateController(options: UseIdentityGateControllerOpti
     setMessage(null);
 
     try {
-      const response = await apiRequest<SessionContextResponse>("/api/v1/sessions/restore", {
-        method: "POST",
-        sessionId: recoverableSessionId,
-      });
+      const response = await restoreSessionContext();
+      if (!response) {
+        throw new ApiRequestError(i18n.t("lobby:messages.noRecoverableSession"), 401, "INVALID_SESSION");
+      }
 
       setMessage(createSuccessMessage(i18n.t("lobby:messages.progressRecovered")));
       navigateFromSessionContext(response);

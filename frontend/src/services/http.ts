@@ -17,10 +17,6 @@ type RequestOptions = {
 
 const inFlightRequests = new Map<string, Promise<unknown>>();
 let backendUnavailableUntil = 0;
-let backendAvailabilityGate: {
-  promise: Promise<{ ok: true } | { ok: false; error: ApiRequestError }>;
-  resolve: (value: { ok: true } | { ok: false; error: ApiRequestError }) => void;
-} | null = null;
 
 export class ApiRequestError extends Error {
   code?: string;
@@ -71,23 +67,11 @@ export async function apiRequest<T>(
     return pendingRequest;
   }
 
-  const availabilityGate = backendAvailabilityGate;
-  const isAvailabilityLeader = availabilityGate === null;
-  if (isAvailabilityLeader) {
-    backendAvailabilityGate = createBackendAvailabilityGate();
-  } else if (availabilityGate) {
-    const availability = await availabilityGate.promise;
-    if (!availability.ok) {
-      throw availability.error;
-    }
-  }
-
   const requestPromise = runApiRequest<T>(path, {
     method,
     body,
     headers,
     sessionId,
-    signalBackendAvailability: isAvailabilityLeader,
   }).finally(() => {
     inFlightRequests.delete(requestKey);
   });
@@ -103,10 +87,7 @@ async function runApiRequest<T>(
     body,
     headers,
     sessionId = getSessionId(),
-    signalBackendAvailability = false,
-  }: RequestOptions & {
-    signalBackendAvailability?: boolean;
-  } = {},
+  }: RequestOptions = {},
 ): Promise<T> {
   const requestHeaders = new Headers(headers);
 
@@ -136,16 +117,9 @@ async function runApiRequest<T>(
   } catch (error) {
     backendUnavailableUntil = Date.now() + BACKEND_UNAVAILABLE_COOLDOWN_MS;
     const backendError = createBackendUnavailableError(error);
-    if (signalBackendAvailability) {
-      rejectBackendAvailabilityGate(backendError);
-    }
     throw backendError;
   } finally {
     clearTimeout(timeoutId);
-  }
-
-  if (signalBackendAvailability) {
-    resolveBackendAvailabilityGate();
   }
 
   const payload = (await response.json()) as ApiResponse<T>;
@@ -191,29 +165,6 @@ function buildRequestKey(
     sessionId: sessionId ?? null,
   });
 }
-
-function createBackendAvailabilityGate() {
-  let resolve!: (value: { ok: true } | { ok: false; error: ApiRequestError }) => void;
-  const promise = new Promise<{ ok: true } | { ok: false; error: ApiRequestError }>((innerResolve) => {
-    resolve = innerResolve;
-  });
-
-  return {
-    promise,
-    resolve,
-  };
-}
-
-function resolveBackendAvailabilityGate(): void {
-  backendAvailabilityGate?.resolve({ ok: true });
-  backendAvailabilityGate = null;
-}
-
-function rejectBackendAvailabilityGate(error: ApiRequestError): void {
-  backendAvailabilityGate?.resolve({ ok: false, error });
-  backendAvailabilityGate = null;
-}
-
 
 export function unwrapApiResponse<T>(payload: ApiResponse<T>): T {
   if (!payload.ok) {

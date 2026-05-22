@@ -20,6 +20,9 @@ export type RoomRouteState = {
 
 export type SessionBootstrapRouteState = RoomRouteState;
 type SessionRestoreResponse = Partial<SessionContextResponse> & Pick<SessionContextResponse, "session">;
+type RestoreSessionOptions = {
+  includeGameDetails?: boolean;
+};
 
 export function getStoredSessionId(): string | null {
   return getRecoverableSessionId();
@@ -27,7 +30,12 @@ export function getStoredSessionId(): string | null {
 
 async function hydrateActiveGameContext(
   restored: SessionContextResponse,
+  { includeGameDetails = false }: RestoreSessionOptions = {},
 ): Promise<SessionContextResponse> {
+  if (!includeGameDetails) {
+    return restored;
+  }
+
   if (!restored.room?.currentGameId || (restored.activeGame && restored.activeSnapshot)) {
     return restored;
   }
@@ -55,17 +63,22 @@ async function hydrateActiveGameContext(
   }
 }
 
-export async function restoreSessionContext(): Promise<SessionContextResponse | null> {
+export async function restoreSessionContext(
+  { includeGameDetails = false }: RestoreSessionOptions = {},
+): Promise<SessionContextResponse | null> {
   const sessionId = getStoredSessionId();
   if (!sessionId) {
     return null;
   }
 
   try {
-    const restoredResponse = await apiRequest<SessionRestoreResponse>("/api/v1/sessions/restore", {
-      method: "POST",
-      sessionId,
-    });
+    const restoredResponse = await apiRequest<SessionRestoreResponse>(
+      `/api/v1/sessions/restore?includeDetails=${includeGameDetails ? "1" : "0"}`,
+      {
+        method: "POST",
+        sessionId,
+      },
+    );
     if (!restoredResponse.room) {
       clearSessionId();
       clearStoredProfileSession();
@@ -73,7 +86,10 @@ export async function restoreSessionContext(): Promise<SessionContextResponse | 
       return null;
     }
 
-    const restored = await hydrateActiveGameContext(restoredResponse as SessionContextResponse);
+    const restored = await hydrateActiveGameContext(
+      restoredResponse as SessionContextResponse,
+      { includeGameDetails },
+    );
     setSessionId(restored.session.sessionId);
     bindStoredProfileSession(restored.session.sessionId);
     rememberRecentRoomCode(restored.room.roomCode);

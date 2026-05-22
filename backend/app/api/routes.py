@@ -91,7 +91,10 @@ def leave_room(room_code: str):
 @api_bp.post("/v1/sessions/restore")
 def restore_session():
     try:
-        data = SessionApplicationService(get_db_connection()).restore_session_context(get_session_id())
+        data = SessionApplicationService(get_db_connection()).restore_session_context(
+            get_session_id(),
+            include_details=_read_bool_query("includeDetails", default=True),
+        )
     except SessionError as error:
         return _handle_session_error(error)
     return ok_response(data)
@@ -306,6 +309,13 @@ def _read_string(payload: dict[str, Any], key: str) -> str:
         return ""
 
     return value.strip()
+
+
+def _read_bool_query(key: str, *, default: bool) -> bool:
+    raw_value = request.args.get(key)
+    if raw_value is None:
+        return default
+    return raw_value.strip().lower() not in {"0", "false", "no", "off"}
 
 
 def _parse_country_code(raw_value: Any) -> CountryCode | None:

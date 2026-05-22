@@ -426,6 +426,23 @@ class RoomSessionApiTests(unittest.TestCase):
         self.assertEqual(payload["data"]["activeGame"]["gameId"], "game-1")
         self.assertEqual(payload["data"]["activeSnapshot"]["snapshotId"], "snapshot-1")
 
+    def test_restore_session_can_return_lightweight_active_game_context(self) -> None:
+        self.seed_room()
+        self.seed_active_game()
+        self.seed_active_game_records()
+
+        response = self.client.post("/api/v1/sessions/restore?includeDetails=0", headers={"X-Session-Id": "session-1"})
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["data"]["session"]["sessionId"], "session-1")
+        self.assertEqual(payload["data"]["room"]["roomCode"], "ROOM01")
+        self.assertEqual(payload["data"]["activeGame"]["gameId"], "game-1")
+        self.assertNotIn("activeSnapshot", payload["data"])
+        self.assertNotIn("activeTurnInputs", payload["data"])
+        self.assertNotIn("gameLogs", payload["data"])
+
     def test_restore_session_rehydrates_missing_snapshot_workspaces(self) -> None:
         self.seed_room()
         self.seed_active_game()
