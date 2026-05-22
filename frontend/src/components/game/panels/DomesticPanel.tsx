@@ -5,8 +5,10 @@ import type { PhaseDraftByPhase } from "../../../features/game/forms";
 import type { ParameterInspector } from "../../../features/game/parameterInspector";
 import {
   calculateDecisionMarketReferencePrice,
+  calculateRatioPreview,
   formatSignedValue,
 } from "../../../features/game/decisionShared";
+import { calculateDomesticMarketPreview } from "../../../features/game/marketMath";
 import { DecisionStatStrip } from "./shared/DecisionStatStrip";
 import "./DomesticPanel.css";
 
@@ -32,6 +34,56 @@ function getEffectLabel(key: (typeof EFFECT_KEYS)[number]): string {
 function formatNumber(value: number | undefined): string {
   if (value == null || !Number.isFinite(value)) return "—";
   return `${Math.round(value * 100) / 100}`;
+}
+
+function formatRatioValue(value: number | undefined): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "0";
+  const rounded = Math.round(value * 100) / 100;
+  return Number.isInteger(rounded) ? `${rounded}` : `${rounded}`;
+}
+
+function formatIncomeRatio(ratio: { domesticMarket?: number; factory?: number; governmentFiscal?: number }): string {
+  return [
+    formatRatioValue(ratio.domesticMarket),
+    formatRatioValue(ratio.factory),
+    formatRatioValue(ratio.governmentFiscal),
+  ].join(" / ");
+}
+
+function allocateIncomeByRatio(
+  income: number,
+  ratio: { domesticMarket?: number; factory?: number; governmentFiscal?: number },
+) {
+  const safeIncome = Math.max(0, Math.floor(Number.isFinite(income) ? income : 0));
+  const domesticWeight = Math.max(0, ratio.domesticMarket ?? 0);
+  const factoryWeight = Math.max(0, ratio.factory ?? 0);
+  const governmentWeight = Math.max(0, ratio.governmentFiscal ?? 0);
+  const totalWeight = domesticWeight + factoryWeight + governmentWeight;
+  if (safeIncome <= 0 || totalWeight <= 0) {
+    return { domesticMarket: 0, factory: 0, governmentFiscal: 0 };
+  }
+  const domesticMarket = Math.floor(safeIncome * (domesticWeight / totalWeight));
+  const factory = Math.floor(safeIncome * (factoryWeight / totalWeight));
+  return {
+    domesticMarket,
+    factory,
+    governmentFiscal: safeIncome - domesticMarket - factory,
+  };
+}
+
+function calculateProjectedGoodsInventory(
+  phase1Economy: DecisionPlayerPhaseWorkspace["phase1Economy"],
+  draft: PhaseDraftByPhase["decision"],
+): number {
+  if (!phase1Economy) {
+    return 0;
+  }
+  const assignments = draft.phase1Production?.rawMaterialAssignments ?? {};
+  const produced = phase1Economy.productionModes.reduce((sum, mode) => {
+    const assigned = Math.max(0, Math.floor(assignments[mode.mode] ?? 0));
+    return sum + assigned * Math.max(0, mode.outputRatio ?? 0);
+  }, 0);
+  return Math.max(0, (phase1Economy.goodsInventory ?? 0) + produced);
 }
 
 function sumEffect(
@@ -107,6 +159,19 @@ export function DomesticPanel({
     ? Math.max(0, baseDomesticCapacity + selectedCapacityDelta)
     : undefined;
   const referencePrice = calculateDecisionMarketReferencePrice(phase1Economy, selectedPriceDelta);
+  const projectedIncomeRatio = calculateRatioPreview(workspace, draft);
+  const projectedGoodsInventory = calculateProjectedGoodsInventory(phase1Economy, draft);
+  const estimatedDomesticRevenue = phase1Economy && projectedDomesticCapacity != null
+    ? calculateDomesticMarketPreview({
+        allocation: projectedGoodsInventory,
+        softCap: projectedDomesticCapacity,
+        equilibriumPrice: referencePrice.basePrice ?? 0,
+        minimumPrice: referencePrice.minimumPrice,
+        maximumPrice: referencePrice.maximumPrice,
+        priceBonus: referencePrice.existingPriceBonus + selectedPriceDelta,
+      }).revenue
+    : 0;
+  const estimatedBudgetAllocation = allocateIncomeByRatio(estimatedDomesticRevenue, projectedIncomeRatio);
   const projectedDomesticDemand = phase1Economy?.domesticDemand != null
     ? Math.max(0, phase1Economy.domesticDemand)
     : undefined;
@@ -199,6 +264,13 @@ export function DomesticPanel({
           },
         ]}
       />
+
+      <div className="domestic-market-card__formula-row" data-testid="domestic-income-allocation-preview">
+        <MarketValueChip label={t("game:market.incomeAllocationRatio", "本轮收入分配")} value={formatIncomeRatio(projectedIncomeRatio)} tone="accent" />
+        <MarketValueChip label={t("game:settlement.consumerPurchasingPower", "民间购买力")} value={`+${formatNumber(estimatedBudgetAllocation.domesticMarket)}`} />
+        <MarketValueChip label={t("game:market.estimatedFactoryBudget", "工厂预算")} value={`+${formatNumber(estimatedBudgetAllocation.factory)}`} />
+        <MarketValueChip label={t("game:settlement.governmentFiscal", "政府财政")} value={`+${formatNumber(estimatedBudgetAllocation.governmentFiscal)}`} />
+      </div>
 
       <div
         className={[

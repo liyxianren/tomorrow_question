@@ -806,8 +806,8 @@ function buildValidationLines({
       ? getEffectiveOverseasCapacityForMarketDraft(draftPayload, currentPlayerWorkspace)
       : currentPlayerWorkspace.overseasMarketCapacity;
 
-    if (domesticAllocated > currentPlayerWorkspace.domesticMarketCapacity) {
-      lines.push(i18n.t("game:flow.validateDomesticOverCapacity", "国内卖量 {{allocated}} 超过承接能力 {{capacity}}。", { allocated: domesticAllocated, capacity: currentPlayerWorkspace.domesticMarketCapacity }));
+    if (!usesPhase1Market && domesticAllocated > currentPlayerWorkspace.domesticMarketCapacity) {
+      lines.push(i18n.t("game:flow.validateDomesticOverCapacity", "国内卖量 {{assigned}} 超过承接能力 {{capacity}}。", { assigned: domesticAllocated, capacity: currentPlayerWorkspace.domesticMarketCapacity }));
     }
     if (overseasAllocated > effectiveOverseasCapacity) {
       lines.push(i18n.t("game:flow.validateOverseasOverCapacity", "海外卖量 {{allocated}} 超过承接能力 {{capacity}}。", { allocated: overseasAllocated, capacity: effectiveOverseasCapacity }));
@@ -816,10 +816,6 @@ function buildValidationLines({
       const goodsAvailable = currentPlayerWorkspace.phase1GoodsAvailable
         ?? currentPlayerWorkspace.phase1Economy?.goodsInventory
         ?? 0;
-      const domesticDemand = currentPlayerWorkspace.phase1Economy?.domesticDemand ?? goodsAvailable;
-      if (domesticAllocated > domesticDemand) {
-        lines.push(i18n.t("game:flow.validateDomesticOverDemand", "国内卖量 {{allocated}} 超过本轮需求 {{demand}}。", { allocated: domesticAllocated, demand: domesticDemand }));
-      }
       if (totalAllocated > goodsAvailable) {
         lines.push(i18n.t("game:flow.validateTotalOverInventory", "总卖量 {{total}} 超过库存 {{inventory}}。", { total: totalAllocated, inventory: goodsAvailable }));
       }

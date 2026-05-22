@@ -391,29 +391,29 @@ function formatPolicyEffects(
       effects.push({
         label: i18n.t("game:government.ideologyPressure", "思潮压力"),
         value: i18n.t("game:government.ideologyPressureValue", "{{parts}}（{{threshold}} 最高警戒）", { parts: joinLocalized(parts), threshold: revolutionThreshold }),
-        permanent: true,
+        temporary: true,
       });
     }
   }
 
   if (e.militaryPointsDelta !== undefined) {
     const delta = e.militaryPointsDelta as number;
-    effects.push({ label: i18n.t("game:government.militaryPointsPerSettlement", "结算后每回合军事点"), value: formatSigned(delta) });
+    effects.push({ label: i18n.t("game:government.militaryPointsPerSettlement", "结算后每回合军事点"), value: formatSigned(delta), temporary: true });
   }
 
   if (e.armyCapDelta !== undefined) {
     const delta = e.armyCapDelta as number;
-    effects.push({ label: i18n.t("game:government.armyCapMax", "军事力量上限"), value: formatSigned(delta), permanent: true });
+    effects.push({ label: i18n.t("game:government.armyCapMax", "军事力量上限"), value: formatSigned(delta), temporary: true });
   }
 
   if (e.domesticMarketCapacityDelta !== undefined) {
     const delta = e.domesticMarketCapacityDelta as number;
-    effects.push({ label: i18n.t("game:government.effect.domesticCapacity", "国内容量"), value: formatSigned(delta), permanent: true });
+    effects.push({ label: i18n.t("game:government.effect.domesticCapacity", "国内容量"), value: formatSigned(delta), temporary: true });
   }
 
   if (e.overseasMarketCapacityDelta !== undefined) {
     const delta = e.overseasMarketCapacityDelta as number;
-    effects.push({ label: i18n.t("game:government.effect.overseasCapacity", "海外容量"), value: formatSigned(delta), permanent: true });
+    effects.push({ label: i18n.t("game:government.effect.overseasCapacity", "海外容量"), value: formatSigned(delta), temporary: true });
   }
 
   if (e.fiscalRefund !== undefined) {

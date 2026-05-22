@@ -92,6 +92,10 @@ describe("GamePhasePanelContent", () => {
     expect(screen.getByTestId("domestic-panel")).toBeInTheDocument();
     expect(screen.getByTestId("decision-step-tab-domestic")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("domestic-panel")).toHaveTextContent("海外容量变化 +2");
+    expect(screen.getByTestId("domestic-panel")).toHaveTextContent("本轮收入分配");
+    expect(screen.getByTestId("domestic-panel")).toHaveTextContent("民间购买力");
+    expect(screen.getByTestId("domestic-panel")).toHaveTextContent("工厂预算");
+    expect(screen.getByTestId("domestic-panel")).toHaveTextContent("政府财政");
     expect(screen.getByTestId("domestic-panel")).not.toHaveTextContent("暂无市场调节");
 
     await user.click(screen.getByRole("button", { name: "下一步：军事要塞" }));
@@ -331,6 +335,7 @@ describe("GamePhasePanelContent", () => {
     expect(screen.getByText("6 政府财政 · 消耗 1 行政力")).toBeInTheDocument();
     expect(screen.getByText(/本轮收入分配/)).toBeInTheDocument();
     expect(screen.getByText(/国民消费 \+0.5，政府财政 -0.5/)).toBeInTheDocument();
+    expect(screen.getByText("以工代赈").closest("article")).not.toHaveTextContent("永久");
     expect(screen.queryByText(/每回合收入分配/)).not.toBeInTheDocument();
   });
 

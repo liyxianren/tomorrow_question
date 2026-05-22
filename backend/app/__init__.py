@@ -87,10 +87,13 @@ def register_runtime_routes(app: Flask, settings: Settings, phase_duration_secon
 
     @app.get("/healthz")
     def healthz():
+        database_path_text = str(database_path)
         return ok_response(
             {
                 "service": "backend",
                 "appEnv": settings.app_env,
+                "databasePath": database_path_text,
+                "databasePathLooksPersistent": database_path_text.startswith("/data/"),
                 "databaseReady": database_path.exists(),
                 "frontendReady": frontend_dist.exists(),
                 "balanceConfigReady": True,

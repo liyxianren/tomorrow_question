@@ -1,12 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { translateBackend } from "../../../../i18n";
 import type { RegionAccessStatus } from "../../../../types";
-import { getCountryLabel } from "../../../../features/game/panelGlossary";
+import { getCountryLabel, getGoodsLabel } from "../../../../features/game/panelGlossary";
 import "./MilitaryWorldMap.css";
-
-function getGoodsLabel(goodsId: string): string {
-  return translateBackend(goodsId);
-}
 
 const REGION_ICONS: Record<string, string> = {
   europe: "🏰",

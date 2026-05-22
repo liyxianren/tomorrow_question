@@ -225,6 +225,7 @@ describe("MilitaryPanel", () => {
     expect(drawer).toHaveTextContent("多人同时封锁时比舰队数，平手不形成封锁");
     expect(drawer).toHaveTextContent("本地区舰队");
     expect(drawer).toHaveTextContent("可调 0-4");
+    expect(screen.queryByLabelText("欧洲 区域详情")).not.toBeInTheDocument();
   });
 
   it("shows region blockade details inside military region decisions", () => {

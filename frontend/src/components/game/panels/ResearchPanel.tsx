@@ -32,6 +32,10 @@ export function ResearchPanel({
   const { chains, researchFacilities, facilityCost, progressPerFacility, activeResearch } = techTree;
   const breakthroughDieSides = techTree.breakthroughDieSides ?? 10;
   const canAffordResearchFacility = remainingGovernmentBudget >= facilityCost;
+  const hasResearchTarget = Boolean(activeResearch) || chains.some((chain) =>
+    chain.techs.some((tech) => tech.canResearch || tech.isActive),
+  );
+  const canToggleResearchFacility = isResearchFacilitySelected || (canAffordResearchFacility && hasResearchTarget);
 
   const activeTech = activeResearch
     ? chains.flatMap((c) => c.techs).find((t) => t.techId === activeResearch)
@@ -167,6 +171,10 @@ export function ResearchPanel({
               <span>{t("game:research.projectedAfterBuild", { progress: nextPerTurnProgress })}</span>
               {isResearchFacilitySelected ? (
                 <span>{t("game:research.plannedThisRound")}</span>
+              ) : !hasResearchTarget ? (
+                <span className="research-build-summary__warn">
+                  {t("game:research.noAvailableTargetForFacility", "当前没有可研究目标")}
+                </span>
               ) : canAffordResearchFacility ? (
                 <span>{t("game:research.conditionMet")}</span>
               ) : (
@@ -176,10 +184,14 @@ export function ResearchPanel({
             <button
               type="button"
               className={`research-build-btn${isResearchFacilitySelected ? " research-build-btn--selected" : ""}`}
-              disabled={!isResearchFacilitySelected && !canAffordResearchFacility}
+              disabled={!canToggleResearchFacility}
               onClick={() => onToggleResearchFacility(!isResearchFacilitySelected)}
             >
-              {isResearchFacilitySelected ? t("game:research.cancelBuildFacility") : "🏗️ " + t("game:research.buildFacility")}
+              {isResearchFacilitySelected
+                ? t("game:research.cancelBuildFacility")
+                : hasResearchTarget
+                  ? "🏗️ " + t("game:research.buildFacility")
+                  : t("game:research.noAvailableTargetForFacility", "当前没有可研究目标")}
             </button>
             {parameterInspector?.render("research.facility", {
               title: t("game:research.researchFacilities"),

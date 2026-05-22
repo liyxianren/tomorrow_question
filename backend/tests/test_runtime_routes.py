@@ -43,6 +43,8 @@ class RuntimeRoutesTests(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["data"]["service"], "backend")
         self.assertEqual(payload["data"]["appEnv"], "test")
+        self.assertEqual(payload["data"]["databasePath"], str(self.database_path.resolve()))
+        self.assertFalse(payload["data"]["databasePathLooksPersistent"])
         self.assertTrue(payload["data"]["databaseReady"])
         self.assertFalse(payload["data"]["frontendReady"])
         self.assertTrue(payload["data"]["balanceConfigReady"])

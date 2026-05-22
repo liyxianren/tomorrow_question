@@ -59,6 +59,9 @@ function RegionDrawer({
   onRegionBlockadeChange,
 }: MilitaryNodeDrawerProps) {
   const { t } = useTranslation();
+  if (!open) {
+    return null;
+  }
   const icon = REGION_ICONS[nodeId] ?? "🌐";
   const accessBadge = region.isAccessible ? "✅" : "🔒";
   const goodsLine = region.acceptedGoods.map((g) => getGoodsLabel(g)).join("·");
@@ -85,7 +88,7 @@ function RegionDrawer({
 
   return (
     <aside
-      className={`mnd mnd--region${open ? " mnd--open" : ""}`}
+      className="mnd mnd--region mnd--open"
       aria-label={`${translateBackend(region.label)} ${t("game:military.regionDetail")}`}
     >
       <header className="mnd__head">

@@ -5,6 +5,7 @@ import { createGameWorkbenchViewModel, getPhaseSubmitBlockingReasons } from "./g
 import { createInitialPhaseDraft } from "../forms";
 import {
   createDecisionPlayerWorkspace,
+  createMarketPlayerWorkspace,
   createNationalState,
 } from "../../../test/gameSnapshotFixtures";
 
@@ -306,5 +307,32 @@ describe("createGameWorkbenchViewModel", () => {
 
     expect(reasons.join("\n")).toContain("机械化 分配 1");
     expect(reasons.join("\n")).not.toContain("{{mode}}");
+  });
+
+  it("allows Phase1 domestic oversell up to inventory and only blocks total inventory overflow", () => {
+    const draft = createInitialPhaseDraft("market");
+    draft.phase1Market.domesticAllocation = 8;
+    const workspace = createMarketPlayerWorkspace({
+      domesticMarketCapacity: 4,
+      phase1GoodsAvailable: 8,
+      phase1Economy: {
+        ...createMarketPlayerWorkspace().phase1Economy!,
+        goodsInventory: 8,
+        domesticDemand: 4,
+        domesticSoftCap: 4,
+      },
+    });
+
+    const reasons = getPhaseSubmitBlockingReasons({
+      currentPhase: "market",
+      currentPlayerState: createNationalState(),
+      currentPlayerWorkspace: workspace,
+      draftPayload: draft,
+      decisionFlowState: createInitialDecisionFlowState(),
+    });
+
+    expect(reasons).not.toEqual(expect.arrayContaining([expect.stringContaining("超过承接能力")]));
+    expect(reasons).not.toEqual(expect.arrayContaining([expect.stringContaining("超过本轮需求")]));
+    expect(reasons).not.toEqual(expect.arrayContaining([expect.stringContaining("{{assigned}}")]));
   });
 });
