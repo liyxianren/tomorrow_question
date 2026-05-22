@@ -48,6 +48,17 @@ type SnapshotSyncPayload = {
   snapshot?: unknown;
 };
 
+function logRoomStart(stage: string, details: Record<string, unknown> = {}): void {
+  console.info("[room-start]", stage, {
+    at: new Date().toISOString(),
+    ...details,
+  });
+}
+
+function elapsedSince(startedAt: number): number {
+  return Math.round(performance.now() - startedAt);
+}
+
 function createErrorMessage(text: string): RoomFlowMessage {
   return {
     tone: "error",
@@ -152,6 +163,12 @@ export function useRoomFlowController() {
     });
 
     if (context.activeGame?.gameId && context.activeSnapshot) {
+      logRoomStart("navigate.game", {
+        roomCode: context.room.roomCode,
+        gameId: context.activeGame.gameId,
+        snapshotId: context.activeSnapshot.snapshotId,
+        phase: context.activeSnapshot.phase,
+      });
       navigate(`/game/${context.activeGame.gameId}`, {
         replace: true,
         state: buildBootstrapState(context),
@@ -160,17 +177,51 @@ export function useRoomFlowController() {
   }
 
   async function fetchAuthoritativeRoomContext(roomCode: string): Promise<RoomContextResponse> {
-    return apiRequest<RoomContextResponse>(`/api/v1/rooms/${roomCode}/context`);
+    const startedAt = performance.now();
+    logRoomStart("context.fetch.start", { roomCode });
+    try {
+      const context = await apiRequest<RoomContextResponse>(`/api/v1/rooms/${roomCode}/context`);
+      logRoomStart("context.fetch.done", {
+        roomCode,
+        elapsedMs: elapsedSince(startedAt),
+        roomStatus: context.room.status,
+        gameId: context.activeGame?.gameId ?? null,
+        snapshotId: context.activeSnapshot?.snapshotId ?? null,
+        snapshotPhase: context.activeSnapshot?.phase ?? null,
+      });
+      return context;
+    } catch (error) {
+      logRoomStart("context.fetch.error", {
+        roomCode,
+        elapsedMs: elapsedSince(startedAt),
+        error: formatRequestError(error),
+      });
+      throw error;
+    }
   }
 
   async function syncAuthoritativeRoomContext(roomCode: string): Promise<RoomContextResponse> {
+    const startedAt = performance.now();
+    logRoomStart("context.sync.start", { roomCode });
     const context = await fetchAuthoritativeRoomContext(roomCode);
     applyAuthoritativeRoomContext(context);
+    logRoomStart("context.sync.done", {
+      roomCode,
+      elapsedMs: elapsedSince(startedAt),
+      roomStatus: context.room.status,
+      gameId: context.activeGame?.gameId ?? null,
+      snapshotId: context.activeSnapshot?.snapshotId ?? null,
+    });
     return context;
   }
 
   useEffect(() => {
     if (bootstrap?.activeGame?.gameId) {
+      logRoomStart("bootstrap.navigate.game", {
+        roomCode: bootstrap.room.roomCode,
+        gameId: bootstrap.activeGame.gameId,
+        snapshotId: bootstrap.activeSnapshot?.snapshotId ?? null,
+      });
       navigate(`/game/${bootstrap.activeGame.gameId}`, {
         replace: true,
         state: {
@@ -192,6 +243,8 @@ export function useRoomFlowController() {
     let disposed = false;
 
     async function loadRoomContext(): Promise<void> {
+      const startedAt = performance.now();
+      logRoomStart("room.load.start", { roomCode: initialRoomCode });
       setIsLoadingContext(true);
       setLoadError(null);
       setMessageOverride(null);
@@ -200,9 +253,20 @@ export function useRoomFlowController() {
         const restored = await restoreSessionContext();
         if (restored) {
           if (disposed) {
+            logRoomStart("room.load.disposed_after_restore", {
+              roomCode: initialRoomCode,
+              elapsedMs: elapsedSince(startedAt),
+            });
             return;
           }
 
+          logRoomStart("room.load.restore.done", {
+            roomCode: restored.room.roomCode,
+            elapsedMs: elapsedSince(startedAt),
+            roomStatus: restored.room.status,
+            gameId: restored.activeGame?.gameId ?? null,
+            hasSnapshot: Boolean(restored.activeSnapshot),
+          });
           setSession(restored.session);
           setRoomContext({
             room: restored.room,
@@ -212,6 +276,11 @@ export function useRoomFlowController() {
 
           const target = resolveSessionRoute(restored);
           if (target.path !== `/room/${initialRoomCode}`) {
+            logRoomStart("room.load.restore.navigate", {
+              fromRoomCode: initialRoomCode,
+              targetPath: target.path,
+              elapsedMs: elapsedSince(startedAt),
+            });
             navigate(target.path, {
               replace: true,
               state: target.state,
@@ -224,13 +293,28 @@ export function useRoomFlowController() {
         const context = await fetchAuthoritativeRoomContext(initialRoomCode);
 
         if (disposed) {
+          logRoomStart("room.load.disposed_after_context", {
+            roomCode: initialRoomCode,
+            elapsedMs: elapsedSince(startedAt),
+          });
           return;
         }
 
         setSession(null);
         applyAuthoritativeRoomContext(context);
+        logRoomStart("room.load.context.done", {
+          roomCode: initialRoomCode,
+          elapsedMs: elapsedSince(startedAt),
+          roomStatus: context.room.status,
+          gameId: context.activeGame?.gameId ?? null,
+        });
       } catch (error) {
         if (!disposed) {
+          logRoomStart("room.load.error", {
+            roomCode: initialRoomCode,
+            elapsedMs: elapsedSince(startedAt),
+            error: formatRequestError(error),
+          });
           setLoadError(`${i18n.t("room:errors.genericError")}: ${formatRequestError(error)}`);
         }
       } finally {
@@ -254,10 +338,21 @@ export function useRoomFlowController() {
     }
 
     const socket = connectSocket();
+    logRoomStart("socket.connecting", {
+      roomCode: room.roomCode,
+      connected: socket.connected,
+      sessionIdPresent: Boolean(session.sessionId),
+    });
     setSocketState(socket.connected ? "connected" : "connecting");
 
-    const handleConnect = () => setSocketState("connected");
-    const handleDisconnect = () => setSocketState("disconnected");
+    const handleConnect = () => {
+      logRoomStart("socket.connected", { roomCode: room.roomCode });
+      setSocketState("connected");
+    };
+    const handleDisconnect = () => {
+      logRoomStart("socket.disconnected", { roomCode: room.roomCode });
+      setSocketState("disconnected");
+    };
     const handleRoomUpdated = (envelope: SocketEnvelope<RoomUpdatedPayload>) => {
       const updatedRoom = envelope.payload?.room;
 
@@ -266,6 +361,12 @@ export function useRoomFlowController() {
       }
 
       waitingRoomSyncVersionRef.current += 1;
+      logRoomStart("socket.room_updated", {
+        roomCode: updatedRoom.roomCode,
+        roomStatus: updatedRoom.status,
+        currentGameId: updatedRoom.currentGameId ?? null,
+        syncVersion: waitingRoomSyncVersionRef.current,
+      });
       if (updatedRoom.status === "in_game" && !roomContextRef.current?.activeGame?.gameId) {
         setMessageOverride(createSuccessMessage(i18n.t("room:status.in_game")));
         void syncAuthoritativeRoomContext(updatedRoom.roomCode).catch(() => {
@@ -298,8 +399,20 @@ export function useRoomFlowController() {
       }
 
       waitingRoomSyncVersionRef.current += 1;
+      logRoomStart("socket.game_started", {
+        roomCode: room.roomCode,
+        gameId: nextGame.gameId,
+        snapshotId: nextSnapshot.snapshotId,
+        snapshotPhase: nextSnapshot.phase,
+        syncVersion: waitingRoomSyncVersionRef.current,
+      });
       setMessageOverride(createSuccessMessage(i18n.t("room:status.in_game")));
       void syncAuthoritativeRoomContext(room.roomCode).catch(() => {
+        logRoomStart("socket.game_started.context_fallback", {
+          roomCode: room.roomCode,
+          gameId: nextGame.gameId,
+          snapshotId: nextSnapshot.snapshotId,
+        });
         const fallbackContext = {
           room: roomContextRef.current?.room ?? createFallbackRoom(room.roomCode),
           activeGame: nextGame,
@@ -323,11 +436,25 @@ export function useRoomFlowController() {
       }
 
       waitingRoomSyncVersionRef.current += 1;
+      logRoomStart("socket.snapshot_sync", {
+        roomCode: nextRoom.roomCode,
+        gameId: nextGame.gameId,
+        snapshotId: nextSnapshot.snapshotId,
+        snapshotPhase: nextSnapshot.phase,
+        syncVersion: waitingRoomSyncVersionRef.current,
+      });
       setMessageOverride(createSuccessMessage(i18n.t("room:status.in_game")));
       setRoomContext({
         room: nextRoom,
         activeGame: nextGame,
         activeSnapshot: nextSnapshot,
+      });
+      logRoomStart("navigate.game", {
+        roomCode: nextRoom.roomCode,
+        gameId: nextGame.gameId,
+        snapshotId: nextSnapshot.snapshotId,
+        phase: nextSnapshot.phase,
+        source: "socket.snapshot_sync",
       });
       navigate(`/game/${nextGame.gameId}`, {
         replace: true,
@@ -369,6 +496,12 @@ export function useRoomFlowController() {
         const context = await fetchAuthoritativeRoomContext(room.roomCode);
 
         if (disposed || requestVersion != waitingRoomSyncVersionRef.current) {
+          logRoomStart("poll.context.ignored", {
+            roomCode: room.roomCode,
+            requestVersion,
+            currentVersion: waitingRoomSyncVersionRef.current,
+            disposed,
+          });
           return;
         }
 
@@ -426,6 +559,13 @@ export function useRoomFlowController() {
     waitingRoomSyncVersionRef.current += 1;
     setPendingAction("ready");
     setMessageOverride(null);
+    const startedAt = performance.now();
+    logRoomStart("ready.submit.start", {
+      roomCode: room.roomCode,
+      playerId: currentPlayerId,
+      nextReady,
+      syncVersion: waitingRoomSyncVersionRef.current,
+    });
 
     try {
       await apiRequest(`/api/v1/rooms/${room.roomCode}/ready`, {
@@ -433,6 +573,11 @@ export function useRoomFlowController() {
         body: {
           isReady: nextReady,
         },
+      });
+      logRoomStart("ready.submit.done", {
+        roomCode: room.roomCode,
+        nextReady,
+        elapsedMs: elapsedSince(startedAt),
       });
 
       await syncAuthoritativeRoomContext(room.roomCode);
@@ -444,6 +589,12 @@ export function useRoomFlowController() {
         ),
       );
     } catch (error) {
+      logRoomStart("ready.submit.error", {
+        roomCode: room.roomCode,
+        nextReady,
+        elapsedMs: elapsedSince(startedAt),
+        error: formatRequestError(error),
+      });
       setMessageOverride(createErrorMessage(`${i18n.t("room:errors.genericError")}: ${formatRequestError(error)}`));
     } finally {
       setPendingAction(null);
@@ -459,14 +610,29 @@ export function useRoomFlowController() {
     waitingRoomSyncVersionRef.current += 1;
     setPendingAction("fillBots");
     setMessageOverride(null);
+    const startedAt = performance.now();
+    logRoomStart("bots.fill.start", {
+      roomCode: room.roomCode,
+      playerId: currentPlayerId,
+      syncVersion: waitingRoomSyncVersionRef.current,
+    });
 
     try {
       await apiRequest<{ room?: RoomContext }>(`/api/v1/rooms/${room.roomCode}/bots/fill`, {
         method: "POST",
       });
+      logRoomStart("bots.fill.done", {
+        roomCode: room.roomCode,
+        elapsedMs: elapsedSince(startedAt),
+      });
       await syncAuthoritativeRoomContext(room.roomCode);
       setMessageOverride(createSuccessMessage(i18n.t("room:status.readying")));
     } catch (error) {
+      logRoomStart("bots.fill.error", {
+        roomCode: room.roomCode,
+        elapsedMs: elapsedSince(startedAt),
+        error: formatRequestError(error),
+      });
       setMessageOverride(createErrorMessage(`${i18n.t("room:errors.genericError")}: ${formatRequestError(error)}`));
     } finally {
       setPendingAction(null);
