@@ -22,7 +22,7 @@ class GameStateModelTests(unittest.TestCase):
             game_id="game-1",
             room_code="ROOM1",
             current_round=1,
-            total_rounds=15,
+            total_rounds=10,
             current_phase=GamePhase.DECISION,
             is_finished=False,
             active_snapshot_id="snapshot-1",
@@ -34,7 +34,7 @@ class GameStateModelTests(unittest.TestCase):
                 "gameId": "game-1",
                 "roomCode": "ROOM1",
                 "currentRound": 1,
-                "totalRounds": 15,
+                "totalRounds": 10,
                 "currentPhase": GamePhase.DECISION,
                 "isFinished": False,
                 "activeSnapshotId": "snapshot-1",
@@ -134,7 +134,7 @@ class GameStateModelTests(unittest.TestCase):
         self.assertEqual(snapshot.round_no, 1)
         self.assertEqual(snapshot.phase, GamePhase.DECISION)
         self.assertEqual(payload["round"], 1)
-        self.assertEqual(payload["maxRounds"], 15)
+        self.assertEqual(payload["maxRounds"], 10)
         self.assertEqual(payload["rulesVersion"], "v2")
         self.assertEqual(payload["phaseWorkspace"]["phase"], GamePhase.DECISION)
         self.assertEqual(payload["ranking"], [])
@@ -209,7 +209,7 @@ class GameStateModelTests(unittest.TestCase):
             snapshot_id="snapshot-1",
             game_id="game-1",
             round_no=2,
-            max_rounds=15,
+            max_rounds=10,
             phase=GamePhase.MARKET,
             rules_version="v2",
             phase_deadline_at=datetime(2026, 3, 29, 10, 0, tzinfo=UTC),

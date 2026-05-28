@@ -12,6 +12,7 @@ from app.contracts.enums import CountryCode, GamePhase
 from app.modules.balance_config import get_balance_config
 from app.modules.game_state.factory import create_game, create_initial_snapshot
 from app.modules.game_state.models import GameSnapshot, PlayerState
+from app.modules.rules.colonization import colony_raw_material_yield
 from app.modules.rules.decision import _apply_policy_plan
 from app.modules.rules.settlement import resolve_settlement_phase
 
@@ -58,12 +59,13 @@ class SettlementRulesTests(unittest.TestCase):
         self.assertEqual(updated_britain.domestic_sales_revenue, 0)
         self.assertEqual(updated_britain.overseas_sales_revenue, 0)
 
-    def test_settlement_adds_colony_income_to_national_income_before_ratio_allocation(self) -> None:
+    def test_settlement_adds_colony_raw_materials_for_next_round(self) -> None:
         snapshot = build_snapshot()
         britain = get_player(snapshot, "player-1")
         britain.national_income = 12
         britain.cumulative_national_income = 20
         britain.budget_pools = {"domesticMarket": 0, "factory": 0, "governmentFiscal": 0}
+        starting_raw_materials = int(britain.phase1_economy.raw_materials)
         americas = next(region for region in snapshot.region_states if region.region_id == "americas")
         americas.controller = britain.country.value
 
@@ -72,9 +74,13 @@ class SettlementRulesTests(unittest.TestCase):
         summary_card = next(card for card in resolution.summary["summaryCards"] if card["playerId"] == "player-1")
         generated_log = next(log for log in resolution.generated_logs if log["details"]["playerId"] == "player-1")
 
-        # Colony income is disabled; national income 12 uses the normal 3:3:4 split.
+        # Colonies now return raw materials for the next round, not direct income.
         self.assertEqual(updated_britain.cumulative_national_income, 32)
         self.assertEqual(updated_britain.budget_pools, {"domesticMarket": 3, "factory": 3, "governmentFiscal": 6})
+        self.assertEqual(
+            updated_britain.phase1_economy.raw_materials,
+            starting_raw_materials + 2 + colony_raw_material_yield(americas),
+        )
         self.assertEqual(summary_card["colonyIncome"], 0)
         self.assertEqual(generated_log["details"]["colonyIncome"], 0)
 

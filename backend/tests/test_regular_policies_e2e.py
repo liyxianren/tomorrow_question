@@ -1,7 +1,7 @@
 """
 E2E tests for remaining regularPolicies:
-- expand_army (budgetCost=8, militaryPointsDelta=1)
-- reduce_army (fiscalRefund=5)
+- expand_army (budgetCost=8, armyCapDelta=1)
+- reduce_army (armyCapDelta=-1, fiscalRefund=5)
 - raise_commercial_tax (ratioDelta + ideologyDelta)
 - lower_commercial_tax (ratioDelta + ideologyDelta)
 """
@@ -192,13 +192,13 @@ class RegularPoliciesE2ETest(unittest.TestCase):
     # ── expand_army ──
 
     def test_expand_army_activation_and_military_growth(self):
-        """expand_army: +1 military point per settlement, budgetCost=8."""
+        """expand_army: +1 army cap, budgetCost=8."""
         self.seed_active_game()
         snapshot = self._load_snapshot()
         britain = self._player(snapshot, "player-1")
         britain.administration_capacity = 10
         britain.budget_pools["governmentFiscal"] = 100
-        initial_military = britain.military_points
+        initial_army_cap = britain.army_cap
         self._save_snapshot(snapshot)
 
         # Activate expand_army
@@ -206,11 +206,11 @@ class RegularPoliciesE2ETest(unittest.TestCase):
         snapshot = self._full_round(payload, snapshot)
         britain = self._player(snapshot, "player-1")
 
-        self.assertIn("expand_army", britain.active_policies)
+        self.assertNotIn("expand_army", britain.active_policies)
         # Budget: 100 - 8 = 92
         self.assertEqual(britain.budget_pools["governmentFiscal"], 92)
-        # Military: +1 from policy effect
-        self.assertEqual(britain.military_points, initial_military + 1)
+        # Army cap: +1 from policy effect
+        self.assertEqual(britain.army_cap, initial_army_cap + 1)
 
     def test_expand_army_over_budget_rejected(self):
         self.seed_active_game()
@@ -231,24 +231,24 @@ class RegularPoliciesE2ETest(unittest.TestCase):
     # ── reduce_army ──
 
     def test_reduce_army_fiscal_refund(self):
-        """reduce_army: −1 military point, +5 fiscal refund."""
+        """reduce_army: -1 army cap, +5 fiscal refund."""
         self.seed_active_game()
         snapshot = self._load_snapshot()
         britain = self._player(snapshot, "player-1")
         britain.administration_capacity = 10
         britain.budget_pools["governmentFiscal"] = 50
-        britain.military_points = 5
+        britain.army_cap = 5
         initial_fiscal = britain.budget_pools["governmentFiscal"]
-        initial_military = britain.military_points
+        initial_army_cap = britain.army_cap
         self._save_snapshot(snapshot)
 
         payload = _decision_payload(activate_policies=["reduce_army"])
         snapshot = self._full_round(payload, snapshot)
         britain = self._player(snapshot, "player-1")
 
-        self.assertIn("reduce_army", britain.active_policies)
-        # Military: -1 per settlement
-        self.assertEqual(britain.military_points, initial_military - 1)
+        self.assertNotIn("reduce_army", britain.active_policies)
+        self.assertEqual(britain.army_cap, initial_army_cap - 1)
+        self.assertEqual(britain.budget_pools["governmentFiscal"], initial_fiscal + 5)
 
     # ── raise_commercial_tax ──
 

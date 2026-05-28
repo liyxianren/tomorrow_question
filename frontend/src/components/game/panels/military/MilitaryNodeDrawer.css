@@ -76,6 +76,11 @@
   border-color: rgba(245, 158, 11, 0.28);
 }
 
+.mnd__section--colonization-active {
+  background: rgba(104, 211, 145, 0.1);
+  border-color: rgba(104, 211, 145, 0.3);
+}
+
 .mnd__section-label {
   font-size: 12px;
   font-weight: 600;
@@ -282,6 +287,30 @@
   text-align: center;
   font-weight: 600;
   font-size: 14px;
+}
+
+.mnd__colonization-metrics {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mnd__colonization-metrics span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--game-text-secondary, rgba(255, 255, 255, 0.68));
+  font-size: 11px;
+  padding: 6px 8px;
+}
+
+.mnd__colonization-metrics strong {
+  color: var(--game-text-primary, #fff5e7);
+  font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
 .mnd__breakdown {

@@ -264,6 +264,43 @@ export function setRegionBlockade(
   };
 }
 
+export function addColonizationSelection(
+  draft: PhaseDraftByPhase["decision"],
+  regionId: string,
+): PhaseDraftByPhase["decision"] {
+  const existing = draft.militaryPlan.colonizationActions ?? [];
+  if (existing.some((item) => getColonizationRegionId(item) === regionId)) {
+    return draft;
+  }
+  return {
+    ...draft,
+    militaryPlan: {
+      ...draft.militaryPlan,
+      colonizationActions: [...existing, { regionId }],
+    },
+  };
+}
+
+export function removeColonizationSelection(
+  draft: PhaseDraftByPhase["decision"],
+  regionId: string,
+): PhaseDraftByPhase["decision"] {
+  return {
+    ...draft,
+    militaryPlan: {
+      ...draft.militaryPlan,
+      colonizationActions: (draft.militaryPlan.colonizationActions ?? [])
+        .filter((item) => getColonizationRegionId(item) !== regionId),
+    },
+  };
+}
+
+function getColonizationRegionId(
+  item: { regionId?: string; targetRegionId?: string },
+): string | null {
+  return item.regionId ?? item.targetRegionId ?? null;
+}
+
 export function toggleNationalAbilitySelection(
   draft: PhaseDraftByPhase["decision"],
   ability: NationalAbility,

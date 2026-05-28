@@ -48,7 +48,7 @@ function createRuntimeState(overrides: Partial<GameRuntimeState> = {}): GameRunt
       gameId: "game-1",
       roomCode: "ROOM01",
       currentRound: 4,
-      totalRounds: 15,
+      totalRounds: 10,
       currentPhase: "decision",
       isFinished: false,
       activeSnapshotId: "snapshot-1",

@@ -19,7 +19,7 @@ class BalanceConfigTests(unittest.TestCase):
     def test_default_balance_config_bundle_parses_into_new_three_phase_structure(self) -> None:
         config = get_balance_config()
 
-        self.assertEqual(config.global_config.total_rounds, 15)
+        self.assertEqual(config.global_config.total_rounds, 10)
         self.assertEqual(config.global_config.phase_duration_seconds, 15)
         self.assertEqual(
             config.global_config.ranking_tie_break_order,

@@ -70,7 +70,7 @@ function createGameRuntimeState(): GameRuntimeState {
       gameId: "game-1",
       roomCode: "ROOM01",
       currentRound: 2,
-      totalRounds: 15,
+      totalRounds: 10,
       currentPhase: "market",
       isFinished: false,
       activeSnapshotId: "snapshot-1",
@@ -112,8 +112,8 @@ function createFinalResult(): GameFinishedPayload {
     game: {
       gameId: "game-15",
       roomCode: "ROOM15",
-      currentRound: 15,
-      totalRounds: 15,
+      currentRound: 10,
+      totalRounds: 10,
       currentPhase: "settlement",
       isFinished: true,
       activeSnapshotId: "snapshot-15",
@@ -121,7 +121,7 @@ function createFinalResult(): GameFinishedPayload {
     snapshot: createGameSnapshot({
       snapshotId: "snapshot-15",
       gameId: "game-15",
-      round: 15,
+      round: 10,
       phase: "settlement",
       phaseDeadlineAt: null,
     }),
@@ -143,7 +143,7 @@ function createFinalResult(): GameFinishedPayload {
     finalLogs: [
       {
         gameId: "game-15",
-        roundNo: 15,
+        roundNo: 10,
         phase: null,
         kind: "final_result",
         message: "大英帝国取得最终胜利。",
@@ -268,7 +268,7 @@ describe("Playwright hook contracts", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByTestId("game-round")).toHaveTextContent("第 2 / 15 回合");
+    expect(screen.getByTestId("game-round")).toHaveTextContent("第 2 / 10 回合");
     expect(screen.getByTestId("game-phase")).toHaveTextContent("当前阶段：市场出售");
     expect(screen.getByTestId("game-map-view")).toBeInTheDocument();
     expect(screen.getByTestId("game-resource-strip")).toBeInTheDocument();

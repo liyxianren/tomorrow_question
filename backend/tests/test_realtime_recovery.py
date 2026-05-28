@@ -70,7 +70,7 @@ class RealtimeRecoveryTests(unittest.TestCase):
             game_id="game-sync",
             room_code=room.room_code,
             current_round=2,
-            total_rounds=15,
+            total_rounds=10,
             active_snapshot_id="snapshot-sync",
         )
         persisted_snapshot = GameSnapshot(
@@ -119,7 +119,7 @@ class RealtimeRecoveryTests(unittest.TestCase):
             game_id="game-room",
             room_code=room.room_code,
             current_round=1,
-            total_rounds=15,
+            total_rounds=10,
             active_snapshot_id="snapshot-room",
         )
         snapshot = GameSnapshot(

@@ -47,7 +47,9 @@
         "label": "专利制度",
         "adminCost": 4,
         "description": "保护发明和技术产权，为私人研发与工业升级政策提供制度基础。",
-        "effects": {},
+        "effects": {
+          "techPointsDelta": 1
+        },
         "unlocksPolicies": ["private_research"],
         "blocksOtherPaths": []
       },
@@ -72,34 +74,35 @@
         "path": "freedom",
         "label": "普选制度",
         "adminCost": 6,
-        "description": "扩大选举权，提高大众政治参与和民族动员；会推高民族主义压力。",
+        "description": "扩大选举权，提高大众政治参与和国内承接能力；会推高民族主义压力。",
         "effects": {
+          "domesticMarketCapacityDelta": 2,
           "ideologyDelta": {
-            "nationalism": 5
+            "nationalism": 3
           }
         },
         "unlocksPolicies": [],
         "blocksOtherPaths": [],
-        "requiresReforms": ["people_petition_only"]
+        "requiresReforms": ["parliament"]
       },
       {
         "reformId": "trust_system",
         "path": "freedom",
         "label": "托拉斯制度",
         "adminCost": 6,
-        "description": "扶持大型企业集团，把收入分配推向工厂并降低升级成本，但会显著激化平等主义。",
+        "description": "扶持大型企业集团，作为自由路线最终改革锁定平等与民族路线；收入分配推向工厂并降低升级成本，但会激化平等主义。",
         "effects": {
           "ratioDelta": {
             "factory": 1.0,
             "governmentFiscal": -1.0
           },
-          "upgradeCostMultiplier": 0.7,
+          "factoryUpgradeCostReductionPercent": 30,
           "ideologyDelta": {
-            "egalitarianism": 8
+            "egalitarianism": 6
           }
         },
         "unlocksPolicies": [],
-        "blocksOtherPaths": []
+        "blocksOtherPaths": ["equality", "national"]
       }
     ],
     "equality_path": [
@@ -108,9 +111,11 @@
         "path": "equality",
         "label": "社会救济",
         "adminCost": 2,
-        "description": "建立救济制度，作为平等路线基础；当前不会立刻给预算或点数，主要铺垫福利与再分配改革。",
-        "effects": {},
-        "unlocksPolicies": [],
+        "description": "建立救济制度，提升国内市场承接能力，并解锁社会福利政策缓和平等主义压力。",
+        "effects": {
+          "domesticMarketCapacityDelta": 1
+        },
+        "unlocksPolicies": ["social_welfare"],
         "blocksOtherPaths": []
       },
       {
@@ -118,13 +123,14 @@
         "path": "equality",
         "label": "八小时工作制",
         "adminCost": 2,
-        "description": "限制工时以缓和劳工激进情绪，但全品类产能下降，短期工业能力会受损。",
+        "description": "限制工时以缓和劳工激进情绪，收入分配略向民间购买力倾斜。",
         "effects": {
-          "productionCapacityDelta": {
-            "all": -2
+          "ratioDelta": {
+            "domesticMarket": 0.5,
+            "factory": -0.5
           },
           "ideologyDelta": {
-            "egalitarianism": -5
+            "egalitarianism": -3
           }
         },
         "unlocksPolicies": [],
@@ -147,9 +153,13 @@
         "path": "equality",
         "label": "工会组织",
         "adminCost": 4,
-        "description": "承认工会组织，形成劳资谈判渠道；当前不会立刻给预算或点数，主要铺垫平等路线深化。",
-        "effects": {},
-        "unlocksPolicies": [],
+        "description": "承认工会组织，先行缓和劳工压力，并解锁罢工谈判政策。",
+        "effects": {
+          "ideologyDelta": {
+            "egalitarianism": -2
+          }
+        },
+        "unlocksPolicies": ["strike_negotiation"],
         "blocksOtherPaths": []
       },
       {
@@ -157,21 +167,27 @@
         "path": "equality",
         "label": "苏维埃国",
         "adminCost": 6,
-        "description": "转向苏维埃国家形态，锁定平等路线，并排斥自由与民族终局路线。",
-        "effects": {},
+        "description": "转向苏维埃国家形态，清零平等主义压力并强化国内承接能力。",
+        "effects": {
+          "domesticMarketCapacityDelta": 2,
+          "ideologyDelta": {
+            "egalitarianism": -999
+          }
+        },
         "unlocksPolicies": [],
-        "blocksOtherPaths": ["freedom", "national"]
+        "blocksOtherPaths": []
       },
       {
         "reformId": "collective_farms",
         "path": "equality",
         "label": "集体农庄",
         "adminCost": 6,
-        "description": "推动农业集体化，大幅降低升级成本，但会刺激自由主义反弹。",
+        "description": "推动农业集体化，降低升级成本并提升国内承接能力，但会刺激自由主义反弹。",
         "effects": {
-          "upgradeCostMultiplier": 0.5,
+          "factoryUpgradeCostReductionPercent": 25,
+          "domesticMarketCapacityDelta": 1,
           "ideologyDelta": {
-            "liberalism": 5
+            "liberalism": 3
           }
         },
         "unlocksPolicies": [],
@@ -182,18 +198,21 @@
         "path": "equality",
         "label": "计划经济",
         "adminCost": 6,
-        "description": "改为计划经济，锁定收入分配到国民消费与政府财政，牺牲工厂预算并刺激自由主义。",
+        "description": "改为计划经济，作为平等路线最终改革锁定自由与民族路线；收入分配转向民间购买力与政府财政，并显著提高国内承接能力。",
         "effects": {
           "ratioOverride": {
-            "factory": 0,
-            "governmentFiscal": 10
+            "domesticMarket": 4,
+            "factory": 1,
+            "governmentFiscal": 5
           },
+          "domesticMarketCapacityDelta": 3,
           "ideologyDelta": {
-            "liberalism": 5
+            "egalitarianism": -999,
+            "liberalism": 4
           }
         },
         "unlocksPolicies": [],
-        "blocksOtherPaths": []
+        "blocksOtherPaths": ["freedom", "national"]
       }
     ],
     "national_path": [
@@ -216,8 +235,13 @@
         "path": "national",
         "label": "国家媒体",
         "adminCost": 2,
-        "description": "建设国家媒体机器，解锁政治鼓动类政策，用于主动调节思潮。",
-        "effects": {},
+        "description": "建设国家媒体机器，强化民族主义叙事并解锁政治鼓动类政策。",
+        "effects": {
+          "ideologyDelta": {
+            "nationalism": 1,
+            "egalitarianism": -1
+          }
+        },
         "unlocksPolicies": ["political_agitation"],
         "blocksOtherPaths": []
       },
@@ -226,9 +250,10 @@
         "path": "national",
         "label": "现代海关",
         "adminCost": 4,
-        "description": "建立现代海关体系，解锁贸易开闭政策，并提高政府处理海外贸易的行政力上限。",
+        "description": "建立现代海关体系，提高海外承接能力，解锁贸易开闭政策，并提高政府处理海外贸易的行政力上限。",
         "effects": {
-          "administrationCapacityDelta": 1
+          "administrationCapacityDelta": 1,
+          "overseasMarketCapacityDelta": 1
         },
         "unlocksPolicies": ["open_trade", "close_trade"],
         "blocksOtherPaths": []
@@ -238,8 +263,10 @@
         "path": "national",
         "label": "凯恩斯主义",
         "adminCost": 4,
-        "description": "建立国家干预经济框架，解锁以工代赈等政策，用财政稳定内需和就业。",
-        "effects": {},
+        "description": "建立国家干预经济框架，提升国内承接能力，并解锁以工代赈等政策。",
+        "effects": {
+          "domesticMarketCapacityDelta": 1
+        },
         "unlocksPolicies": ["work_relief"],
         "blocksOtherPaths": []
       },
@@ -248,34 +275,45 @@
         "path": "national",
         "label": "法西斯国",
         "adminCost": 6,
-        "description": "转向法西斯国家形态，压低民族主义革命压力，同时封锁自由和平等终局路线。",
+        "description": "转向法西斯国家形态，清零民族主义压力，并强化军力与海外扩张。",
         "effects": {
+          "armyCapDelta": 3,
+          "overseasMarketCapacityDelta": 2,
           "ideologyDelta": {
             "nationalism": -999
           }
         },
         "unlocksPolicies": [],
-        "blocksOtherPaths": ["freedom", "equality"]
+        "blocksOtherPaths": []
       },
       {
         "reformId": "total_mobilization",
         "path": "national",
         "label": "全民动员",
         "adminCost": 6,
-        "description": "建立全民动员体制，作为民族路线后期军事化基础；当前不会立刻给预算或点数。",
-        "effects": {},
-        "unlocksPolicies": [],
+        "description": "建立全民动员体制，扩大陆军上限并解锁总动员令，可把工业产能转化为陆军。",
+        "effects": {
+          "armyCapDelta": 2
+        },
+        "unlocksPolicies": ["total_mobilization_order"],
         "blocksOtherPaths": []
       },
       {
         "reformId": "secret_police",
         "path": "national",
-        "label": "特务机关",
+        "label": "军国体制",
         "adminCost": 6,
-        "description": "建立秘密警察体系，作为压制与控制思潮的后期制度基础；当前不会立刻给预算或点数。",
-        "effects": {},
-        "unlocksPolicies": [],
-        "blocksOtherPaths": []
+        "description": "建立军政一体的国家体制，作为民族路线最终改革锁定自由与平等路线；提高行政控制力，压低各类激进思潮，并解锁暴力镇压政策。",
+        "effects": {
+          "administrationCapacityDelta": 2,
+          "ideologyDelta": {
+            "liberalism": -3,
+            "egalitarianism": -3,
+            "nationalism": -3
+          }
+        },
+        "unlocksPolicies": ["suppress_liberalism", "suppress_egalitarianism", "suppress_nationalism"],
+        "blocksOtherPaths": ["freedom", "equality"]
       }
     ]
   }

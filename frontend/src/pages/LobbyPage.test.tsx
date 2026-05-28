@@ -315,8 +315,8 @@ describe("LobbyPage", () => {
           activeGame: {
             gameId: "game-1",
             roomCode: "ROOM01",
-            currentRound: 15,
-            totalRounds: 15,
+            currentRound: 10,
+            totalRounds: 10,
             currentPhase: "settlement",
             isFinished: true,
             activeSnapshotId: "snapshot-final",

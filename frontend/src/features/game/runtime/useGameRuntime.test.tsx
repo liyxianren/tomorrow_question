@@ -75,7 +75,7 @@ function createGame(phase: GamePhase, round: number): GameContext {
     gameId: "game-1",
     roomCode: "ROOM01",
     currentRound: round,
-    totalRounds: 15,
+    totalRounds: 10,
     currentPhase: phase,
     isFinished: false,
     activeSnapshotId: `snapshot-${phase}-${round}`,

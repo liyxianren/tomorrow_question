@@ -58,7 +58,7 @@ function createGame(currentPhase: GameContext["currentPhase"], round = 2): GameC
     gameId: "game-1",
     roomCode: "ROOM01",
     currentRound: round,
-    totalRounds: 15,
+    totalRounds: 10,
     currentPhase,
     isFinished: false,
     activeSnapshotId: `snapshot-${currentPhase}-${round}`,

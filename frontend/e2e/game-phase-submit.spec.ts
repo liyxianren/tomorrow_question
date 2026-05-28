@@ -14,7 +14,7 @@ gameTest.describe("Game phase submit flow", () => {
     await openGamePage(gameContext);
 
     await expect(page.getByTestId("game-country")).toBeVisible();
-    await expect(page.getByTestId("game-round")).toContainText("第 1 / 15 回合");
+    await expect(page.getByTestId("game-round")).toContainText("第 1 / 10 回合");
     await expect(page.getByTestId("game-phase")).toContainText("当前阶段：国家决策");
     await expect(page.getByTestId("game-left-rail")).toContainText("国家仪表盘");
     await expect(page.getByTestId("game-assist-rail")).toContainText("预算与容量是否合法");

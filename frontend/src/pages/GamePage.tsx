@@ -106,6 +106,10 @@ export function GamePage() {
     rankingStandings,
     settlementWorkspace,
   });
+  const aiGuidance =
+    currentPhase === "decision" && currentWorkspace && "aiGuidance" in currentWorkspace
+      ? (currentWorkspace as DecisionPlayerPhaseWorkspace).aiGuidance ?? []
+      : [];
   const submitBlockingReasons = getPhaseSubmitBlockingReasons({
     currentPhase,
     currentPlayerState,
@@ -229,6 +233,7 @@ export function GamePage() {
             mapState.openModal(step);
           }}
           resourceStrip={workbenchViewModel.resourceStrip}
+          aiGuidance={aiGuidance}
           runtimeState={runtimeState}
           workflow={workbenchViewModel.topWorkflow}
         />

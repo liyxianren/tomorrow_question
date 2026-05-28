@@ -25,8 +25,8 @@ function createFinalResult(): GameFinishedPayload {
     game: {
       gameId: "game-15",
       roomCode: "ROOM15",
-      currentRound: 15,
-      totalRounds: 15,
+      currentRound: 10,
+      totalRounds: 10,
       currentPhase: "settlement",
       isFinished: true,
       activeSnapshotId: "snapshot-15-settlement",
@@ -34,7 +34,7 @@ function createFinalResult(): GameFinishedPayload {
     snapshot: createGameSnapshot({
       snapshotId: "snapshot-15-settlement",
       gameId: "game-15",
-      round: 15,
+      round: 10,
       phase: "settlement",
       phaseDeadlineAt: null,
     }),
@@ -69,7 +69,7 @@ function createFinalResult(): GameFinishedPayload {
     finalLogs: [
       {
         gameId: "game-15",
-        roundNo: 15,
+        roundNo: 10,
         phase: null,
         kind: "final_result",
         message: "大英帝国取得最终胜利。",
@@ -229,7 +229,7 @@ describe("SettlementPage", () => {
       },
       {
         gameId: "game-15",
-        roundNo: 15,
+        roundNo: 10,
         phase: null,
         kind: "final_result",
         message: "大英帝国取得最终胜利。",
@@ -263,7 +263,7 @@ describe("SettlementPage", () => {
     finalResult.finalLogs = [
       {
         gameId: "game-15",
-        roundNo: 15,
+        roundNo: 10,
         phase: "settlement",
         kind: "settlement.resolved",
         message: "france completed national income allocation.",
@@ -272,12 +272,21 @@ describe("SettlementPage", () => {
       },
       {
         gameId: "game-15",
-        roundNo: 15,
+        roundNo: 10,
         phase: "settlement",
         kind: "settlement.phase_resolved",
-        message: "settlement settled.",
+        message: "Final fiscal settlement is complete.",
         details: {},
         createdAt: "2026-03-30T14:00:00Z",
+      },
+      {
+        gameId: "game-15",
+        roundNo: 10,
+        phase: "settlement",
+        kind: "settlement.resolved",
+        message: "Britain completed Round 10 fiscal allocation.",
+        details: {},
+        createdAt: "2026-03-30T14:00:01Z",
       },
     ];
 
@@ -296,10 +305,12 @@ describe("SettlementPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByTestId("settlement-final-logs")).toHaveTextContent("法国完成第 15 回合财政分配。");
+    expect(screen.getByTestId("settlement-final-logs")).toHaveTextContent("法国完成第 10 回合财政分配。");
+    expect(screen.getByTestId("settlement-final-logs")).toHaveTextContent("英国完成第 10 回合财政分配。");
     expect(screen.getByTestId("settlement-final-logs")).toHaveTextContent("终局财政结算已完成。");
     expect(screen.queryByText("france completed national income allocation.")).not.toBeInTheDocument();
-    expect(screen.queryByText("settlement settled.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Britain completed Round 10 fiscal allocation.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Final fiscal settlement is complete.")).not.toBeInTheDocument();
   });
 
   it("prioritizes player military and strategic logs before routine economy logs", () => {
@@ -307,7 +318,7 @@ describe("SettlementPage", () => {
     finalResult.finalLogs = [
       {
         gameId: "game-15",
-        roundNo: 15,
+        roundNo: 10,
         phase: "settlement",
         kind: "settlement.resolved",
         message: "法国完成财政结算。",
@@ -325,7 +336,7 @@ describe("SettlementPage", () => {
       },
       {
         gameId: "game-15",
-        roundNo: 15,
+        roundNo: 10,
         phase: null,
         kind: "final_result",
         message: "大英帝国取得最终胜利。",
@@ -362,7 +373,7 @@ describe("SettlementPage", () => {
     finalResult.finalLogs = [
       {
         gameId: "game-15",
-        roundNo: 15,
+        roundNo: 10,
         phase: null,
         kind: "final_result",
         message: longMessage,

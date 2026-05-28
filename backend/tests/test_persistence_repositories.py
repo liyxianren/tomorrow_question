@@ -92,7 +92,7 @@ def build_game_payload(active_snapshot_id: str | None = "snapshot-1") -> dict[st
         "gameId": "game-1",
         "roomCode": "ROOM01",
         "currentRound": 3,
-        "totalRounds": 15,
+        "totalRounds": 10,
         "currentPhase": GamePhase.MARKET,
         "isFinished": False,
         "activeSnapshotId": active_snapshot_id,
@@ -291,7 +291,7 @@ class PersistenceRepositoryTests(unittest.TestCase):
         phase_log = build_game_log_payload()
         final_log = build_game_log_payload(
             kind="game_finished",
-            round_no=15,
+            round_no=10,
             phase=None,
             message="Game finished.",
         )
@@ -420,7 +420,7 @@ class PersistenceRepositoryTests(unittest.TestCase):
             "gameId": "legacy-game",
             "roomCode": "ROOM01",
             "currentRound": 7,
-            "totalRounds": 15,
+            "totalRounds": 10,
             "currentPhase": "military",
             "isFinished": False,
             "activeSnapshotId": "legacy-snapshot",

@@ -28,6 +28,7 @@ from app.modules.rules.common import (
     default_decision_submission_payload,
     default_market_submission_payload,
 )
+from app.modules.rules.colonization import COLONIZATION_ARMY_COST, can_colonize_region
 from app.modules.rules.route_utils import check_route_accessible
 
 
@@ -485,11 +486,13 @@ def _normalize_decision_submission(payload: dict[str, object]) -> dict[str, Any]
     normalized["militaryPlan"]["militaryActions"] = _normalize_action_list(
         military_plan.get("militaryActions", [])
     )
-    # Legacy region-relation gameplay has been removed. Keep the payload
-    # shape stable for older clients, but strip any submitted legacy actions.
+    # Legacy diplomacy/conquest/looting gameplay remains stripped, but the
+    # simplified 5.27 colonization action is active again.
     normalized["militaryPlan"]["diplomacyActions"] = []
     normalized["militaryPlan"]["unlockColonization"] = False
-    normalized["militaryPlan"]["colonizationActions"] = []
+    normalized["militaryPlan"]["colonizationActions"] = _normalize_colonization_action_list(
+        military_plan.get("colonizationActions", [])
+    )
     normalized["militaryPlan"]["lootingActions"] = []
     normalized["militaryPlan"]["navalDeployment"] = military_plan.get("navalDeployment", {})
     normalized["militaryPlan"]["regionBlockades"] = military_plan.get("regionBlockades", {})
@@ -741,6 +744,29 @@ def _normalize_action_list(value: object) -> list[dict[str, str]]:
                 f"Action selection[{index}].actionId must be a non-empty string.",
             )
         normalized.append({"actionId": action_id.strip()})
+    return normalized
+
+
+def _normalize_colonization_action_list(value: object) -> list[dict[str, str]]:
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise PhaseSubmissionError(ErrorCode.INVALID_SUBMISSION, "Colonization actions must be a list.")
+
+    normalized: list[dict[str, str]] = []
+    for index, raw_item in enumerate(value):
+        if not isinstance(raw_item, dict):
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Colonization action[{index}] must be an object.",
+            )
+        region_id = raw_item.get("regionId") or raw_item.get("targetRegionId")
+        if not isinstance(region_id, str) or not region_id.strip():
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Colonization action[{index}].regionId must be a non-empty string.",
+            )
+        normalized.append({"regionId": region_id.strip()})
     return normalized
 
 
@@ -1165,6 +1191,27 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
             continue
         if policy_id in player_state.active_policies:
             continue  # already active, no cost
+        if policy.requires_reform is not None and policy.requires_reform not in player_state.completed_reforms:
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Policy {policy_id} requires reform {policy.requires_reform}.",
+                details={"reason": "政策前置改革未完成"},
+            )
+        if _is_policy_path_blocked(player_state, balance, policy):
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Policy {policy_id} is blocked by a terminal reform.",
+                details={"reason": "已被最终改革锁定，不能激活其他路线政策"},
+            )
+        suppression = policy.effects.get("suppressIdeology") if isinstance(policy.effects, dict) else None
+        if isinstance(suppression, dict):
+            military_cost = int(suppression.get("militaryCost", 0))
+            if military_cost > int(player_state.army.get("army", 0)):
+                raise PhaseSubmissionError(
+                    ErrorCode.INVALID_SUBMISSION,
+                    f"Policy {policy_id} requires army.",
+                    details={"reason": f"暴力镇压需要 {military_cost} 陆军"},
+                )
         core_government_spend += int(policy.budget_cost)
         administration_spend += int(policy.admin_cost_per_turn)
 
@@ -1175,6 +1222,12 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
         reform = balance.reforms.reforms.get(reform_id)
         if reform is None or reform_id in player_state.completed_reforms:
             continue
+        if _is_reform_path_blocked(player_state, balance, reform):
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Reform {reform_id} is blocked by a terminal reform.",
+                details={"reason": "已被最终改革锁定，不能选择其他路线改革"},
+            )
         administration_spend += int(reform.admin_cost)
 
     available_administration = int(player_state.administration_capacity) + admin_purchases
@@ -1192,6 +1245,7 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
 
     military_plan_spend = 0
     military_action_counts: dict[str, int] = {}
+    army_delta_from_actions = 0
     for selection in payload.get("militaryPlan", {}).get("militaryActions", []):
         action_id = str(selection.get("actionId") or "")
         action = balance.military_actions.military_actions.get(action_id)
@@ -1224,6 +1278,48 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
                 },
             )
         military_plan_spend += int(action.budget_pool_cost)
+        army_delta = action.effects.get("armyDelta") if isinstance(action.effects, dict) else None
+        if isinstance(army_delta, dict):
+            army_delta_from_actions += int(army_delta.get("army", 0))
+
+    available_army_for_colonization = (
+        int(player_state.army.get("army", 0))
+        + max(0, army_delta_from_actions)
+    )
+    regions_by_id = {region.region_id: region for region in snapshot.region_states}
+    colonization_seen: set[str] = set()
+    for action in payload.get("militaryPlan", {}).get("colonizationActions", []):
+        region_id = str(action.get("regionId") or action.get("targetRegionId") or "")
+        region_state = regions_by_id.get(region_id)
+        if region_state is None:
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Unknown colonization region: {region_id}",
+                details={"reason": "未知殖民地区"},
+            )
+        if region_id in colonization_seen:
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Duplicate colonization region: {region_id}",
+                details={"reason": "同一地区本轮只能殖民一次"},
+            )
+        colonization_seen.add(region_id)
+        can_colonize, locked_reason = can_colonize_region(snapshot, player_state, region_state, balance)
+        if not can_colonize and locked_reason != f"陆军不足，需要 {COLONIZATION_ARMY_COST}":
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                f"Region {region_id} cannot be colonized.",
+                details={"reason": locked_reason or "该地区不可殖民"},
+            )
+        if available_army_for_colonization < COLONIZATION_ARMY_COST:
+            raise PhaseSubmissionError(
+                ErrorCode.INVALID_SUBMISSION,
+                "Not enough army for colonization.",
+                details={
+                    "reason": f"殖民需要 {COLONIZATION_ARMY_COST} 陆军，可用 {available_army_for_colonization}",
+                },
+            )
+        available_army_for_colonization -= COLONIZATION_ARMY_COST
 
     # Validate total military spend against the same decision-phase fiscal pool
     # used by government policies. Military actions no longer use a separate
@@ -1254,3 +1350,30 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
                 ),
             },
         )
+
+
+def _is_reform_path_blocked(player_state, balance, reform) -> bool:
+    for done_id in player_state.completed_reforms:
+        done = balance.reforms.reforms.get(done_id)
+        if done is None:
+            continue
+        if reform.path in done.blocks_other_paths:
+            return True
+        if done.path in reform.blocks_other_paths:
+            return True
+    return False
+
+
+def _is_policy_path_blocked(player_state, balance, policy) -> bool:
+    if policy.requires_reform is None:
+        return False
+    required_reform = balance.reforms.reforms.get(policy.requires_reform)
+    if required_reform is None:
+        return False
+    for done_id in player_state.completed_reforms:
+        done = balance.reforms.reforms.get(done_id)
+        if done is None:
+            continue
+        if required_reform.path in done.blocks_other_paths:
+            return True
+    return False

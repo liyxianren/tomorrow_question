@@ -29,7 +29,9 @@ import {
 } from "../../../features/game/flow/decisionFlow";
 import {
   addMilitaryActionSelection,
+  addColonizationSelection,
   removeMilitaryActionSelection,
+  removeColonizationSelection,
   setAbilitySelectionTarget,
   setAdminPurchases,
   setRegionBlockade,
@@ -330,6 +332,8 @@ export function DecisionWorkbench({
           remainingGovernmentBudget={fiscalState.effectiveGovernmentRemaining}
           onAddMilitary={(actionId) => handleDraftChange("military", addMilitaryActionSelection(draft, actionId))}
           onRemoveMilitary={(actionId) => handleDraftChange("military", removeMilitaryActionSelection(draft, actionId))}
+          onColonize={(regionId) => handleDraftChange("military", addColonizationSelection(draft, regionId))}
+          onCancelColonize={(regionId) => handleDraftChange("military", removeColonizationSelection(draft, regionId))}
           onRegionBlockadeChange={(regionId, count) => handleDraftChange("military", setRegionBlockade(draft, regionId, count))}
           parameterInspector={parameterInspector}
         />

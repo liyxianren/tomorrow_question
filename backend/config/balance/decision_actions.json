@@ -175,6 +175,37 @@
       "description": "降低资本税，收入从消费池转向工厂，刺激投资但激化平等主义。",
       "maxPerRound": 1
     },
+    "social_welfare": {
+      "label": "社会福利",
+      "adminCostPerTurn": 1,
+      "budgetCost": 0,
+      "requiresReform": "social_relief",
+      "effects": {
+        "ratioDelta": {
+          "domesticMarket": 0.5,
+          "governmentFiscal": -0.5
+        },
+        "ideologyDelta": {
+          "egalitarianism": -1
+        }
+      },
+      "description": "将本轮收入更多导向民间购买力，缓和平等主义压力。",
+      "maxPerRound": 1
+    },
+    "strike_negotiation": {
+      "label": "罢工谈判",
+      "adminCostPerTurn": 1,
+      "budgetCost": 0,
+      "requiresReform": "labor_union",
+      "effects": {
+        "productionOutputMultiplier": 0.5,
+        "ideologyDelta": {
+          "egalitarianism": -5
+        }
+      },
+      "description": "与工会谈判，本回合产出减半，显著缓和平等主义压力。",
+      "maxPerRound": 1
+    },
     "political_agitation": {
       "label": "政治鼓动",
       "adminCostPerTurn": 1,
@@ -238,6 +269,68 @@
         }
       },
       "description": "政府出资兴办公共工程，提升手工业产能，收入向消费池倾斜。",
+      "maxPerRound": 1
+    },
+    "total_mobilization_order": {
+      "label": "总动员令",
+      "adminCostPerTurn": 1,
+      "budgetCost": 0,
+      "requiresReform": "total_mobilization",
+      "effects": {
+        "mobilizeCapacityToMilitary": {
+          "ratio": 0.5,
+          "militaryPerUnit": 1
+        },
+        "ideologyDelta": {
+          "egalitarianism": 5
+        }
+      },
+      "description": "将当前非闲置产能的一半转化为等量陆军，并激化平等主义压力。",
+      "maxPerRound": 1
+    },
+    "suppress_liberalism": {
+      "label": "镇压自由主义",
+      "adminCostPerTurn": 1,
+      "budgetCost": 0,
+      "requiresReform": "secret_police",
+      "effects": {
+        "suppressIdeology": {
+          "targetIdeology": "liberalism",
+          "militaryCost": 3,
+          "delta": -4
+        }
+      },
+      "description": "消耗 3 陆军压制自由主义思潮压力。",
+      "maxPerRound": 1
+    },
+    "suppress_egalitarianism": {
+      "label": "镇压平等主义",
+      "adminCostPerTurn": 1,
+      "budgetCost": 0,
+      "requiresReform": "secret_police",
+      "effects": {
+        "suppressIdeology": {
+          "targetIdeology": "egalitarianism",
+          "militaryCost": 3,
+          "delta": -4
+        }
+      },
+      "description": "消耗 3 陆军压制平等主义思潮压力。",
+      "maxPerRound": 1
+    },
+    "suppress_nationalism": {
+      "label": "镇压民族主义",
+      "adminCostPerTurn": 1,
+      "budgetCost": 0,
+      "requiresReform": "secret_police",
+      "effects": {
+        "suppressIdeology": {
+          "targetIdeology": "nationalism",
+          "militaryCost": 3,
+          "delta": -4
+        }
+      },
+      "description": "消耗 3 陆军压制民族主义思潮压力。",
       "maxPerRound": 1
     }
   }

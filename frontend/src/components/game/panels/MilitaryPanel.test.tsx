@@ -228,6 +228,52 @@ describe("MilitaryPanel", () => {
     expect(screen.queryByLabelText("欧洲 区域详情")).not.toBeInTheDocument();
   });
 
+  it("does not show a positive colonization yield for non-colonizable Europe", () => {
+    const baseWorkspace = createDecisionPlayerWorkspace();
+    const baseRegion = baseWorkspace.militaryWorkspace.regionAccessStatus[0];
+    const workspace = createDecisionPlayerWorkspace({
+      militaryWorkspace: {
+        ...baseWorkspace.militaryWorkspace,
+        regionAccessStatus: [
+          {
+            ...baseRegion,
+            regionId: "europe",
+            label: "欧洲",
+            acceptedGoods: ["coal", "grain", "steel"],
+            isColonizable: false,
+            rawMaterialsPerTurn: 3,
+            lockedReason: "该地区不可殖民",
+          },
+          ...baseWorkspace.militaryWorkspace.regionAccessStatus,
+        ],
+      },
+    });
+    const draft = createInitialPhaseDraft("decision");
+
+    render(
+      <MilitaryPanel
+        workspace={workspace}
+        draft={draft}
+        remainingGovernmentBudget={100}
+        onAddMilitary={vi.fn()}
+        onRemoveMilitary={vi.fn()}
+        onToggleColonizationUnlock={vi.fn()}
+        onColonize={vi.fn()}
+        onCancelColonize={vi.fn()}
+        onRegionBlockadeChange={vi.fn()}
+        onConquestChange={vi.fn()}
+        onLootingToggle={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("region-node-europe"));
+
+    const drawer = screen.getByLabelText("欧洲 区域详情");
+    expect(drawer).toHaveTextContent("不可殖民：该地区不可殖民");
+    expect(drawer).toHaveTextContent("每回合原材料不适用");
+    expect(drawer).not.toHaveTextContent("每回合原材料+3");
+  });
+
   it("shows region blockade details inside military region decisions", () => {
     const baseWorkspace = createDecisionPlayerWorkspace();
     const workspace = createDecisionPlayerWorkspace({

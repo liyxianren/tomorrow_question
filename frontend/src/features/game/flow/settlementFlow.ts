@@ -210,11 +210,14 @@ function buildFallbackTurningPoints(finalResult: GameFinishedPayload | null): Se
 
 function sanitizeFinalLogMessage(message: string, roundNo: number, phase: string | null): string {
   const trimmed = message.trim();
-  if (trimmed.includes("completed national income allocation")) {
-    const countryKey = trimmed.split(" ", 1)[0];
+  if (
+    trimmed.includes("completed national income allocation")
+    || (trimmed.includes(" completed Round ") && trimmed.endsWith(" fiscal allocation."))
+  ) {
+    const countryKey = trimmed.split(" ", 1)[0].toLowerCase();
     return i18n.t("game:settlement.logIncomeAllocation", "{{country}}完成第 {{round}} 回合财政分配。", { country: getCountryLabel(countryKey), round: roundNo });
   }
-  if (trimmed === "settlement settled.") {
+  if (trimmed === "settlement settled." || trimmed === "Final fiscal settlement is complete.") {
     return i18n.t("game:settlement.logSettlementCompleted", "终局财政结算已完成。");
   }
   if (trimmed === "market settled.") {

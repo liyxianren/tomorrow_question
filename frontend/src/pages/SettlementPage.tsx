@@ -408,11 +408,14 @@ function formatPhaseLabel(phase: string): string {
 
 function sanitizeFinalLogMessage(message: string, roundNo: number, phase: string | null): string {
   const trimmed = message.trim();
-  if (trimmed.includes("completed national income allocation")) {
-    const countryKey = trimmed.split(" ", 1)[0];
+  if (
+    trimmed.includes("completed national income allocation")
+    || (trimmed.includes(" completed Round ") && trimmed.endsWith(" fiscal allocation."))
+  ) {
+    const countryKey = trimmed.split(" ", 1)[0].toLowerCase();
     return `${getCountryLabel(countryKey)}${i18n.t("pages:settlement.completedAllocation", { round: roundNo })}`;
   }
-  if (trimmed === "settlement settled.") {
+  if (trimmed === "settlement settled." || trimmed === "Final fiscal settlement is complete.") {
     return i18n.t("pages:settlement.finalSettlementComplete");
   }
   if (trimmed === "market settled.") {

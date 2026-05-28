@@ -49,6 +49,8 @@ export function MilitaryPanel({
   remainingGovernmentBudget,
   onAddMilitary,
   onRemoveMilitary,
+  onColonize,
+  onCancelColonize,
   onRegionBlockadeChange,
   parameterInspector,
 }: MilitaryPanelProps) {
@@ -61,6 +63,17 @@ export function MilitaryPanel({
   const armyTotal = getVisibleArmyTotal(mil.army);
   const regionBlockades = draft.militaryPlan.regionBlockades ?? {};
   const selectedFleetDelta = sumSelectedFleetDelta(availableMilitaryActions, draft);
+  const selectedArmyDelta = sumSelectedArmyDelta(availableMilitaryActions, draft);
+  const selectedColonizationRegionIds = new Set(
+    (draft.militaryPlan.colonizationActions ?? [])
+      .map((item) => item.regionId ?? item.targetRegionId)
+      .filter((regionId): regionId is string => Boolean(regionId)),
+  );
+  const selectedColonizationArmyCost = mil.regionAccessStatus.reduce((sum, region) => {
+    return sum + (selectedColonizationRegionIds.has(region.regionId) ? getRegionColonizationArmyCost(region, mil.colonizationCapability) : 0);
+  }, 0);
+  const effectiveArmyAfterRecruitment = Math.max(0, armyTotal + selectedArmyDelta);
+  const remainingArmyForColonization = Math.max(0, effectiveArmyAfterRecruitment - selectedColonizationArmyCost);
   const effectiveTotalFleets = Math.max(0, totalFleets + selectedFleetDelta);
   const blockadeThreshold = mil.oceanControlThreshold ?? 4;
   const totalDeployed = mil.regionAccessStatus.reduce((sum, region) => {
@@ -85,8 +98,10 @@ export function MilitaryPanel({
         <MilitaryOverviewItem
           icon="🛡️"
           label={t("game:military.armyTotalLabel", "陆军总数 / 上限")}
-          value={`${armyTotal} / ${mil.armyCap ?? 3}`}
-          hint={t("game:military.armyTotalHint", "用于市场竞争和后续军事对抗。")}
+          value={`${effectiveArmyAfterRecruitment - selectedColonizationArmyCost} / ${mil.armyCap ?? 3}`}
+          hint={selectedColonizationRegionIds.size > 0
+            ? t("game:military.armyColonizationHint", "已计入本轮殖民消耗，提交后生效。")
+            : t("game:military.armyTotalHint", "用于市场竞争和后续军事对抗。")}
         />
         <MilitaryOverviewItem
           icon="⛵"
@@ -146,6 +161,11 @@ export function MilitaryPanel({
                 remainingFleets={remainingFleets}
                 blockadeThreshold={blockadeThreshold}
                 myCountry={workspace.countryCode}
+                isColonizationSelected={selectedColonizationRegionIds.has(region.regionId)}
+                remainingArmyForColonization={remainingArmyForColonization}
+                colonizationArmyCost={getRegionColonizationArmyCost(region, mil.colonizationCapability)}
+                onColonize={onColonize}
+                onCancelColonize={onCancelColonize}
                 onRegionBlockadeChange={onRegionBlockadeChange}
               />
             );
@@ -234,4 +254,26 @@ function sumSelectedFleetDelta(
     const fleets = (navyDelta as Record<string, unknown>).fleets;
     return sum + (typeof fleets === "number" ? fleets : 0);
   }, 0);
+}
+
+function sumSelectedArmyDelta(
+  actions: DecisionPlayerPhaseWorkspace["militaryWorkspace"]["availableMilitaryActions"],
+  draft: PhaseDraftByPhase["decision"],
+): number {
+  return draft.militaryPlan.militaryActions.reduce((sum, selection) => {
+    const action = actions.find((item) => item.actionId === selection.actionId);
+    const armyDelta = action?.effects?.armyDelta;
+    if (!armyDelta || typeof armyDelta !== "object" || !("army" in armyDelta)) {
+      return sum;
+    }
+    const army = (armyDelta as Record<string, unknown>).army;
+    return sum + (typeof army === "number" ? army : 0);
+  }, 0);
+}
+
+function getRegionColonizationArmyCost(
+  region: DecisionPlayerPhaseWorkspace["militaryWorkspace"]["regionAccessStatus"][number],
+  capability: DecisionPlayerPhaseWorkspace["militaryWorkspace"]["colonizationCapability"],
+): number {
+  return Math.max(0, Math.floor(region.armyCost ?? capability.armyCost ?? capability.budgetCost ?? 3));
 }

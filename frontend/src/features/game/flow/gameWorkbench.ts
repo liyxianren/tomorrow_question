@@ -1,4 +1,4 @@
-import i18n from "../../../i18n";
+import i18n, { translateBackend } from "../../../i18n";
 import type {
   BudgetPools,
   IdeologyKey,
@@ -581,9 +581,14 @@ function buildCurrentResourceLines({
     }
 
     if (decisionFlowState.activeStep === "military") {
+      const colonizationCount = draft.militaryPlan.colonizationActions?.length ?? 0;
       return [
         i18n.t("game:flow.resourcesMilitary", "军事 · 政府财政剩余 {{remaining}}", { remaining: fiscalState.effectiveGovernmentRemaining }),
         i18n.t("game:flow.resourcesMilitaryActions", "军事动作 {{actions}} 次", { actions: draft.militaryPlan.militaryActions.length }),
+        i18n.t("game:flow.resourcesColonization", "殖民 {{count}} 项 · 预计剩余陆军 {{army}}", {
+          count: colonizationCount,
+          army: getProjectedArmyAfterColonization(workspace, draft),
+        }),
         i18n.t("game:flow.resourcesOverseasPreview", "海外承接预览 {{capacity}}", { capacity: workspace.militaryWorkspace.overseasCapacity }),
       ];
     }
@@ -693,7 +698,11 @@ function buildSubmitLines({
     const spendSummary = calculateDecisionSpendSummary(currentPlayerWorkspace, draftPayload);
     lines.push(i18n.t("game:flow.submitSpendSummary", "工厂预计消耗 {{factory}}，内需预计消耗 {{domestic}}，政府预计消耗 {{government}}。", { factory: spendSummary.factorySpend, domestic: spendSummary.domesticSpend, government: spendSummary.governmentSpend }));
     lines.push(i18n.t("game:flow.submitProductionBatches", "当前已规划生产批次 {{batches}}。", { batches: spendSummary.productionBatches }));
-    lines.push(i18n.t("game:flow.submitMilitarySummary", "当前已规划军事动作 {{actions}} 次。", { actions: normalizeDecisionDraft(draftPayload).militaryPlan.militaryActions.length }));
+    const draft = normalizeDecisionDraft(draftPayload);
+    lines.push(i18n.t("game:flow.submitMilitarySummary", "当前已规划军事动作 {{actions}} 次，殖民 {{colonizations}} 项。", {
+      actions: draft.militaryPlan.militaryActions.length,
+      colonizations: draft.militaryPlan.colonizationActions?.length ?? 0,
+    }));
     return lines;
   }
 
@@ -796,6 +805,7 @@ function buildValidationLines({
         lines.push(i18n.t("game:flow.validateMilitaryActionLimit", "{{label}} 已安排 {{count}} 次，超过本轮上限 {{max}}。", { label: action.label, count: selectedCount, max: action.maxPerRound }));
       }
     }
+    lines.push(...validateColonizationDraft(currentPlayerWorkspace, draft));
     return lines.length > 0 ? lines : [i18n.t("game:flow.validateNoBreach", "当前草稿未突破任何硬约束。")];
   }
 
@@ -1008,7 +1018,7 @@ function normalizeDecisionDraft(draftPayload: Record<string, unknown>): Decision
     militaryPlan?: {
       unlockColonization?: boolean;
       militaryActions?: Array<{ actionId: string }>;
-      colonizationActions?: Array<{ targetRegionId: string }>;
+      colonizationActions?: Array<{ regionId?: string; targetRegionId?: string }>;
       navalDeployment?: Record<string, number>;
       regionBlockades?: Record<string, number>;
       conquestActions?: Array<{ regionId: string; infantry: number; artillery: number }>;
@@ -1061,7 +1071,7 @@ function normalizeDecisionDraft(draftPayload: Record<string, unknown>): Decision
     militaryPlan: {
       unlockColonization: false,
       militaryActions: draft.militaryPlan?.militaryActions ?? [],
-      colonizationActions: [],
+      colonizationActions: normalizeColonizationActions(draft.militaryPlan?.colonizationActions),
       navalDeployment: draft.militaryPlan?.navalDeployment ?? {},
       regionBlockades: draft.militaryPlan?.regionBlockades ?? {},
       conquestActions: [],
@@ -1078,6 +1088,136 @@ function normalizeDecisionDraft(draftPayload: Record<string, unknown>): Decision
       rawMaterialAssignments: draft.phase1Production?.rawMaterialAssignments ?? {},
     },
   };
+}
+
+function normalizeColonizationActions(
+  actions: Array<{ regionId?: string; targetRegionId?: string }> | undefined,
+): Array<{ regionId: string }> {
+  const seen = new Set<string>();
+  const normalized: Array<{ regionId: string }> = [];
+  for (const action of actions ?? []) {
+    const regionId = action.regionId ?? action.targetRegionId ?? "";
+    if (!regionId || seen.has(regionId)) {
+      continue;
+    }
+    seen.add(regionId);
+    normalized.push({ regionId });
+  }
+  return normalized;
+}
+
+function validateColonizationDraft(
+  workspace: DecisionPlayerPhaseWorkspace,
+  draft: DecisionPhaseDraft,
+): string[] {
+  const actions = draft.militaryPlan.colonizationActions ?? [];
+  if (actions.length === 0) {
+    return [];
+  }
+  const lines: string[] = [];
+  const regionsById = new Map(
+    workspace.militaryWorkspace.regionAccessStatus.map((region) => [region.regionId, region]),
+  );
+  const seen = new Set<string>();
+  let remainingArmy = getProjectedArmyBeforeColonization(workspace, draft);
+
+  for (const action of actions) {
+    const regionId = action.regionId ?? action.targetRegionId ?? "";
+    const region = regionsById.get(regionId);
+    if (!region) {
+      lines.push(i18n.t("game:flow.validateColonizationUnknownRegion", "殖民目标 {{region}} 无效。", { region: regionId || "-" }));
+      continue;
+    }
+    const label = translateBackend(region.label);
+    if (seen.has(regionId)) {
+      lines.push(i18n.t("game:flow.validateColonizationDuplicate", "{{region}} 本轮只能殖民一次。", { region: label }));
+      continue;
+    }
+    seen.add(regionId);
+    const lockedReason = getColonizationHardLockedReason(region);
+    if (lockedReason) {
+      lines.push(i18n.t("game:flow.validateColonizationLocked", "{{region}} 不可殖民：{{reason}}。", { region: label, reason: lockedReason }));
+      continue;
+    }
+    const armyCost = getColonizationArmyCost(workspace, region);
+    if (remainingArmy < armyCost) {
+      lines.push(i18n.t("game:flow.validateColonizationArmyInsufficient", "{{region}} 殖民需要 {{cost}} 陆军，预计可用 {{available}}。", {
+        region: label,
+        cost: armyCost,
+        available: remainingArmy,
+      }));
+      continue;
+    }
+    remainingArmy -= armyCost;
+  }
+
+  return lines;
+}
+
+function getColonizationHardLockedReason(
+  region: DecisionPlayerPhaseWorkspace["militaryWorkspace"]["regionAccessStatus"][number],
+): string | null {
+  if (!region.isColonizable) {
+    return i18n.t("game:military.colonizationNotAllowed", "该地区不可殖民");
+  }
+  if (region.controller) {
+    return i18n.t("game:military.colonizationControlled", "已被 {{country}} 殖民", { country: getCountryLabel(region.controller) });
+  }
+  if (!region.isAccessible) {
+    return i18n.t("game:military.colonizationInaccessible", "当前不可进入");
+  }
+  return null;
+}
+
+function getProjectedArmyBeforeColonization(
+  workspace: DecisionPlayerPhaseWorkspace,
+  draft: DecisionPhaseDraft,
+): number {
+  return Math.max(0, getArmyTotal(workspace.militaryWorkspace.army) + sumSelectedArmyDelta(workspace, draft));
+}
+
+function getProjectedArmyAfterColonization(
+  workspace: DecisionPlayerPhaseWorkspace,
+  draft: DecisionPhaseDraft,
+): number {
+  const colonyCost = (draft.militaryPlan.colonizationActions ?? []).reduce((sum, action) => {
+    const regionId = action.regionId ?? action.targetRegionId ?? "";
+    const region = workspace.militaryWorkspace.regionAccessStatus.find((item) => item.regionId === regionId);
+    return sum + (region ? getColonizationArmyCost(workspace, region) : 0);
+  }, 0);
+  return Math.max(0, getProjectedArmyBeforeColonization(workspace, draft) - colonyCost);
+}
+
+function getArmyTotal(army: Record<string, number>): number {
+  if (army.army !== undefined) {
+    return Math.max(0, Math.floor(army.army));
+  }
+  return Object.values(army).reduce((sum, value) => sum + Math.max(0, Math.floor(value)), 0);
+}
+
+function sumSelectedArmyDelta(
+  workspace: DecisionPlayerPhaseWorkspace,
+  draft: DecisionPhaseDraft,
+): number {
+  return draft.militaryPlan.militaryActions.reduce((sum, selection) => {
+    const action = workspace.militaryWorkspace.availableMilitaryActions.find((item) => item.actionId === selection.actionId);
+    const armyDelta = action?.effects?.armyDelta;
+    if (!armyDelta || typeof armyDelta !== "object" || !("army" in armyDelta)) {
+      return sum;
+    }
+    const value = (armyDelta as Record<string, unknown>).army;
+    return sum + (typeof value === "number" ? value : 0);
+  }, 0);
+}
+
+function getColonizationArmyCost(
+  workspace: DecisionPlayerPhaseWorkspace,
+  region: DecisionPlayerPhaseWorkspace["militaryWorkspace"]["regionAccessStatus"][number],
+): number {
+  return Math.max(
+    0,
+    Math.floor(region.armyCost ?? workspace.militaryWorkspace.colonizationCapability.armyCost ?? 3),
+  );
 }
 
 function calculateDecisionSpendSummary(

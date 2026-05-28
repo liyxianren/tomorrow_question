@@ -217,7 +217,8 @@ export interface MilitaryActionSelection {
 }
 
 export interface ColonizationActionSelection {
-  targetRegionId: string;
+  regionId: string;
+  targetRegionId?: string;
 }
 
 export interface ConquestActionSelection {
@@ -244,6 +245,9 @@ export interface ColonizationOption {
   controller: string | null;
   isColonized: boolean;
   budgetCost: number;
+  armyCost?: number;
+  rawMaterialsPerTurn?: number;
+  isColonizable?: boolean;
   canColonize: boolean;
   lockedReason: string | null;
   independence?: number;
@@ -255,6 +259,7 @@ export interface ColonizationCapability {
   isUnlocked: boolean;
   unlockCost: number;
   budgetCost: number;
+  armyCost?: number;
   incomePerColonyPerRound: number;
   maxColonizationsPerRound: number;
 }
@@ -446,10 +451,21 @@ export interface RegionAccessStatus {
   competitionMinimumPower?: number;
   isColonized: boolean;
   controller: string | null;
+  isColonizable?: boolean;
+  canColonize?: boolean;
+  lockedReason?: string | null;
+  armyCost?: number;
+  rawMaterialsPerTurn?: number;
   garrison?: Record<string, number>;
   acceptedGoods: string[];
   /** @deprecated Kept for older backend snapshots; UI should prefer fixedOverseasPrice. */
   priceMultiplier?: number;
+}
+
+export interface AiGuidanceItem {
+  category: string;
+  title: string;
+  body: string;
 }
 
 export interface TechTreeChainTech {
@@ -605,6 +621,7 @@ export interface DecisionPlayerPhaseWorkspace {
   };
   governmentReforms?: GovernmentReformsWorkspace;
   phase1Economy?: Phase1EconomyWorkspace;
+  aiGuidance?: AiGuidanceItem[];
 }
 
 export interface ReformOption {
@@ -617,6 +634,9 @@ export interface ReformOption {
   isBlocked: boolean;
   effects: Record<string, unknown>;
   unlocksPolicies: string[];
+  isTerminal?: boolean;
+  locksPaths?: string[];
+  lockDescription?: string;
 }
 
 export interface PolicyOption {
@@ -629,6 +649,8 @@ export interface PolicyOption {
   isActive: boolean;
   requiresReform: string | null;
   isUnlocked: boolean;
+  isBlocked?: boolean;
+  lockedReason?: string | null;
 }
 
 export interface IdeologyMilestoneOption {

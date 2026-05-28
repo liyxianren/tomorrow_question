@@ -40,7 +40,7 @@ def build_game_payload(active_snapshot_id: str | None = "snapshot-1") -> dict[st
         "gameId": "game-1",
         "roomCode": "ROOM01",
         "currentRound": 3,
-        "totalRounds": 15,
+        "totalRounds": 10,
         "currentPhase": GamePhase.MARKET,
         "isFinished": False,
         "activeSnapshotId": active_snapshot_id,

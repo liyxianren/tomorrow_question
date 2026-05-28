@@ -53,6 +53,7 @@ def default_decision_submission_payload() -> dict[str, Any]:
         "militaryPlan": {
             "militaryActions": [],
             "diplomacyActions": [],
+            "colonizationActions": [],
             "navalDeployment": {},
             "regionBlockades": {},
         },

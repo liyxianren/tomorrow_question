@@ -74,6 +74,7 @@ export function hasDecisionStepContent(
   if (step === "military") {
     return (
       draft.militaryPlan.militaryActions.length > 0 ||
+      (draft.militaryPlan.colonizationActions ?? []).length > 0 ||
       Object.keys(draft.militaryPlan.navalDeployment ?? {}).length > 0 ||
       Object.keys(draft.militaryPlan.regionBlockades ?? {}).length > 0
     );
@@ -248,7 +249,8 @@ export function getDecisionStepCompletionSummary(
   }
 
   if (step === "military") {
-    return `${i18n.t("game:military.militaryActions", "Military Actions")} ${draft.militaryPlan.militaryActions.length} ${i18n.t("game:flow.times", "times")}`;
+    const colonizations = draft.militaryPlan.colonizationActions?.length ?? 0;
+    return `${i18n.t("game:military.militaryActions", "Military Actions")} ${draft.militaryPlan.militaryActions.length} ${i18n.t("game:flow.times", "times")} / ${i18n.t("game:military.colonizationAction", "殖民行动")} ${colonizations}`;
   }
 
   if (step === "research") {

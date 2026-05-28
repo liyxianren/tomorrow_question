@@ -22,11 +22,11 @@ gameTest.describe("Settlement page flow", () => {
     await expect(page.getByTestId("settlement-final-logs")).toBeVisible();
     await expect(page.getByTestId("settlement-back-lobby")).toBeVisible();
     await expect(page.getByTestId("settlement-back-room")).toBeVisible();
-    await expect(page.locator(".settlement-status-bar__meta")).toContainText("终局回合 15 / 15");
+    await expect(page.locator(".settlement-status-bar__meta")).toContainText("终局回合 10 / 10");
 
     const finalResult = await getFinalResult(gameContext.gameId, gameContext.primaryPlayer.sessionId);
     expect(finalResult.game.isFinished).toBe(true);
-    expect(finalResult.game.currentRound).toBe(15);
+    expect(finalResult.game.currentRound).toBe(10);
     expect(finalResult.finalLogs.length).toBeGreaterThan(0);
 
     const rankingRows = page.getByTestId("settlement-ranking-panel").locator("li");

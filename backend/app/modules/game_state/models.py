@@ -350,7 +350,7 @@ class GameSnapshot:
     snapshot_id: str
     game_id: str
     round_no: int
-    max_rounds: int = 15
+    max_rounds: int = 10
     phase: GamePhase = GamePhase.DECISION
     rules_version: str = RULES_VERSION_V2
     phase_deadline_at: datetime | None = None
@@ -585,7 +585,7 @@ class Game:
     game_id: str
     room_code: str
     current_round: int = 1
-    total_rounds: int = 15
+    total_rounds: int = 10
     current_phase: GamePhase = GamePhase.DECISION
     is_finished: bool = False
     active_snapshot_id: str | None = None

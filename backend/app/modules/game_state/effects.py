@@ -83,9 +83,9 @@ def apply_effects(player_state, effects: dict[str, Any]) -> None:
         player_state.income_summary[legacy_key] = next_value
 
     if "productionOutputMultiplier" in effects:
-        current_value = int(player_state.temporary_effects.get("productionOutputMultiplier", 1))
-        multiplier = max(1, int(effects["productionOutputMultiplier"]))
-        player_state.temporary_effects["productionOutputMultiplier"] = max(1, current_value * multiplier)
+        current_value = float(player_state.temporary_effects.get("productionOutputMultiplier", 1))
+        multiplier = max(0.0, float(effects["productionOutputMultiplier"]))
+        player_state.temporary_effects["productionOutputMultiplier"] = max(0.0, current_value * multiplier)
 
     if "phase1ProductionRawCapacityDelta" in effects:
         current_value = int(player_state.temporary_effects.get("phase1ProductionRawCapacityDelta", 0))
@@ -184,8 +184,8 @@ def get_effect_bonus(player_state, temporary_key: str) -> int:
     return current_value
 
 
-def get_production_output_multiplier(player_state) -> int:
-    return max(1, int(player_state.temporary_effects.get("productionOutputMultiplier", 1)))
+def get_production_output_multiplier(player_state) -> float:
+    return max(0.0, float(player_state.temporary_effects.get("productionOutputMultiplier", 1)))
 
 
 def _apply_budget_delta(player_state, effects: dict[str, Any], effect_key: str, budget_key: str) -> None:

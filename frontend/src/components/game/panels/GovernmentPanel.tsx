@@ -279,6 +279,7 @@ function projectIdeologyAfterReform(
 function formatReformEffects(
   effects: Record<string, unknown>,
   unlocksPolicies: string[],
+  lockDescription?: string,
 ): string[] {
   const tags: string[] = [];
 
@@ -310,9 +311,40 @@ function formatReformEffects(
     tags.push(i18n.t("game:government.upgradeCostMultiplier", "升级成本 ×{{multiplier}}", { multiplier: effects.upgradeCostMultiplier }));
   }
 
+  if (effects.factoryUpgradeCostReductionPercent !== undefined) {
+    const percent = Number(effects.factoryUpgradeCostReductionPercent);
+    tags.push(i18n.t("game:government.factoryUpgradeCostReduction", "工厂升级成本 -{{percent}}%", { percent }));
+  }
+
+  if (effects.techPointsDelta !== undefined) {
+    const delta = Number(effects.techPointsDelta);
+    tags.push(i18n.t("game:common.techPoints", "科技点") + ` ${formatSigned(delta)}`);
+  }
+
+  const permanent = effects.permanent as Record<string, unknown> | undefined;
+  if (permanent?.techPointsPerTurn !== undefined) {
+    const delta = Number(permanent.techPointsPerTurn);
+    tags.push(i18n.t("game:government.techPointsPerTurn", "每回合科技点 {{delta}}", { delta: formatSigned(delta) }));
+  }
+
   if (effects.administrationCapacityDelta !== undefined) {
     const delta = Number(effects.administrationCapacityDelta);
     tags.push(i18n.t("game:government.administrationCapacityDelta", "行政力上限 {{delta}}", { delta: formatSigned(delta) }));
+  }
+
+  if (effects.armyCapDelta !== undefined) {
+    const delta = Number(effects.armyCapDelta);
+    tags.push(i18n.t("game:government.armyCapMax", "军事力量上限") + ` ${formatSigned(delta)}`);
+  }
+
+  if (effects.domesticMarketCapacityDelta !== undefined) {
+    const delta = Number(effects.domesticMarketCapacityDelta);
+    tags.push(i18n.t("game:government.effect.domesticCapacity", "国内容量") + ` ${formatSigned(delta)}`);
+  }
+
+  if (effects.overseasMarketCapacityDelta !== undefined) {
+    const delta = Number(effects.overseasMarketCapacityDelta);
+    tags.push(i18n.t("game:government.effect.overseasCapacity", "海外容量") + ` ${formatSigned(delta)}`);
   }
 
   if (effects.productionCapacityDelta !== undefined) {
@@ -324,6 +356,10 @@ function formatReformEffects(
 
   if (unlocksPolicies.length > 0) {
     tags.push(i18n.t("game:government.unlocksPolicies", "解锁 {{count}} 项政策", { count: unlocksPolicies.length }));
+  }
+
+  if (lockDescription) {
+    tags.push(translateBackend(lockDescription));
   }
 
   return tags;
@@ -418,6 +454,45 @@ function formatPolicyEffects(
 
   if (e.fiscalRefund !== undefined) {
     effects.push({ label: i18n.t("game:government.allocation.fiscal", "政府财政"), value: `+${e.fiscalRefund}` });
+  }
+
+  if (e.productionOutputMultiplier !== undefined) {
+    effects.push({
+      label: i18n.t("game:effect.productionOutputMultiplier", "产出倍率"),
+      value: `x${e.productionOutputMultiplier}`,
+      temporary: true,
+    });
+  }
+
+  const mobilizeCapacityToMilitary = e.mobilizeCapacityToMilitary as
+    | { ratio?: number; militaryPerUnit?: number }
+    | undefined;
+  if (mobilizeCapacityToMilitary) {
+    const ratio = typeof mobilizeCapacityToMilitary.ratio === "number"
+      ? Math.round(mobilizeCapacityToMilitary.ratio * 100)
+      : 0;
+    effects.push({
+      label: i18n.t("game:government.mobilizeCapacity", "产能转军力"),
+      value: i18n.t("game:government.mobilizeCapacityValue", "{{ratio}}% 非闲置产能转为陆军", { ratio }),
+      temporary: true,
+    });
+  }
+
+  const suppressIdeology = e.suppressIdeology as
+    | { target?: string; targetIdeology?: string; delta?: number; militaryCost?: number }
+    | undefined;
+  const suppressionTarget = suppressIdeology?.targetIdeology ?? suppressIdeology?.target;
+  if (suppressionTarget) {
+    const suppressionDelta = Number(suppressIdeology?.delta ?? 0);
+    const suppressionCost = suppressIdeology?.militaryCost ?? 0;
+    effects.push({
+      label: i18n.t("game:government.suppressIdeology", "镇压思潮"),
+      value: i18n.t("game:government.suppressIdeologyValue", "{{target}} {{delta}}，消耗 {{cost}} 陆军", {
+        target: getIdeologyLabel(suppressionTarget),
+        delta: formatSigned(suppressionDelta),
+        cost: suppressionCost,
+      }),
+    });
   }
 
   const researchFacilityDelta = e.researchFacilityDelta as Record<string, number> | undefined;
@@ -931,6 +1006,7 @@ export function GovernmentPanel({
             const effectTags = formatReformEffects(
               reformEffects,
               reform.unlocksPolicies ?? [],
+              reform.lockDescription,
             );
             const status = wouldReachCritical
               ? "danger"
@@ -1134,7 +1210,9 @@ export function GovernmentPanel({
                     ? t("game:government.insufficientAdminCapacity", "行政力不足")
                     : null;
                   const lockedReason = !policy.isUnlocked
-                    ? policy.requiresReform
+                    ? policy.isBlocked
+                      ? policy.lockedReason ?? t("game:government.pathBlocked")
+                      : policy.requiresReform
                       ? t("game:government.needsReform", { reform: getReformLabel(policy.requiresReform) })
                       : t("game:government.lockedPolicy")
                     : budgetLockedReason ?? adminLockedReason;

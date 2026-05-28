@@ -331,6 +331,7 @@ def _as_mapping(value: object) -> dict[str, object]:
 
 
 def _country_label(country: str) -> str:
+    country = str(country or "").lower()
     key = {
         "britain": "country_britain",
         "france": "country_france",
@@ -387,7 +388,10 @@ def _sanitize_final_log(log: dict[str, object]) -> dict[str, object]:
     phase = str(log.get("phase") or "")
     round_no = _safe_int(log.get("roundNo"))
 
-    if "completed national income allocation" in message:
+    if (
+        "completed national income allocation" in message
+        or (" completed Round " in message and message.endswith(" fiscal allocation."))
+    ):
         country_key = message.split(" ", 1)[0].strip()
         sanitized["message"] = i18n_t(
             "final_log_income_allocation",

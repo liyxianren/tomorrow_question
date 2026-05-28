@@ -4,7 +4,7 @@ from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from app.modules.balance_config import get_balance_config
-from app.modules.game_state.effects import get_effect_bonus, get_talent_effect_total
+from app.modules.game_state.effects import get_effect_bonus
 
 if TYPE_CHECKING:
     from app.modules.game_state.models import GameSnapshot, PlayerState, RegionState
@@ -291,7 +291,7 @@ def new_factory_unit_budget_cost(player: PlayerState, route_id: str) -> int:
 
 
 def _factory_discount_percent(player: PlayerState, effect_key: str) -> int:
-    return max(0, min(90, get_talent_effect_total(player, effect_key)))
+    return max(0, min(90, get_effect_bonus(player, effect_key)))
 
 
 def _discounted_unit_cost(base_cost: int, discount_percent: int) -> int:

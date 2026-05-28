@@ -13,6 +13,7 @@ from app.modules.game_state.effects import (
 )
 
 from .common import RuleResolution, clone_snapshot
+from .colonization import colony_raw_materials_per_turn
 from .decision import _apply_reform_or_policy_effects, _reset_round_policy_state
 from .phase1_economy import (
     DEFAULT_INCOME_ALLOCATION_RATIO as PHASE1_DEFAULT_RATIO,
@@ -107,7 +108,10 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
         player_state.phase1_economy.income_allocation_ratio = _phase1_ratio_from_legacy(
             player_state.income_allocation_ratio
         )
-        raw_materials_per_turn = get_raw_materials_per_turn(player_state, balance)
+        raw_materials_per_turn = (
+            get_raw_materials_per_turn(player_state, balance)
+            + colony_raw_materials_per_turn(updated_snapshot, player_state.country.value)
+        )
         player_state.phase1_economy.raw_materials = (
             int(player_state.phase1_economy.raw_materials)
             + raw_materials_per_turn
@@ -421,6 +425,10 @@ def _apply_active_policy_effects(player_state, balance) -> list[Callable[[], Non
         apply_permanent_capacity_effects(player_state, permanent_effects)
         transient_effects.pop("ratioDelta", None)
         transient_effects.pop("permanent", None)
+        transient_effects.pop("productionOutputMultiplier", None)
+        transient_effects.pop("phase1ProductionRawCapacityDelta", None)
+        transient_effects.pop("mobilizeCapacityToMilitary", None)
+        transient_effects.pop("suppressIdeology", None)
         research_facility_delta = transient_effects.pop("researchFacilityDelta", None)
         if isinstance(research_facility_delta, dict):
             cleanup_callbacks.append(_apply_temporary_research_facility_delta(player_state, research_facility_delta))

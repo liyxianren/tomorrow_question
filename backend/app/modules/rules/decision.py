@@ -32,6 +32,7 @@ from .common import (
     default_decision_submission_payload,
     index_turn_inputs,
 )
+from .colonization import COLONIZATION_ARMY_COST, can_colonize_region
 from .phase1_economy import (
     PRODUCTION_MODE_OUTPUT_RATIOS,
     calculate_production_output,
@@ -46,6 +47,17 @@ GOVERNMENT_MARKET_POLICY_EFFECT_KEYS = {
     "domesticPriceBonusDelta": "governmentDomesticPriceBonus",
     "overseasMarketCapacityDelta": "governmentOverseasMarketCapacityBonus",
 }
+PERMANENT_FACTORY_DISCOUNT_KEYS = (
+    "factoryUpgradeCostReductionPercent",
+    "factoryExpansionCostReductionPercent",
+    "newFactoryCostReductionPercent",
+)
+IMMEDIATE_POLICY_EFFECT_KEYS = (
+    "productionOutputMultiplier",
+    "phase1ProductionRawCapacityDelta",
+    "mobilizeCapacityToMilitary",
+    "suppressIdeology",
+)
 
 
 def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
@@ -68,6 +80,16 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
         # ── 行政力每回合刷新；上一轮政策的临时比例效果在本轮重置 ──
         _reset_round_policy_state(player_state, balance)
 
+        factory_plan = payload.get("factoryPlan") or {}
+        domestic_spent = _apply_domestic_market_plan(player_state, payload.get("domesticMarketPlan") or {}, balance)
+        government_spent = _apply_government_plan(
+            player_state,
+            payload.get("governmentPlan") or {},
+            balance,
+        )
+        _apply_reform_plan(player_state, payload, balance)  # enacted, errors - errors silently logged above if needed
+        _apply_policy_plan(player_state, payload, balance)
+
         phase1_production = payload.get("phase1Production") or {}
         upgrade_orders = (
             payload.get("factoryPlan", {}).get("upgradeOrders", [])
@@ -79,7 +101,6 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
             or phase1_production.get("expansionOrders", [])
             or []
         )
-        factory_plan = payload.get("factoryPlan") or {}
         new_factory_orders = factory_plan.get("newFactoryOrders", []) or []
         factory_spent = _apply_factory_actions(player_state, factory_plan, balance)
         factory_spent += _apply_phase1_production_plan(
@@ -91,12 +112,6 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
             new_factory_orders,
             raw_material_purchase_quantity=factory_plan.get("rawMaterialPurchaseQuantity", 0),
         )
-        domestic_spent = _apply_domestic_market_plan(player_state, payload.get("domesticMarketPlan") or {}, balance)
-        government_spent = _apply_government_plan(
-            player_state,
-            payload.get("governmentPlan") or {},
-            balance,
-        )
         military_plan = payload.get("militaryPlan") or {}
         military_spent = _apply_military_plan(
             player_state,
@@ -104,8 +119,6 @@ def resolve_decision_phase(*, snapshot, turn_inputs) -> RuleResolution:
             balance,
             updated_snapshot,
         )
-        _apply_reform_plan(player_state, payload, balance)  # enacted, errors - errors silently logged above if needed
-        _apply_policy_plan(player_state, payload, balance)
         _apply_talent_plan(player_state, payload.get("talentPlan", {}), balance)
         _apply_phase3_research_plan(player_state, payload, balance)
 
@@ -326,9 +339,9 @@ def _apply_phase1_production_plan(
             total_capacity_limit -= capped
 
     output_decimal = calculate_production_output(raw_assignments)
-    multiplier = int(player_state.temporary_effects.get("productionOutputMultiplier", 1))
-    if multiplier > 1:
-        output_decimal = output_decimal * multiplier
+    multiplier = float(player_state.temporary_effects.get("productionOutputMultiplier", 1))
+    if abs(multiplier - 1.0) > 0.0001:
+        output_decimal = output_decimal * Decimal(str(multiplier))
     output_bonus_percent = get_talent_effect_total(player_state, "phase1ProductionOutputBonusPercent")
     if output_bonus_percent > 0:
         output_decimal = output_decimal * Decimal(100 + output_bonus_percent) / Decimal(100)
@@ -523,6 +536,7 @@ def _apply_military_plan(
         _apply_decision_action_effects(player_state, action.effects)
 
     if snapshot is not None:
+        _apply_colonization_actions(player_state, military_plan, snapshot, balance)
         _apply_naval_deployment(player_state, military_plan, snapshot, balance)
         _apply_region_blockades(player_state, military_plan, snapshot, balance)
 
@@ -531,6 +545,31 @@ def _apply_military_plan(
         int(player_state.budget_pools.get("governmentFiscal", 0)) - spent,
     )
     return spent
+
+
+def _apply_colonization_actions(player_state, military_plan: dict[str, Any], snapshot, balance) -> None:
+    actions = military_plan.get("colonizationActions")
+    if not isinstance(actions, list) or len(actions) == 0:
+        return
+    regions_by_id = {region.region_id: region for region in snapshot.region_states}
+    seen: set[str] = set()
+    for action in actions:
+        if not isinstance(action, dict):
+            continue
+        region_id = str(action.get("regionId") or action.get("targetRegionId") or "")
+        if not region_id or region_id in seen:
+            continue
+        seen.add(region_id)
+        region_state = regions_by_id.get(region_id)
+        if region_state is None:
+            continue
+        can_colonize, _ = can_colonize_region(snapshot, player_state, region_state, balance)
+        if not can_colonize:
+            continue
+        if int(player_state.army.get("army", 0)) < COLONIZATION_ARMY_COST:
+            continue
+        player_state.army["army"] = int(player_state.army.get("army", 0)) - COLONIZATION_ARMY_COST
+        region_state.controller = player_state.country.value
 
 
 def _apply_naval_deployment(player_state, military_plan: dict[str, Any], snapshot, balance) -> None:
@@ -745,6 +784,14 @@ def _apply_reform_or_policy_effects(player_state, effects: dict[str, Any]) -> No
     if not isinstance(effects, dict):
         return
 
+    market_capacity_effects = {
+        key: effects[key]
+        for key in ("domesticMarketCapacityDelta", "overseasMarketCapacityDelta")
+        if key in effects
+    }
+    if market_capacity_effects:
+        apply_permanent_capacity_effects(player_state, market_capacity_effects)
+
     administration_capacity_delta = effects.get("administrationCapacityDelta")
     if administration_capacity_delta is not None:
         delta = int(administration_capacity_delta)
@@ -795,11 +842,22 @@ def _apply_reform_or_policy_effects(player_state, effects: dict[str, Any]) -> No
                 0, int(player_state.research_facilities.get(key, 0)) + int(delta)
             )
 
+    tech_points_delta = effects.get("techPointsDelta")
+    if tech_points_delta is not None:
+        player_state.tech_points = max(
+            0, int(player_state.tech_points) + int(tech_points_delta)
+        )
+
     army_cap_delta = effects.get("armyCapDelta")
     if army_cap_delta is not None:
         player_state.army_cap = max(
             0, int(player_state.army_cap) + int(army_cap_delta)
         )
+
+    for discount_key in PERMANENT_FACTORY_DISCOUNT_KEYS:
+        if discount_key in effects:
+            current = int(player_state.permanent_effects.get(discount_key, 0))
+            player_state.permanent_effects[discount_key] = current + int(effects[discount_key])
 
     fiscal_refund = effects.get("fiscalRefund")
     if fiscal_refund is not None:
@@ -821,9 +879,15 @@ def _apply_reform_or_policy_effects(player_state, effects: dict[str, Any]) -> No
         mp_per_unit = int(mobilize.get("militaryPerUnit", 1))
         total_mp = 0
         for cap_key in list(player_state.production_capacity.keys()):
+            if cap_key == "idle":
+                continue
             current = int(player_state.production_capacity.get(cap_key, 0))
             converted = int(current * ratio)
             player_state.production_capacity[cap_key] = current - converted
+            player_state.phase1_economy.capacity_by_mode[cap_key] = max(
+                0,
+                int(player_state.phase1_economy.capacity_by_mode.get(cap_key, 0)) - converted,
+            )
             total_mp += converted * mp_per_unit
         player_state.army["army"] = int(player_state.army.get("army", 0)) + total_mp
 
@@ -833,8 +897,8 @@ def _apply_reform_or_policy_effects(player_state, effects: dict[str, Any]) -> No
         delta = int(suppression.get("delta", 0))
         target = str(suppression.get("targetIdeology") or "")
         if cost > 0 and delta != 0:
-            if int(player_state.budget_pools.get("governmentFiscal", 0)) >= cost:
-                player_state.budget_pools["governmentFiscal"] = int(player_state.budget_pools.get("governmentFiscal", 0)) - cost
+            if int(player_state.army.get("army", 0)) >= cost:
+                player_state.army["army"] = int(player_state.army.get("army", 0)) - cost
                 if target == "all":
                     for key in list(player_state.ideology_levels.keys()):
                         player_state.ideology_levels[key] = max(
@@ -923,6 +987,13 @@ def _apply_policy_plan(player_state, payload: dict[str, Any], balance) -> list[s
             continue
         if policy.requires_reform is not None and policy.requires_reform not in player_state.completed_reforms:
             continue
+        if _is_policy_path_blocked(player_state, balance, policy):
+            continue
+        suppression = policy.effects.get("suppressIdeology") if isinstance(policy.effects, dict) else None
+        if isinstance(suppression, dict):
+            military_cost = int(suppression.get("militaryCost", 0))
+            if military_cost > int(player_state.army.get("army", 0)):
+                continue
         admin_cost = int(policy.admin_cost_per_turn)
         if int(player_state.administration_capacity) < admin_cost:
             continue
@@ -936,9 +1007,51 @@ def _apply_policy_plan(player_state, payload: dict[str, Any], balance) -> list[s
         player_state.administration_capacity = int(player_state.administration_capacity) - admin_cost
         player_state.active_policies.append(policy_id)
         _apply_policy_ratio_effect_once(player_state, policy.effects)
+        _apply_immediate_policy_effects(player_state, policy.effects)
         activated.append(policy_id)
 
     return activated
+
+
+def _is_policy_path_blocked(player_state, balance, policy) -> bool:
+    if policy.requires_reform is None:
+        return False
+    required_reform = balance.reforms.reforms.get(policy.requires_reform)
+    if required_reform is None:
+        return False
+    for done_id in player_state.completed_reforms:
+        done = balance.reforms.reforms.get(done_id)
+        if done is None:
+            continue
+        if required_reform.path in done.blocks_other_paths:
+            return True
+    return False
+
+
+def _apply_immediate_policy_effects(player_state, effects: dict[str, Any]) -> None:
+    immediate_effects = {
+        key: effects[key]
+        for key in IMMEDIATE_POLICY_EFFECT_KEYS
+        if key in effects
+    }
+    if not immediate_effects:
+        return
+
+    temporary_effects = {
+        key: value
+        for key, value in immediate_effects.items()
+        if key in {"productionOutputMultiplier", "phase1ProductionRawCapacityDelta"}
+    }
+    if temporary_effects:
+        apply_effects(player_state, temporary_effects)
+
+    one_shot_effects = {
+        key: value
+        for key, value in immediate_effects.items()
+        if key not in temporary_effects
+    }
+    if one_shot_effects:
+        _apply_reform_or_policy_effects(player_state, one_shot_effects)
 
 
 def _reset_round_policy_state(player_state, balance) -> None:

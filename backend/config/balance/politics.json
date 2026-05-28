@@ -9,9 +9,9 @@
   "ideologyMax": 10,
   "revolutionThreshold": 10,
   "terminalReformsByIdeology": {
-    "liberalism": "representative_state",
-    "egalitarianism": "social_state",
-    "nationalism": "imperial_state"
+    "liberalism": "trust_system",
+    "egalitarianism": "planned_economy",
+    "nationalism": "secret_police"
   },
   "naturalShiftRules": {
     "liberalism": {

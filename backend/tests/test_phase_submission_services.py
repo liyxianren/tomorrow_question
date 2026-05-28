@@ -67,6 +67,7 @@ def empty_decision_payload() -> dict[str, object]:
         "militaryPlan": {
             "militaryActions": [],
             "diplomacyActions": [],
+            "colonizationActions": [],
             "navalDeployment": {},
             "regionBlockades": {},
         },
@@ -424,10 +425,11 @@ class PhaseSubmissionServiceTests(unittest.TestCase):
 
         self.assertEqual(result.player_turn_input.payload["militaryPlan"]["diplomacyActions"], [])
 
-    def test_submit_strips_legacy_colonization_payload(self) -> None:
+    def test_submit_normalizes_simplified_colonization_payload(self) -> None:
         room = build_room()
         game, snapshot = build_snapshot()
         snapshot.player_states[0].budget_pools["governmentFiscal"] = 18
+        snapshot.player_states[0].army = {"army": 3}
         assign_phase_deadline(
             snapshot,
             started_at=datetime(2026, 3, 29, 12, 0, tzinfo=UTC),
@@ -451,7 +453,7 @@ class PhaseSubmissionServiceTests(unittest.TestCase):
         self.assertEqual(result.player_turn_input.payload["militaryPlan"]["unlockColonization"], False)
         self.assertEqual(
             result.player_turn_input.payload["militaryPlan"]["colonizationActions"],
-            [],
+            [{"regionId": "americas"}],
         )
 
     def test_submit_accepts_overseas_competition_without_diplomacy(self) -> None:

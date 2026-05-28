@@ -18,6 +18,11 @@ from app.modules.game_state.budgeting import (
 )
 from app.modules.rules.route_utils import explain_route_access
 from app.modules.rules.common import POINT_PURCHASE_COSTS
+from app.modules.rules.colonization import (
+    COLONIZATION_ARMY_COST,
+    colony_raw_materials_per_turn,
+    colonization_status,
+)
 from app.modules.rules.phase1_economy import (
     PRODUCTION_MODE_DEMAND_COEFFICIENTS,
     PRODUCTION_MODE_OUTPUT_RATIOS,
@@ -268,6 +273,7 @@ def build_decision_player_workspace(snapshot: GameSnapshot, player: PlayerState)
         },
         "militaryWorkspace": _build_military_workspace(snapshot, player),
         "researchWorkspace": _build_research_workspace(snapshot, player),
+        "aiGuidance": _build_ai_guidance(snapshot, player),
         "governmentReforms": {
             "administrationCapacity": int(player.administration_capacity),
             "baseAdminCapacity": int(player.base_admin_capacity),
@@ -302,6 +308,9 @@ def build_decision_player_workspace(snapshot: GameSnapshot, player: PlayerState)
                     "isBlocked": _is_reform_blocked_for_workspace(player, reform, balance),
                     "effects": reform.effects,
                     "unlocksPolicies": list(reform.unlocks_policies),
+                    "isTerminal": len(reform.blocks_other_paths) > 0,
+                    "locksPaths": list(reform.blocks_other_paths),
+                    "lockDescription": _format_reform_lock_description(reform),
                 }
                 for reform in balance.reforms.reforms.values()
             ],
@@ -316,7 +325,16 @@ def build_decision_player_workspace(snapshot: GameSnapshot, player: PlayerState)
                     "isActive": policy_id in player.active_policies,
                     "requiresReform": policy.requires_reform,
                     "requiresReformLabel": _resolve_reform_label(balance, policy.requires_reform),
-                    "isUnlocked": policy.requires_reform is None or policy.requires_reform in player.completed_reforms,
+                    "isUnlocked": (
+                        (policy.requires_reform is None or policy.requires_reform in player.completed_reforms)
+                        and not _is_policy_blocked_for_workspace(player, policy, balance)
+                    ),
+                    "isBlocked": _is_policy_blocked_for_workspace(player, policy, balance),
+                    "lockedReason": (
+                        "已被最终改革锁定"
+                        if _is_policy_blocked_for_workspace(player, policy, balance)
+                        else None
+                    ),
                 }
                 for policy_id, policy in balance.reforms.regular_policies.items()
             ],
@@ -357,12 +375,45 @@ def _is_reform_blocked_for_workspace(player: PlayerState, reform: Any, balance: 
     return False
 
 
+def _is_policy_blocked_for_workspace(player: PlayerState, policy: Any, balance: Any) -> bool:
+    if policy.requires_reform is None:
+        return False
+    required_reform = balance.reforms.reforms.get(policy.requires_reform)
+    if required_reform is None:
+        return False
+    for done_id in player.completed_reforms:
+        done = balance.reforms.reforms.get(done_id)
+        if done is None:
+            continue
+        if required_reform.path in done.blocks_other_paths:
+            return True
+    return False
+
+
+def _format_reform_lock_description(reform: Any) -> str | None:
+    if not reform.blocks_other_paths:
+        return None
+    locked_labels = "、".join(_reform_path_label(path) for path in reform.blocks_other_paths)
+    return f"最终改革：实施后锁定{locked_labels}。"
+
+
+def _reform_path_label(path: str) -> str:
+    return {
+        "freedom": "自由之路",
+        "equality": "平等之路",
+        "national": "民族之路",
+    }.get(path, str(path))
+
+
 def _decision_phase1_economy(snapshot: GameSnapshot, player: PlayerState) -> dict[str, Any]:
     balance = get_balance_config()
     payload: dict[str, Any] = dict(player.phase1_economy.to_payload())
     payload.update(_build_phase1_market_preview(snapshot, player))
     payload["investmentPool"] = int(player.budget_pools.get("factory", 0))
-    payload["rawMaterialsPerTurn"] = get_raw_materials_per_turn(player)
+    payload["rawMaterialsPerTurn"] = (
+        get_raw_materials_per_turn(player)
+        + colony_raw_materials_per_turn(snapshot, player.country.value)
+    )
     payload["factoryTotalCap"] = factory_total_cap(player)
     payload["factoryEnabledCount"] = enabled_factory_count(player)
     payload["idleCapacity"] = idle_factory_capacity(player)
@@ -704,6 +755,7 @@ def _submitted_player_ids(
 def _build_military_workspace(snapshot: GameSnapshot, player: PlayerState) -> dict[str, Any]:
     balance = get_balance_config()
     army_total = int(player.army.get("army", 0))
+    colonization_options = _build_colonization_options(snapshot, player, balance)
     return {
         "army": {"army": army_total},
         "armyCap": int(player.army_cap),
@@ -726,13 +778,14 @@ def _build_military_workspace(snapshot: GameSnapshot, player: PlayerState) -> di
             for action in balance.military_actions.military_actions.values()
         ],
         "colonizationCapability": {
-            "isUnlocked": False,
+            "isUnlocked": True,
             "unlockCost": 0,
-            "budgetCost": 0,
+            "budgetCost": COLONIZATION_ARMY_COST,
+            "armyCost": COLONIZATION_ARMY_COST,
             "incomePerColonyPerRound": 0,
-            "maxColonizationsPerRound": 0,
+            "maxColonizationsPerRound": len(colonization_options),
         },
-        "colonizationOptions": [],
+        "colonizationOptions": colonization_options,
         "oceanNodes": [
             {
                 "nodeId": node.node_id,
@@ -785,6 +838,111 @@ def _build_research_workspace(snapshot: GameSnapshot, player: PlayerState) -> di
         "talentBranches": talent_branches,
         "unlockedTalentCount": len(player.unlocked_talents),
     }
+
+
+def _build_ai_guidance(snapshot: GameSnapshot, player: PlayerState) -> list[dict[str, str]]:
+    balance = get_balance_config()
+    guidance: list[dict[str, str]] = []
+    phase1 = player.phase1_economy
+    remaining_rounds = max(0, int(snapshot.max_rounds) - int(snapshot.round_no))
+
+    if remaining_rounds <= 2:
+        guidance.append({
+            "category": "终局",
+            "title": "优先兑现收益",
+            "body": "已经进入第 8-10 回合，优先选择能立刻转化为库存、销量或财政回流的动作。",
+        })
+
+    raw_materials = int(phase1.raw_materials)
+    goods_inventory = int(phase1.goods_inventory)
+    enabled_factories = enabled_factory_count(player)
+    if raw_materials > 0 and enabled_factories > 0:
+        guidance.append({
+            "category": "工厂",
+            "title": "先吃掉原材料",
+            "body": f"当前有 {raw_materials} 原材料，优先安排投料；每投 1 原材料会占用 1 工厂预算，剩余预算再考虑升级或扩建。",
+        })
+    elif goods_inventory <= 0:
+        guidance.append({
+            "category": "工厂",
+            "title": "补足本轮库存",
+            "body": "当前库存偏低，先保证本轮有商品可卖，再做长期扩张。",
+        })
+
+    overseas_capacity = resolve_overseas_market_capacity(player)
+    if goods_inventory > overseas_capacity:
+        guidance.append({
+            "category": "市场",
+            "title": "先卖高价海外",
+            "body": f"海外容量约 {overseas_capacity}，优先投向欧洲、美洲等高价地区，剩余库存再回国内。",
+        })
+    else:
+        guidance.append({
+            "category": "市场",
+            "title": "关注容量和封锁",
+            "body": "海外价格固定，真正限制收益的是海外容量、竞争额外容量和地区封锁。",
+        })
+
+    colonization_candidates = [
+        option
+        for option in _build_colonization_options(snapshot, player, balance)
+        if option["canColonize"]
+    ]
+    if int(player.army.get("army", 0)) >= COLONIZATION_ARMY_COST and colonization_candidates:
+        best_colony = max(colonization_candidates, key=lambda item: int(item["rawMaterialsPerTurn"]))
+        guidance.append({
+            "category": "军事",
+            "title": f"可殖民{best_colony['regionLabel']}",
+            "body": f"消耗 {COLONIZATION_ARMY_COST} 陆军，之后每回合原材料 +{best_colony['rawMaterialsPerTurn']}。",
+        })
+    elif colonization_candidates:
+        guidance.append({
+            "category": "军事",
+            "title": "陆军不足以殖民",
+            "body": f"殖民需要 {COLONIZATION_ARMY_COST} 陆军；若想走殖民原材料路线，先征募陆军。",
+        })
+
+    reforms = balance.reforms.reforms
+    terminal_candidates = [
+        reform
+        for reform in reforms.values()
+        if reform.blocks_other_paths and reform.reform_id not in player.completed_reforms
+    ]
+    affordable_terminal = [
+        reform for reform in terminal_candidates if int(player.administration_capacity) >= int(reform.admin_cost)
+    ]
+    if affordable_terminal:
+        reform = affordable_terminal[0]
+        guidance.append({
+            "category": "政府",
+            "title": f"{reform.label}会锁定路线",
+            "body": _format_reform_lock_description(reform) or "这是最终改革，实施前确认路线选择。",
+        })
+    else:
+        useful_reform = next(
+            (
+                reform for reform in reforms.values()
+                if reform.reform_id not in player.completed_reforms
+                and (reform.effects or reform.unlocks_policies)
+                and int(player.administration_capacity) >= int(reform.admin_cost)
+            ),
+            None,
+        )
+        if useful_reform is not None:
+            guidance.append({
+                "category": "政府",
+                "title": f"可考虑{useful_reform.label}",
+                "body": "优先选择有真实数值、解锁政策或路线价值的改革。",
+            })
+
+    if int(player.tech_points) > 0:
+        guidance.append({
+            "category": "研究",
+            "title": "不要闲置科技点",
+            "body": "优先研究能解锁下一档工厂或提高产销效率的科技。",
+        })
+
+    return guidance[:5]
 
 
 def _build_region_access_status(snapshot: GameSnapshot, player: PlayerState) -> list[dict[str, Any]]:
@@ -842,12 +1000,36 @@ def _build_region_access_status(snapshot: GameSnapshot, player: PlayerState) -> 
                 "isColonized": region.controller is not None,
                 "controller": region.controller,
                 "garrison": dict(region.garrison),
+                **colonization_status(snapshot, player, region, balance),
                 "fixedOverseasPrice": int(
                     balance.regions.region_blueprints[region.region_id].fixed_overseas_price
                 ) if region.region_id in balance.regions.region_blueprints else 1,
             }
         )
     return statuses
+
+
+def _build_colonization_options(snapshot: GameSnapshot, player: PlayerState, balance: Any) -> list[dict[str, Any]]:
+    options: list[dict[str, Any]] = []
+    for region in snapshot.region_states:
+        status = colonization_status(snapshot, player, region, balance)
+        options.append(
+            {
+                "regionId": region.region_id,
+                "regionLabel": region_label(region.region_id),
+                "controller": region.controller,
+                "isColonized": region.controller is not None,
+                "budgetCost": int(status["armyCost"]),
+                "armyCost": int(status["armyCost"]),
+                "rawMaterialsPerTurn": int(status["rawMaterialsPerTurn"]),
+                "canColonize": bool(status["canColonize"]),
+                "lockedReason": status["lockedReason"],
+                "isColonizable": bool(status["isColonizable"]),
+                "garrison": dict(region.garrison),
+                "resourceLimit": dict(region.resource_limit),
+            }
+        )
+    return options
 
 
 def _preview_budget_allocation(national_income: int, ratio: dict[str, float]) -> dict[str, int]:

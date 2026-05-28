@@ -50,7 +50,7 @@ function createResponse(overrides: Partial<SessionContextResponse> = {}): Sessio
       gameId: "game-1",
       roomCode: "ROOM01",
       currentRound: 2,
-      totalRounds: 15,
+      totalRounds: 10,
       currentPhase: "market",
       isFinished: false,
       activeSnapshotId: "snapshot-2",

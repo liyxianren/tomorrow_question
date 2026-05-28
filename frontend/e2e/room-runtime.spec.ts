@@ -165,7 +165,7 @@ test.describe("room runtime flows", () => {
     await refreshCurrentPage(host.page);
     await waitForGameRuntime(host.page);
     await expect(host.page).toHaveURL(new RegExp(`/game/${gameId}$`));
-    await expect(host.page.getByTestId("game-round")).toContainText("第 1 / 15 回合");
+    await expect(host.page.getByTestId("game-round")).toContainText("第 1 / 10 回合");
     await expect(host.page.getByTestId("game-phase")).toContainText("当前阶段：市场出售");
     await expect(host.page.getByTestId("game-submitted-state")).toContainText("指令已签发");
     await expect(host.page.getByTestId("game-settlement-panel")).toBeVisible();

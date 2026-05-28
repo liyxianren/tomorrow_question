@@ -4,7 +4,7 @@ import { buildEffectMetrics } from "../../../features/game/decisionShared";
 import type { ResourceStripViewModel, TopWorkflowViewModel } from "../../../features/game/flow/gameWorkbench";
 import type { DecisionStepId } from "../../../features/game/flow/decisionFlow";
 import type { GameRuntimeState } from "../../../features/game/runtime/types";
-import type { ActiveEvent } from "../../../types";
+import type { ActiveEvent, AiGuidanceItem } from "../../../types";
 import {
   formatSeconds,
   getCountryLabel,
@@ -17,6 +17,7 @@ type GameSituationSummaryProps = {
   isLoading: boolean;
   resourceStrip?: ResourceStripViewModel;
   workflow?: TopWorkflowViewModel;
+  aiGuidance?: AiGuidanceItem[];
   onWorkflowStepChange?: (step: DecisionStepId) => void;
 };
 
@@ -25,11 +26,12 @@ export function GameSituationSummary({
   isLoading,
   resourceStrip = null,
   workflow = null,
+  aiGuidance = [],
   onWorkflowStepChange,
 }: GameSituationSummaryProps) {
   const { t } = useTranslation();
   const currentRound = runtimeState.snapshot?.round ?? runtimeState.game?.currentRound ?? 0;
-  const totalRounds = runtimeState.snapshot?.maxRounds ?? runtimeState.game?.totalRounds ?? 15;
+  const totalRounds = runtimeState.snapshot?.maxRounds ?? runtimeState.game?.totalRounds ?? 10;
   const currentPhase = runtimeState.snapshot?.phase ?? runtimeState.game?.currentPhase ?? null;
   const currentPlayer = runtimeState.room?.members.find((member) => member.playerId === runtimeState.session?.playerId) ?? null;
   const currentPlayerId = currentPlayer?.playerId ?? runtimeState.session?.playerId ?? null;
@@ -115,6 +117,45 @@ export function GameSituationSummary({
             </span>
           ))}
         </div>
+      ) : null}
+
+      {aiGuidance.length > 0 ? (
+        <section
+          data-testid="game-ai-guidance"
+          style={{
+            background: "rgba(127, 180, 216, 0.08)",
+            border: "1px solid rgba(127, 180, 216, 0.18)",
+            borderRadius: 16,
+            padding: 14,
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+            <strong>{t("game:situation.aiGuidance", "AI 指导")}</strong>
+            <span style={{ color: "var(--game-text-secondary)", fontSize: 13 }}>
+              {t("game:situation.aiGuidanceCount", "{{count}} 条建议", { count: aiGuidance.length })}
+            </span>
+          </div>
+          <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
+            {aiGuidance.slice(0, 5).map((item, index) => (
+              <article
+                key={`${item.category}-${item.title}-${index}`}
+                style={{
+                  background: "rgba(255, 255, 255, 0.04)",
+                  borderRadius: 10,
+                  padding: "8px 10px",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                  <strong style={{ fontSize: 13 }}>{translateBackend(item.title)}</strong>
+                  <span style={{ color: "var(--game-text-secondary)", fontSize: 12 }}>{translateBackend(item.category)}</span>
+                </div>
+                <p style={{ color: "var(--game-text-secondary)", fontSize: 12, lineHeight: 1.45, margin: "5px 0 0" }}>
+                  {translateBackend(item.body)}
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
       ) : null}
 
       {runtimeState.snapshot ? (

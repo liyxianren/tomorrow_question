@@ -56,7 +56,7 @@ function createRuntimeState(overrides: Partial<GameRuntimeState> = {}): GameRunt
       gameId: "game-1",
       roomCode: "ROOM01",
       currentRound: 2,
-      totalRounds: 15,
+      totalRounds: 10,
       currentPhase: "market",
       isFinished: false,
       activeSnapshotId: "snapshot-1",
@@ -126,7 +126,7 @@ describe("GamePage", () => {
 
     expect(screen.getByTestId("game-map-view")).toBeInTheDocument();
     expect(screen.getByTestId("game-country")).toHaveTextContent("英国");
-    expect(screen.getByTestId("game-round")).toHaveTextContent("第 2 / 15 回合");
+    expect(screen.getByTestId("game-round")).toHaveTextContent("回合 2 / 10");
     expect(screen.getByTestId("game-phase")).toHaveTextContent("当前阶段：市场出售");
     expect(screen.getByTestId("game-resource-strip")).toBeInTheDocument();
     expect(screen.getByTestId("map-building-market")).toBeInTheDocument();
@@ -142,7 +142,7 @@ describe("GamePage", () => {
           gameId: "game-1",
           roomCode: "ROOM01",
           currentRound: 2,
-          totalRounds: 15,
+          totalRounds: 10,
           currentPhase: "decision",
           isFinished: false,
           activeSnapshotId: "snapshot-decision",
@@ -183,7 +183,7 @@ describe("GamePage", () => {
           gameId: "game-1",
           roomCode: "ROOM01",
           currentRound: 2,
-          totalRounds: 15,
+          totalRounds: 10,
           currentPhase: "decision",
           isFinished: false,
           activeSnapshotId: "snapshot-decision",
@@ -226,7 +226,7 @@ describe("GamePage", () => {
           gameId: "game-1",
           roomCode: "ROOM01",
           currentRound: 2,
-          totalRounds: 15,
+          totalRounds: 10,
           currentPhase: "decision",
           isFinished: false,
           activeSnapshotId: "snapshot-decision",
@@ -261,7 +261,7 @@ describe("GamePage", () => {
           gameId: "game-1",
           roomCode: "ROOM01",
           currentRound: 2,
-          totalRounds: 15,
+          totalRounds: 10,
           currentPhase: "settlement",
           isFinished: false,
           activeSnapshotId: "snapshot-settlement",
@@ -294,8 +294,8 @@ describe("GamePage", () => {
         game: {
           gameId: "game-1",
           roomCode: "ROOM01",
-          currentRound: 15,
-          totalRounds: 15,
+          currentRound: 10,
+          totalRounds: 10,
           currentPhase: "settlement",
           isFinished: false,
           activeSnapshotId: "snapshot-final-settlement",
@@ -303,7 +303,7 @@ describe("GamePage", () => {
         snapshot: createGameSnapshot({
           snapshotId: "snapshot-final-settlement",
           phase: "settlement",
-          round: 15,
+          round: 10,
           phaseDeadlineAt: null,
         }),
         secondsRemaining: 10,
@@ -327,8 +327,8 @@ describe("GamePage", () => {
         game: {
           gameId: "game-1",
           roomCode: "ROOM01",
-          currentRound: 15,
-          totalRounds: 15,
+          currentRound: 10,
+          totalRounds: 10,
           currentPhase: "settlement",
           isFinished: true,
           activeSnapshotId: "snapshot-final",
@@ -336,15 +336,15 @@ describe("GamePage", () => {
         snapshot: createGameSnapshot({
           snapshotId: "snapshot-final",
           phase: "settlement",
-          round: 15,
+          round: 10,
           phaseDeadlineAt: null,
         }),
         finalResult: {
           game: {
             gameId: "game-1",
             roomCode: "ROOM01",
-            currentRound: 15,
-            totalRounds: 15,
+            currentRound: 10,
+            totalRounds: 10,
             currentPhase: "settlement",
             isFinished: true,
             activeSnapshotId: "snapshot-final",
@@ -352,7 +352,7 @@ describe("GamePage", () => {
           snapshot: createGameSnapshot({
             snapshotId: "snapshot-final",
             phase: "settlement",
-            round: 15,
+            round: 10,
             phaseDeadlineAt: null,
           }),
           finalRanking: [],

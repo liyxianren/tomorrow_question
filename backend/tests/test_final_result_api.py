@@ -31,8 +31,8 @@ def build_finished_snapshot_payload(*, tied_income: bool = False) -> dict[str, o
     snapshot = GameSnapshot(
         snapshot_id="snapshot-finished",
         game_id="game-1",
-        round_no=15,
-        max_rounds=15,
+        round_no=10,
+        max_rounds=10,
         phase=GamePhase.SETTLEMENT,
         rules_version="v2",
         player_states=[
@@ -165,8 +165,8 @@ class FinalResultApiTests(unittest.TestCase):
         game = Game(
             game_id="game-1",
             room_code="ROOM01",
-            current_round=15,
-            total_rounds=15,
+            current_round=10,
+            total_rounds=10,
             current_phase=GamePhase.SETTLEMENT,
             is_finished=True,
             active_snapshot_id="snapshot-finished",
@@ -187,7 +187,7 @@ class FinalResultApiTests(unittest.TestCase):
         GameLogRepository(connection).save(
             {
                 "gameId": "game-1",
-                "roundNo": 15,
+                "roundNo": 10,
                 "phase": GamePhase.SETTLEMENT,
                 "kind": "settlement.phase_resolved",
                 "message": "settlement settled.",
@@ -198,10 +198,10 @@ class FinalResultApiTests(unittest.TestCase):
         GameLogRepository(connection).save(
             {
                 "gameId": "game-1",
-                "roundNo": 15,
+                "roundNo": 10,
                 "phase": GamePhase.SETTLEMENT,
                 "kind": "settlement.resolved",
-                "message": "britain completed national income allocation.",
+                "message": "Britain completed Round 10 fiscal allocation.",
                 "details": {"playerId": "player-1"},
                 "createdAt": "2026-03-29T12:12:01+00:00",
             }
@@ -225,9 +225,10 @@ class FinalResultApiTests(unittest.TestCase):
         self.assertGreaterEqual(len(payload["data"]["finalLogs"]), 1)
         log_messages = [entry["message"] for entry in payload["data"]["finalLogs"]]
         self.assertIn("终局财政结算已完成。", log_messages)
-        self.assertIn("英国完成第 15 回合财政分配。", log_messages)
+        self.assertIn("英国完成第 10 回合财政分配。", log_messages)
         self.assertNotIn("settlement settled.", log_messages)
         self.assertNotIn("britain completed national income allocation.", log_messages)
+        self.assertNotIn("Britain completed Round 10 fiscal allocation.", log_messages)
 
     def test_final_result_tied_income_uses_tie_break_copy_in_zh(self) -> None:
         self.seed_finished_game(tied_income=True)
@@ -258,7 +259,7 @@ class FinalResultApiTests(unittest.TestCase):
         self.assertEqual(data["turningPointCards"][1]["title"], "Final tie decided by tie-breaks")
         self.assertIn("both finished with 88 cumulative national income", data["turningPointCards"][1]["detail"])
         self.assertIn("Final fiscal settlement is complete.", [entry["message"] for entry in data["finalLogs"]])
-        self.assertIn("Britain completed Round 15 fiscal allocation.", [entry["message"] for entry in data["finalLogs"]])
+        self.assertIn("Britain completed Round 10 fiscal allocation.", [entry["message"] for entry in data["finalLogs"]])
 
     def test_final_result_rejects_invalid_session(self) -> None:
         self.seed_finished_game()

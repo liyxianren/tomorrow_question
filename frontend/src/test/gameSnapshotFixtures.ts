@@ -700,7 +700,7 @@ export function createGameSnapshot(overrides: Partial<GameSnapshot> = {}): GameS
     snapshotId: "snapshot-1",
     gameId: "game-1",
     round: 2,
-    maxRounds: 15,
+    maxRounds: 10,
     phase,
     rulesVersion: "2.0",
     phaseDeadlineAt: "2026-03-30T12:01:30.000Z",
