@@ -339,6 +339,57 @@ describe("GamePhasePanelContent", () => {
     expect(screen.queryByText(/每回合收入分配/)).not.toBeInTheDocument();
   });
 
+  it("shows pending reforms and keeps their policies locked until next round", async () => {
+    const workspace = createDecisionPlayerWorkspace();
+    renderPanel("decision", {
+      decisionWorkspace: {
+        ...workspace,
+        governmentReforms: {
+          ...workspace.governmentReforms,
+          completedReforms: ["social_relief"],
+          pendingReforms: ["social_relief"],
+          availableReforms: [
+            {
+              reformId: "social_relief",
+              path: "freedom",
+              label: "社会救济",
+              adminCost: 2,
+              description: "建立救济制度，提升国内市场承接能力。",
+              isCompleted: true,
+              isPendingActivation: true,
+              isBlocked: false,
+              effects: { domesticMarketCapacityDelta: 1 },
+              unlocksPolicies: ["social_welfare"],
+            },
+          ],
+          availablePolicies: [
+            {
+              policyId: "social_welfare",
+              label: "社会福利",
+              adminCostPerTurn: 1,
+              budgetCost: 0,
+              description: "把收入向民间购买力倾斜。",
+              effects: {},
+              isActive: false,
+              requiresReform: "social_relief",
+              isUnlocked: false,
+              lockedReason: "下回合解锁",
+            },
+          ],
+        },
+      },
+    });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "下一步：政府政策" }));
+
+    const panel = screen.getByTestId("government-panel");
+    expect(panel).toHaveTextContent("已实施，下回合生效");
+    expect(panel).toHaveTextContent("数值与政策解锁下回合生效");
+    expect(panel).toHaveTextContent("下回合解锁");
+    expect(screen.getByRole("button", { name: "激活政策：社会福利" })).toBeDisabled();
+  });
+
   it.skip("shows locked factory goods and route reasons inside industrial intel (legacy — removed with v1 panels)", () => {});
 
   it.skip("renders route labels with localized names instead of internal ids (legacy — removed with v1 panels)", () => {});

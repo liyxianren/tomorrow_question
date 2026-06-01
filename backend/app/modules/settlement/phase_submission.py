@@ -1191,11 +1191,11 @@ def _validate_decision_payload(*, snapshot: GameSnapshot, player_state, payload:
             continue
         if policy_id in player_state.active_policies:
             continue  # already active, no cost
-        if policy.requires_reform is not None and policy.requires_reform not in player_state.completed_reforms:
+        if policy.requires_reform is not None and policy.requires_reform not in _effective_completed_reforms(player_state):
             raise PhaseSubmissionError(
                 ErrorCode.INVALID_SUBMISSION,
                 f"Policy {policy_id} requires reform {policy.requires_reform}.",
-                details={"reason": "政策前置改革未完成"},
+                details={"reason": "政策前置改革未生效" if policy.requires_reform in getattr(player_state, "pending_reforms", []) else "政策前置改革未完成"},
             )
         if _is_policy_path_blocked(player_state, balance, policy):
             raise PhaseSubmissionError(
@@ -1377,3 +1377,12 @@ def _is_policy_path_blocked(player_state, balance, policy) -> bool:
         if required_reform.path in done.blocks_other_paths:
             return True
     return False
+
+
+def _effective_completed_reforms(player_state) -> set[str]:
+    pending = set(getattr(player_state, "pending_reforms", []))
+    return {
+        reform_id
+        for reform_id in getattr(player_state, "completed_reforms", [])
+        if reform_id not in pending
+    }

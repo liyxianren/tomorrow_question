@@ -172,6 +172,7 @@ class PlayerState:
     reforms: list[str] = field(default_factory=list)
     policies: list[str] = field(default_factory=list)
     completed_reforms: list[str] = field(default_factory=list)
+    pending_reforms: list[str] = field(default_factory=list)
     active_policies: list[str] = field(default_factory=list)
     income_summary: dict[str, Any] = field(default_factory=dict)
     controlled_regions_bonus: int = 0
@@ -213,6 +214,7 @@ class PlayerState:
             "reforms": _copy_string_list(self.reforms),
             "policies": _copy_string_list(self.policies),
             "completedReforms": _copy_string_list(self.completed_reforms),
+            "pendingReforms": _copy_string_list(self.pending_reforms),
             "activePolicies": _copy_string_list(self.active_policies),
             "incomeSummary": deepcopy(self.income_summary),
             "unlockedTalents": _copy_string_list(self.unlocked_talents),
@@ -256,6 +258,7 @@ class PlayerState:
             reforms=_copy_string_list(payload["reforms"]),
             policies=_copy_string_list(payload["policies"]),
             completed_reforms=_copy_string_list(payload.get("completedReforms", [])),
+            pending_reforms=_copy_string_list(payload.get("pendingReforms", [])),
             active_policies=_copy_string_list(payload.get("activePolicies", [])),
             income_summary=deepcopy(payload["incomeSummary"]),
             unlocked_talents=_copy_string_list(payload.get("unlockedTalents", [])),

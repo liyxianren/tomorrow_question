@@ -138,6 +138,8 @@ def build_snapshot_payload(snapshot_id: str = "snapshot-1", round_no: int = 3) -
     player.ideology_levels = {"liberalism": 1}
     player.reforms = ["tax_reform"]
     player.policies = ["free_trade"]
+    player.completed_reforms = ["social_relief"]
+    player.pending_reforms = ["social_relief"]
     player.income_summary = {"domesticMarketCapacity": 2, "overseasMarketCapacity": 1}
     snapshot.region_states = snapshot.region_states[:1]
     snapshot.region_states[0].access_level = RegionAccessLevel.CONCESSION
@@ -266,6 +268,10 @@ class PersistenceRepositoryTests(unittest.TestCase):
             ["africa"],
         )
         self.assertTrue(loaded["nationalStateByPlayer"]["player-1"]["colonizationUnlocked"])
+        self.assertEqual(
+            loaded["nationalStateByPlayer"]["player-1"]["pendingReforms"],
+            ["social_relief"],
+        )
 
     def test_turn_input_round_trip_and_phase_listing(self) -> None:
         first_turn_input = build_turn_input_payload(player_id="player-1")

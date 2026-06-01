@@ -955,7 +955,7 @@ def _apply_reform_plan(player_state, payload: dict[str, Any], balance) -> tuple[
             int(player_state.administration_capacity) - int(reform.admin_cost),
         )
         player_state.completed_reforms.append(reform_id)
-        _apply_reform_or_policy_effects(player_state, reform.effects)
+        player_state.pending_reforms.append(reform_id)
         enacted.append(reform_id)
 
     return enacted, errors
@@ -985,7 +985,8 @@ def _apply_policy_plan(player_state, payload: dict[str, Any], balance) -> list[s
             continue
         if policy_id in player_state.active_policies:
             continue
-        if policy.requires_reform is not None and policy.requires_reform not in player_state.completed_reforms:
+        effective_reforms = _effective_completed_reforms(player_state)
+        if policy.requires_reform is not None and policy.requires_reform not in effective_reforms:
             continue
         if _is_policy_path_blocked(player_state, balance, policy):
             continue
@@ -1011,6 +1012,15 @@ def _apply_policy_plan(player_state, payload: dict[str, Any], balance) -> list[s
         activated.append(policy_id)
 
     return activated
+
+
+def _effective_completed_reforms(player_state) -> set[str]:
+    pending = set(getattr(player_state, "pending_reforms", []))
+    return {
+        reform_id
+        for reform_id in getattr(player_state, "completed_reforms", [])
+        if reform_id not in pending
+    }
 
 
 def _is_policy_path_blocked(player_state, balance, policy) -> bool:

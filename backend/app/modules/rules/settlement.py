@@ -116,6 +116,7 @@ def resolve_settlement_phase(*, snapshot, turn_inputs) -> RuleResolution:
             int(player_state.phase1_economy.raw_materials)
             + raw_materials_per_turn
         )
+        _release_pending_reform_effects(player_state, balance)
         player_state.domestic_sales_revenue = 0
         player_state.overseas_sales_revenue = 0
         player_state.national_income = 0
@@ -479,13 +480,31 @@ def _reset_decision_action_ratio_state(player_state) -> None:
 
 
 def _apply_permanent_reform_effects(player_state, balance) -> None:
+    pending = set(getattr(player_state, "pending_reforms", []))
     for reform_id in player_state.completed_reforms:
+        if reform_id in pending:
+            continue
         reform = balance.reforms.reforms.get(reform_id)
         if reform is None:
             continue
         permanent = reform.effects.get("permanent") if isinstance(reform.effects, dict) else None
         if isinstance(permanent, dict):
             _apply_permanent_effects(player_state, permanent)
+
+
+def _release_pending_reform_effects(player_state, balance) -> None:
+    pending_reforms = list(getattr(player_state, "pending_reforms", []))
+    if not pending_reforms:
+        return
+
+    for reform_id in pending_reforms:
+        if reform_id not in player_state.completed_reforms:
+            continue
+        reform = balance.reforms.reforms.get(reform_id)
+        if reform is None:
+            continue
+        _apply_reform_or_policy_effects(player_state, reform.effects)
+    player_state.pending_reforms = []
 
 
 def _apply_phase3_research_progress(player_state, snapshot, balance) -> str | None:

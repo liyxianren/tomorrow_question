@@ -122,6 +122,7 @@ class NationalStatePayload(TypedDict):
     reforms: list[str]
     policies: list[str]
     completedReforms: list[str]
+    pendingReforms: NotRequired[list[str]]
     activePolicies: list[str]
     incomeSummary: dict[str, Any]
     unlockedTalents: list[str]

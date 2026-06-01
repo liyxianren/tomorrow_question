@@ -631,6 +631,7 @@ export interface ReformOption {
   adminCost: number;
   description?: string;
   isCompleted: boolean;
+  isPendingActivation?: boolean;
   isBlocked: boolean;
   effects: Record<string, unknown>;
   unlocksPolicies: string[];
@@ -665,6 +666,7 @@ export interface GovernmentReformsWorkspace {
   adminPurchaseCost: number;
   completedReforms: string[];
   activePolicies: string[];
+  pendingReforms?: string[];
   ideologyLevels: Record<string, number>;
   ideologyMin: number;
   ideologyMax: number;

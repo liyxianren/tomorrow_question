@@ -279,6 +279,7 @@ def build_decision_player_workspace(snapshot: GameSnapshot, player: PlayerState)
             "baseAdminCapacity": int(player.base_admin_capacity),
             "adminPurchaseCost": int(balance.politics.administration_cost),
             "completedReforms": list(player.completed_reforms),
+            "pendingReforms": list(player.pending_reforms),
             "activePolicies": list(player.active_policies),
             "ideologyLevels": dict(player.ideology_levels),
             "ideologyMin": int(balance.politics.ideology_min),
@@ -305,6 +306,7 @@ def build_decision_player_workspace(snapshot: GameSnapshot, player: PlayerState)
                     "adminCost": int(reform.admin_cost),
                     "description": reform.description,
                     "isCompleted": reform.reform_id in player.completed_reforms,
+                    "isPendingActivation": reform.reform_id in player.pending_reforms,
                     "isBlocked": _is_reform_blocked_for_workspace(player, reform, balance),
                     "effects": reform.effects,
                     "unlocksPolicies": list(reform.unlocks_policies),
@@ -326,13 +328,15 @@ def build_decision_player_workspace(snapshot: GameSnapshot, player: PlayerState)
                     "requiresReform": policy.requires_reform,
                     "requiresReformLabel": _resolve_reform_label(balance, policy.requires_reform),
                     "isUnlocked": (
-                        (policy.requires_reform is None or policy.requires_reform in player.completed_reforms)
+                        (policy.requires_reform is None or policy.requires_reform in _effective_completed_reforms(player))
                         and not _is_policy_blocked_for_workspace(player, policy, balance)
                     ),
                     "isBlocked": _is_policy_blocked_for_workspace(player, policy, balance),
                     "lockedReason": (
                         "已被最终改革锁定"
                         if _is_policy_blocked_for_workspace(player, policy, balance)
+                        else "下回合解锁"
+                        if policy.requires_reform in player.pending_reforms
                         else None
                     ),
                 }
@@ -388,6 +392,15 @@ def _is_policy_blocked_for_workspace(player: PlayerState, policy: Any, balance: 
         if required_reform.path in done.blocks_other_paths:
             return True
     return False
+
+
+def _effective_completed_reforms(player: PlayerState) -> set[str]:
+    pending = set(getattr(player, "pending_reforms", []))
+    return {
+        reform_id
+        for reform_id in getattr(player, "completed_reforms", [])
+        if reform_id not in pending
+    }
 
 
 def _format_reform_lock_description(reform: Any) -> str | None:

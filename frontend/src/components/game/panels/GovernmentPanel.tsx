@@ -976,8 +976,11 @@ export function GovernmentPanel({
             const path = reform.path;
             const queued = queuedReformIds.has(reform.reformId);
             const overCapacity = !queued && projectedAdmin < reform.adminCost;
-            const lockedReason = reform.isCompleted
-              ? t("game:government.alreadyImplemented")
+            const pendingActivation = Boolean(reform.isPendingActivation);
+            const lockedReason = pendingActivation
+              ? t("game:government.reformPendingActivation", "已实施，下回合生效")
+              : reform.isCompleted
+                ? t("game:government.alreadyImplemented")
               : reform.isBlocked
                 ? t("game:government.pathBlocked")
                 : overCapacity
@@ -1008,9 +1011,12 @@ export function GovernmentPanel({
               reform.unlocksPolicies ?? [],
               reform.lockDescription,
             );
+            if (!reform.isCompleted || pendingActivation) {
+              effectTags.push(t("game:government.reformEffectsNextRound", "数值与政策解锁下回合生效"));
+            }
             const status = wouldReachCritical
               ? "danger"
-              : queued
+              : queued || pendingActivation
                 ? "selected"
                 : lockedReason
                   ? "disabled"
@@ -1046,7 +1052,13 @@ export function GovernmentPanel({
                 warning={warningNode}
                 effects={effectTags.map((tag) => ({ label: tag, value: "" }))}
                 status={status}
-                statusText={queued ? "✓ " + t("game:government.queuedThisRound") : lockedReason ?? t("game:government.canImplementWithAdmin", { cost: reform.adminCost })}
+                statusText={
+                  pendingActivation
+                    ? "✓ " + t("game:government.reformPendingActivation", "已实施，下回合生效")
+                    : queued
+                      ? "✓ " + t("game:government.queuedThisRound")
+                      : lockedReason ?? t("game:government.canImplementWithAdmin", { cost: reform.adminCost })
+                }
                 control={{
                   kind: "toggle",
                   checked: queued,
@@ -1212,6 +1224,8 @@ export function GovernmentPanel({
                   const lockedReason = !policy.isUnlocked
                     ? policy.isBlocked
                       ? policy.lockedReason ?? t("game:government.pathBlocked")
+                      : policy.lockedReason === "下回合解锁"
+                      ? t("game:government.policyUnlocksNextRound", "下回合解锁")
                       : policy.requiresReform
                       ? t("game:government.needsReform", { reform: getReformLabel(policy.requiresReform) })
                       : t("game:government.lockedPolicy")

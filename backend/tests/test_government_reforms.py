@@ -4,7 +4,7 @@ These tests cover:
   - reform enactment and admin-capacity deduction
   - mutual exclusion between freedom/equality/national paths
   - policy activation, requires_reform gating, and deactivation
-  - one-shot effects (ideology delta, ratio override) at enact time
+  - one-shot reform effects delayed until settlement release
   - per-round settlement effects (admin spending, ratio delta, permanent
     tech_points_per_turn, welfare transfer)
 """
@@ -22,6 +22,7 @@ from app.contracts.enums import CountryCode, GamePhase
 from app.modules.balance_config import get_balance_config
 from app.modules.game_state.factory import create_game, create_initial_snapshot
 from app.modules.game_state.effects import get_effect_bonus, reset_temporary_effects
+from app.modules.game_state.factory_economy import upgrade_unit_budget_cost
 from app.modules.game_state.models import GameSnapshot, PlayerState
 from app.modules.rules.decision import (
     _apply_government_plan,
@@ -30,7 +31,11 @@ from app.modules.rules.decision import (
     _apply_reform_plan,
     resolve_decision_phase,
 )
-from app.modules.rules.settlement import _apply_active_policy_effects, resolve_settlement_phase
+from app.modules.rules.settlement import (
+    _apply_active_policy_effects,
+    _release_pending_reform_effects,
+    resolve_settlement_phase,
+)
 
 
 def _build_snapshot() -> GameSnapshot:
@@ -70,6 +75,7 @@ class ReformEnactmentTests(unittest.TestCase):
         self.assertEqual(enacted, ["constitution"])
         self.assertEqual(player.administration_capacity, 0)
         self.assertIn("constitution", player.completed_reforms)
+        self.assertIn("constitution", player.pending_reforms)
 
     def test_mutual_exclusion_planned_economy_blocks_freedom(self) -> None:
         balance = get_balance_config()
@@ -109,6 +115,11 @@ class ReformEnactmentTests(unittest.TestCase):
 
         self.assertEqual(first, ["soviet_state"])
         self.assertEqual(second, ["constitution"])
+        self.assertIn("soviet_state", player.pending_reforms)
+        self.assertEqual(player.ideology_levels["egalitarianism"], 8)
+
+        _release_pending_reform_effects(player, balance)
+
         self.assertEqual(player.ideology_levels["egalitarianism"], 0)
 
     def test_fascist_state_does_not_lock_route_but_resets_nationalism_and_grants_military_bonus(self) -> None:
@@ -124,6 +135,11 @@ class ReformEnactmentTests(unittest.TestCase):
 
         self.assertEqual(first, ["fascist_state"])
         self.assertEqual(second, ["social_relief"])
+        self.assertEqual(player.ideology_levels["nationalism"], 8)
+        self.assertEqual(player.army_cap, initial_army_cap)
+
+        _release_pending_reform_effects(player, balance)
+
         self.assertEqual(player.ideology_levels["nationalism"], 0)
         self.assertEqual(player.army_cap, initial_army_cap + 3)
         self.assertEqual(player.permanent_effects["overseasMarketCapacityBonus"], 2)
@@ -138,6 +154,13 @@ class ReformEnactmentTests(unittest.TestCase):
         enacted, _ = _apply_reform_plan(player, {"reforms": ["secret_police"]}, balance)
 
         self.assertEqual(enacted, ["secret_police"])
+        self.assertIn("secret_police", player.pending_reforms)
+        self.assertEqual(player.base_admin_capacity, 0)
+        self.assertEqual(player.administration_capacity, 2)
+        self.assertEqual(player.ideology_levels, {"liberalism": 7, "egalitarianism": 6, "nationalism": 5})
+
+        _release_pending_reform_effects(player, balance)
+
         self.assertEqual(player.base_admin_capacity, 2)
         self.assertEqual(player.administration_capacity, 4)
         self.assertEqual(player.ideology_levels, {"liberalism": 4, "egalitarianism": 3, "nationalism": 2})
@@ -193,6 +216,12 @@ class ReformEnactmentTests(unittest.TestCase):
 
         _apply_reform_plan(player, {"reforms": ["constitution"]}, balance)
 
+        self.assertEqual(player.ideology_levels["liberalism"], 5)
+        self.assertEqual(player.ideology_levels["egalitarianism"], 5)
+        self.assertEqual(player.ideology_levels["nationalism"], 5)
+
+        _release_pending_reform_effects(player, balance)
+
         self.assertEqual(player.ideology_levels["liberalism"], 4)
         self.assertEqual(player.ideology_levels["egalitarianism"], 4)
         self.assertEqual(player.ideology_levels["nationalism"], 4)
@@ -206,9 +235,31 @@ class ReformEnactmentTests(unittest.TestCase):
         _apply_reform_plan(player, {"reforms": ["planned_economy"]}, balance)
 
         self.assertIn("planned_economy", player.completed_reforms)
+        self.assertIn("planned_economy", player.pending_reforms)
+        self.assertEqual(player.income_allocation_ratio["domesticMarket"], 3.0)
+        self.assertEqual(player.income_allocation_ratio["factory"], 3.0)
+        self.assertEqual(player.income_allocation_ratio["governmentFiscal"], 4.0)
+
+        _release_pending_reform_effects(player, balance)
+
         self.assertEqual(player.income_allocation_ratio["domesticMarket"], 4.0)
         self.assertEqual(player.income_allocation_ratio["factory"], 1.0)
         self.assertEqual(player.income_allocation_ratio["governmentFiscal"], 5.0)
+
+    def test_trust_system_upgrade_discount_waits_until_reform_release(self) -> None:
+        balance = get_balance_config()
+        snapshot = _build_snapshot()
+        player = _get_player(snapshot, "player-1")
+        player.administration_capacity = 6
+        before = upgrade_unit_budget_cost(player, "mechanized")
+
+        _apply_reform_plan(player, {"reforms": ["trust_system"]}, balance)
+
+        self.assertEqual(upgrade_unit_budget_cost(player, "mechanized"), before)
+
+        _release_pending_reform_effects(player, balance)
+
+        self.assertLess(upgrade_unit_budget_cost(player, "mechanized"), before)
 
 
 class PolicyActivationTests(unittest.TestCase):
@@ -291,6 +342,22 @@ class PolicyActivationTests(unittest.TestCase):
         self.assertEqual(player.ideology_levels["egalitarianism"], 3)
         self.assertEqual(player.income_allocation_ratio["domesticMarket"], 3.5)
         self.assertEqual(player.income_allocation_ratio["governmentFiscal"], 3.5)
+
+    def test_newly_completed_reform_policy_unlock_waits_until_release(self) -> None:
+        balance = get_balance_config()
+        snapshot = _build_snapshot()
+        player = _get_player(snapshot, "player-1")
+        player.administration_capacity = 4
+
+        _apply_reform_plan(player, {"reforms": ["social_relief"]}, balance)
+        blocked = _apply_policy_plan(player, {"activatePolicies": ["social_welfare"]}, balance)
+
+        self.assertEqual(blocked, [])
+
+        _release_pending_reform_effects(player, balance)
+        activated = _apply_policy_plan(player, {"activatePolicies": ["social_welfare"]}, balance)
+
+        self.assertEqual(activated, ["social_welfare"])
 
     def test_strike_negotiation_sets_half_production_multiplier(self) -> None:
         balance = get_balance_config()
@@ -434,7 +501,13 @@ class SettlementEffectsTests(unittest.TestCase):
         resolution = resolve_settlement_phase(snapshot=snapshot, turn_inputs=[])
         updated = _get_player(resolution.updated_snapshot, "player-1")
 
-        self.assertEqual(updated.tech_points, 6)
+        self.assertEqual(updated.tech_points, 5)
+        self.assertEqual(updated.pending_reforms, [])
+
+        second = resolve_settlement_phase(snapshot=resolution.updated_snapshot, turn_inputs=[])
+        second_updated = _get_player(second.updated_snapshot, "player-1")
+
+        self.assertEqual(second_updated.tech_points, 6)
 
     def test_expand_army_policy_permanently_increases_army_cap_and_expires(self) -> None:
         balance = get_balance_config()

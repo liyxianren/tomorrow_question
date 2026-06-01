@@ -162,6 +162,7 @@ def _normalize_snapshot_payload(payload: dict[str, Any]) -> GameSnapshotPayload:
             "baseAdministrationCapacity": int(player_state.get("baseAdministrationCapacity", int(player_state["administrationCapacity"]))),
             "ideologyLevels": dict(player_state["ideologyLevels"]),
             "completedReforms": list(player_state.get("completedReforms", [])),
+            "pendingReforms": list(player_state.get("pendingReforms", [])),
             "activePolicies": list(player_state.get("activePolicies", [])),
             "reforms": list(player_state.get("reforms", [])),
             "policies": list(player_state.get("policies", [])),

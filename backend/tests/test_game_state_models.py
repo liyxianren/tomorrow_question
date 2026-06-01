@@ -59,6 +59,8 @@ class GameStateModelTests(unittest.TestCase):
             army={"infantry": 1},
             navy={"fleets": 1},
             income_summary={"nationalIncome": 12},
+            completed_reforms=["social_relief"],
+            pending_reforms=["social_relief"],
             established_diplomacy=["africa"],
             used_abilities=["workshop_of_the_world"],
             temporary_effects={
@@ -77,9 +79,16 @@ class GameStateModelTests(unittest.TestCase):
         self.assertEqual(payload["budgetPools"]["governmentFiscal"], 12)
         self.assertEqual(payload["techPoints"], 2)
         self.assertEqual(payload["establishedDiplomacy"], ["africa"])
+        self.assertEqual(payload["completedReforms"], ["social_relief"])
+        self.assertEqual(payload["pendingReforms"], ["social_relief"])
         self.assertEqual(payload["usedAbilities"], ["workshop_of_the_world"])
         self.assertEqual(payload["temporaryEffects"]["productionOutputMultiplier"], 2)
         self.assertNotIn("factoryExpansionUsedByMode", payload["phase1Economy"])
+
+        legacy_payload = dict(payload)
+        legacy_payload.pop("pendingReforms")
+        restored = PlayerState.from_payload("player-a", legacy_payload)
+        self.assertEqual(restored.pending_reforms, [])
 
     def test_initial_consumption_pool_covers_first_round_domestic_capacity(self) -> None:
         game = Game(game_id="game-1", room_code="ROOM1")
