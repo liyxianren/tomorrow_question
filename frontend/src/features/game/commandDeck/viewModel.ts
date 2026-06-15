@@ -195,10 +195,11 @@ function buildFactoryLocation({
       const queued = draft.governmentPlan.techResearch.some((item) => item.techId === tech.techId);
       const lockedReason = getTechResearchLockedReason(tech, techResearchPreview, workspace);
       const unlockSummary = buildTechUnlockSummary(tech, workspace);
+      const techLabel = translateBackend(tech.label);
 
       return {
         id: `technology-${tech.techId}`,
-        title: tech.label,
+        title: techLabel,
         subtitle: i18n.t("game:commandDeck.factory.factoryBudgetAmount", "工厂预算 {{amount}}", { amount: tech.budgetCost }),
         description: buildTechResearchDescription(tech, lockedReason, workspace, queued),
         badges: unlockSummary ? [unlockSummary] : [],
@@ -209,7 +210,7 @@ function buildFactoryLocation({
         selected: queued || tech.isUnlocked,
         control: {
           kind: "toggle",
-          label: tech.label,
+          label: techLabel,
           checked: queued || tech.isUnlocked,
           disabled: tech.isUnlocked || (!queued && lockedReason !== null),
         },
@@ -221,16 +222,16 @@ function buildFactoryLocation({
     .filter((option) => option.lockedReason !== null)
     .map((option) => ({
       id: `locked-${option.goodsId}`,
-      title: option.label,
-      subtitle: option.routeLabel,
-      description: option.usageHint,
+      title: translateBackend(option.label),
+      subtitle: translateRouteLabel(option.routeLabel),
+      description: translateBackend(option.usageHint),
       badges: [
         i18n.t("game:commandDeck.factory.domesticPriceBadge", "国内 {{price}}", { price: option.domesticReferencePrice }),
         i18n.t("game:commandDeck.factory.overseasPriceBadge", "海外 {{min}}-{{max}}", { min: option.overseasReferencePriceMin, max: option.overseasReferencePriceMax }),
         formatPriceTrendText(option.priceTrend, option.priceAdjustment),
       ],
       metrics: [],
-      lockedReason: option.lockedReason,
+      lockedReason: translateBackend(option.lockedReason),
       tone: "locked",
       control: { kind: "none" },
     } satisfies DecisionCardViewModel));
@@ -529,6 +530,7 @@ function buildGovernmentLocation({
     .filter((action) => action.actionId !== "expand_research")
     .map((action) => {
       const selected = selectedStrategyIds.has(action.actionId);
+      const actionLabel = translateBackend(action.label);
       const usesAdminPolicySlot = action.actionId === "trade_promotion" || action.isMarketRegulation === true;
       const fiscalCost = usesAdminPolicySlot ? 0 : action.cost;
       const nextBaseFiscalSpend = fiscalState.baseFiscalSpend + fiscalCost;
@@ -546,11 +548,11 @@ function buildGovernmentLocation({
 
       return {
         id: `strategy-${action.actionId}`,
-        title: action.label,
+        title: actionLabel,
         subtitle: usesAdminPolicySlot
           ? i18n.t("game:commandDeck.government.marketRegulationAdminCost", "市场调节 1 行政力")
           : i18n.t("game:commandDeck.government.marketRegulationCost", "市场调节 {{cost}}", { cost: action.cost }),
-        description: action.description,
+        description: translateBackend(action.description),
         badges: Object.keys(action.ratioDelta ?? {}).length > 0
           ? [formatRatioDeltaSummary(action.ratioDelta ?? {})]
           : effectBadges,
@@ -571,7 +573,7 @@ function buildGovernmentLocation({
         selected,
         control: {
           kind: "toggle",
-          label: action.label,
+          label: actionLabel,
           checked: selected,
           disabled: !selected && lockedReason !== null,
         },
@@ -585,10 +587,11 @@ function buildGovernmentLocation({
       const queued = draft.governmentPlan.techResearch.some((item) => item.techId === tech.techId);
       const lockedReason = getTechResearchLockedReason(tech, techResearchPreview, workspace);
       const unlockSummary = buildTechUnlockSummary(tech, workspace);
+      const techLabel = translateBackend(tech.label);
 
       return {
         id: `technology-${tech.techId}`,
-        title: tech.label,
+        title: techLabel,
         subtitle: i18n.t("game:commandDeck.government.govBudgetAmount", "政府预算 {{amount}}", { amount: tech.budgetCost }),
         description: buildTechResearchDescription(tech, lockedReason, workspace, queued),
         badges: unlockSummary ? [unlockSummary] : [],
@@ -599,7 +602,7 @@ function buildGovernmentLocation({
         selected: queued || tech.isUnlocked,
         control: {
           kind: "toggle",
-          label: tech.label,
+          label: techLabel,
           checked: queued || tech.isUnlocked,
           disabled: tech.isUnlocked || (!queued && lockedReason !== null),
         },
@@ -611,9 +614,9 @@ function buildGovernmentLocation({
     ? [
         {
           id: `ability-${workspace.nationalAbility.abilityId}`,
-          title: workspace.nationalAbility.label,
+          title: translateBackend(workspace.nationalAbility.label),
           subtitle: workspace.nationalAbility.isAvailable ? i18n.t("game:commandDeck.government.nationalAbility", "国家专属能力") : i18n.t("game:commandDeck.government.abilityUsed", "本局已使用"),
-          description: workspace.nationalAbility.description,
+          description: translateBackend(workspace.nationalAbility.description),
           badges: workspace.nationalAbility.requiresTargetIdeology ? [i18n.t("game:commandDeck.government.needsIdeologyTarget", "需要选择意识形态目标")] : [i18n.t("game:commandDeck.government.instantEffect", "即时生效")],
           metrics: [
             { label: i18n.t("game:commandDeck.government.ratioPreview", "比例预告"), value: formatRatio(ratioPreview) },
@@ -625,7 +628,7 @@ function buildGovernmentLocation({
           selected: Boolean(selectedAbility),
           control: {
             kind: "toggle",
-            label: i18n.t("game:commandDeck.government.enableAbility", "启用国家能力：{{label}}", { label: workspace.nationalAbility.label }),
+            label: i18n.t("game:commandDeck.government.enableAbility", "启用国家能力：{{label}}", { label: translateBackend(workspace.nationalAbility.label) }),
             checked: Boolean(selectedAbility),
             disabled: !workspace.nationalAbility.isAvailable,
           },
@@ -641,6 +644,7 @@ function buildGovernmentLocation({
 
   const reformCards: DecisionCardViewModel[] = (reforms?.availableReforms ?? []).map((reform) => {
     const queued = queuedReformIds.has(reform.reformId);
+    const reformLabel = translateBackend(reform.label);
     const pathLabel = reform.path === "freedom" ? i18n.t("game:government.reformPath.freedomRoad", "自由之路") : reform.path === "equality" ? i18n.t("game:government.reformPath.equalityRoad", "平等之路") : i18n.t("game:government.reformPath.nationalRoad", "民族之路");
     const lockedReason = reform.isCompleted
       ? i18n.t("game:government.statusCompleted", "已完成")
@@ -649,7 +653,7 @@ function buildGovernmentLocation({
         : null;
     return {
       id: `reform-${reform.reformId}`,
-      title: reform.label,
+      title: reformLabel,
       subtitle: i18n.t("game:commandDeck.government.reformSubtitle", "{{path}} · 行政力 {{adminCost}}", { path: pathLabel, adminCost: reform.adminCost }),
       description: lockedReason ?? i18n.t("game:commandDeck.government.reformDesc", "消耗 {{adminCost}} 行政力推动「{{path}}」。", { adminCost: reform.adminCost, path: pathLabel }),
       badges: [pathLabel],
@@ -660,7 +664,7 @@ function buildGovernmentLocation({
       selected: queued || reform.isCompleted,
       control: {
         kind: "toggle",
-        label: reform.label,
+        label: reformLabel,
         checked: queued,
         disabled: reform.isCompleted || reform.isBlocked,
       },
@@ -672,6 +676,7 @@ function buildGovernmentLocation({
     const queuedActivate = queuedActivatePolicyIds.has(policy.policyId);
     const queuedDeactivate = queuedDeactivatePolicyIds.has(policy.policyId);
     const willBeActive = queuedActivate || (policy.isActive && !queuedDeactivate);
+    const policyLabel = translateBackend(policy.label);
     const lockedReason = !policy.isUnlocked && !policy.isActive
       ? policy.requiresReform
         ? i18n.t("game:commandDeck.government.policyRequiresReform", "需先完成改革：{{reform}}", { reform: getReformLabel(policy.requiresReform) })
@@ -680,9 +685,9 @@ function buildGovernmentLocation({
     const subtitle = formatPolicyCostSummary(policy);
     return {
       id: `policy-${policy.policyId}`,
-      title: policy.label,
+      title: policyLabel,
       subtitle,
-      description: policy.description ?? (willBeActive ? i18n.t("game:commandDeck.government.policySelectedThisRound", "本轮已选") : i18n.t("game:commandDeck.government.policyActivatable", "可激活")),
+      description: policy.description ? translateBackend(policy.description) : (willBeActive ? i18n.t("game:commandDeck.government.policySelectedThisRound", "本轮已选") : i18n.t("game:commandDeck.government.policyActivatable", "可激活")),
       badges: [
         willBeActive
           ? i18n.t("game:commandDeck.government.policySelectedThisRound", "本轮已选")
@@ -699,7 +704,7 @@ function buildGovernmentLocation({
       selected: willBeActive,
       control: {
         kind: "toggle",
-        label: policy.label,
+        label: policyLabel,
         checked: willBeActive,
         disabled: lockedReason !== null && !willBeActive,
       },
@@ -925,7 +930,7 @@ function buildResearchLocation({
     },
     ...chains.map((chain) => ({
       id: `research-chain-${chain.chainId}`,
-      title: chain.label,
+      title: translateBackend(chain.label),
       description: i18n.t("game:commandDeck.research.chainDesc", "同一回合只能选择一个研究目标。每项科技的首个发现者需要在结算掷 1D{{sides}}；若他国已发现，后发国家达到原阈值即可直接解锁。", { sides: breakthroughDieSides }),
       cards: chain.techs.map((tech) => {
         const selected = selectedTechIds.has(tech.techId);
@@ -951,10 +956,10 @@ function buildResearchLocation({
 
         return {
           id: `research-${tech.techId}`,
-          title: tech.label,
+          title: translateBackend(tech.label),
           subtitle: tech.isUnlocked ? i18n.t("game:commandDeck.research.techCompleted", "已完成") : i18n.t("game:commandDeck.research.progressLabel", "{{text}} 进度", { text: progressText }),
           description: unlocks.length > 0
-            ? i18n.t("game:commandDeck.research.unlocksHint", "完成后解锁：{{list}}", { list: unlocks.join("、") })
+            ? i18n.t("game:commandDeck.research.unlocksHint", "完成后解锁：{{list}}", { list: unlocks.map(translateBackend).join("、") })
             : i18n.t("game:commandDeck.research.unlocksDefault", "完成后解锁后续工业能力。"),
           badges: tech.isUnlocked
             ? [i18n.t("game:commandDeck.research.badgeUnlocked", "已解锁")]
@@ -1038,18 +1043,20 @@ function buildProductionCard(
 ): DecisionCardViewModel {
   const quantity = getProductionOrderQuantity(draft, option.goodsId);
   const effectiveMax = resolveProductionMaxQuantity(option, quantity, availability);
+  const goodsLabel = translateBackend(option.label);
+  const routeLabel = translateRouteLabel(option.routeLabel);
   const lockedReason = quantity > 0
     ? null
     : effectiveMax <= 0
       ? availability.remainingFactoryBudget < option.unitBudgetCost
         ? i18n.t("game:commandDeck.factory.insufficientBudget", "工厂预算不足")
-        : i18n.t("game:commandDeck.factory.routeCapacityFull", "共享{{label}}产能已满", { label: option.routeLabel })
+        : i18n.t("game:commandDeck.factory.routeCapacityFull", "共享{{label}}产能已满", { label: routeLabel })
       : null;
 
   return {
     id: `production-${option.goodsId}`,
-    title: option.label,
-    subtitle: `${option.routeLabel} · ${option.usageHint}`,
+    title: goodsLabel,
+    subtitle: `${routeLabel} · ${translateBackend(option.usageHint)}`,
     badges: [
       i18n.t("game:commandDeck.factory.costPerBatch", "成本 {{cost}}/批", { cost: option.unitBudgetCost }),
       i18n.t("game:commandDeck.factory.domesticPrice", "国内价 {{price}}", { price: option.domesticReferencePrice }),
@@ -1068,7 +1075,7 @@ function buildProductionCard(
     selected: quantity > 0,
     control: {
       kind: "quantity",
-      label: i18n.t("game:commandDeck.factory.produceLabel", "生产 {{label}}", { label: option.label }),
+      label: i18n.t("game:commandDeck.factory.produceLabel", "生产 {{label}}", { label: goodsLabel }),
       max: effectiveMax,
       value: quantity,
       disabled: effectiveMax <= 0 && quantity <= 0,
@@ -1084,6 +1091,7 @@ function buildFactoryActionCard(
   remainingFactoryBudget: number,
 ): DecisionCardViewModel {
   const selected = (draft.factoryPlan.factoryActions ?? []).some((item) => item.actionId === action.actionId);
+  const actionLabel = translateBackend(action.label);
   const lockedReason = resolveBudgetLockedReason({
     baseLockedReason: action.lockedReason,
     isSelected: selected,
@@ -1098,11 +1106,11 @@ function buildFactoryActionCard(
 
   return {
     id: `factory-action-${action.actionId}`,
-    title: action.label,
+    title: actionLabel,
     subtitle: action.cost > 0
       ? i18n.t("game:commandDeck.factory.factoryBudgetAmount", "{{amount}} 工厂预算", { amount: action.cost })
       : i18n.t("game:factory.noCost", "无消耗"),
-    description: action.description,
+    description: translateBackend(action.description),
     badges: effectMetrics.length > 0
       ? effectMetrics.map((metric) => `${metric.label} ${metric.value}`)
       : [i18n.t("game:commandDeck.factory.industryActionBadge", "临时调度")],
@@ -1116,7 +1124,7 @@ function buildFactoryActionCard(
     selected,
     control: {
       kind: "toggle",
-      label: action.label,
+      label: actionLabel,
       checked: selected,
       disabled: !selected && lockedReason !== null,
     },
@@ -1189,6 +1197,7 @@ function buildExpansionCard(
 ): DecisionCardViewModel {
   const quantity = getRouteOrderQuantity(draft.factoryPlan.expansionOrders, option.routeId);
   const confirmed = quantity > 0;
+  const routeLabel = translateRouteLabel(option.routeLabel || option.routeId);
   const lockedReason = resolveBudgetLockedReason({
     baseLockedReason: option.lockedReason,
     isSelected: confirmed,
@@ -1199,9 +1208,9 @@ function buildExpansionCard(
 
   return {
     id: `expansion-${option.routeId}`,
-    title: i18n.t("game:commandDeck.factory.expandProduction", "工厂增加：{{label}}", { label: option.routeLabel }),
+    title: i18n.t("game:commandDeck.factory.expandProduction", "工厂增加：{{label}}", { label: routeLabel }),
     subtitle: i18n.t("game:commandDeck.factory.capacityIncrease", "产能 +{{delta}}", { delta: option.capacityDelta }),
-    description: i18n.t("game:commandDeck.factory.expansionDesc", "直接建设 {{label}} 工厂，产能 +{{delta}}，本回合立即可投料；只受总工厂上限、闲置名额、预算和科技前置限制。", { delta: option.capacityDelta, label: option.routeLabel }),
+    description: i18n.t("game:commandDeck.factory.expansionDesc", "直接建设 {{label}} 工厂，产能 +{{delta}}，本回合立即可投料；只受总工厂上限、闲置名额、预算和科技前置限制。", { delta: option.capacityDelta, label: routeLabel }),
     badges: [
       i18n.t("game:commandDeck.factory.costBadge", "费用 {{cost}} 预算", { cost: option.unitBudgetCost }),
     ],
@@ -1282,6 +1291,7 @@ function buildNewFactoryCard(
 ): DecisionCardViewModel {
   const quantity = getRouteOrderQuantity(draft.factoryPlan.newFactoryOrders, option.routeId);
   const confirmed = quantity > 0;
+  const routeLabel = translateRouteLabel(option.routeLabel || option.routeId);
   const lockedReason = resolveBudgetLockedReason({
     baseLockedReason: option.lockedReason,
     isSelected: confirmed,
@@ -1292,9 +1302,9 @@ function buildNewFactoryCard(
 
   return {
     id: `new-factory-${option.routeId}`,
-    title: i18n.t("game:commandDeck.factory.newFactory", "工厂增加：{{label}}", { label: option.routeLabel }),
+    title: i18n.t("game:commandDeck.factory.newFactory", "工厂增加：{{label}}", { label: routeLabel }),
     subtitle: i18n.t("game:commandDeck.factory.capacityIncrease", "产能 +{{delta}}", { delta: option.capacityDelta }),
-    description: i18n.t("game:commandDeck.factory.newFactoryDesc", "直接建设 {{label}} 工厂，产能 +{{delta}}，本回合立即可投料；会占用闲置工厂名额并受国家总工厂上限限制。", { delta: option.capacityDelta, label: option.routeLabel }),
+    description: i18n.t("game:commandDeck.factory.newFactoryDesc", "直接建设 {{label}} 工厂，产能 +{{delta}}，本回合立即可投料；会占用闲置工厂名额并受国家总工厂上限限制。", { delta: option.capacityDelta, label: routeLabel }),
     badges: [i18n.t("game:commandDeck.factory.costBadge", "费用 {{cost}} 预算", { cost: option.unitBudgetCost })],
     metrics: [{ label: i18n.t("game:commandDeck.factory.cost", "费用"), value: i18n.t("game:commandDeck.factory.factoryBudgetAmount", "{{amount}} 工厂预算", { amount: option.unitBudgetCost }) }],
     feedback: confirmed ? i18n.t("game:commandDeck.factory.newFactoryConfirmed", "已确认新建，工厂预算 -{{cost}}。", { cost: option.unitBudgetCost }) : undefined,
@@ -1319,6 +1329,7 @@ function buildMilitaryActionCard(
   remainingMilitaryPoints: number,
 ): DecisionCardViewModel {
   const canAdd = selectionCount < action.maxPerRound && remainingMilitaryPoints >= action.cost;
+  const actionLabel = translateBackend(action.label);
   const lockedReason = selectionCount >= action.maxPerRound
     ? i18n.t("game:commandDeck.military.maxPerRoundReached", "已达到本轮上限 {{max}} 次", { max: action.maxPerRound })
     : !canAdd
@@ -1327,7 +1338,7 @@ function buildMilitaryActionCard(
 
   return {
     id: `military-${action.actionId}`,
-    title: action.label,
+    title: actionLabel,
     subtitle: i18n.t("game:commandDeck.military.militaryPointsCost", "军事点 {{cost}}", { cost: action.cost }),
     description: buildMilitaryActionDescription(action),
     badges: [i18n.t("game:commandDeck.military.maxPerRound", "每轮上限 {{max}}", { max: action.maxPerRound })],
@@ -1344,8 +1355,8 @@ function buildMilitaryActionCard(
       mode: "count",
       count: selectionCount,
       maxCount: action.maxPerRound,
-      confirmLabel: i18n.t("game:military.confirmAction", "确认动作：{{label}}", { label: action.label }),
-      cancelLabel: i18n.t("game:military.revokeAction", "撤回动作：{{label}}", { label: action.label }),
+      confirmLabel: i18n.t("game:military.confirmAction", "确认动作：{{label}}", { label: actionLabel }),
+      cancelLabel: i18n.t("game:military.revokeAction", "撤回动作：{{label}}", { label: actionLabel }),
       disabled: !canAdd,
       revokeDisabled: selectionCount === 0,
     },
@@ -1387,7 +1398,7 @@ function resolveBudgetLockedReason({
     return null;
   }
   if (baseLockedReason) {
-    return baseLockedReason;
+    return translateBackend(baseLockedReason);
   }
   if (remainingBudget < requiredBudget) {
     return insufficientBudgetLabel;

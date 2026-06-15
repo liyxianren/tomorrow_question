@@ -24,18 +24,19 @@ import "./LobbyPage.css";
 
 
 export function LobbyPage() {
-  const { t } = useTranslation("lobby");
+  const { i18n, t } = useTranslation("lobby");
   const [searchParams] = useSearchParams();
   const [profileVersion, setProfileVersion] = useState(0);
   const [isIdentityGateOpen, setIdentityGateOpen] = useState(false);
   const profile = useMemo(() => getStoredProfile(), [profileVersion]);
   const inviteRoomCode = normalizeRoomCode(searchParams.get("roomCode") ?? "");
   const isInviteEntry = searchParams.get("from") === "invite";
+  const currentLanguage = i18n.resolvedLanguage ?? i18n.language;
   const inviteEntry = useMemo(
     () => buildInviteEntryViewModel(inviteRoomCode, isInviteEntry),
-    [inviteRoomCode, isInviteEntry],
+    [currentLanguage, inviteRoomCode, isInviteEntry],
   );
-  const primaryActionViewModel = useMemo(() => buildLobbyPrimaryActionViewModel(), []);
+  const primaryActionViewModel = useMemo(() => buildLobbyPrimaryActionViewModel(), [currentLanguage]);
   useIdentityGateController({
     onIdentityConfirmed: () => {
       setProfileVersion((value) => value + 1);

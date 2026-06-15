@@ -126,7 +126,7 @@ describe("GamePage", () => {
 
     expect(screen.getByTestId("game-map-view")).toBeInTheDocument();
     expect(screen.getByTestId("game-country")).toHaveTextContent("英国");
-    expect(screen.getByTestId("game-round")).toHaveTextContent("回合 2 / 10");
+    expect(screen.getByTestId("game-round")).toHaveTextContent("第 2 / 10 回合");
     expect(screen.getByTestId("game-phase")).toHaveTextContent("当前阶段：市场出售");
     expect(screen.getByTestId("game-resource-strip")).toBeInTheDocument();
     expect(screen.getByTestId("map-building-market")).toBeInTheDocument();

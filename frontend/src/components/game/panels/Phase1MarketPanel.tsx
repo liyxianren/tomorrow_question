@@ -15,7 +15,7 @@ import {
   buildRegionRouteBlockadeDetail,
   getRegionAccessLevelLabel,
 } from "../../../features/game/decisionShared";
-import { getCountryLabel } from "../../../features/game/panelGlossary";
+import { getCountryLabel, getRegionLabel } from "../../../features/game/panelGlossary";
 import {
   calculateDomesticMarketPreview,
   DOMESTIC_PRICE_CEILING_RATIO,
@@ -118,9 +118,9 @@ export function Phase1MarketPanel({
   const consumerPool = budgetPools.domesticMarket ?? 0;
   const pricingPool = phase1Economy.consumptionPool ?? consumerPool;
   const marketAdjustmentLabels = {
-    domesticCapacity: t("game:government.effect.domesticCapacity", "国内容量"),
-    domesticPrice: t("game:government.effect.domesticPrice", "国内价格"),
-    overseasCapacity: t("game:government.effect.overseasCapacity", "海外容量"),
+    domesticCapacity: t("game:government.effect.domesticCapacity", "Domestic Capacity"),
+    domesticPrice: t("game:government.effect.domesticPrice", "Domestic Price"),
+    overseasCapacity: t("game:government.effect.overseasCapacity", "Overseas Capacity"),
   };
   const activeGovernmentAdjustments = buildMarketAdjustmentLabels({
     domesticCapacity: policyDomesticCapacityBonus,
@@ -321,7 +321,11 @@ export function Phase1MarketPanel({
           </span>
           {shouldShowNetAdjustments ? (
             <span className="phase1-market__policy-banner-net">
-              {t("game:market.netAdjustment", "当前净调整")}：{netMarketAdjustmentText}
+              {t("game:market.netAdjustmentWithValue", {
+                label: t("game:market.netAdjustment", "Current net adjustment"),
+                value: netMarketAdjustmentText,
+                defaultValue: "{{label}}: {{value}}",
+              })}
             </span>
           ) : null}
         </div>
@@ -495,6 +499,7 @@ export function Phase1MarketPanel({
             const competitionLockedReason = region.competitionLockedReason ?? null;
             const canCompete = Boolean(region.canCompete);
             const marketStatus = buildRegionMarketStatus(region, t);
+            const displayRegionLabel = getDisplayRegionLabel(region);
 
             function handleRegionDelta(delta: number) {
               if (readOnly) {
@@ -548,7 +553,7 @@ export function Phase1MarketPanel({
             return (
               <article key={region.regionId} className={cardClass}>
                 <header className="phase1-market__card-header">
-                  <span className="phase1-market__card-name">{region.label}</span>
+                  <span className="phase1-market__card-name">{displayRegionLabel}</span>
                   {accessible ? (
                     <span className={`phase1-market__card-badge phase1-market__card-badge--${marketStatus.tone}`}>
                       {marketStatus.badge}
@@ -613,7 +618,7 @@ export function Phase1MarketPanel({
                         className="phase1-market__stepper-btn"
                         disabled={readOnly || quantity <= 0}
                         onClick={() => handleRegionDelta(-1)}
-                        aria-label={t("game:market.reduceRegion", { region: region.label })}
+                        aria-label={t("game:market.reduceRegion", { region: displayRegionLabel })}
                       >
                         −
                       </button>
@@ -622,7 +627,7 @@ export function Phase1MarketPanel({
                         className="phase1-market__stepper-zero"
                         disabled={readOnly || quantity <= 0}
                         onClick={handleRegionZero}
-                        aria-label={t("game:market.clearRegion", { region: region.label })}
+                        aria-label={t("game:market.clearRegion", { region: displayRegionLabel })}
                       >
                         0
                       </button>
@@ -632,7 +637,7 @@ export function Phase1MarketPanel({
                         className="phase1-market__stepper-btn"
                         disabled={readOnly || quantity >= maxForRegion}
                         onClick={() => handleRegionDelta(1)}
-                        aria-label={t("game:market.increaseRegion", { region: region.label })}
+                        aria-label={t("game:market.increaseRegion", { region: displayRegionLabel })}
                       >
                         +
                       </button>
@@ -641,7 +646,7 @@ export function Phase1MarketPanel({
                         className="phase1-market__stepper-max"
                         disabled={readOnly || quantity >= maxForRegion}
                         onClick={handleRegionMax}
-                        aria-label={t("game:market.maxRegion", { region: region.label })}
+                        aria-label={t("game:market.maxRegion", { region: displayRegionLabel })}
                       >
                         MAX
                       </button>
@@ -661,7 +666,7 @@ export function Phase1MarketPanel({
                           <div className="phase1-market__unit-controls">
                             <UnitStepper
                               label={t("game:market.infantry")}
-                              ariaContext={region.label}
+                              ariaContext={displayRegionLabel}
                               value={competitionDeployment?.infantry ?? 0}
                               max={maxInfantryForRegion}
                               readOnly={readOnly}
@@ -669,7 +674,7 @@ export function Phase1MarketPanel({
                             />
                             <UnitStepper
                               label={t("game:market.artillery")}
-                              ariaContext={region.label}
+                              ariaContext={displayRegionLabel}
                               value={competitionDeployment?.artillery ?? 0}
                               max={maxArtilleryForRegion}
                               readOnly={readOnly}
@@ -680,9 +685,9 @@ export function Phase1MarketPanel({
                             {t("game:market.competitionCaptureNote", {
                               capacity: region.competitionRewardCapacityBonus ?? competitionConfig.rewardCapacityBonus,
                               estimated: regionRewardCapacity > 0
-                                ? `，${t("game:market.extraCapacityActive", "额外容量已生效")}`
+                                ? `${getInlineSeparator()}${t("game:market.extraCapacityActive", "extra capacity active")}`
                                 : "",
-                              minPower: `，${t("game:military.militaryPointsRequired", { points: region.competitionMinimumPower ?? competitionConfig.minimumPower })}`,
+                              minPower: `${getInlineSeparator()}${t("game:military.militaryPointsRequired", { points: region.competitionMinimumPower ?? competitionConfig.minimumPower })}`,
                             })}
                           </p>
                         </>
@@ -710,43 +715,51 @@ export function Phase1MarketPanel({
 
       <details className="phase1-market__audit" data-testid="phase1-market-audit">
         <summary className="phase1-market__audit-summary">
-          <span>市场计算核对</span>
+          <span>{t("game:market.auditSummaryTitle", "Market Calculation Check")}</span>
           <span>
-            当前预估：国内 {formatNumber(preview.revenue)} · 海外 {formatNumber(overseasAuditRevenue)} · 合计 {formatNumber(totalEstimatedRevenue)}
+            {t("game:market.auditCurrentEstimate", {
+              domestic: formatNumber(preview.revenue),
+              overseas: formatNumber(overseasAuditRevenue),
+              total: formatNumber(totalEstimatedRevenue),
+              defaultValue: "Current estimate: domestic {{domestic}} · overseas {{overseas}} · total {{total}}",
+            })}
           </span>
         </summary>
         <p className="phase1-market__audit-note">
-          这个窗口用于测试核对。后端参考数据是进入出售阶段时的基础值；点击投放按钮后，以“当前投放计算”的成交价、成交量和收入为准。
+          {t(
+            "game:market.auditNote",
+            "This panel is for calculation verification. Backend reference data is the baseline when the sales phase starts; after changing allocations, use the current allocation calculation for sold price, sold quantity, and revenue.",
+          )}
         </p>
         <div className="phase1-market__audit-grid">
           <section className="phase1-market__audit-section">
-            <h4>后端参考数据</h4>
+            <h4>{t("game:market.auditBackendReference", "Backend Reference Data")}</h4>
             <dl className="phase1-market__audit-list">
-              <AuditMetric label="商品库存" value={formatNumber(totalGoods)} />
-              <AuditMetric label="民间购买力" value={formatNumber(phase1Economy.consumptionPool ?? consumerPool)} />
-              <AuditMetric label="国内需求" value={formatNumber(domesticDemand)} />
-              <AuditMetric label="定价软上限 K" value={formatNumber(domesticSoftCap)} />
-              <AuditMetric label="基准价 P0" value={formatNumber(equilibriumPrice)} />
-              <AuditMetric label="价格加成" value={formatSignedNumber(domesticPriceBonus)} />
-              <AuditMetric label="最低价" value={formatNumber(minimumDomesticPrice)} />
-              <AuditMetric label="最高价" value={formatNumber(maximumDomesticPrice)} />
-              <AuditMetric label="后端参考成交价" value={formatNumber(backendSnapshotPrice)} testId="phase1-market-audit-backend-price" />
-              <AuditMetric label="后端参考夹取前价" value={formatNumber(phase1Economy.domesticPriceBeforeFloor ?? backendSnapshotPrice)} />
-              <AuditMetric label="共享海外容量" value={formatNumber(overseasMarketCapacity)} />
+              <AuditMetric label={t("game:market.auditGoodsInventory", "Goods Inventory")} value={formatNumber(totalGoods)} />
+              <AuditMetric label={t("game:market.auditConsumerPurchasingPower", "Consumer Purchasing Power")} value={formatNumber(phase1Economy.consumptionPool ?? consumerPool)} />
+              <AuditMetric label={t("game:market.auditDomesticDemand", "Domestic Demand")} value={formatNumber(domesticDemand)} />
+              <AuditMetric label={t("game:market.auditPricingSoftCapK", "Pricing Soft Cap K")} value={formatNumber(domesticSoftCap)} />
+              <AuditMetric label={t("game:market.auditBasePriceP0", "Base Price P0")} value={formatNumber(equilibriumPrice)} />
+              <AuditMetric label={t("game:market.auditPriceBonus", "Price Bonus")} value={formatSignedNumber(domesticPriceBonus)} />
+              <AuditMetric label={t("game:market.auditMinimumPrice", "Minimum Price")} value={formatNumber(minimumDomesticPrice)} />
+              <AuditMetric label={t("game:market.auditMaximumPrice", "Maximum Price")} value={formatNumber(maximumDomesticPrice)} />
+              <AuditMetric label={t("game:market.auditBackendReferenceSoldPrice", "Backend Reference Sold Price")} value={formatNumber(backendSnapshotPrice)} testId="phase1-market-audit-backend-price" />
+              <AuditMetric label={t("game:market.auditBackendReferencePreClampPrice", "Backend Reference Pre-Clamp Price")} value={formatNumber(phase1Economy.domesticPriceBeforeFloor ?? backendSnapshotPrice)} />
+              <AuditMetric label={t("game:market.auditSharedOverseasCapacity", "Shared Overseas Capacity")} value={formatNumber(overseasMarketCapacity)} />
             </dl>
           </section>
 
           <section className="phase1-market__audit-section">
-            <h4>当前投放计算</h4>
+            <h4>{t("game:market.auditCurrentAllocation", "Current Allocation Calculation")}</h4>
             <dl className="phase1-market__audit-list">
-              <AuditMetric label="国内投放 Q" value={formatNumber(clampedDomestic)} />
-              <AuditMetric label="供需调价" value={formatNumber(preview.supplyAdjustedPrice)} />
-              <AuditMetric label="夹取前价" value={formatNumber(preview.priceBeforeFloor)} />
-              <AuditMetric label="国内成交价" value={formatNumber(preview.price)} testId="phase1-market-audit-domestic-price" />
-              <AuditMetric label="国内成交量" value={formatNumber(preview.soldQty)} />
-              <AuditMetric label="国内收入" value={formatNumber(preview.revenue)} testId="phase1-market-audit-domestic-revenue" />
-              <AuditMetric label="海外收入" value={formatNumber(overseasAuditRevenue)} />
-              <AuditMetric label="总预估收入" value={formatNumber(totalEstimatedRevenue)} />
+              <AuditMetric label={t("game:market.auditDomesticAllocationQ", "Domestic Allocation Q")} value={formatNumber(clampedDomestic)} />
+              <AuditMetric label={t("game:market.auditSupplyDemandAdjustment", "Supply-Demand Adjustment")} value={formatNumber(preview.supplyAdjustedPrice)} />
+              <AuditMetric label={t("game:market.auditPreClampPrice", "Pre-Clamp Price")} value={formatNumber(preview.priceBeforeFloor)} />
+              <AuditMetric label={t("game:market.auditDomesticSoldPrice", "Domestic Sold Price")} value={formatNumber(preview.price)} testId="phase1-market-audit-domestic-price" />
+              <AuditMetric label={t("game:market.auditDomesticSoldQuantity", "Domestic Sold Quantity")} value={formatNumber(preview.soldQty)} />
+              <AuditMetric label={t("game:market.auditDomesticRevenue", "Domestic Revenue")} value={formatNumber(preview.revenue)} testId="phase1-market-audit-domestic-revenue" />
+              <AuditMetric label={t("game:market.auditOverseasRevenue", "Overseas Revenue")} value={formatNumber(overseasAuditRevenue)} />
+              <AuditMetric label={t("game:market.auditTotalEstimatedRevenue", "Total Estimated Revenue")} value={formatNumber(totalEstimatedRevenue)} />
             </dl>
           </section>
         </div>
@@ -755,14 +768,14 @@ export function Phase1MarketPanel({
           <table className="phase1-market__audit-table">
             <thead>
               <tr>
-                <th>区域</th>
-                <th>固定价</th>
-                <th>投放</th>
-                <th>竞争容量</th>
-                <th>竞争成交</th>
-                <th>共享成交</th>
-                <th>收入</th>
-                <th>状态</th>
+                <th>{t("game:market.auditRegion", "Region")}</th>
+                <th>{t("game:market.auditFixedPrice", "Fixed Price")}</th>
+                <th>{t("game:market.auditAllocation", "Allocation")}</th>
+                <th>{t("game:market.auditCompetitionCapacity", "Competition Capacity")}</th>
+                <th>{t("game:market.auditCompetitionSold", "Competition Sold")}</th>
+                <th>{t("game:market.auditSharedSold", "Shared Sold")}</th>
+                <th>{t("game:market.auditRevenue", "Revenue")}</th>
+                <th>{t("game:market.auditStatus", "Status")}</th>
               </tr>
             </thead>
             <tbody>
@@ -775,7 +788,7 @@ export function Phase1MarketPanel({
                   <td>{formatNumber(row.rewardSold)}</td>
                   <td>{formatNumber(row.sharedSold)}</td>
                   <td>{formatNumber(row.revenue)}</td>
-                  <td>{formatAuditRegionStatus(row)}</td>
+                  <td>{formatAuditRegionStatus(row, t)}</td>
                 </tr>
               ))}
             </tbody>
@@ -854,7 +867,7 @@ function buildOverseasAuditRows({
   for (const region of regions) {
     rows.set(region.regionId, {
       regionId: region.regionId,
-      label: region.label,
+      label: getDisplayRegionLabel(region),
       isAccessible: Boolean(region.isAccessible),
       isBlockaded: Boolean(region.isBlockaded),
       blockadeController: region.blockadeController ?? null,
@@ -914,24 +927,24 @@ function buildRegionMarketStatus(
   const controller = region.blockadeController ? getCountryLabel(region.blockadeController) : null;
   if (region.isAccessible && region.isBlockaded) {
     return {
-      badge: t("game:market.regionExclusiveByPlayer", { defaultValue: "本国独占" }),
+      badge: t("game:market.regionExclusiveByPlayer", { defaultValue: "Exclusive Access" }),
       tone: "exclusive",
       hint: t(
         "game:market.regionExclusiveByPlayerHint",
-        { defaultValue: "你已封锁该地区：你可以继续出售，其他国家不能向这个地区出售或抢夺市场。" },
+        { defaultValue: "You are blockading this region: you can continue selling here, while other countries cannot sell here or compete for the market." },
       ),
     };
   }
   if (!region.isAccessible && region.lockReason === "route_blocked") {
     return {
-      badge: t("game:market.regionBlocked", { defaultValue: "被封锁" }),
+      badge: t("game:market.regionBlocked", { defaultValue: "Blocked" }),
       tone: "blocked",
       hint: controller
         ? t(
             "game:market.regionBlockedByCountryHint",
-            { country: controller, defaultValue: "{{country}} 正在封锁该地区：你无法向这里出售，容量视为 0。" },
+            { country: controller, defaultValue: "{{country}} is blockading this region. You cannot sell here, and capacity is treated as 0." },
           )
-        : t("game:market.regionBlockedHint", { defaultValue: "该地区正在被封锁：你无法向这里出售，容量视为 0。" }),
+        : t("game:market.regionBlockedHint", { defaultValue: "This region is blockaded. You cannot sell here, and capacity is treated as 0." }),
     };
   }
   return {
@@ -941,14 +954,36 @@ function buildRegionMarketStatus(
   };
 }
 
-function formatAuditRegionStatus(row: OverseasAuditRow): string {
+function formatAuditRegionStatus(
+  row: OverseasAuditRow,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
   if (row.isAccessible && row.isBlockaded) {
-    return "本国独占";
+    return t("game:market.auditStatusExclusive", { defaultValue: "Exclusive Access" });
   }
   if (!row.isAccessible && row.isBlockaded) {
-    return row.blockadeController ? `${getCountryLabel(row.blockadeController)}封锁` : "被封锁";
+    return row.blockadeController
+      ? t("game:market.auditStatusBlockadedByCountry", {
+          country: getCountryLabel(row.blockadeController),
+          defaultValue: "Blockaded by {{country}}",
+        })
+      : t("game:market.auditStatusBlockaded", { defaultValue: "Blocked" });
   }
-  return row.isAccessible ? "开放" : "不可出售";
+  return row.isAccessible
+    ? t("game:market.auditStatusOpen", { defaultValue: "Open" })
+    : t("game:market.auditStatusUnavailable", { defaultValue: "Cannot sell" });
+}
+
+function getDisplayRegionLabel(region: RegionAccessStatus): string {
+  const fromRegionId = getRegionLabel(region.regionId);
+  if (fromRegionId && fromRegionId !== region.regionId) {
+    return fromRegionId;
+  }
+  return translateBackend(region.label);
+}
+
+function getInlineSeparator(): string {
+  return i18n.language?.startsWith("zh") ? "，" : ", ";
 }
 
 function UnitStepper({

@@ -71,7 +71,7 @@ export function LobbyWaitingRoomsSection({
             </div>
 
             <div
-              aria-label={`${room.memberCountLabel}，${room.availableSeatLabel}`}
+              aria-label={`${room.memberCountLabel}, ${room.availableSeatLabel}`}
               className="lobby-waiting-room__meter"
             >
               <span style={{ width: `${room.occupancyPercent}%` }} />

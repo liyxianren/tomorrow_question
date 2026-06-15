@@ -245,7 +245,18 @@
     "toggleUnavailable": "Unavailable",
     "toggleSelect": "Select",
     "ideologyTarget": "Ideology Target",
-    "modalTitle": "Decision Card DEMO"
+    "modalTitle": "Decision Card DEMO",
+    "liveSource": "Live Game",
+    "seedSource": "Built-in Seed",
+    "variantAAccent": "Budget First",
+    "variantALabel": "Option A: Command Deck",
+    "variantASummary": "Strongest budget feedback and closest to a production-ready version.",
+    "variantBAccent": "Information Density",
+    "variantBLabel": "Option B: Archive Deck",
+    "variantBSummary": "Emphasizes unlock requirements, explanatory copy, and research chains.",
+    "variantCAccent": "Decision Atmosphere",
+    "variantCLabel": "Option C: Action Stack Deck",
+    "variantCSummary": "Feels more like board-game action cards, with larger and more dramatic cards."
   },
   "appShell": {
     "home": {

@@ -176,7 +176,7 @@
     "rankPosition": "第 {{rank}} 名",
     "cumulativeIncomeLabel": "累计国家收入",
     "tieBreakLabel": "同分比较",
-    "finalLogTimeline": "终局日志",
+    "finalLogTimeline": "终局日志时间线",
     "lastDecisiveRecords": "最后关键记录",
     "noFinalLogs": "暂无终局日志。",
     "entryCount": "{{count}} 条",
@@ -245,7 +245,18 @@
     "toggleUnavailable": "暂不可用",
     "toggleSelect": "选择",
     "ideologyTarget": "意识形态目标",
-    "modalTitle": "决策卡片 DEMO"
+    "modalTitle": "决策卡片 DEMO",
+    "liveSource": "实时对局",
+    "seedSource": "内置种子",
+    "variantAAccent": "预算先行",
+    "variantALabel": "方案 A：指挥台卡组",
+    "variantASummary": "预算反馈最强，最接近正式可用稿。",
+    "variantBAccent": "信息密度",
+    "variantBLabel": "方案 B：档案册卡组",
+    "variantBSummary": "强调解锁条件、说明文案和研究链路。",
+    "variantCAccent": "决策氛围",
+    "variantCLabel": "方案 C：行动栈卡组",
+    "variantCSummary": "更像桌游行动牌，单卡更大、更有戏剧性。"
   },
   "appShell": {
     "home": {

@@ -58,10 +58,14 @@ export function GameSituationSummary({
 
         <div className="game-situation-bar__round">
           <span data-testid="game-round" className="game-situation-bar__round-text">
-            {t("game:situation.roundText")} {currentRound} / {totalRounds}
+            {formatRoundProgress(t("game:situation.roundText"), currentRound, totalRounds)}
           </span>
           <span data-testid="game-phase" className="game-situation-bar__phase-text">
-            {t("game:situation.phaseLabel")}：{currentPhase ? getPhaseLabel(currentPhase) : t("game:situation.phaseSyncing")}
+            {t("game:situation.phaseWithValue", {
+              label: t("game:situation.phaseLabel"),
+              phase: currentPhase ? getPhaseLabel(currentPhase) : t("game:situation.phaseSyncing"),
+              defaultValue: "{{label}}: {{phase}}",
+            })}
           </span>
         </div>
 
@@ -252,7 +256,7 @@ export function GameSituationSummary({
                       padding: "4px 10px",
                     }}
                   >
-                    {reform}
+                    {translateBackend(reform)}
                   </span>
                 )) : (
                   <span style={{ color: "var(--game-text-secondary)", fontSize: 13 }}>
@@ -318,6 +322,13 @@ function ActiveEventCard({ event }: { event: ActiveEvent }) {
 }
 
 const IDEOLOGY_ORDER = ["liberalism", "egalitarianism", "nationalism"] as const;
+
+function formatRoundProgress(roundLabel: string, currentRound: number, totalRounds: number): string {
+  if (i18n.language?.startsWith("zh")) {
+    return `第 ${currentRound} / ${totalRounds} ${roundLabel}`;
+  }
+  return `${roundLabel} ${currentRound} / ${totalRounds}`;
+}
 
 function getIdeologyLabel(key: string): string {
   return i18n.t(`game:ideology.${key}`);

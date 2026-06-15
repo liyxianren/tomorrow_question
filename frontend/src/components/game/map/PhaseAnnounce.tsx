@@ -13,6 +13,13 @@ function getPhaseTitle(phase: string): string {
   return key ? i18n.t(key) : phase;
 }
 
+function formatRoundPhase(roundLabel: string, round: number, phaseTitle: string): string {
+  if (i18n.language?.startsWith("zh")) {
+    return `第${round}${roundLabel}：${phaseTitle}`;
+  }
+  return `${roundLabel} ${round}: ${phaseTitle}`;
+}
+
 // Phases that need announce animation (decision and market need it; settlement follows market automatically)
 const ANNOUNCE_PHASES = new Set(["decision", "market"]);
 
@@ -51,7 +58,7 @@ export function PhaseAnnounce({ phase, round }: PhaseAnnounceProps) {
     >
       <div className="phase-announce__content">
         <h1 className="phase-announce__title">
-          {t("game:situation.roundText")} {displayRound}：{phaseTitle}
+          {formatRoundPhase(t("game:situation.roundText"), displayRound, phaseTitle)}
         </h1>
         <div className="phase-announce__line" />
       </div>

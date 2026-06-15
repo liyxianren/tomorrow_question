@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { translateBackend } from "../../../../i18n";
+import i18n, { translateBackend } from "../../../../i18n";
 import type { RegionAccessStatus } from "../../../../types";
 import { getCountryLabel, getGoodsLabel } from "../../../../features/game/panelGlossary";
 import "./MilitaryWorldMap.css";
@@ -81,7 +81,7 @@ export function MilitaryWorldMap({
             )}
             {region.myBlockadeFleet && region.myBlockadeFleet > 0 ? (
               <span className="mwm-pin__fleet">
-                {t("game:military.myRegionFleetShort", { count: region.myBlockadeFleet, defaultValue: `本国舰队 ${region.myBlockadeFleet}` })}
+                {t("game:military.myRegionFleetShort", { count: region.myBlockadeFleet, defaultValue: `Your Fleets ${region.myBlockadeFleet}` })}
               </span>
             ) : null}
           </div>
@@ -89,7 +89,7 @@ export function MilitaryWorldMap({
       })}
 
       <div className="mwm__legend">
-        ⛵ {t("game:military.regionFleetDeployment", { deployed: totalDeployed, total: totalFleets, defaultValue: `地区封锁舰队 ${totalDeployed}/${totalFleets}` })}
+        ⛵ {t("game:military.regionFleetDeployment", { deployed: totalDeployed, total: totalFleets, defaultValue: `Region Blockade Fleets ${totalDeployed}/${totalFleets}` })}
       </div>
     </div>
   );
@@ -97,13 +97,18 @@ export function MilitaryWorldMap({
 
 function buildRegionPinStatus(region: RegionAccessStatus): { label: string; tone: "open" | "exclusive" | "blocked" } {
   if (region.isAccessible && region.isBlockaded) {
-    return { label: "本国封锁", tone: "exclusive" };
+    return { label: i18n.t("game:military.regionPinExclusive", "Your Blockade"), tone: "exclusive" };
   }
   if (!region.isAccessible && region.isBlockaded) {
     return {
-      label: region.blockadeController ? `${getCountryLabel(region.blockadeController)}封锁` : "被封锁",
+      label: region.blockadeController
+        ? i18n.t("game:military.regionPinBlockedByCountry", {
+          country: getCountryLabel(region.blockadeController),
+          defaultValue: "{{country}} Blockade",
+        })
+        : i18n.t("game:military.regionPinBlocked", "Blockaded"),
       tone: "blocked",
     };
   }
-  return { label: "开放", tone: "open" };
+  return { label: i18n.t("game:military.regionPinOpen", "Open"), tone: "open" };
 }

@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import i18n from "../i18n";
 import type { GameFinishedPayload } from "../features/game/runtime/types";
 import { createGameSnapshot } from "../test/gameSnapshotFixtures";
 
@@ -406,5 +407,44 @@ describe("SettlementPage", () => {
     fireEvent.click(expandButton);
     expect(screen.getByRole("button", { name: "收起" })).toHaveAttribute("aria-expanded", "true");
     expect(timeline).toHaveTextContent(longMessage);
+  });
+
+  it("renders the final archive without Chinese labels or punctuation in English mode", async () => {
+    await i18n.changeLanguage("en");
+
+    const finalResult = createFinalResult();
+    finalResult.finalLogs = [
+      {
+        gameId: "game-15",
+        roundNo: 10,
+        phase: "settlement",
+        kind: "settlement.phase_resolved",
+        message: "Final fiscal settlement is complete.",
+        details: {},
+        createdAt: "2026-03-30T14:00:00Z",
+      },
+    ];
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: "/settlement/game-15",
+            state: { result: finalResult, roomCode: "ROOM15" },
+          },
+        ]}
+      >
+        <Routes>
+          <Route element={<SettlementPage />} path="/settlement/:gameId" />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const pageText = screen.getByTestId("settlement-center-stage").textContent ?? "";
+    expect(screen.getByText("Archive ID: game-15")).toBeInTheDocument();
+    expect(pageText).toContain("Cumulative National Income: 42");
+    expect(pageText).toContain("Tie-break Comparison: Production capacity: 2, controlled regions: 1, total resources: 20");
+    expect(pageText).not.toMatch(/[\u4e00-\u9fff]/);
+    expect(pageText).not.toMatch(/[：，。、（）]/);
   });
 });

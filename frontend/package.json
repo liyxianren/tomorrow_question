@@ -13,6 +13,7 @@
     "test:e2e:headed": "playwright test --config ./playwright.config.ts --project chromium --headed --pass-with-no-tests",
     "test:e2e:debug": "playwright test --config ./playwright.config.ts --project chromium --debug --pass-with-no-tests",
     "test:e2e:smoke": "playwright test --config ./playwright.config.ts --project chromium --pass-with-no-tests ./e2e/lobby-room.spec.ts",
+    "test:i18n-cjk": "node ./scripts/audit-i18n-cjk.mjs",
     "install:playwright": "playwright install chromium"
   },
   "dependencies": {

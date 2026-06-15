@@ -1,4 +1,4 @@
-import i18n from "../../../i18n";
+import i18n, { translateBackend } from "../../../i18n";
 import { getCountryLabel } from "../panelGlossary";
 import type { GameFinishedPayload } from "../runtime/types";
 
@@ -84,11 +84,16 @@ export function createSettlementPageState({
     meta: createTimelineMeta(log.roundNo, log.createdAt),
   })) ?? [];
   const whyRankChanged = finalResult?.whyRankChanged?.length
-    ? finalResult.whyRankChanged
+    ? finalResult.whyRankChanged.map((line) => translateBackend(line))
     : buildFallbackWhyRankChanged(finalResult);
-  const turningPointCards = finalResult?.turningPointCards ?? buildFallbackTurningPoints(finalResult);
+  const turningPointCards = finalResult?.turningPointCards
+    ? finalResult.turningPointCards.map((card) => ({
+        title: translateBackend(card.title),
+        detail: translateBackend(card.detail),
+      }))
+    : buildFallbackTurningPoints(finalResult);
   const replayGuidance = finalResult?.replayGuidance?.length
-    ? finalResult.replayGuidance
+    ? finalResult.replayGuidance.map((line) => translateBackend(line))
     : buildFallbackReplayGuidance(finalResult);
   const highlights = finalResult
     ? [
@@ -203,7 +208,11 @@ function buildFallbackTurningPoints(finalResult: GameFinishedPayload | null): Se
   }
 
   return finalResult.finalLogs.slice(0, 2).map((log) => ({
-    title: `${Number.isFinite(log.roundNo) ? i18n.t("game:settlement.roundLabel", "第 {{round}} 回合", { round: log.roundNo }) : i18n.t("game:settlement.unknownRound", "未知回合")}：${log.phase ? getPhaseLabel(log.phase) : i18n.t("game:settlement.finalRuling", "终局裁定")}`,
+    title: i18n.t("game:settlement.turningPointTitle", {
+      round: Number.isFinite(log.roundNo) ? i18n.t("game:settlement.roundLabel", "Round {{round}}", { round: log.roundNo }) : i18n.t("game:settlement.unknownRound", "Unknown Round"),
+      phase: log.phase ? getPhaseLabel(log.phase) : i18n.t("game:settlement.finalRuling", "Final Ruling"),
+      defaultValue: "{{round}}: {{phase}}",
+    }),
     detail: sanitizeFinalLogMessage(log.message, log.roundNo, log.phase),
   }));
 }
@@ -229,7 +238,7 @@ function sanitizeFinalLogMessage(message: string, roundNo: number, phase: string
   if (trimmed.endsWith(" settled.") && phase) {
     return i18n.t("game:settlement.logPhaseCompleted", "{{phase}}阶段已完成。", { phase: getPhaseLabel(phase) });
   }
-  return message;
+  return translateBackend(message);
 }
 
 function buildFallbackReplayGuidance(finalResult: GameFinishedPayload | null): string[] {

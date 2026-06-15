@@ -14,7 +14,9 @@
     "leave": "Leave Room",
     "start": "Start Game",
     "copyCode": "Copy Room Code",
-    "codeCopied": "Copied!"
+    "codeCopied": "Copied!",
+    "expand": "Expand",
+    "collapse": "Collapse"
   },
   "countrySelection": {
     "title": "Select Your Nation",

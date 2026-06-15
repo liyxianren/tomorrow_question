@@ -1,4 +1,4 @@
-import i18n from "../../i18n";
+import i18n, { translateBackend } from "../../i18n";
 import type {
   BudgetPools,
   DecisionActionOption,
@@ -615,7 +615,7 @@ export function getRouteLabel(routeId: string): string {
 export function buildGovernmentActionDescription(
   action: DecisionPlayerPhaseWorkspace["governmentActions"]["strategies"][number],
 ): string {
-  const parts = [action.description ?? i18n.t("game:effect.defaultDesc", "执行后会改变国家结构。")];
+  const parts = [action.description ? translateBackend(action.description) : i18n.t("game:effect.defaultDesc", "执行后会改变国家结构。")];
   if ((((action as any).militaryPointDelta ?? 0) ?? 0) !== 0) {
     parts.push(i18n.t("game:effect.militaryPointsValue", "军事点 {{value}}", { value: formatSignedValue(((action as any).militaryPointDelta ?? 0) ?? 0) }));
   }
@@ -628,7 +628,7 @@ export function buildGovernmentActionDescription(
 export function buildMilitaryActionDescription(
   action: DecisionPlayerPhaseWorkspace["militaryWorkspace"]["availableMilitaryActions"][number],
 ): string {
-  const parts = [action.description ?? i18n.t("game:effect.defaultMilitaryDesc", "执行后会改变当前海外扩张态势。")];
+  const parts = [action.description ? translateBackend(action.description) : i18n.t("game:effect.defaultMilitaryDesc", "执行后会改变当前海外扩张态势。")];
   if ("maxPerRound" in action) {
     parts.push(i18n.t("game:effect.militaryGovernmentFiscalCost", "消耗政府财政 {{cost}}。", { cost: action.cost }));
     parts.push(i18n.t("game:effect.maxPerRound", "本轮上限 {{max}} 次。", { max: action.maxPerRound }));
@@ -676,9 +676,9 @@ export function buildRegionRouteBlockadeDetail(status: RegionAccessStatus): stri
   }
   return i18n.t("game:market.routeBlockedDetail", {
     nodes: formatBlockedOceanNodeList(status.blockedOceanNodes),
-    effect: i18n.t("game:market.routeBlockedEffect", "无法向该区域出售；容量视为 0。"),
-    resolution: i18n.t("game:market.routeBlockedResolution", "向该地区投入更多舰队、打破对方地区封锁，或等待事件 / 政策变化。"),
-    defaultValue: "封锁地区：{{nodes}}。影响：{{effect}} 解除方式：{{resolution}}",
+    effect: i18n.t("game:market.routeBlockedEffect", "Cannot sell to this region; capacity counts as 0."),
+    resolution: i18n.t("game:market.routeBlockedResolution", "Assign more fleets to this region, break the opposing regional blockade, or wait for event / policy changes."),
+    defaultValue: "Blocked region: {{nodes}}. Impact: {{effect}} Resolution: {{resolution}}",
   });
 }
 
@@ -686,22 +686,25 @@ export function formatBlockedOceanNodeList(
   nodes: RegionAccessStatus["blockedOceanNodes"] | undefined,
 ): string {
   if (!nodes || nodes.length === 0) {
-    return i18n.t("game:market.unknownOceanNode", "未知地区");
+    return i18n.t("game:market.unknownOceanNode", "unknown region");
   }
   return nodes.map((node) => {
     const label = node.label
-      || i18n.t(`game:region.${node.nodeId}`, {
+      ? translateBackend(node.label)
+      : i18n.t(`game:region.${node.nodeId}`, {
         defaultValue: i18n.t(`game:oceanNode.${node.nodeId}`, node.nodeId),
       });
-    const controller = node.controllerLabel || i18n.t(`game:country.${node.controller}`, node.controller);
+    const controller = node.controllerLabel
+      ? translateBackend(node.controllerLabel)
+      : i18n.t(`game:country.${node.controller}`, node.controller);
     return node.controller
       ? i18n.t("game:market.blockedOceanNodeWithController", {
           node: label,
           controller,
-          defaultValue: "{{node}}（控制：{{controller}}）",
+          defaultValue: "{{node}} (controlled by {{controller}})",
         })
       : label;
-  }).join("、");
+  }).join(i18n.language?.startsWith("zh") ? "、" : ", ");
 }
 
 export function calculateGovernmentPointPreview(
@@ -811,7 +814,7 @@ export function getTechResearchLockedReason(
   const prerequisites = "prerequisites" in tech ? tech.prerequisites : [];
   const missingPrerequisites = prerequisites
     .filter((prerequisite) => !preview.unlockedTechIds.has(prerequisite))
-    .map((prerequisite) => flattenTechTree(workspace.techTree).find((candidate) => candidate.techId === prerequisite)?.label ?? prerequisite);
+    .map((prerequisite) => translateBackend(flattenTechTree(workspace.techTree).find((candidate) => candidate.techId === prerequisite)?.label ?? prerequisite));
 
   if (missingPrerequisites.length > 0) {
     return i18n.t("game:tech.prerequisiteNeeded", "前置：{{list}}", { list: missingPrerequisites.join("、") });
@@ -841,7 +844,7 @@ export function buildTechResearchDescription(
   const prerequisites = "prerequisites" in tech ? tech.prerequisites : [];
   if (prerequisites.length > 0) {
     const labels = prerequisites.map((prerequisite) => {
-      return flattenTechTree(workspace.techTree).find((candidate) => candidate.techId === prerequisite)?.label ?? prerequisite;
+      return translateBackend(flattenTechTree(workspace.techTree).find((candidate) => candidate.techId === prerequisite)?.label ?? prerequisite);
     });
     parts.push(i18n.t("game:tech.prerequisiteNeeded", "前置：{{list}}。", { list: labels.join("、") }));
   }
@@ -875,10 +878,11 @@ export function buildTechUnlockSummary(
   }
   if (unlocksActions.length > 0) {
     const actionLabels = unlocksActions.map((actionId) => {
-      return workspace.domesticMarketActions.find((action) => action.actionId === actionId)?.label
+      const label = workspace.domesticMarketActions.find((action) => action.actionId === actionId)?.label
         ?? workspace.factoryActions?.find((action) => action.actionId === actionId)?.label
         ?? workspace.governmentActions.strategies.find((action) => action.actionId === actionId)?.label
         ?? actionId;
+      return translateBackend(label);
     });
     parts.push(i18n.t("game:tech.unlocksActions", "动作：{{list}}", { list: actionLabels.join("、") }));
   }

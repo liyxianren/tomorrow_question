@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import i18n from "../../../i18n";
 import { createEmptyGameRuntimeState } from "../../../features/game/runtime/model";
 import type { GameRuntimeState } from "../../../features/game/runtime/types";
 import {
@@ -121,5 +122,36 @@ describe("GameSituationSummary", () => {
     expect(screen.getByText("产业自由化")).toBeInTheDocument();
     expect(screen.getByText("公共教育")).toBeInTheDocument();
     expect(screen.getByText("01:15")).toBeInTheDocument();
+  });
+
+  it("renders backend reform names and phase punctuation in English mode", async () => {
+    await i18n.changeLanguage("en");
+
+    render(
+      <GameSituationSummary
+        isLoading={false}
+        runtimeState={createRuntimeState({
+          snapshot: createGameSnapshot({
+            snapshotId: "snapshot-1",
+            phase: "decision",
+            round: 4,
+            nationalStateByPlayer: {
+              "player-1": createNationalState({
+                reforms: ["劳工保护", "公共教育", "国防动员", "社会保障"],
+              }),
+            },
+          }),
+        })}
+      />,
+    );
+
+    const ideologyPanel = screen.getByTestId("game-ideology-panel");
+    expect(screen.getByTestId("game-phase")).toHaveTextContent("Current Phase: National Decision");
+    expect(screen.getByTestId("game-phase")).not.toHaveTextContent("：");
+    expect(ideologyPanel).toHaveTextContent("Labor Protection");
+    expect(ideologyPanel).toHaveTextContent("Public Education");
+    expect(ideologyPanel).toHaveTextContent("National Defense Mobilization");
+    expect(ideologyPanel).toHaveTextContent("Social Security");
+    expect(ideologyPanel.textContent ?? "").not.toMatch(/[\u4e00-\u9fff]/);
   });
 });

@@ -33,6 +33,7 @@ import {
 } from "../decisionShared";
 import type { DecisionPhaseDraft } from "../forms";
 import { getCountryLabel } from "../labels";
+import { getRegionLabel } from "../panelGlossary";
 
 type RailMetric = {
   label: string;
@@ -185,7 +186,7 @@ export function getPhaseSubmitBlockingReasons({
     const contentContext = getDecisionContentContext(currentPlayerWorkspace);
     const uncheckedDecisionSteps = getUncheckedDecisionSteps(decisionFlowState, draft, contentContext);
     if (uncheckedDecisionSteps.length > 0) {
-      reasons.push(i18n.t("game:flow.validateNeedComplete", "请先完成或跳过：{{steps}}。", { steps: uncheckedDecisionSteps.map((step) => getDecisionStepLabel(step)).join("、") }));
+      reasons.push(i18n.t("game:flow.validateNeedComplete", "Please complete or skip: {{steps}}.", { steps: formatLocalizedList(uncheckedDecisionSteps.map((step) => getDecisionStepLabel(step))) }));
     }
   }
 
@@ -311,6 +312,10 @@ function getBudgetResourceLabels(currentPhase: GamePhase | null): Record<keyof B
     factory: i18n.t("game:resource.phaseBalanceFactory", "本阶段工厂余额"),
     governmentFiscal: i18n.t("game:resource.phaseBalanceGovernment", "本阶段政府财政"),
   };
+}
+
+function formatLocalizedList(items: string[]): string {
+  return items.join(i18n.language?.startsWith("zh") ? "、" : ", ");
 }
 
 function createLeftRailViewModel({
@@ -460,7 +465,7 @@ function createAssistRailViewModel({
         currentPhase === "settlement"
           ? i18n.t("game:flow.submitSettlementDesc", "财政结算阶段由系统自动推进，无需玩家提交。")
           : uncheckedDecisionStepLabels.length > 0
-            ? i18n.t("game:flow.submitUncheckedSteps", "{{steps}}尚未决策。", { steps: uncheckedDecisionStepLabels.join("、") })
+            ? i18n.t("game:flow.submitUncheckedSteps", "{{steps}} not decided yet.", { steps: formatLocalizedList(uncheckedDecisionStepLabels) })
             : currentSubmittedStatus === "pending"
               ? i18n.t("game:flow.submitAllReady", "所有关键步骤都在这里完成最终确认。")
               : currentSubmittedStatus === "submitted"
@@ -469,7 +474,7 @@ function createAssistRailViewModel({
       draftSummaryLines: buildDraftSummaryLines(currentPhase, draftPayload),
       warningLines:
         currentPhase === "decision" && uncheckedDecisionStepLabels.length > 0
-          ? [i18n.t("game:flow.submitUncheckedWarning", "未决策：{{steps}}。", { steps: uncheckedDecisionStepLabels.join("、") })]
+          ? [i18n.t("game:flow.submitUncheckedWarning", "Not decided: {{steps}}.", { steps: formatLocalizedList(uncheckedDecisionStepLabels) })]
           : [],
       lines: buildSubmitLines({
         currentPhase,
@@ -933,12 +938,13 @@ function validateMarketCompetitionDraft(
       lines.push(i18n.t("game:flow.competeInvalidRegion", "{{region}} 不是有效海外区域。", { region: marketId }));
       continue;
     }
+    const regionLabel = getRegionLabel(region.regionId) || translateBackend(region.label);
     if (!region.canCompete) {
-      lines.push(i18n.t("game:flow.competeRegionLocked", "{{label}} 当前不可争夺：{{reason}}。", { label: region.label, reason: formatCompetitionLockReason(region.competitionLockedReason) }));
+      lines.push(i18n.t("game:flow.competeRegionLocked", "{{label}} 当前不可争夺：{{reason}}。", { label: regionLabel, reason: formatCompetitionLockReason(region.competitionLockedReason) }));
     }
     const power = infantry * infantryPower + artillery * artilleryPower;
     if (power < minimumPower) {
-      lines.push(i18n.t("game:flow.competePowerInsufficient", "{{label}} 争夺战力 {{power}} 低于最低要求 {{minimum}}。", { label: region.label, power, minimum: minimumPower }));
+      lines.push(i18n.t("game:flow.competePowerInsufficient", "{{label}} 争夺战力 {{power}} 低于最低要求 {{minimum}}。", { label: regionLabel, power, minimum: minimumPower }));
     }
   }
 

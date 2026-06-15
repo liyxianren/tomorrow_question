@@ -39,7 +39,7 @@ export function GameSubmissionPanel({ status }: GameSubmissionPanelProps) {
             color: "#f1c98c",
           }}
         >
-          {t("game:submit.currentStatus")}：{playerFacingStatus}
+          {formatStatusLabel(t("game:submit.currentStatus"), playerFacingStatus)}
         </span>
         <strong data-testid="game-flow-status-message">{status.title}</strong>
       </div>
@@ -47,6 +47,11 @@ export function GameSubmissionPanel({ status }: GameSubmissionPanelProps) {
       {rhythmMessage ? <p style={{ margin: 0, color: "rgba(255,255,255,0.68)" }}>{rhythmMessage}</p> : null}
     </div>
   );
+}
+
+function formatStatusLabel(label: string, value: string): string {
+  const separator = i18n.language?.startsWith("zh") ? "：" : ": ";
+  return `${label}${separator}${value}`;
 }
 
 function getPlayerFacingStatus(status: PhaseActionStatusViewModel): string {

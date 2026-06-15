@@ -96,7 +96,9 @@ export function RoomReadyPanel({
       ) : null}
 
       <details className="room-ready-panel__details">
-        <summary>{t("status.readying")}</summary>
+        <summary data-collapse-label={t("actions.collapse")} data-expand-label={t("actions.expand")}>
+          {t("status.readying")}
+        </summary>
         <div className="room-ready-panel__details-body">
           <div className="room-ready-panel__checklist">
             <strong>{viewModel.startChecklistTitle}</strong>

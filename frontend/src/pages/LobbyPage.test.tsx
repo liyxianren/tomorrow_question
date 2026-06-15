@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LOCAL_PROFILE_STORAGE_KEY } from "../features/lobby/flow/identityStorage";
+import i18n from "../i18n";
 import { LobbyPage } from "./LobbyPage";
 
 
@@ -332,5 +333,119 @@ describe("LobbyPage", () => {
 
     expect(await screen.findByText("已找到之前离开的房间或对局。")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "查看结算" })).toHaveAttribute("href", "/settlement/game-1");
+  });
+
+  it("rebuilds lobby view models when switching from Chinese to English", async () => {
+    storeProfile({
+      profileId: "profile-tester01",
+      displayName: "tester",
+      boundSessionId: "session-room01",
+      lastActiveGameId: "game-1",
+      updatedAt: "2026-03-30T10:00:00.000Z",
+    });
+    mockApiRequest.mockImplementation(async (path: string) => {
+      if (path === "/api/v1/lobby/waiting-rooms") {
+        return [
+          {
+            roomCode: "ROOM01",
+            hostNickname: "tester",
+            memberCount: 2,
+            maxPlayers: 5,
+            availableSeatCount: 3,
+            status: "waiting",
+            readyCount: 1,
+            selectedCountriesCount: 2,
+            hasActiveGame: false,
+            isJoinable: true,
+            lastActivityAt: "2026-03-30T10:00:00.000Z",
+            members: [
+              { nickname: "tester", selectedCountry: "britain", isReady: false, memberType: "human" },
+              { nickname: "guest", selectedCountry: "france", isReady: true, memberType: "human" },
+            ],
+          },
+        ];
+      }
+
+      if (path === "/api/v1/sessions/restore?includeDetails=0") {
+        return {
+          session: {
+            sessionId: "session-room01",
+            playerId: "player-1",
+            roomCode: "ROOM01",
+            nickname: "tester",
+          },
+          room: {
+            roomCode: "ROOM01",
+            status: "in_game",
+            hostPlayerId: "player-1",
+            memberPlayerIds: ["player-1", "player-2"],
+            members: [
+              {
+                playerId: "player-1",
+                nickname: "tester",
+                selectedCountry: "britain",
+                connectionStatus: "online",
+                isReady: true,
+              },
+              {
+                playerId: "player-2",
+                nickname: "france",
+                selectedCountry: "france",
+                connectionStatus: "online",
+                isReady: true,
+              },
+            ],
+            countrySlots: {
+              britain: "player-1",
+              france: "player-2",
+              prussia: null,
+              austria: null,
+              russia: null,
+            },
+            currentGameId: "game-1",
+          },
+          activeGame: {
+            gameId: "game-1",
+            roomCode: "ROOM01",
+            currentRound: 3,
+            totalRounds: 10,
+            currentPhase: "decision",
+            isFinished: false,
+            activeSnapshotId: "snapshot-3",
+          },
+          activeSnapshot: null,
+        };
+      }
+
+      throw new Error(`Unexpected path: ${path}`);
+    });
+
+    renderLobbyPage();
+
+    expect(await screen.findByText("已找到之前离开的房间或对局。")).toBeInTheDocument();
+    expect(await screen.findByText("房主 tester")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "创建新房间" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "输入房间码加入" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "回到对局" })).toHaveAttribute("href", "/game/game-1");
+
+    await act(async () => {
+      await i18n.changeLanguage("en");
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Create New Room" })).toBeInTheDocument();
+    });
+    expect(screen.getByRole("heading", { name: "Join with Room Code" })).toBeInTheDocument();
+    expect(screen.getByText("Found a room or game you left earlier.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Back to Game" })).toHaveAttribute("href", "/game/game-1");
+    expect(screen.getByText("Host tester")).toBeInTheDocument();
+    expect(screen.getByText("2 / 5 players")).toBeInTheDocument();
+    expect(screen.getByText("3 seats open")).toBeInTheDocument();
+    expect(screen.getByText("tester · Britain")).toBeInTheDocument();
+    expect(screen.queryByText("创建新房间")).not.toBeInTheDocument();
+    expect(screen.queryByText("输入房间码加入")).not.toBeInTheDocument();
+    expect(screen.queryByText("已找到之前离开的房间或对局。")).not.toBeInTheDocument();
+    expect(screen.queryByText("回到对局")).not.toBeInTheDocument();
+    expect(screen.queryByText("房主 tester")).not.toBeInTheDocument();
   });
 });

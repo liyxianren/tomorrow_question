@@ -134,9 +134,9 @@ export function FactoryPanel({
     const noBudget = quantity < maxQuantity && remainingFactoryBudget < option.unitBudgetCost;
     const lockedReason = option.lockedReason ? translateBackend(option.lockedReason) : null;
     const disabled = lockedReason !== null || noBudget;
-    const costText = i18n.t("game:factory.costPerOrder", "{{cost}} 工厂预算/次", { cost: option.unitBudgetCost });
+    const costText = i18n.t("game:factory.costPerOrder", "{{cost}} Factory Budget/order", { cost: option.unitBudgetCost });
     const status = quantity > 0
-      ? i18n.t("game:factory.plannedCount", "已安排 {{count}} 次", { count: quantity })
+      ? i18n.t("game:factory.plannedCount", "{{count}} planned", { count: quantity })
       : lockedReason ?? (noBudget ? t("game:factory.budgetInsufficient") : t("game:factory.available"));
 
     return (
@@ -158,7 +158,7 @@ export function FactoryPanel({
             type="button"
             disabled={quantity <= 0}
             onClick={() => onConstructionQuantityChange(option.routeId, kind, quantity - 1)}
-            aria-label={`${t("common:revoke")} ${title}：${translateBackend(option.routeLabel)}`}
+            aria-label={formatFactoryAriaLabel(t("common:revoke"), title, translateBackend(option.routeLabel))}
           >
             -
           </button>
@@ -167,7 +167,7 @@ export function FactoryPanel({
             type="button"
             disabled={disabled || quantity >= maxQuantity}
             onClick={() => onConstructionQuantityChange(option.routeId, kind, quantity + 1)}
-            aria-label={`${t("common:select")} ${title}：${translateBackend(option.routeLabel)}`}
+            aria-label={formatFactoryAriaLabel(t("common:select"), title, translateBackend(option.routeLabel))}
           >
             +
           </button>
@@ -228,7 +228,7 @@ export function FactoryPanel({
             <div className="factory-panel__section factory-panel__section--stages">
               <h4 className="factory-section-label">
                 <span className="factory-section-label__icon">🏗️</span>
-                {t("game:factory.industrialDevelopment", "产业建设")}
+                {t("game:factory.industrialDevelopment", "Industrial Development")}
               </h4>
               <div className="factory-stage-grid">
                 {constructionStages.map((mode) => {
@@ -262,15 +262,15 @@ export function FactoryPanel({
                       </div>
                       <div className="factory-stage-card__metrics">
                         <span>
-                          {t("game:factory.currentCapacity", "当前产能")}
+                          {t("game:factory.currentCapacity", "Current Capacity")}
                           <strong>{formatCapacityPreview(mode.currentCapacity, immediateDelta)}</strong>
                         </span>
                         <span>
-                          {t("game:factory.outputRatio", "产出倍率")}
+                          {t("game:factory.outputRatio", "Output Ratio")}
                           <strong>x{mode.outputRatio}</strong>
                         </span>
                         <span>
-                          {t("game:factory.sameRoundCapacityDelta", "本回合产能")}
+                          {t("game:factory.sameRoundCapacityDelta", "This-Round Capacity")}
                           <strong>{formatSignedNumber(sameRoundDelta)}</strong>
                         </span>
                       </div>
@@ -278,19 +278,19 @@ export function FactoryPanel({
                         {renderConstructionControl(
                           increaseOption,
                           increaseKind,
-                          t("game:factory.factoryIncrease", "工厂增加"),
+                          t("game:factory.factoryIncrease", "Factory Increase"),
                           increaseDescription,
-                          t("game:factory.noFactoryIncreasePath", "当前无法为该阶段增加工厂"),
+                          t("game:factory.noFactoryIncreasePath", "No factory increase path is currently available for this stage."),
                           mode.mode,
                         )}
                         {renderConstructionControl(
                           upgradeOption,
                           "upgrade",
-                          t("game:factory.industryUpgrade", "产业升级"),
+                          t("game:factory.industryUpgrade", "Industry Upgrade"),
                           upgradeDescription,
                           mode.mode === "handicraft"
-                            ? t("game:factory.baseStageNoUpgrade", "基础阶段无需升级")
-                            : t("game:factory.noUpgradePath", "当前没有可用升级路径"),
+                            ? t("game:factory.baseStageNoUpgrade", "The base stage does not need an upgrade.")
+                            : t("game:factory.noUpgradePath", "No upgrade path is currently available."),
                           mode.mode,
                         )}
                       </div>
@@ -336,7 +336,11 @@ export function FactoryPanel({
                           type="button"
                           disabled={disabled && !selected}
                           onClick={() => onFactoryActionToggle(action.actionId, !selected)}
-                          aria-label={`${selected ? t("common:revoke") : t("common:select")}${t("game:factory.factoryDispatch")}：${action.label}`}
+                          aria-label={formatFactoryAriaLabel(
+                            selected ? t("common:revoke") : t("common:select"),
+                            t("game:factory.factoryDispatch"),
+                            translateBackend(action.label),
+                          )}
                         >
                           {selected ? t("common:revoke") : t("common:select")}
                         </button>
@@ -387,13 +391,13 @@ function FactoryCapacityOverview({
   const { t } = useTranslation();
   const productiveModes = modes.filter((mode) => mode.mode !== "idle");
   return (
-    <section className="factory-overview" aria-label={t("game:factory.capacityOverview", "工厂容量总览")}>
+    <section className="factory-overview" aria-label={t("game:factory.capacityOverview", "Factory Capacity Overview")}>
       <div className="factory-overview__headline">
-        <span>{t("game:factory.factoryTotalCap", "已启用 / 总上限")}</span>
+        <span>{t("game:factory.factoryTotalCap", "Enabled / Total Cap")}</span>
         <strong>{enabledCount} / {totalCap}</strong>
       </div>
       <div className="factory-overview__chips">
-        <span>{t("game:factory.idleCapacity", "闲置工厂")} <strong>{idleCapacity}</strong></span>
+        <span>{t("game:factory.idleCapacity", "Idle Factories")} <strong>{idleCapacity}</strong></span>
         {productiveModes.map((mode) => (
           <span key={mode.mode}>
             {translateBackend(mode.label)} <strong>{mode.currentCapacity}</strong>
@@ -426,24 +430,24 @@ function RawMaterialPurchaseControl({
     <section className="factory-material-purchase">
       <div className="factory-material-purchase__main">
         <div>
-          <h4>{t("game:factory.materialPurchase", "材料购买")}</h4>
+          <h4>{t("game:factory.materialPurchase", "Material Purchase")}</h4>
           <p>
-            {t("game:factory.materialPurchaseDesc", "使用工厂预算购买本回合可用原材料，不改变每回合自然增长。")}
+            {t("game:factory.materialPurchaseDesc", "Use Factory Budget to buy raw materials available this round without changing natural per-round growth.")}
           </p>
         </div>
         <div className="factory-material-purchase__metrics">
-          <span>{t("game:factory.rawMaterials", "原材料")} <strong>{currentRawMaterials} → {nextRawMaterials}</strong></span>
-          <span>{t("game:factory.purchaseCap", "本回合上限")} <strong>{maxQuantity}</strong></span>
-          <span>{t("game:factory.unitCost", "单位成本")} <strong>{unitCost}</strong></span>
+          <span>{t("game:factory.rawMaterials", "Raw Materials")} <strong>{currentRawMaterials} → {nextRawMaterials}</strong></span>
+          <span>{t("game:factory.purchaseCap", "Round Cap")} <strong>{maxQuantity}</strong></span>
+          <span>{t("game:factory.unitCost", "Unit Cost")} <strong>{unitCost}</strong></span>
         </div>
       </div>
       <div className="factory-command-row__stepper factory-material-purchase__stepper">
-        <span>{quantity > 0 ? t("game:factory.plannedPurchase", "已购买 {{count}}", { count: quantity }) : t("game:factory.available", "可用")}</span>
+        <span>{quantity > 0 ? t("game:factory.plannedPurchase", "{{count}} purchased", { count: quantity }) : t("game:factory.available", "Available")}</span>
         <button
           type="button"
           disabled={disabled || quantity <= 0}
           onClick={() => onChange?.(quantity - 1)}
-          aria-label={t("game:factory.decreaseMaterialPurchase", "减少材料购买")}
+          aria-label={t("game:factory.decreaseMaterialPurchase", "Decrease material purchase")}
         >
           -
         </button>
@@ -452,14 +456,14 @@ function RawMaterialPurchaseControl({
           type="button"
           disabled={disabled || quantity >= maxQuantity}
           onClick={() => onChange?.(quantity + 1)}
-          aria-label={t("game:factory.increaseMaterialPurchase", "增加材料购买")}
+          aria-label={t("game:factory.increaseMaterialPurchase", "Increase material purchase")}
         >
           +
         </button>
       </div>
       {parameterInspector?.render("factory.rawMaterialPurchase", {
-        title: t("game:factory.materialPurchase", "材料购买"),
-        currentEffect: t("game:factory.materialPurchaseEffect", "每购买 1 原材料，立即增加本回合可投料数量，并消耗工厂预算。"),
+        title: t("game:factory.materialPurchase", "Material Purchase"),
+        currentEffect: t("game:factory.materialPurchaseEffect", "Each raw material purchased immediately increases this round's available inputs and spends Factory Budget."),
       })}
     </section>
   );
@@ -482,10 +486,10 @@ function getStageOrder(mode: string): number {
 
 function getStageAvailabilityText(mode: Phase1ProductionMode, t: TFunction): string {
   if (mode.isAvailable) {
-    return t("game:factory.stageAvailable", "已解锁，可投入建设");
+    return t("game:factory.stageAvailable", "Unlocked and available for construction.");
   }
   const techLabel = formatRequiredTechLabel(mode.requiredTech) ?? String(t("game:factory.notUnlocked"));
-  return t("game:factory.stageLocked", "需 {{tech}}", { tech: techLabel });
+  return t("game:factory.stageLocked", "Requires {{tech}}", { tech: techLabel });
 }
 
 function buildFactoryIncreaseDescription(
@@ -495,8 +499,8 @@ function buildFactoryIncreaseDescription(
 ): string {
   const key = kind === "newFactory" ? "game:factory.newFactoryIncreaseDescription" : "game:factory.factoryIncreaseDescription";
   const defaultValue = kind === "newFactory"
-    ? "直接建设 {{target}} 工厂：新增 {{delta}} 点产能，本回合生效；只受国家总工厂上限、闲置名额、预算和科技前置限制。"
-    : "扩建 {{target}} 工厂：新增 {{delta}} 点产能，本回合生效；只受国家总工厂上限、闲置名额、预算和科技前置限制。";
+    ? "Directly build {{target}} factories: add {{delta}} capacity, effective this round; limited by national factory cap, idle slots, budget, and technology prerequisites."
+    : "Expand {{target}} factories: add {{delta}} capacity, effective this round; limited by national factory cap, idle slots, budget, and technology prerequisites.";
   return t(key, {
     defaultValue,
     delta: option.capacityDelta,
@@ -512,13 +516,13 @@ function buildUnavailableFactoryIncreaseDescription(
   const tech = formatRequiredTechLabel(mode.requiredTech);
   if (!mode.isAvailable && tech) {
     return t("game:factory.factoryIncreaseLockedDescription", {
-      defaultValue: "工厂增加 = 直接建设 {{target}} 工厂，本回合生效。前置：先解锁 {{target}}（{{tech}}），且国家总工厂池还有闲置名额。",
+      defaultValue: "Factory Increase = directly build {{target}} factories, effective this round. Prerequisite: unlock {{target}} ({{tech}}) and keep idle slots in the national factory pool.",
       target,
       tech,
     });
   }
   return t("game:factory.factoryIncreaseUnavailableDescription", {
-    defaultValue: "工厂增加 = 直接建设 {{target}} 工厂，本回合生效。当前不能增加：总上限、闲置名额、预算或科技前置不满足。",
+    defaultValue: "Factory Increase = directly build {{target}} factories, effective this round. Currently unavailable because the total cap, idle slots, budget, or technology prerequisite is not met.",
     target,
   });
 }
@@ -531,7 +535,7 @@ function buildIndustryUpgradeDescription(
   const source = translateRouteLabel(option.sourceRouteLabel || option.sourceRouteId);
   const target = translateRouteLabel(option.routeLabel || option.routeId);
   return t("game:factory.industryUpgradeDescription", {
-    defaultValue: "{{source}} → {{target}}：每次消耗 {{delta}} 点 {{source}}产能，立即转为 {{delta}} 点 {{target}}产能；本回合可生产，不增加总工厂数。",
+    defaultValue: "{{source}} → {{target}}: each order consumes {{delta}} {{source}} capacity and immediately converts it into {{delta}} {{target}} capacity; production is available this round and total factory count does not increase.",
     delta,
     source,
     target,
@@ -547,7 +551,7 @@ function buildUnavailableIndustryUpgradeDescription(
   const sourceModeId = getUpgradeSourceMode(mode.mode);
   if (!sourceModeId) {
     return t("game:factory.baseStageNoUpgradeDescription", {
-      defaultValue: "产业升级 = 把上一级工厂转成本阶段工厂。手工业需要先有闲置工厂，才能从闲置启用为手工业。",
+      defaultValue: "Industry Upgrade = convert the previous factory tier into this stage. Handicraft requires idle factories before idle capacity can be activated as handicraft.",
     });
   }
 
@@ -556,18 +560,18 @@ function buildUnavailableIndustryUpgradeDescription(
   const tech = formatRequiredTechLabel(mode.requiredTech);
   const prerequisite = tech
     ? t("game:factory.industryUpgradePrerequisiteWithTech", {
-      defaultValue: "解锁 {{target}}（{{tech}}） + 至少 1 点 {{source}} 产能",
+      defaultValue: "Unlock {{target}} ({{tech}}) + at least 1 {{source}} capacity",
       target,
       tech,
       source,
     })
     : t("game:factory.industryUpgradePrerequisiteWithoutTech", {
-      defaultValue: "至少 1 点 {{source}} 产能",
+      defaultValue: "At least 1 {{source}} capacity",
       source,
     });
 
   return t("game:factory.industryUpgradeUnavailableDescription", {
-    defaultValue: "产业升级 = {{source}} → {{target}}。前置：{{prerequisite}}；执行后消耗 1 点 {{source}} 工厂，立即转为 1 点 {{target}} 工厂。",
+    defaultValue: "Industry Upgrade = {{source}} → {{target}}. Prerequisite: {{prerequisite}}; after execution, consumes 1 {{source}} factory and immediately converts it into 1 {{target}} factory.",
     source,
     target,
     prerequisite,
@@ -615,6 +619,12 @@ function formatSignedNumber(value: number): string {
     return `+${value}`;
   }
   return `${value}`;
+}
+
+function formatFactoryAriaLabel(action: string, subject: string, detail?: string | null) {
+  const separator = i18n.language.startsWith("zh") ? "：" : ": ";
+  const prefix = i18n.language.startsWith("zh") ? `${action}${subject}` : `${action} ${subject}`;
+  return detail ? `${prefix}${separator}${detail}` : prefix;
 }
 
 function renderEffectTags(

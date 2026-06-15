@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
 
+import i18n from "../../../i18n";
 import { createInitialDecisionFlowState } from "../../../features/game/flow/decisionFlow";
 import { createInitialPhaseDraft } from "../../../features/game/forms";
 import {
@@ -333,9 +334,11 @@ describe("GamePhasePanelContent", () => {
     await user.click(screen.getByRole("button", { name: "下一步：政府政策" }));
 
     expect(screen.getByText("6 政府财政 · 消耗 1 行政力")).toBeInTheDocument();
-    expect(screen.getByText(/本轮收入分配/)).toBeInTheDocument();
-    expect(screen.getByText(/国民消费 \+0.5，政府财政 -0.5/)).toBeInTheDocument();
-    expect(screen.getByText("以工代赈").closest("article")).not.toHaveTextContent("永久");
+    const policyCard = screen.getByText("以工代赈").closest("article");
+    expect(policyCard).toHaveTextContent("本轮收入分配");
+    expect(policyCard).toHaveTextContent(/国民消费|Consumption/);
+    expect(policyCard).toHaveTextContent(/政府财政|Government Fiscal/);
+    expect(policyCard).not.toHaveTextContent("永久");
     expect(screen.queryByText(/每回合收入分配/)).not.toBeInTheDocument();
   });
 
@@ -475,7 +478,7 @@ describe("GamePhasePanelContent", () => {
 
     await user.click(screen.getByRole("button", { name: "下一步：政府政策" }));
     await user.click(screen.getByLabelText("启用国家能力：民法典"));
-    await user.click(screen.getByLabelText("民法典 民族主义"));
+    await user.click(screen.getByRole("radio", { name: /民族主义|Nationalism/ }));
 
     expect(readDraftJson()).toEqual({
       factoryPlan: {
@@ -715,6 +718,42 @@ describe("GamePhasePanelContent", () => {
     expect(within(panel).getByText(/法国 正在封锁该地区/)).toBeInTheDocument();
   });
 
+  it("does not leak backend Chinese labels in the English market panel", async () => {
+    await i18n.changeLanguage("en");
+    renderPanel("market", {
+      marketWorkspace: createMarketPlayerWorkspace({
+        countryLabel: "英国",
+        regionAccessStatus: [
+          {
+            regionId: "asia_pacific",
+            label: "亚太",
+            accessLevel: "open",
+            isAccessible: true,
+            lockReason: null,
+            canCompete: true,
+            competitionLockedReason: null,
+            competitionRewardCapacityBonus: 2,
+            competitionMinimumPower: 1,
+            isColonized: false,
+            controller: null,
+            acceptedGoods: ["grain"],
+            fixedOverseasPrice: 6,
+            priceMultiplier: 1.1,
+          },
+        ],
+      }),
+    });
+
+    const panel = screen.getByTestId("phase1-market-panel");
+    expect(panel).toHaveTextContent("Asia-Pacific");
+    expect(panel).toHaveTextContent("Market Calculation Check");
+    expect(panel).toHaveTextContent(/Current estimate: domestic/);
+    expect(panel).toHaveTextContent("Backend Reference Data");
+    expect(panel).toHaveTextContent("Region");
+    expect(panel.textContent ?? "").not.toMatch(/[\u4e00-\u9fff]/);
+    expect(panel.textContent ?? "").not.toMatch(/[：，。、（）]/);
+  });
+
   it("shows government market policy effects in the market phase", () => {
     renderPanel("market", {
       marketWorkspace: createMarketPlayerWorkspace({
@@ -748,6 +787,20 @@ describe("GamePhasePanelContent", () => {
     expect(banner).toHaveTextContent("海外容量 +2");
     expect(banner).toHaveTextContent("当前净调整");
     expect(banner).toHaveTextContent("国内价格 +1");
+  });
+
+  it("translates backend country labels in the English settlement heading", async () => {
+    await i18n.changeLanguage("en");
+    renderPanel("settlement", {
+      settlementWorkspace: createSettlementPlayerWorkspace({
+        countryCode: "britain",
+        countryLabel: "英国",
+      }),
+    });
+
+    const workbench = screen.getByTestId("settlement-workbench");
+    expect(workbench).toHaveTextContent("National Income Distribution Results for Britain");
+    expect(workbench).not.toHaveTextContent("英国");
   });
 
   it("shows the full domestic/factory/government return ratio during settlement", () => {

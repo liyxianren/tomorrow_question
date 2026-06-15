@@ -51,6 +51,10 @@ const MARKET_PREVIEW_EFFECT_KEYS = [
 
 const ALLOCATION_DISPLAY_ORDER = ["consumption", "domesticMarket", "factory", "fiscal", "governmentFiscal"];
 
+function formatActionAriaLabel(action: string, label: string): string {
+  return i18n.language.startsWith("zh") ? `${action}：${label}` : `${action}: ${label}`;
+}
+
 type IdeologyMilestone = {
   level: number;
   label: string;
@@ -745,9 +749,10 @@ export function GovernmentPanel({
         {strategies.map((strategy) => {
           const queued = queuedStrategyIds.has(strategy.actionId);
           const overCapacity = !queued && !canAddMarketPolicy();
-          const lockedReason = strategy.lockedReason ?? (overCapacity ? t("game:government.insufficientAdminCapacity", "行政力不足") : null);
+          const lockedReason = strategy.lockedReason ? translateBackend(strategy.lockedReason) : (overCapacity ? t("game:government.insufficientAdminCapacity", "行政力不足") : null);
           const isDisabled = !queued && lockedReason !== null;
           const status = queued ? "selected" : lockedReason ? "disabled" : "available";
+          const controlLabel = queued ? t("common:revoke") : t("common:select");
           return (
             <DecisionActionCard
               key={strategy.actionId}
@@ -762,8 +767,8 @@ export function GovernmentPanel({
                 kind: "toggle",
                 checked: queued,
                 onChange: (next) => onToggleStrategy(strategy.actionId, next),
-                label: queued ? t("common:revoke") : t("common:select"),
-                ariaLabel: `${t("common:select")}：${translateBackend(strategy.label)}`,
+                label: controlLabel,
+                ariaLabel: formatActionAriaLabel(controlLabel, translateBackend(strategy.label)),
                 disabled: isDisabled,
               }}
             >
@@ -939,7 +944,7 @@ export function GovernmentPanel({
       <div className="gov-reform-workbench">
         <div className="gov-reform-workbench__header">
           <div>
-            <h4 className="government-section-label">🧭 {t("game:government.reformPath")}</h4>
+            <h4 className="government-section-label">🧭 {t("game:government.reformPathTitle")}</h4>
             <p className="government-section-note">
               {t("game:government.reformPathNote", {
                 admin: projectedAdmin,
@@ -948,7 +953,7 @@ export function GovernmentPanel({
               })}
             </p>
           </div>
-          <div className="gov-reform-tabs" role="tablist" aria-label={t("game:government.reformPath")}>
+          <div className="gov-reform-tabs" role="tablist" aria-label={t("game:government.reformPathTitle")}>
             {REFORM_PATHS.map((path) => {
               const isActive = path === activeReformPath;
               return (
@@ -1064,7 +1069,7 @@ export function GovernmentPanel({
                   checked: queued,
                   onChange: (next) => onEnactReform(reform.reformId, next),
                   label: reform.isCompleted ? t("game:government.alreadyImplemented") : queued ? t("common:revoke") : t("game:government.implement"),
-                  ariaLabel: t("game:government.implementReform", { label: reform.label }),
+                  ariaLabel: t("game:government.implementReform", { label: translateBackend(reform.label) }),
                   disabled: isDisabled || (!queued && lockedReason !== null),
                 }}
               >
@@ -1124,7 +1129,7 @@ export function GovernmentPanel({
                         checked: active,
                         onChange: (next) => onTogglePolicy(policy.policyId, next),
                         label: active ? t("common:deactivate") : t("common:activate"),
-                        ariaLabel: `${active ? t("game:government.deactivatePolicy", { label: policy.label }) : t("game:government.activatePolicy", { label: policy.label })}`,
+                        ariaLabel: `${active ? t("game:government.deactivatePolicy", { label: translateBackend(policy.label) }) : t("game:government.activatePolicy", { label: translateBackend(policy.label) })}`,
                         disabled: restoreLockedReason !== null,
                       }}
                     >
@@ -1176,7 +1181,7 @@ export function GovernmentPanel({
                     checked: abilitySelected,
                     onChange: (next) => onToggleAbility?.(next),
                     label: abilitySelected ? t("common:revoke") : t("game:government.enable"),
-                    ariaLabel: t("game:government.enableAbility", { label: ability.label }),
+                    ariaLabel: t("game:government.enableAbility", { label: translateBackend(ability.label) }),
                     disabled: !ability.isAvailable || !onToggleAbility,
                   }}
                 >
@@ -1185,7 +1190,7 @@ export function GovernmentPanel({
                     currentEffect: translateBackend(ability.description),
                   })}
                   {ability.requiresTargetIdeology && abilitySelected ? (
-                    <div className="government-ability-targets" role="radiogroup" aria-label={t("game:government.abilityTargetIdeology", "{{label}} 目标意识形态", { label: ability.label })}>
+                    <div className="government-ability-targets" role="radiogroup" aria-label={t("game:government.abilityTargetIdeology", "{{label}} 目标意识形态", { label: translateBackend(ability.label) })}>
                       {IDEOLOGY_KEYS.map((key) => (
                         <label key={key} className="government-ability-target">
                           <input
@@ -1223,7 +1228,7 @@ export function GovernmentPanel({
                     : null;
                   const lockedReason = !policy.isUnlocked
                     ? policy.isBlocked
-                      ? policy.lockedReason ?? t("game:government.pathBlocked")
+                      ? translateBackend(policy.lockedReason) || t("game:government.pathBlocked")
                       : policy.lockedReason === "下回合解锁"
                       ? t("game:government.policyUnlocksNextRound", "下回合解锁")
                       : policy.requiresReform
@@ -1252,7 +1257,7 @@ export function GovernmentPanel({
                         checked: active,
                         onChange: (next) => onTogglePolicy(policy.policyId, next),
                         label: active ? t("common:revoke") : t("common:activate"),
-                        ariaLabel: t("game:government.activatePolicy", { label: policy.label }),
+                        ariaLabel: t("game:government.activatePolicy", { label: translateBackend(policy.label) }),
                         disabled: isDisabled,
                       }}
                     >

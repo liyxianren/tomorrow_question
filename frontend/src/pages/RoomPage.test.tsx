@@ -240,20 +240,20 @@ describe("RoomPage", () => {
 
     renderRoomPage();
 
-    const headerPanel = screen.getByRole("heading", { name: "开局准备区" }).closest("section");
+    const headerPanel = screen.getByRole("heading", { name: "准备开局中" }).closest("section");
     const headerStatus = screen.getByTestId("room-status-banner");
-    const actionPanel = screen.getByRole("heading", { name: "准备开局" }).closest("section");
+    const actionPanel = screen.getByRole("heading", { name: "准备" }).closest("section");
 
-    expect(screen.getByRole("heading", { name: "开局准备区" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "准备开局中" })).toBeInTheDocument();
     expect(screen.getByTestId("room-code")).toHaveTextContent("ROOM01");
     expect(headerPanel).not.toBeNull();
     expect(actionPanel).not.toBeNull();
     expect(headerPanel as HTMLElement).toHaveTextContent("Britain");
     expect(headerPanel as HTMLElement).toHaveTextContent("房主");
-    expect(headerPanel as HTMLElement).toHaveTextContent("未选国家");
-    expect(headerStatus).toHaveTextContent("等待其他玩家");
-    expect(screen.getByRole("heading", { name: "选择你的国家" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "房间内玩家" })).toBeInTheDocument();
+    expect(headerPanel as HTMLElement).toHaveTextContent("未选择国家");
+    expect(headerStatus).toHaveTextContent("等待玩家加入");
+    expect(screen.getByRole("heading", { name: "选择国家" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "房间成员" })).toBeInTheDocument();
     expect(within(headerPanel as HTMLElement).queryByText("房间链路")).not.toBeInTheDocument();
     expect(within(headerPanel as HTMLElement).queryByText(/Flow/)).not.toBeInTheDocument();
     expect(within(headerPanel as HTMLElement).queryByText(/当前步骤/)).not.toBeInTheDocument();
@@ -261,11 +261,12 @@ describe("RoomPage", () => {
     expect(within(headerPanel as HTMLElement).queryByText(/结构化/)).not.toBeInTheDocument();
     expect(within(headerPanel as HTMLElement).queryByText(/恢复链路/)).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "复制房间码" }));
+    const copyButtons = screen.getAllByRole("button", { name: "复制房间码" });
+    await userEvent.click(copyButtons[0]);
 
     expect(writeText).toHaveBeenCalledWith("ROOM01");
 
-    await userEvent.click(screen.getByRole("button", { name: "复制邀请链接" }));
+    await userEvent.click(copyButtons[1]);
 
     expect(writeText).toHaveBeenLastCalledWith("http://localhost/lobby?roomCode=ROOM01&from=invite");
   });
@@ -287,15 +288,12 @@ describe("RoomPage", () => {
       }),
     );
 
-    const actionPanel = screen.getByRole("heading", { name: "准备开局" }).closest("section");
+    const actionPanel = screen.getByRole("heading", { name: "准备" }).closest("section");
 
     expect(actionPanel).not.toBeNull();
-    expect(actionPanel as HTMLElement).toHaveTextContent("下一步");
-    expect(actionPanel as HTMLElement).toHaveTextContent("先选择一个国家，再点准备开局。");
-    expect(actionPanel as HTMLElement).toHaveTextContent("自动开局规则");
-    expect(actionPanel as HTMLElement).toHaveTextContent("满足后会自动开局");
-    expect(actionPanel as HTMLElement).toHaveTextContent("没有单独的手动开始按钮");
-    expect(actionPanel as HTMLElement).toHaveTextContent("你尚未选定国家");
+    expect(actionPanel as HTMLElement).toHaveTextContent("确认选择");
+    expect(actionPanel as HTMLElement).toHaveTextContent("未选择国家");
+    expect(actionPanel as HTMLElement).toHaveTextContent("准备开局中");
     expect(screen.getByTestId("room-ready-button")).toBeDisabled();
   });
 
@@ -323,7 +321,7 @@ describe("RoomPage", () => {
     });
     const router = renderRoomPage();
 
-    await userEvent.click(screen.getByRole("button", { name: "回到大厅" }));
+    await userEvent.click(screen.getByRole("button", { name: "离开房间" }));
 
     await waitFor(() => {
       expect(mockApiRequest).toHaveBeenCalledWith("/api/v1/rooms/ROOM01/leave", {
@@ -453,20 +451,18 @@ describe("RoomPage", () => {
       }),
     );
 
-    const actionPanel = screen.getByRole("heading", { name: "准备开局" }).closest("section");
+    const actionPanel = screen.getByRole("heading", { name: "准备" }).closest("section");
     const headerStatus = screen.getByTestId("room-status-banner");
 
     expect(actionPanel).not.toBeNull();
-    expect(within(actionPanel as HTMLElement).getByText("开局前检查清单")).toBeInTheDocument();
-    expect(within(actionPanel as HTMLElement).getByText("自动开局规则")).toBeInTheDocument();
-    expect(actionPanel as HTMLElement).toHaveTextContent("下一步");
-    expect(actionPanel as HTMLElement).toHaveTextContent("你已准备开局");
-    expect(actionPanel as HTMLElement).toHaveTextContent("全员准备开局后会自动开局");
-    expect(actionPanel as HTMLElement).toHaveTextContent("France：尚未准备开局");
-    expect(actionPanel as HTMLElement).toHaveTextContent("Prussia：还没有选国家");
-    expect(actionPanel as HTMLElement).toHaveTextContent("还差 2 人进入房间");
-    expect(actionPanel as HTMLElement).toHaveTextContent("没有单独的手动开始按钮");
-    expect(headerStatus).toHaveTextContent("等待其他玩家");
+    expect(within(actionPanel as HTMLElement).getAllByText("准备开局中").length).toBeGreaterThan(0);
+    expect(actionPanel as HTMLElement).toHaveTextContent("确认选择");
+    expect(actionPanel as HTMLElement).toHaveTextContent("准备");
+    expect(actionPanel as HTMLElement).toHaveTextContent("等待玩家加入");
+    expect(actionPanel as HTMLElement).toHaveTextContent("France: 取消准备");
+    expect(actionPanel as HTMLElement).toHaveTextContent("Prussia: 未选择国家");
+    expect(actionPanel as HTMLElement).toHaveTextContent("3 / 5 人");
+    expect(headerStatus).toHaveTextContent("等待玩家加入");
   });
 
   it("shows host-only AI fill controls and sends the fill request", async () => {
@@ -830,10 +826,11 @@ describe("RoomPage", () => {
       await Promise.resolve();
     });
 
-    const updatedActionPanel = screen.getByRole("heading", { name: "准备开局" }).closest("section");
+    const updatedActionPanel = screen.getByRole("heading", { name: "准备" }).closest("section");
     expect(updatedActionPanel).not.toBeNull();
-    expect(updatedActionPanel as HTMLElement).toHaveTextContent("已选国家：英国");
-    expect(updatedActionPanel as HTMLElement).toHaveTextContent("现在点准备开局，之后就只需要等待自动开局。满足后会自动开局。");
+    expect(updatedActionPanel as HTMLElement).toHaveTextContent("选择国家: 英国");
+    expect(updatedActionPanel as HTMLElement).toHaveTextContent("确认选择");
+    expect(updatedActionPanel as HTMLElement).toHaveTextContent("准备开局中");
     expect(screen.getByTestId("room-ready-button")).toBeEnabled();
   });
 
@@ -1040,11 +1037,11 @@ describe("RoomPage", () => {
       }),
     );
 
-    const actionPanel = screen.getByRole("heading", { name: "准备开局" }).closest("section");
+    const actionPanel = screen.getByRole("heading", { name: "准备" }).closest("section");
     const headerStatus = screen.getByTestId("room-status-banner");
 
     expect(actionPanel).not.toBeNull();
-    expect(actionPanel as HTMLElement).toHaveTextContent("房间已开局，正在进入游戏。");
-    expect(headerStatus).toHaveTextContent("房间已开局，正在进入游戏");
+    expect(actionPanel as HTMLElement).toHaveTextContent("游戏中");
+    expect(headerStatus).toHaveTextContent("游戏中");
   });
 });

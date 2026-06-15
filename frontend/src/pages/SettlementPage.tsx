@@ -9,20 +9,20 @@ import { createSettlementPageState } from "../features/game/flow/settlementFlow"
 import { getCountryLabel } from "../features/game/panelGlossary";
 import type { GameFinishedPayload } from "../features/game/runtime/types";
 import { fetchFinalResult } from "../services/game";
-import i18n from "../i18n";
+import i18n, { translateBackend } from "../i18n";
 import type { GameLog } from "../types/domain";
 
 const LOG_CATEGORY_ORDER = ["final", "military", "overseas", "decision", "events", "economy", "other"] as const;
 type LogCategory = (typeof LOG_CATEGORY_ORDER)[number];
 
-const LOG_CATEGORY_META: Record<LogCategory, { label: string; emoji: string }> = {
-  final: { label: i18n.t("pages:settlement.logCategory.final"), emoji: "🏆" },
-  events: { label: i18n.t("pages:settlement.logCategory.events"), emoji: "⚠️" },
-  economy: { label: i18n.t("pages:settlement.logCategory.economy"), emoji: "💰" },
-  military: { label: i18n.t("pages:settlement.logCategory.military"), emoji: "⚔️" },
-  overseas: { label: i18n.t("pages:settlement.logCategory.overseas"), emoji: "⛵" },
-  decision: { label: i18n.t("pages:settlement.logCategory.decision"), emoji: "🏛" },
-  other: { label: i18n.t("pages:settlement.logCategory.other"), emoji: "📋" },
+const LOG_CATEGORY_EMOJI: Record<LogCategory, string> = {
+  final: "🏆",
+  events: "⚠️",
+  economy: "💰",
+  military: "⚔️",
+  overseas: "⛵",
+  decision: "🏛",
+  other: "📋",
 };
 
 const LOG_TRUNCATE_LENGTH = 80;
@@ -36,6 +36,18 @@ function categorizeLogKind(kind: string): LogCategory {
   if (k.startsWith("market") || k.startsWith("settlement") || k.includes("budget") || k.includes("income")) return "economy";
   if (k.startsWith("decision") || k.includes("reform") || k.includes("policy")) return "decision";
   return "other";
+}
+
+function getLogCategoryMeta(category: LogCategory): { label: string; emoji: string } {
+  return {
+    label: i18n.t(`pages:settlement.logCategory.${category}`),
+    emoji: LOG_CATEGORY_EMOJI[category],
+  };
+}
+
+function formatLabelValue(label: string, value: string | number): string {
+  const separator = i18n.language?.startsWith("zh") ? "：" : ": ";
+  return `${label}${separator}${value}`;
 }
 
 type SettlementRouteState = {
@@ -226,12 +238,12 @@ export function SettlementPage({ result, roomCode }: SettlementPageProps) {
                             <span className="settlement-dossier__ranking-player">{row.nickname}</span>
                           </div>
                           <p className="settlement-dossier__ranking-income">
-                            {i18n.t("pages:settlement.cumulativeIncomeLabel")}：{row.cumulativeNationalIncome}
+                            {formatLabelValue(i18n.t("pages:settlement.cumulativeIncomeLabel"), row.cumulativeNationalIncome)}
                             {delta != null ? (
                               <RankingDelta delta={delta} isLeader={row.rank === 1} />
                             ) : null}
                           </p>
-                          <p className="settlement-dossier__ranking-tiebreak">{i18n.t("pages:settlement.tieBreakLabel")}：{row.tieBreakSummary}</p>
+                          <p className="settlement-dossier__ranking-tiebreak">{formatLabelValue(i18n.t("pages:settlement.tieBreakLabel"), row.tieBreakSummary)}</p>
                         </li>
                       );
                     })}
@@ -246,33 +258,36 @@ export function SettlementPage({ result, roomCode }: SettlementPageProps) {
                   <p>{i18n.t("pages:settlement.noFinalLogs")}</p>
                 ) : (
                   <div className="settlement-dossier__timeline-groups">
-                    {groupedLogs.map((group) => (
-                      <section
-                        key={group.category}
-                        className="settlement-dossier__timeline-group"
-                        data-testid={`settlement-log-group-${group.category}`}
-                      >
-                        <header className="settlement-dossier__timeline-group-header">
-                          <span aria-hidden="true">{LOG_CATEGORY_META[group.category].emoji}</span>
-                          <strong>{LOG_CATEGORY_META[group.category].label}</strong>
-                          <span className="settlement-dossier__timeline-group-count">{i18n.t("pages:settlement.entryCount", { count: group.entries.length })}</span>
-                        </header>
-                        <ol className="settlement-dossier__timeline">
-                          {group.entries.map((entry, index) => (
-                            <li key={`${group.category}-${entry.key}-${index}`} className="settlement-dossier__timeline-item">
-                              <div className="settlement-dossier__timeline-meta">
-                                <strong>
-                                  <span aria-hidden="true" style={{ marginRight: 4 }}>{LOG_CATEGORY_META[group.category].emoji}</span>
-                                  {entry.label}
-                                </strong>
-                                <span>{entry.meta}</span>
-                              </div>
-                              <LogMessage message={entry.message} />
-                            </li>
-                          ))}
-                        </ol>
-                      </section>
-                    ))}
+                    {groupedLogs.map((group) => {
+                      const categoryMeta = getLogCategoryMeta(group.category);
+                      return (
+                        <section
+                          key={group.category}
+                          className="settlement-dossier__timeline-group"
+                          data-testid={`settlement-log-group-${group.category}`}
+                        >
+                          <header className="settlement-dossier__timeline-group-header">
+                            <span aria-hidden="true">{categoryMeta.emoji}</span>
+                            <strong>{categoryMeta.label}</strong>
+                            <span className="settlement-dossier__timeline-group-count">{i18n.t("pages:settlement.entryCount", { count: group.entries.length })}</span>
+                          </header>
+                          <ol className="settlement-dossier__timeline">
+                            {group.entries.map((entry, index) => (
+                              <li key={`${group.category}-${entry.key}-${index}`} className="settlement-dossier__timeline-item">
+                                <div className="settlement-dossier__timeline-meta">
+                                  <strong>
+                                    <span aria-hidden="true" style={{ marginRight: 4 }}>{categoryMeta.emoji}</span>
+                                    {entry.label}
+                                  </strong>
+                                  <span>{entry.meta}</span>
+                                </div>
+                                <LogMessage message={entry.message} />
+                              </li>
+                            ))}
+                          </ol>
+                        </section>
+                      );
+                    })}
                   </div>
                 )}
               </section>
@@ -290,7 +305,7 @@ export function SettlementPage({ result, roomCode }: SettlementPageProps) {
       leftRailTestId="settlement-left-rail"
       situationBar={
         <div className="settlement-status-bar">
-          <div className="settlement-status-bar__title">{i18n.t("pages:settlement.archiveIdLabel")}：{pageState.gameIdLabel}</div>
+          <div className="settlement-status-bar__title">{formatLabelValue(i18n.t("pages:settlement.archiveIdLabel"), pageState.gameIdLabel)}</div>
           <div className="settlement-status-bar__meta">
             {pageState.finalResult
               ? `${i18n.t("pages:settlement.finalRoundLabel")} ${pageState.finalResult.game.currentRound} / ${pageState.finalResult.game.totalRounds}`
@@ -318,9 +333,10 @@ function groupLogsByCategory(logs: GameLog[]): GroupedLogSection[] {
   const buckets = new Map<LogCategory, GroupedLogEntry[]>();
   logs.forEach((log, index) => {
     const category = categorizeLogKind(log.kind);
+    const categoryMeta = getLogCategoryMeta(category);
     const entry: GroupedLogEntry = {
       key: `${log.kind}-${log.createdAt ?? index}`,
-      label: log.phase ? formatPhaseLabel(log.phase) : LOG_CATEGORY_META[category].label,
+      label: log.phase ? formatPhaseLabel(log.phase) : categoryMeta.label,
       message: sanitizeFinalLogMessage(log.message, log.roundNo, log.phase),
       meta: formatLogMeta(log.roundNo, log.createdAt),
     };
@@ -427,7 +443,7 @@ function sanitizeFinalLogMessage(message: string, roundNo: number, phase: string
   if (trimmed.endsWith(" settled.") && phase) {
     return `${formatPhaseLabel(phase)}${i18n.t("pages:settlement.phaseSettlementComplete")}`;
   }
-  return message;
+  return translateBackend(message);
 }
 
 function formatLogMeta(roundNo: number, createdAt: string | null): string {

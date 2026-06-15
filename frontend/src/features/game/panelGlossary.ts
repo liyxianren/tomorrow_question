@@ -1,4 +1,4 @@
-import i18n from "../../i18n";
+import i18n, { translateBackend } from "../../i18n";
 
 function humanizeKey(value: unknown): string {
   return String(value ?? "")
@@ -9,6 +9,10 @@ function humanizeKey(value: unknown): string {
 function resolveLabel(ns: string, value: string): string {
   if (typeof value !== "string") {
     return humanizeKey(value);
+  }
+  const backendLabel = translateBackend(value);
+  if (backendLabel && backendLabel !== value) {
+    return backendLabel;
   }
   return i18n.t(`game:${ns}.${value}`, { defaultValue: humanizeKey(value) });
 }

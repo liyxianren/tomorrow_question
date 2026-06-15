@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import { resolveSessionRoute, restoreSessionContext } from "../../../app/sessionRecovery";
 import { fetchWaitingRooms } from "../../../services/lobby";
 import { apiRequest, getSessionId, setSessionId } from "../../../services/http";
-import type { SessionContextResponse } from "../../../types";
+import type { SessionContextResponse, WaitingRoomSummaryResponse } from "../../../types";
 import i18n from "../../../i18n";
 import {
   bindStoredProfileSession,
@@ -48,17 +49,27 @@ export function useLobbyFlowController(
     initialRoomCode?: string;
   } = {},
 ) {
+  const { i18n: reactI18n } = useTranslation();
   const navigate = useNavigate();
   const [roomCode, setRoomCode] = useState(() => normalizeRoomCode(initialRoomCode));
   const [pendingAction, setPendingAction] = useState<LobbyPendingAction>(null);
   const [message, setMessage] = useState<LobbyFlowMessage | null>(null);
-  const [waitingRooms, setWaitingRooms] = useState<WaitingRoomCardViewModel[]>([]);
+  const [waitingRoomSummaries, setWaitingRoomSummaries] = useState<WaitingRoomSummaryResponse[]>([]);
   const [isLoadingWaitingRooms, setLoadingWaitingRooms] = useState(false);
   const [waitingRoomsError, setWaitingRoomsError] = useState<string | null>(null);
   const [waitingRoomsRefreshToken, setWaitingRoomsRefreshToken] = useState(0);
-  const [recoverableBanner, setRecoverableBanner] = useState<RecoverableGameBannerViewModel | null>(null);
+  const [recoverableContext, setRecoverableContext] = useState<SessionContextResponse | null>(null);
   const normalizedRoomCode = useMemo(() => normalizeRoomCode(roomCode), [roomCode]);
   const boundSessionId = profile?.boundSessionId ?? null;
+  const currentLanguage = reactI18n.resolvedLanguage ?? reactI18n.language;
+  const waitingRooms = useMemo<WaitingRoomCardViewModel[]>(
+    () => waitingRoomSummaries.map(buildWaitingRoomCardViewModel),
+    [currentLanguage, waitingRoomSummaries],
+  );
+  const recoverableBanner = useMemo<RecoverableGameBannerViewModel | null>(
+    () => (recoverableContext ? buildRecoverableGameBannerViewModel(recoverableContext) : null),
+    [currentLanguage, recoverableContext],
+  );
 
   useEffect(() => {
     setRoomCode(normalizeRoomCode(initialRoomCode));
@@ -75,11 +86,11 @@ export function useLobbyFlowController(
         const rooms = await fetchWaitingRooms();
 
         if (!cancelled) {
-          setWaitingRooms(rooms.map(buildWaitingRoomCardViewModel));
+          setWaitingRoomSummaries(rooms);
         }
       } catch (error) {
         if (!cancelled) {
-          setWaitingRooms([]);
+          setWaitingRoomSummaries([]);
           setWaitingRoomsError(formatRequestError(error));
         }
       } finally {
@@ -98,7 +109,7 @@ export function useLobbyFlowController(
 
   useEffect(() => {
     if (!profile?.displayName || !boundSessionId) {
-      setRecoverableBanner(null);
+      setRecoverableContext(null);
       return;
     }
 
@@ -109,11 +120,11 @@ export function useLobbyFlowController(
         const restored = await restoreSessionContext();
 
         if (!cancelled) {
-          setRecoverableBanner(restored ? buildRecoverableGameBannerViewModel(restored) : null);
+          setRecoverableContext(restored);
         }
       } catch {
         if (!cancelled) {
-          setRecoverableBanner(null);
+          setRecoverableContext(null);
         }
       }
     }

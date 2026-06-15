@@ -1,4 +1,9 @@
 import "@testing-library/jest-dom/vitest";
+import { beforeEach } from "vitest";
+
+import i18n from "../i18n";
+
+await i18n.changeLanguage("zh");
 
 if (typeof window !== "undefined" && typeof window.localStorage?.clear !== "function") {
   const store = new Map<string, string>();
@@ -26,3 +31,7 @@ if (typeof window !== "undefined" && typeof window.localStorage?.clear !== "func
     },
   });
 }
+
+beforeEach(async () => {
+  await i18n.changeLanguage("zh");
+});

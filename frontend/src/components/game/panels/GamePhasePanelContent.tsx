@@ -447,7 +447,7 @@ export function MilitaryDecisionStep({
               {armyActions.map((action) => (
                 <ConfirmActionCard
                   key={action.actionId}
-                  confirmLabel={t("game:military.confirmAction", { label: action.label })}
+                  confirmLabel={t("game:military.confirmAction", { label: translateBackend(action.label) })}
                   count={getMilitarySelectionCount(action.actionId)}
                   description={buildMilitaryActionDescription(action)}
                   feedback={t("game:military.actionScheduledCount", { current: getMilitarySelectionCount(action.actionId), max: action.maxPerRound })}
@@ -473,7 +473,7 @@ export function MilitaryDecisionStep({
               {supportActions.map((action) => (
                 <ConfirmActionCard
                   key={action.actionId}
-                  confirmLabel={t("game:military.confirmAction", { label: action.label })}
+                  confirmLabel={t("game:military.confirmAction", { label: translateBackend(action.label) })}
                   count={getMilitarySelectionCount(action.actionId)}
                   description={buildMilitaryActionDescription(action)}
                   feedback={t("game:military.actionScheduledCount", { current: getMilitarySelectionCount(action.actionId), max: action.maxPerRound })}
@@ -521,7 +521,11 @@ function DecisionStepFooter({
       <div className="gp-footer-actions" style={{ display: "flex", alignItems: "center", gap: 12, width: "100%" }}>
         {previousStep ? (
           <button className="gp-btn" onClick={() => onPreviousStepChange(previousStep)} type="button">
-            {t("game:footer.previousStep", "Previous")}：{getDecisionStepLabel(previousStep)}
+            {t("game:footer.previousStepWithName", {
+              prefix: t("game:footer.previousStep", "Previous"),
+              step: getDecisionStepLabel(previousStep),
+              defaultValue: "{{prefix}}: {{step}}",
+            })}
           </button>
         ) : null}
         <div className="decision-command-deck__footer-spacer" />
@@ -536,7 +540,11 @@ function DecisionStepFooter({
         </button>
         {nextStep ? (
           <button className="gp-btn gp-btn--primary" onClick={() => onNextStepChange(nextStep)} type="button">
-            {t("game:footer.nextStep", "Next")}：{getDecisionStepLabel(nextStep)}
+            {t("game:footer.nextStepWithName", {
+              prefix: t("game:footer.nextStep", "Next"),
+              step: getDecisionStepLabel(nextStep),
+              defaultValue: "{{prefix}}: {{step}}",
+            })}
           </button>
         ) : (
           <button className="gp-btn gp-btn--primary" onClick={onComplete} type="button">
@@ -632,6 +640,7 @@ export function MarketWorkbench({
     externalAllocations: [],
     externalCompetitionDeployments: [],
   };
+  const countryLabel = getCountryLabel(workspace.countryCode) || translateBackend(workspace.countryLabel);
 
   const externalTotal = phase1Draft.externalAllocations.reduce(
     (sum, item) => sum + Math.max(0, item.quantity),
@@ -674,7 +683,7 @@ export function MarketWorkbench({
         <div className="gp-step-header__top">
           <div>
             <p className="gp-step-eyebrow">{t("game:market.title", "Market Sales Desk")}</p>
-            <h2 className="gp-step-title">{t("game:market.countrySales", { country: workspace.countryLabel })}</h2>
+            <h2 className="gp-step-title">{t("game:market.countrySales", { country: countryLabel })}</h2>
           </div>
           <div className="gp-step-header__pills">
             <span className="gp-step-pill">{t("game:market.goodsInventory")} <strong>{phase1GoodsInventory}</strong></span>
@@ -731,6 +740,7 @@ export function SettlementWorkbench({
   const nextConsumptionPool = consumptionPoolBalance + consumptionAllocation;
   const effectiveRatioText = formatSettlementAllocationRatio(workspace.nextRatio);
   const unsoldGoodsInventory = Math.max(0, workspace.phase1Economy?.goodsInventory ?? 0);
+  const countryLabel = getCountryLabel(workspace.countryCode) || translateBackend(workspace.countryLabel);
 
   return (
     <section data-testid="settlement-workbench" className="gp-section">
@@ -738,7 +748,7 @@ export function SettlementWorkbench({
       <article className="gp-card gp-card--primary">
         <div>
           <p className="gp-step-eyebrow">{t("game:settlement.eyebrow", "Fiscal Settlement Desk")}</p>
-          <h2 className="gp-step-title">{t("game:settlement.countryResultTitle", { country: workspace.countryLabel, defaultValue: `${workspace.countryLabel}'s National Income Distribution Results` })}</h2>
+          <h2 className="gp-step-title">{t("game:settlement.countryResultTitle", { country: countryLabel, defaultValue: "National Income Distribution Results for {{country}}" })}</h2>
           <p className="gp-step-desc">{t("game:settlement.readonlyHint", "This phase is read-only...")}</p>
         </div>
         <div className="gp-grid">
@@ -1110,12 +1120,12 @@ function GovernmentReformPanel({
                   </div>
                   <span className="gp-toggle__desc">{i18n.t("game:government.adminCostConsumed", { cost: reform.adminCost, defaultValue: `消耗 ${reform.adminCost} 行政力。` })}</span>
                   {queued ? (
-                    <span className="gp-input-card__feedback">{i18n.t("game:government.queuedForSubmit", { label: reform.label, defaultValue: `已排入本轮，提交后将进入"${translateBackend(reform.label)}"。` })}</span>
+                    <span className="gp-input-card__feedback">{i18n.t("game:government.queuedForSubmit", { label: translateBackend(reform.label), defaultValue: `已排入本轮，提交后将进入"${translateBackend(reform.label)}"。` })}</span>
                   ) : null}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
                     <span className="gp-toggle__hint">{status}</span>
                     <button
-                      aria-label={i18n.t("game:government.ariaEnactReform", { label: reform.label, defaultValue: `实施改革：${translateBackend(reform.label)}` })}
+                      aria-label={i18n.t("game:government.ariaEnactReform", { label: translateBackend(reform.label), defaultValue: `实施改革：${translateBackend(reform.label)}` })}
                       className={queued ? "gp-btn gp-btn--primary" : "gp-btn"}
                       disabled={isDisabled}
                       onClick={() => handleEnactReform(reform.reformId)}
@@ -1162,7 +1172,7 @@ function GovernmentReformPanel({
                   ) : null}
                   <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
                     <button
-                      aria-label={active ? i18n.t("game:government.ariaDeactivatePolicy", { label: policy.label, defaultValue: `停用政策：${translateBackend(policy.label)}` }) : i18n.t("game:government.ariaUndoDeactivate", { label: policy.label, defaultValue: `撤回停用：${translateBackend(policy.label)}` })}
+                      aria-label={active ? i18n.t("game:government.ariaDeactivatePolicy", { label: translateBackend(policy.label), defaultValue: `停用政策：${translateBackend(policy.label)}` }) : i18n.t("game:government.ariaUndoDeactivate", { label: translateBackend(policy.label), defaultValue: `撤回停用：${translateBackend(policy.label)}` })}
                       className={active ? "gp-btn" : "gp-btn gp-btn--primary"}
                       onClick={() => handleTogglePolicy(policy.policyId, !active)}
                       type="button"
@@ -1215,7 +1225,7 @@ function GovernmentReformPanel({
                   {active ? <span className="gp-input-card__feedback">{i18n.t("game:government.queuedForActivation", "已排入本轮激活。")}</span> : null}
                   <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
                     <button
-                      aria-label={i18n.t("game:government.ariaActivatePolicy", { label: policy.label, defaultValue: `激活政策：${translateBackend(policy.label)}` })}
+                      aria-label={i18n.t("game:government.ariaActivatePolicy", { label: translateBackend(policy.label), defaultValue: `激活政策：${translateBackend(policy.label)}` })}
                       className={active ? "gp-btn gp-btn--primary" : "gp-btn"}
                       disabled={isDisabled}
                       onClick={() => handleTogglePolicy(policy.policyId, !active)}
