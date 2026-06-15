@@ -47,5 +47,12 @@
   },
   "pageFlow": "Page Flow",
   "statusTags": "Status Tags",
-  "gameContextRecoveryFailed": "Game context recovery failed, please try again later."
+  "gameContextRecoveryFailed": "Game context recovery failed, please try again later.",
+  "language": {
+    "ariaLabel": "Language",
+    "options": {
+      "en": "English",
+      "zh": "Chinese"
+    }
+  }
 }

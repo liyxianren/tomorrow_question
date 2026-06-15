@@ -47,5 +47,12 @@
   },
   "pageFlow": "页面流程",
   "statusTags": "状态标签",
-  "gameContextRecoveryFailed": "游戏上下文恢复失败，请稍后重试。"
+  "gameContextRecoveryFailed": "游戏上下文恢复失败，请稍后重试。",
+  "language": {
+    "ariaLabel": "语言",
+    "options": {
+      "en": "English",
+      "zh": "中文"
+    }
+  }
 }

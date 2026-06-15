@@ -8,9 +8,9 @@ type LanguageSwitcherProps = {
   compact?: boolean;
 };
 
-const LANGUAGE_OPTIONS: Array<{ code: AppLanguage; label: string }> = [
-  { code: "en", label: "English" },
-  { code: "zh", label: "中文" },
+const LANGUAGE_OPTIONS: Array<{ code: AppLanguage; labelKey: string }> = [
+  { code: "en", labelKey: "language.options.en" },
+  { code: "zh", labelKey: "language.options.zh" },
 ];
 
 function normalizeAppLanguage(language: string | undefined): AppLanguage {
@@ -18,7 +18,7 @@ function normalizeAppLanguage(language: string | undefined): AppLanguage {
 }
 
 export function LanguageSwitcher({ className, compact = false }: LanguageSwitcherProps) {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation("common");
   const currentLanguage = normalizeAppLanguage(i18n.resolvedLanguage ?? i18n.language);
   const classNames = [
     "language-switcher",
@@ -28,7 +28,7 @@ export function LanguageSwitcher({ className, compact = false }: LanguageSwitche
 
   return (
     <div
-      aria-label="Language / 语言"
+      aria-label={t("language.ariaLabel")}
       className={classNames}
       data-testid="language-switcher"
       role="group"
@@ -49,7 +49,7 @@ export function LanguageSwitcher({ className, compact = false }: LanguageSwitche
             }}
             type="button"
           >
-            {option.label}
+            {t(option.labelKey)}
           </button>
         );
       })}
